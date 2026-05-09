@@ -62,6 +62,18 @@ export enum VisibilityState {
 	HIDDEN = 'hidden',
 }
 
+/** Quality / bitrate selection mode. Returned by `player.qualityState()`. */
+export enum QualityState {
+	AUTO = 'auto',
+	MANUAL = 'manual',
+}
+
+/** Audio track selection mode. Returned by `player.audioTrackState()`. */
+export enum AudioTrackState {
+	DEFAULT = 'default',
+	MANUAL = 'manual',
+}
+
 /** Cast state. Returned by `player.castState()`. */
 export enum CastState {
 	UNAVAILABLE = 'unavailable',
@@ -373,6 +385,22 @@ export interface BaseEventMap {
 	// follows the kit's `audioTracks()` index space so consumers don't
 	// have to re-resolve.
 	'audioTrack': { id: number | null };
+
+	// Chapter seek — emitted by `seekToChapter`. `index` is the zero-based
+	// chapter index; `title` is the chapter's display name. Video event map
+	// may carry additional fields (start/end) via extension.
+	'chapter': { index: number; title: string };
+
+	// Cast / handoff state — emitted by `transferTo()` on every state
+	// transition (connecting → connected → disconnected). Mirrors the
+	// return value of `castState()` for reactive subscriptions.
+	'castState': { state: CastState };
+
+	// Shared state-enum change events (emitted by both music and video players).
+	// Typed as string unions so library-local enum values (which have identical
+	// string forms) are assignable without importing library types into the kit.
+	'qualityState': { state: 'auto' | 'manual' };
+	'audioTrackState': { state: 'default' | 'manual' };
 
 	// HLS-style adaptive level switch — emitted by stream parsers
 	// (`packages/.../streams/hls.ts`) and forwarded by the v2 video
@@ -1116,6 +1144,48 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap> {
 	 */
 	currentAudioOutput(): Promise<string | null>;
 	currentAudioOutput(deviceId: string): Promise<void>;
+
+	/**
+	 * Buffer state derived from the active backend ('idle' → 'loading' →
+	 * 'seeking' → 'stalled'). `BufferState.IDLE` when no backend is active.
+	 */
+	bufferState(): BufferState;
+
+	/**
+	 * Network connectivity state. `NetworkState.ONLINE` when no network monitor
+	 * is configured. `NetworkState.SLOW` when downlink < 1.5 Mbps.
+	 */
+	networkState(): NetworkState;
+
+	/**
+	 * Active stream factory id (e.g. `'hls'`, `'native'`), or `'idle'` when
+	 * no backend has been initialised yet.
+	 */
+	streamState(): string;
+
+	/**
+	 * Tab / page visibility. `VisibilityState.VISIBLE` when no visibility
+	 * monitor is configured.
+	 */
+	visibilityState(): VisibilityState;
+
+	/**
+	 * Quality selection mode.
+	 *
+	 * `qualityState()` — `QualityState.AUTO` (ABR) or `QualityState.MANUAL`.
+	 * `qualityState(target)` — switch mode and delegate to the backend.
+	 */
+	qualityState(): QualityState;
+	qualityState(target: number | 'auto'): void;
+
+	/**
+	 * Audio track selection mode.
+	 *
+	 * `audioTrackState()` — `AudioTrackState.DEFAULT` or `AudioTrackState.MANUAL`.
+	 * `audioTrackState(idx)` — select track by index and mark as MANUAL.
+	 */
+	audioTrackState(): AudioTrackState;
+	audioTrackState(idx: number): void;
 
 	/**
 	 * DOM construction helpers — fluent builders re-exposed on the player so

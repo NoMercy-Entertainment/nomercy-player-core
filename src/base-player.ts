@@ -86,7 +86,7 @@ import { nativeFactory } from './streams/native';
 import { StreamRegistry } from './streams/registry';
 import { getLazyTranslationLoader } from './translations-glob';
 import { bcp47FallbackChain, DefaultTranslator } from './translator';
-import { CastState as _CastStateEnum, SetupState } from './types';
+import { AudioTrackState, BufferState, CastState as _CastStateEnum, NetworkState, QualityState, SetupState, VisibilityState } from './types';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Error helpers
@@ -299,6 +299,12 @@ interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, C exten
 	/** Currently-selected audio output device id, or null. Written by `currentAudioOutput(deviceId)`. */
 	_currentAudioOutputId: string | null;
 
+	/** Quality selection mode. Written by `qualityState(target)`. Defaults to `QualityState.AUTO`. */
+	_qualityState: QualityState;
+
+	/** Audio track selection mode. Written by `audioTrackState(idx)`. Defaults to `AudioTrackState.DEFAULT`. */
+	_audioTrackState: AudioTrackState;
+
 	/**
 	 * Resolved platform bundle. Populated in setup() from `options.platform`
 	 * (default `browserPlatform`). Plugins read via `player.platform()`.
@@ -371,6 +377,8 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	p._currentAudioTrackIdx = null;
 	p._currentQualityIdx = 'auto';
 	p._currentAudioOutputId = null;
+	p._qualityState = QualityState.AUTO;
+	p._audioTrackState = AudioTrackState.DEFAULT;
 	p._platform = undefined;
 	p._policyCleanup = [];
 	p._streamRegistry = undefined;
@@ -479,7 +487,12 @@ export const lifecycleMethods = {
 				if (!visible) {
 					(this as any).pause({ source: 'platform' }).catch(() => { /* swallow */ });
 				}
-				this.emit((visible ? 'visibility:visible' : 'visibility:hidden') as any);
+				if (visible) {
+					this.emit('visibility:visible');
+				}
+				else {
+					this.emit('visibility:hidden');
+				}
 			});
 			this._policyCleanup.push(unsubscribe);
 		}
@@ -492,10 +505,10 @@ export const lifecycleMethods = {
 		if (onOffline !== 'ignore') {
 			const unsubscribe = this._platform.network.subscribe((state) => {
 				if (state.online) {
-					this.emit('network:online' as any);
+					this.emit('network:online');
 				}
 				else {
-					this.emit('network:offline' as any);
+					this.emit('network:offline');
 					if (onOffline === 'pause') {
 						(this as any).pause({ source: 'platform' }).catch(() => { /* swallow */ });
 					}
@@ -530,9 +543,9 @@ export const lifecycleMethods = {
 					}
 				}
 			};
-			this.on('phase' as any, phaseHandler as any);
+			this.on('phase', phaseHandler);
 			this._policyCleanup.push(() => {
-				this.off('phase' as any, phaseHandler as any);
+				this.off('phase', phaseHandler);
 				if (platform.wakeLock.isHeld()) {
 					void platform.wakeLock.release().catch(() => { /* defensive */ });
 				}
@@ -563,8 +576,8 @@ export const lifecycleMethods = {
 				}
 			}
 		};
-		this.on('play' as any, onPlay as any);
-		this.on('firstFrame' as any, onFirstFrame as any);
+		this.on('play', onPlay);
+		this.on('firstFrame', onFirstFrame);
 
 		// Rebuffer instrumentation: `backend:waiting` starts a stall timer;
 		// `backend:loaded`/`play` ends it. Sum the stall durations and divide
@@ -585,16 +598,16 @@ export const lifecycleMethods = {
 				}
 			}
 		};
-		this.on('backend:waiting' as any, onWaiting as any);
-		this.on('backend:loaded' as any, onResume as any);
-		this.on('play' as any, onResume as any);
+		this.on('backend:waiting', onWaiting);
+		this.on('backend:loaded', onResume);
+		this.on('play', onResume);
 
 		this._policyCleanup.push(() => {
-			this.off('play' as any, onPlay as any);
-			this.off('firstFrame' as any, onFirstFrame as any);
-			this.off('backend:waiting' as any, onWaiting as any);
-			this.off('backend:loaded' as any, onResume as any);
-			this.off('play' as any, onResume as any);
+			this.off('play', onPlay);
+			this.off('firstFrame', onFirstFrame);
+			this.off('backend:waiting', onWaiting);
+			this.off('backend:loaded', onResume);
+			this.off('play', onResume);
 		});
 
 		const interval = this.options.metricsIntervalMs ?? 10_000;
@@ -603,7 +616,7 @@ export const lifecycleMethods = {
 				// Refresh sessionDurationMs on every emit so listeners see
 				// current numbers without calling metrics() explicitly.
 				this._metrics.sessionDurationMs = Date.now() - this._metricsStartedAt;
-				this.emit('playback:metrics' as any, this._metrics as any);
+				this.emit('playback:metrics', this._metrics);
 			}, interval);
 			this._policyCleanup.push(() => {
 				if (this._metricsTimer)
@@ -614,7 +627,7 @@ export const lifecycleMethods = {
 
 		// Pre-pipeline ceremony: beforeSetup fires synchronously so consumers
 		// can attach last-mile listeners before the pipeline actually runs.
-		this.emit('beforeSetup' as any);
+		this.emit('beforeSetup');
 		_transitionPhase(this, 'setup');
 
 		// Kick off the async pipeline fire-and-forget. `ready()` is the public
@@ -657,7 +670,7 @@ export const lifecycleMethods = {
 		}
 		this._policyCleanup = [];
 		this._readyReject?.(stateError('core:player/disposed', 'dispose() called before ready'));
-		this.emit('dispose' as any);
+		this.emit('dispose');
 		_transitionPhase(this, 'disposed');
 		this.off('all');
 	},
@@ -713,10 +726,10 @@ function _transitionPhase(self: Internals, next: PlayerPhase): void {
 	if (from === next)
 		return;
 	self._phase = next;
-	self.emit('phase' as any, {
+	self.emit('phase', {
 		from,
 		to: next,
-	} as any);
+	});
 }
 
 /**
@@ -849,15 +862,15 @@ function _emitBeforeMutation(self: Internals, method: string, args: ReadonlyArra
 				preventDefault: () => {},
 				isDefaultPrevented: () => false,
 			};
-			self.emit(advisory.severity as any, errorPayload as any);
+			self.emit(advisory.severity, errorPayload);
 		}
 	}
 
 	if (prevented) {
-		self.emit('mutationPrevented' as any, {
+		self.emit('mutationPrevented', {
 			method,
 			reason: 'listener-prevented',
-		} as any);
+		});
 		return false;
 	}
 	return true;
@@ -901,10 +914,10 @@ async function _runStage(
 	try {
 		await work();
 		if (successPayload !== undefined) {
-			self.emit(stage as any, successPayload as any);
+			self.emit(stage, successPayload);
 		}
 		else {
-			self.emit(stage as any);
+			self.emit(stage);
 		}
 	}
 	catch (err) {
@@ -921,8 +934,8 @@ async function _runStage(
 			preventDefault: () => {},
 			isDefaultPrevented: () => false,
 		};
-		self.emit(errorEvent as any, payload as any);
-		self.emit('error' as any, payload as any);
+		self.emit(errorEvent, payload);
+		self.emit('error', payload);
 		throw err;
 	}
 }
@@ -967,21 +980,21 @@ function _runSetupPipeline(self: Internals): void {
 			// for §L impl; for now treat any non-string as inline.
 			const playlist = (self.options as { playlist?: unknown }).playlist;
 			if (typeof playlist === 'string') {
-				self.emit('playlistResolving' as any, { url: playlist } as any);
+				self.emit('playlistResolving', { url: playlist });
 				// Fetch+parse lands with §L; emit ready with length 0 for now.
-				self.emit('playlistReady' as any, { length: 0 } as any);
+				self.emit('playlistReady', { length: 0 });
 			}
 			else if (Array.isArray(playlist)) {
-				self.emit('playlistReady' as any, { length: playlist.length } as any);
+				self.emit('playlistReady', { length: playlist.length });
 			}
 			else {
-				self.emit('playlistReady' as any, { length: 0 } as any);
+				self.emit('playlistReady', { length: 0 });
 			}
 
 			await _runStage(self, 'mediaReady', 'mediaReadyError', () => {});
 
 			_transitionPhase(self, 'ready');
-			self.emit('ready' as any);
+			self.emit('ready');
 			self._readyResolve?.();
 		}
 		catch (err) {
@@ -1088,10 +1101,10 @@ async function _registerPlugin(
 	}
 	catch (err) {
 		// Hard failure during construction / initialize — surface and bail.
-		self.emit('plugin:failed' as any, {
+		self.emit('plugin:failed', {
 			id,
 			error: err as any,
-		} as any);
+		});
 		throw err;
 	}
 
@@ -1181,8 +1194,8 @@ async function _registerPlugin(
 			id,
 			error: useError as any,
 		};
-		self.emit('plugin:failed' as any, failPayload as any);
-		self.emit(`plugin:${id}:failed` as any, failPayload as any);
+		self.emit('plugin:failed', failPayload);
+		self.emit(`plugin:${id}:failed`, failPayload);
 		// Still push onto the registered list so `removePlugin` can clean up
 		// and so `_findDependents` can walk the graph.
 		self._plugins.push({
@@ -1205,8 +1218,8 @@ async function _registerPlugin(
 		id,
 		version: ctor.version,
 	};
-	self.emit('plugin:installed' as any, installedPayload as any);
-	self.emit(`plugin:${id}:installed` as any, installedPayload as any);
+	self.emit('plugin:installed', installedPayload);
+	self.emit(`plugin:${id}:installed`, installedPayload);
 }
 
 function _assertReady(self: Internals): void {
@@ -1476,10 +1489,10 @@ export const transportMethods = {
 		_assertReady(this);
 		const result = await _dispatchBefore<ActionOptions>(this, 'beforePlay', { ...opts });
 		if (result.prevented) {
-			this.emit('playPrevented' as any, {
+			this.emit('playPrevented', {
 				reason: result.reason ?? 'listener-prevented',
 				cause: result.cause,
-			} as any);
+			});
 			return;
 		}
 		this._playState = 'playing';
@@ -1488,39 +1501,39 @@ export const transportMethods = {
 		if (this._phase === 'ready' || this._phase === 'paused') {
 			_transitionPhase(this, 'starting');
 		}
-		this.emit('play' as any, result.data as any);
+		this.emit('play', result.data);
 	},
 
 	async pause(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		_assertReady(this);
 		const result = await _dispatchBefore<ActionOptions>(this, 'beforePause', { ...opts });
 		if (result.prevented) {
-			this.emit('pausePrevented' as any, {
+			this.emit('pausePrevented', {
 				reason: result.reason ?? 'listener-prevented',
 				cause: result.cause,
-			} as any);
+			});
 			return;
 		}
 		this._playState = 'paused';
 		if (this._phase === 'playing' || this._phase === 'starting') {
 			_transitionPhase(this, 'paused');
 		}
-		this.emit('pause' as any, result.data as any);
+		this.emit('pause', result.data);
 	},
 
 	async stop(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		_assertReady(this);
 		const result = await _dispatchBefore<ActionOptions>(this, 'beforeStop', { ...opts });
 		if (result.prevented) {
-			this.emit('stopPrevented' as any, {
+			this.emit('stopPrevented', {
 				reason: result.reason ?? 'listener-prevented',
 				cause: result.cause,
-			} as any);
+			});
 			return;
 		}
 		this._playState = 'stopped';
 		_transitionPhase(this, 'stopped');
-		this.emit('stop' as any, result.data as any);
+		this.emit('stop', result.data);
 	},
 
 	async togglePlayback(this: Internals, opts?: ActionOptions): Promise<void> {
@@ -1534,26 +1547,26 @@ export const transportMethods = {
 		_assertReady(this);
 		const result = await _dispatchBefore<ActionOptions>(this, 'beforeNext', { ...opts });
 		if (result.prevented) {
-			this.emit('nextPrevented' as any, {
+			this.emit('nextPrevented', {
 				reason: result.reason ?? 'listener-prevented',
 				cause: result.cause,
-			} as any);
+			});
 			return;
 		}
-		this.emit('next' as any, result.data as any);
+		this.emit('next', result.data);
 	},
 
 	async previous(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		_assertReady(this);
 		const result = await _dispatchBefore<ActionOptions>(this, 'beforePrevious', { ...opts });
 		if (result.prevented) {
-			this.emit('previousPrevented' as any, {
+			this.emit('previousPrevented', {
 				reason: result.reason ?? 'listener-prevented',
 				cause: result.cause,
-			} as any);
+			});
 			return;
 		}
-		this.emit('previous' as any, result.data as any);
+		this.emit('previous', result.data);
 	},
 
 	async rewind(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
@@ -1563,18 +1576,18 @@ export const transportMethods = {
 			source: opts.source,
 		});
 		if (result.prevented) {
-			this.emit('seekPrevented' as any, {
+			this.emit('seekPrevented', {
 				reason: result.reason ?? 'listener-prevented',
 				cause: result.cause,
-			} as any);
+			});
 			return;
 		}
 		_seekingTransition(this, () => {
 			this._internalCurrentTime = Math.max(0, this._internalCurrentTime - seconds);
-			this.emit('seek' as any, {
+			this.emit('seek', {
 				time: this._internalCurrentTime,
 				source: result.data.source,
-			} as any);
+			});
 		});
 	},
 
@@ -1585,18 +1598,18 @@ export const transportMethods = {
 			source: opts.source,
 		});
 		if (result.prevented) {
-			this.emit('seekPrevented' as any, {
+			this.emit('seekPrevented', {
 				reason: result.reason ?? 'listener-prevented',
 				cause: result.cause,
-			} as any);
+			});
 			return;
 		}
 		_seekingTransition(this, () => {
 			this._internalCurrentTime = this._internalCurrentTime + seconds;
-			this.emit('seek' as any, {
+			this.emit('seek', {
 				time: this._internalCurrentTime,
 				source: result.data.source,
-			} as any);
+			});
 		});
 	},
 
@@ -1609,18 +1622,18 @@ export const transportMethods = {
 		if (seekResult.prevented) {
 			// If the seek-to-zero was cancelled, restart is also cancelled — emit
 			// a `seekPrevented` event and bail; do NOT play unconditionally.
-			this.emit('seekPrevented' as any, {
+			this.emit('seekPrevented', {
 				reason: seekResult.reason ?? 'listener-prevented',
 				cause: seekResult.cause,
-			} as any);
+			});
 			return;
 		}
 		_seekingTransition(this, () => {
 			this._internalCurrentTime = 0;
-			this.emit('seek' as any, {
+			this.emit('seek', {
 				time: 0,
 				source: seekResult.data.source,
-			} as any);
+			});
 		});
 		await (this as any).play(opts);
 	},
@@ -1642,18 +1655,18 @@ export const timeMethods = {
 				source: opts.source,
 			});
 			if (result.prevented) {
-				this.emit('seekPrevented' as any, {
+				this.emit('seekPrevented', {
 					reason: result.reason ?? 'listener-prevented',
 					cause: result.cause,
-				} as any);
+				});
 				return;
 			}
 			_seekingTransition(this, () => {
 				this._internalCurrentTime = Math.max(0, result.data.time);
-				this.emit('seek' as any, {
+				this.emit('seek', {
 					time: this._internalCurrentTime,
 					source: result.data.source,
-				} as any);
+				});
 			});
 		})();
 	},
@@ -1695,7 +1708,7 @@ export const timeMethods = {
 		if (rate === undefined)
 			return this._playbackRate;
 		this._playbackRate = rate;
-		this.emit('backend:ratechange' as any, { rate } as any);
+		this.emit('backend:ratechange', { rate });
 	},
 	playbackRates(this: Internals): number[] {
 		return [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -1719,21 +1732,21 @@ export const volumeMethods = {
 		if (this._volumeState !== 'muted') {
 			this._volumeBeforeMute = this._internalVolume;
 		}
-		this.emit('volume' as any, { level: this._internalVolume } as any);
+		this.emit('volume', { level: this._internalVolume });
 	},
 	mute(this: Internals): void {
 		if (this._volumeState === 'muted')
 			return;
 		this._volumeBeforeMute = this._internalVolume;
 		this._volumeState = 'muted';
-		this.emit('mute' as any, { muted: true } as any);
+		this.emit('mute', { muted: true });
 	},
 	unmute(this: Internals): void {
 		if (this._volumeState === 'unmuted')
 			return;
 		this._volumeState = 'unmuted';
 		this._internalVolume = this._volumeBeforeMute;
-		this.emit('mute' as any, { muted: false } as any);
+		this.emit('mute', { muted: false });
 	},
 	toggleMute(this: Internals): void {
 		if (this._volumeState === 'muted')
@@ -1764,14 +1777,76 @@ export const stateMethods = {
 		if (state === undefined)
 			return this._repeatState;
 		this._repeatState = state;
-		this.emit('repeat' as any, { state } as any);
+		this.emit('repeat', { state });
 	},
 	shuffleState(this: Internals, state?: ShuffleStateToken | boolean): ShuffleStateToken | void {
 		if (state === undefined)
 			return this._shuffleState;
 		const next = typeof state === 'boolean' ? (state ? 'on' : 'off') : state;
 		this._shuffleState = next;
-		this.emit('shuffle' as any, { state: next } as any);
+		this.emit('shuffle', { state: next });
+	},
+} as const;
+
+// ──────────────────────────────────────────────────────────────────────────
+// Mixin: shared buffer / network / stream / visibility / quality / audioTrack
+// state reads. Both NMMusicPlayer and NMVideoPlayer exhibit these identically.
+// The per-library `_backend` is accessed via `_peekBackend` so this mixin is
+// backend-agnostic and does not need to know whether it runs in a music or
+// video context.
+// ──────────────────────────────────────────────────────────────────────────
+
+export const playerStateMethods = {
+	bufferState(this: Internals): BufferState {
+		const b = _peekBackend(this) as { state?: () => string } | undefined;
+		switch (b?.state?.()) {
+			case 'loading': return BufferState.LOADING;
+			case 'seeking': return BufferState.SEEKING;
+			case 'stalled': return BufferState.STALLED;
+			default: return BufferState.IDLE;
+		}
+	},
+
+	networkState(this: Internals): NetworkState {
+		const monitor = this._platform?.network;
+		if (!monitor)
+			return NetworkState.ONLINE;
+		if (!monitor.isOnline())
+			return NetworkState.OFFLINE;
+		const downlink = monitor.downlinkMbps?.();
+		if (typeof downlink === 'number' && downlink > 0 && downlink < 1.5)
+			return NetworkState.SLOW;
+		return NetworkState.ONLINE;
+	},
+
+	streamState(this: Internals): string {
+		const b = _peekBackend(this) as { state?: () => string } | undefined;
+		if (!b)
+			return 'idle';
+		return b.state?.() ?? 'idle';
+	},
+
+	visibilityState(this: Internals): VisibilityState {
+		const visible = this._platform?.visibility?.isVisible() ?? true;
+		return visible ? VisibilityState.VISIBLE : VisibilityState.HIDDEN;
+	},
+
+	qualityState(this: Internals, target?: number | 'auto'): QualityState | void {
+		if (target === undefined)
+			return this._qualityState;
+		this._qualityState = target === 'auto' ? QualityState.AUTO : QualityState.MANUAL;
+		const b = _peekBackend(this) as { setQuality?: (idx: number | 'auto') => void } | undefined;
+		b?.setQuality?.(target);
+		this.emit('qualityState', { state: this._qualityState });
+	},
+
+	audioTrackState(this: Internals, idx?: number): AudioTrackState | void {
+		if (idx === undefined)
+			return this._audioTrackState;
+		this._audioTrackState = AudioTrackState.MANUAL;
+		const b = _peekBackend(this) as { setAudioTrack?: (idx: number) => void } | undefined;
+		b?.setAudioTrack?.(idx);
+		this.emit('audioTrackState', { state: this._audioTrackState });
 	},
 } as const;
 
@@ -1784,15 +1859,15 @@ function _wireQueue(self: Internals): void {
 		return;
 	self._queueWired = true;
 
-	self._queueList.on('change', ({ items }) => self.emit('queue' as any, items as any));
-	self._queueList.on('append', data => self.emit('queue:append' as any, data as any));
-	self._queueList.on('prepend', data => self.emit('queue:prepend' as any, data as any));
-	self._queueList.on('insert', data => self.emit('queue:insert' as any, data as any));
-	self._queueList.on('remove', data => self.emit('queue:remove' as any, data as any));
-	self._queueList.on('move', data => self.emit('queue:move' as any, data as any));
-	self._queueList.on('clear', data => self.emit('queue:clear' as any, data as any));
-	self._queueList.on('shuffle', () => self.emit('queue:shuffle' as any));
-	self._queueList.on('sort', () => self.emit('queue:sort' as any));
+	self._queueList.on('change', ({ items }) => self.emit('queue', items));
+	self._queueList.on('append', data => self.emit('queue:append', data));
+	self._queueList.on('prepend', data => self.emit('queue:prepend', data));
+	self._queueList.on('insert', data => self.emit('queue:insert', data));
+	self._queueList.on('remove', data => self.emit('queue:remove', data));
+	self._queueList.on('move', data => self.emit('queue:move', data));
+	self._queueList.on('clear', data => self.emit('queue:clear', data));
+	self._queueList.on('shuffle', () => self.emit('queue:shuffle'));
+	self._queueList.on('sort', () => self.emit('queue:sort'));
 	self._queueList.on('current', (data) => {
 		// Item changed → drop any in-flight sidecar subtitle context
 		// (its CueTracker is bound to the old item's time stream and
@@ -1800,13 +1875,13 @@ function _wireQueue(self: Internals): void {
 		// receive a fresh `subtitleCue` event when the next selection
 		// happens (via `currentSubtitle` from a UI / preferences plugin).
 		_disposeSidecarSubtitle(self);
-		self.emit('current' as any, data as any);
+		self.emit('current', data);
 	});
 
-	self._backlogList.on('change', ({ items }) => self.emit('backlog' as any, items as any));
-	self._backlogList.on('append', data => self.emit('backlog:append' as any, data as any));
-	self._backlogList.on('remove', data => self.emit('backlog:remove' as any, data as any));
-	self._backlogList.on('clear', data => self.emit('backlog:clear' as any, data as any));
+	self._backlogList.on('change', ({ items }) => self.emit('backlog', items));
+	self._backlogList.on('append', data => self.emit('backlog:append', data));
+	self._backlogList.on('remove', data => self.emit('backlog:remove', data));
+	self._backlogList.on('clear', data => self.emit('backlog:clear', data));
 }
 
 export const queueMethods = {
@@ -2070,8 +2145,8 @@ export const pluginRegistrationMethods = {
 		}
 		this._plugins.splice(idx, 1);
 		const payload = { id };
-		this.emit('plugin:disposed' as any, payload as any);
-		this.emit(`plugin:${id}:disposed` as any, payload as any);
+		this.emit('plugin:disposed', payload);
+		this.emit(`plugin:${id}:disposed`, payload);
 	},
 
 	plugins(this: Internals): ReadonlyArray<Plugin> {
@@ -2129,7 +2204,7 @@ export const authMethods = {
 			...configOrPartial,
 		};
 		this._authConfig = next;
-		this.emit('auth:refreshed' as any, { tokenAcquiredAt: Date.now() } as any);
+		this.emit('auth:refreshed', { tokenAcquiredAt: Date.now() });
 	},
 
 	/**
@@ -2201,15 +2276,15 @@ export const authMethods = {
 		const cfg = this._authConfig;
 		const handler = cfg?.refreshOnUnauthenticated;
 		if (!handler) {
-			this.emit('auth:refreshed' as any, { tokenAcquiredAt: Date.now() } as any);
+			this.emit('auth:refreshed', { tokenAcquiredAt: Date.now() });
 			return;
 		}
 		try {
 			await handler();
-			this.emit('auth:refreshed' as any, { tokenAcquiredAt: Date.now() } as any);
+			this.emit('auth:refreshed', { tokenAcquiredAt: Date.now() });
 		}
 		catch (err) {
-			this.emit('auth:failed' as any, { error: err } as any);
+			this.emit('auth:failed', { error: err });
 		}
 	},
 } as const;
@@ -2530,7 +2605,7 @@ export const mediaTracksMethods = {
 		if (patch === undefined) return { ...self._subtitleStyle };
 
 		self._subtitleStyle = { ...self._subtitleStyle, ...patch };
-		this.emit('subtitleStyle' as any, { ...self._subtitleStyle } as any);
+		this.emit('subtitleStyle', { ...self._subtitleStyle });
 		return undefined;
 	},
 	audioTracks(this: Internals): unknown {
@@ -3276,6 +3351,7 @@ export const playerCoreMethods = [
 	timeMethods,
 	volumeMethods,
 	stateMethods,
+	playerStateMethods,
 	queueMethods,
 	pluginRegistrationMethods,
 	authMethods,

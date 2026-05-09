@@ -15,6 +15,7 @@ export {
 	lifecycleMethods,
 	playerCoreMethods,
 	pluginErrorFactory,
+	playerStateMethods,
 	pluginRegistrationMethods,
 	queueMethods,
 	resolvePlayerConstructor,
@@ -223,9 +224,11 @@ export type {
 	UrlResolverContext,
 } from './types';
 export {
+	AudioTrackState,
 	BufferState,
 	CastState,
 	NetworkState,
+	QualityState,
 	SetupState,
 	VisibilityState,
 } from './types';

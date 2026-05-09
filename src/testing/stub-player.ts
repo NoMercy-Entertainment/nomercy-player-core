@@ -10,6 +10,7 @@ import type {
 	UrlResolver,
 	UrlResolverContext,
 } from '../types';
+import { AudioTrackState, BufferState, NetworkState, QualityState, VisibilityState } from '../types';
 import { EventEmitter } from '../events';
 import { buildResolvedUrl } from '../resolved-url';
 
@@ -261,6 +262,42 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		if (_deviceId === undefined) return null;
 	}
 
+	// ── Shared state (playerStateMethods surface) ──
+
+	bufferState(): BufferState {
+		return BufferState.IDLE;
+	}
+
+	networkState(): NetworkState {
+		return NetworkState.ONLINE;
+	}
+
+	streamState(): string {
+		return 'idle';
+	}
+
+	visibilityState(): VisibilityState {
+		return VisibilityState.VISIBLE;
+	}
+
+	private _qualityState: QualityState = QualityState.AUTO;
+	qualityState(): QualityState;
+	qualityState(target: number | 'auto'): void;
+	qualityState(target?: number | 'auto'): QualityState | void {
+		if (target === undefined)
+			return this._qualityState;
+		this._qualityState = target === 'auto' ? QualityState.AUTO : QualityState.MANUAL;
+	}
+
+	private _audioTrackState: AudioTrackState = AudioTrackState.DEFAULT;
+	audioTrackState(): AudioTrackState;
+	audioTrackState(idx: number): void;
+	audioTrackState(idx?: number): AudioTrackState | void {
+		if (idx === undefined)
+			return this._audioTrackState;
+		this._audioTrackState = AudioTrackState.MANUAL;
+	}
+
 	// ── Cue parsers ──
 
 	registerCueParser(parser: CueParser, prepend?: boolean): void {
@@ -349,5 +386,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		this._translations = { en: {} };
 		this._registeredParsers.length = 0;
 		this._overrides.clear();
+		this._qualityState = QualityState.AUTO;
+		this._audioTrackState = AudioTrackState.DEFAULT;
 	}
 }
