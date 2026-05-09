@@ -27,6 +27,7 @@ export type {
 /** Sticky-zero snap window for the pre-gain slider — matches Fillz's reference. */
 const PRE_GAIN_SNAP_THRESHOLD = 0.05;
 
+/** Options for {@link EqualizerPlugin}. */
 export interface EqualizerOptions {
 	/** Initial band layout. Index 0 must be `{ frequency: 'Pre', gain }`. Defaults to {@link DEFAULT_BANDS}. */
 	bands?: ReadonlyArray<EqBand>;
@@ -46,6 +47,7 @@ export interface EqualizerOptions {
 	smoothingTimeConstantSeconds?: number;
 }
 
+/** Events emitted by {@link EqualizerPlugin}. */
 export interface EqualizerEvents {
 	'ready': void;
 	'band:changed': { band: EqBand };
@@ -105,6 +107,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	private customPresets: Map<string, EqPreset> = new Map();
 	private _sliderValues: EqSliderValues = DEFAULT_SLIDER_VALUES;
 
+	/** Builds the biquad filter chain, inserts it into the audio graph, and restores persisted state. */
 	override use(): void {
 		const playerWithPluginAccess = this.player as unknown as { getPlugin?: <T>(c: new () => T) => T | undefined };
 		const graph = playerWithPluginAccess.getPlugin?.(AudioGraphPlugin) as AudioGraphPlugin | undefined;
@@ -177,6 +180,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		this.emit('ready');
 	}
 
+	/** Persists current state, removes effect nodes from the audio graph, and clears internal state. */
 	override dispose(): void {
 		// Persist before tearing down so the next session can restore.
 		this.autoSave();
@@ -372,14 +376,17 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 
 	// ── Slider helpers (mirror of Fillz's reference component API) ──
 
+	/** Minimum slider value for the band at `freq`. */
 	bandSliderMin(freq: EqBandFrequency): number {
 		return this.sliderRangeFor(freq).min;
 	}
 
+	/** Maximum slider value for the band at `freq`. */
 	bandSliderMax(freq: EqBandFrequency): number {
 		return this.sliderRangeFor(freq).max;
 	}
 
+	/** Step increment for the slider at `freq`. */
 	bandSliderStep(freq: EqBandFrequency): number {
 		return this.sliderRangeFor(freq).step;
 	}
@@ -396,6 +403,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 
 	// ── Persistence ──
 
+	/** Persist the current band state and custom presets to storage (requires `persistKey`). */
 	save(): void {
 		const persistKey = this.opts?.persistKey;
 		if (!persistKey)
@@ -415,6 +423,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		this.emit('saved');
 	}
 
+	/** Restore previously saved band state and custom presets from storage (requires `persistKey`). */
 	restore(): void {
 		const persistKey = this.opts?.persistKey;
 		if (!persistKey)
@@ -587,4 +596,5 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	}
 }
 
+/** Plugin alias for {@link EqualizerPlugin}. Pass to `addPlugin(equalizerPlugin)`. */
 export const equalizerPlugin = EqualizerPlugin;

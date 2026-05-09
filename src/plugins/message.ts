@@ -1,11 +1,13 @@
 import type { BaseEventMap, IPlayer } from '../types';
 import { Plugin } from '../plugin';
 
+/** Options for {@link MessagePlugin}. */
 export interface MessageOptions {
 	durationMs?: number;
 	mountSelector?: string;
 }
 
+/** Accepted input for `show` / `queue` — either a plain string or an object with per-message duration. */
 export type MessageInput = string | { text: string; durationMs?: number };
 
 /**
@@ -25,6 +27,7 @@ export class MessagePlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Pl
 	private queueRunId: number = 0;
 	private persistent = new Map<string, HTMLDivElement>();
 
+	/** Mounts the toast element into the player container with ARIA live-region attributes. */
 	override use(): void {
 		const el = this.mount('toast');
 		el.setAttribute('role', 'status');
@@ -143,6 +146,7 @@ export class MessagePlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Pl
 		this.persistent.delete(id);
 	}
 
+	/** Cancels any pending timers, removes all persistent messages, and clears the toast element. */
 	override dispose(): void {
 		this.cancelHideTimeout();
 		this.queueRunId++;
@@ -164,4 +168,5 @@ export class MessagePlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Pl
 	}
 }
 
+/** Plugin alias for {@link MessagePlugin}. Pass to `addPlugin(messagePlugin)`. */
 export const messagePlugin = MessagePlugin;

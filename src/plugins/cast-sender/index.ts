@@ -31,6 +31,7 @@ import { translationsFromGlob } from '../../translations-glob';
  * can wire `cast:*` events before the SDK loads.
  */
 
+/** Options for {@link CastSenderPlugin}. */
 export interface CastSenderOptions {
 	/** Chromecast app id. */
 	chromecastAppId?: string;
@@ -54,6 +55,7 @@ export interface CastSenderOptions {
 	live?: boolean;
 }
 
+/** Events emitted by {@link CastSenderPlugin}. */
 export interface CastSenderEvents {
 	'cast:available': { devices: number };
 	'cast:connecting': { deviceName: string };
@@ -179,6 +181,7 @@ export class CastSenderPlugin<
 	/** Suppress player → cast forwarding while we're applying a cast → player update. */
 	private applyingFromRemote: boolean = false;
 
+	/** Attaches player event listeners to forward transport actions to the active cast session. */
 	override use(): void {
 		this.on('current', (_data) => {
 			if (!this.isConnected() || this.applyingFromRemote)
@@ -223,6 +226,7 @@ export class CastSenderPlugin<
 		});
 	}
 
+	/** Detaches remote listeners and ends the active cast session if connected. */
 	override dispose(): void {
 		this.detachRemoteListeners();
 		if (this.connected) {
@@ -571,4 +575,5 @@ export class CastSenderPlugin<
 	}
 }
 
+/** Plugin alias for {@link CastSenderPlugin}. Pass to `addPlugin(castSenderPlugin)`. */
 export const castSenderPlugin = CastSenderPlugin;

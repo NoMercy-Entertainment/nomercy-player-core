@@ -4,12 +4,14 @@ import { PluginError } from '../errors';
 import { Plugin } from '../plugin';
 import { AudioGraphPlugin } from './audio-graph';
 
+/** Options for {@link SpectrumPlugin}. */
 export interface SpectrumOptions {
 	fftSize?: 512 | 1024 | 2048 | 4096;
 	smoothingTimeConstant?: number;
 	frameRate?: number;
 }
 
+/** Events emitted by {@link SpectrumPlugin}. */
 export interface SpectrumEvents {
 	frame: { frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } };
 }
@@ -36,6 +38,7 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 	private _currentFrame: VisualizationFrame | null = null;
 	private beatProviders: BeatProvider[] = [];
 
+	/** Acquires the shared AnalyserNode from AudioGraphPlugin and starts the per-frame tick. */
 	override use(): void {
 		const playerWithPluginAccess = this.player as unknown as { getPlugin?: <T>(c: new () => T) => T | undefined };
 		const graph = playerWithPluginAccess.getPlugin?.(AudioGraphPlugin) as AudioGraphPlugin | undefined;
@@ -65,6 +68,7 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		this.frame((deltaMs, time) => this.tick(deltaMs, time));
 	}
 
+	/** Stops the frame tick and releases the AnalyserNode reference. */
 	override dispose(): void {
 		this.beatProviders = [];
 		this._currentFrame = null;
@@ -242,4 +246,5 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 	}
 }
 
+/** Plugin alias for {@link SpectrumPlugin}. Pass to `addPlugin(spectrumPlugin)`. */
 export const spectrumPlugin = SpectrumPlugin;

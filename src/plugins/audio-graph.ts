@@ -2,6 +2,7 @@ import type { BaseEventMap, IPlayer } from '../types';
 import { BrowserPolicyError, PluginError } from '../errors';
 import { Plugin } from '../plugin';
 
+/** Options for {@link AudioGraphPlugin}. */
 export interface AudioGraphOptions {
 	/** Initial latency hint passed to `new AudioContext({ latencyHint })`. Default `'playback'`. */
 	latencyHint?: AudioContextLatencyCategory;
@@ -11,6 +12,7 @@ export interface AudioGraphOptions {
 	smoothing?: number;
 }
 
+/** Events emitted by {@link AudioGraphPlugin}. */
 export interface AudioGraphEvents {
 	'context:ready': { sampleRate: number };
 	'context:closed': void;
@@ -52,6 +54,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	/** Manual route map — pairs created via `route()` so we can disconnect on dispose. */
 	private routes: Array<[AudioNode, AudioNode]> = [];
 
+	/** Creates the AudioContext, mounts the media element source, and wires the baseline chain. */
 	override use(): void {
 		const Ctor = resolveAudioContextCtor();
 		if (!Ctor) {
@@ -91,6 +94,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.emit('context:ready', { sampleRate: ctx.sampleRate });
 	}
 
+	/** Disconnects all graph nodes, closes the AudioContext, and clears internal state. */
 	override dispose(): void {
 		this.tearDownGraph();
 	}
@@ -332,4 +336,5 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	}
 }
 
+/** Plugin alias for {@link AudioGraphPlugin}. Pass to `addPlugin(audioGraphPlugin)`. */
 export const audioGraphPlugin = AudioGraphPlugin;

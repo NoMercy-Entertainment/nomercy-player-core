@@ -32,6 +32,7 @@ export interface VisualizationFrame {
 	bpm?: number;
 }
 
+/** Options for {@link VisualizationPlugin} subclasses. */
 export interface VisualizationOptions {
 	/** Whether to clear the canvas before this visualizer renders. Default `false` — `canvasPlugin` handles clearing if its `compositeMode === 'clear'`. */
 	clearBeforeRender?: boolean;
@@ -39,6 +40,7 @@ export interface VisualizationOptions {
 	tick?: 'frame' | 'time';
 }
 
+/** Events emitted by {@link VisualizationPlugin} subclasses. */
 export interface VisualizationEvents {
 	/** Emitted once during `use()` when AudioContext / spectrum is unavailable. */
 	unsupported: { reason: string };
@@ -102,6 +104,7 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 	protected _latestFrame: VisualizationFrame | undefined;
 	private _setupCalled = false;
 
+	/** Resolves canvas and spectrum dependencies, registers the render callback, and subscribes to spectrum frames. */
 	override use(): void {
 		const player = this.player as unknown as {
 			getPlugin?: <T>(c: new () => T) => T | undefined;
@@ -132,6 +135,7 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 		canvas.addRenderer(this._renderTickBound);
 	}
 
+	/** Unregisters the render callback from the canvas plugin and clears all internal references. */
 	override dispose(): void {
 		if (this._canvasPlugin && this._renderTickBound) {
 			try {
@@ -276,4 +280,5 @@ export class WaveformVisualization<P extends IPlayer<BaseEventMap> = IPlayer> ex
 	}
 }
 
+/** Concrete alias for {@link WaveformVisualization}. Pass to `addPlugin(waveformVisualization)`. */
 export const waveformVisualization = WaveformVisualization;

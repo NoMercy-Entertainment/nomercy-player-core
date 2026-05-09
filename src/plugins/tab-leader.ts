@@ -1,6 +1,7 @@
 import type { BaseEventMap, IPlayer } from '../types';
 import { Plugin } from '../plugin';
 
+/** Options for {@link TabLeaderPlugin}. */
 export interface TabLeaderOptions {
 	/** Action to take when this tab loses leadership. Default: 'pause'. */
 	onLost?: 'pause' | 'mute';
@@ -10,6 +11,7 @@ export interface TabLeaderOptions {
 	getLockKey?: () => string;
 }
 
+/** Events emitted by {@link TabLeaderPlugin}. */
 export interface TabLeaderEvents {
 	'leader-acquired': void;
 	'leader-released': void;
@@ -37,6 +39,7 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	/** Outstanding acquire promise — used to detect the active election. */
 	private _pending: Promise<void> | null = null;
 
+	/** Checks Web Locks support and initiates the leader-lock request. */
 	override use(): void {
 		if (!this._supported()) {
 			this.emit('unsupported' as keyof TabLeaderEvents);
@@ -45,6 +48,7 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		void this.requestLock();
 	}
 
+	/** Voluntarily releases the leader lock so another tab may take over. */
 	override dispose(): void {
 		// Manual release on dispose is a courtesy — Web Locks auto-release on
 		// page close. Lifecycle registry handles other cleanup.
@@ -141,4 +145,5 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	}
 }
 
+/** Plugin alias for {@link TabLeaderPlugin}. Pass to `addPlugin(tabLeaderPlugin)`. */
 export const tabLeaderPlugin = TabLeaderPlugin;

@@ -1,8 +1,10 @@
 import type { BaseEventMap, IPlayer } from '../types';
 import { Plugin } from '../plugin';
 
+/** Map of keyboard combo strings to player action callbacks. */
 export type KeyBindings<P> = Record<string, (player: P) => void>;
 
+/** Options for {@link KeyHandlerPlugin}. */
 export interface KeyHandlerOptions<P> {
 	/** Where to listen — defaults to `document`. */
 	scope?: 'document' | 'container' | HTMLElement;
@@ -93,6 +95,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		return parts.length ? `${parts.join('+')}+${k}` : k;
 	}
 
+	/** Registers default bindings, applies options bindings, and attaches the keydown listener. */
 	override use(): void {
 		this.addDefaults();
 		this.applyOptions();
@@ -101,14 +104,17 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.listen(target, 'keydown', this.handleKeydown as EventListener);
 	}
 
+	/** Register a handler for a keyboard combo string (e.g. `'shift+ArrowLeft'`). */
 	bind(combo: string, fn: (p: P) => void): void {
 		this._bindings.set(this.normalizeCombo(combo), () => fn(this.player));
 	}
 
+	/** Remove the handler for the given combo. No-ops when the combo isn't registered. */
 	unbind(combo: string): void {
 		this._bindings.delete(this.normalizeCombo(combo));
 	}
 
+	/** Replace an existing binding. Equivalent to calling `bind` when the combo already exists. */
 	replace(combo: string, fn: (p: P) => void): void {
 		this.bind(combo, fn);
 	}
@@ -252,4 +258,5 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	}
 }
 
+/** Plugin alias for {@link KeyHandlerPlugin}. Pass to `addPlugin(keyHandlerPlugin)`. */
 export const keyHandlerPlugin = KeyHandlerPlugin;

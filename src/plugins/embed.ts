@@ -25,6 +25,7 @@ export type EmbedEventMessage
 		| { type: 'nm:event'; name: 'mute'; muted: boolean }
 		| { type: 'nm:event'; name: 'error'; code: string; severity: string; message?: string };
 
+/** Options for {@link EmbedPlugin}. */
 export interface EmbedOptions {
 	/** Allowed origin(s) for postMessage commands. Default: `'*'` (any). Strict consumers pin this. */
 	allowedOrigins?: string | string[];
@@ -75,6 +76,7 @@ export class EmbedPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 	private _messageListener?: (event: MessageEvent) => void;
 	private _eventForwarders: Array<{ event: string; fn: (data: unknown) => void }> = [];
 
+	/** Attaches the postMessage listener and wires player events to forward to the host frame. */
 	override use(): void {
 		// Normalize allowedOrigins config — string OR string[] OR undefined.
 		const o = this.opts?.allowedOrigins;
@@ -119,6 +121,7 @@ export class EmbedPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 		}
 	}
 
+	/** Detaches all forwarded player event listeners and clears internal state. */
 	override dispose(): void {
 		// Detach forwarders (the parent class handles `this.listen` cleanup
 		// for the message listener via the lifecycle registry).
@@ -246,4 +249,5 @@ export class EmbedPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 	}
 }
 
+/** Plugin alias for {@link EmbedPlugin}. Pass to `addPlugin(embedPlugin)`. */
 export const embedPlugin = EmbedPlugin;

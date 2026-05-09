@@ -3,6 +3,7 @@ import { PluginError } from '../errors';
 import { Plugin } from '../plugin';
 import { AudioGraphPlugin } from './audio-graph';
 
+/** Options for {@link MixerPlugin}. */
 export interface MixerOptions {
 	/** Initial gain in dB. Default `0` (unity). */
 	gain?: number;
@@ -16,6 +17,7 @@ export interface MixerOptions {
 	smoothingTimeConstantSeconds?: number;
 }
 
+/** Events emitted by {@link MixerPlugin}. */
 export interface MixerEvents {
 	'gain:changed': { gain: number };
 	'pan:changed': { pan: number };
@@ -46,6 +48,7 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 	private _muted: boolean = false;
 	private graph: AudioGraphPlugin | null = null;
 
+	/** Inserts gain and stereo-panner nodes into the audio graph and restores persisted state. */
 	override use(): void {
 		const playerWithPluginAccess = this.player as unknown as { getPlugin?: <T>(c: new () => T) => T | undefined };
 		const graph = playerWithPluginAccess.getPlugin?.(AudioGraphPlugin) as AudioGraphPlugin | undefined;
@@ -91,6 +94,7 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 		pannerNode.pan.value = this.clampPan(initialPan);
 	}
 
+	/** Removes gain and panner nodes from the audio graph and clears internal state. */
 	override dispose(): void {
 		const graph = this.graph;
 		if (graph) {
@@ -175,7 +179,7 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 		this.autoSave();
 	}
 
-	/** Explicit save of current state to storage. */
+	/** Explicitly persist current gain, pan, and mute state to storage (requires `persistKey`). */
 	save(): void {
 		const persistKey = this.opts?.persistKey;
 		if (!persistKey)
@@ -249,4 +253,5 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 	}
 }
 
+/** Plugin alias for {@link MixerPlugin}. Pass to `addPlugin(mixerPlugin)`. */
 export const mixerPlugin = MixerPlugin;

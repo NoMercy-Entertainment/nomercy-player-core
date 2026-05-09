@@ -1,10 +1,12 @@
 import type { BaseEventMap, BasePlaylistItem, IPlayer } from '../types';
 import { Plugin } from '../plugin';
 
+/** Options for {@link MediaSessionPlugin}. */
 export interface MediaSessionOptions {
 	artworkBaseUrl?: string;
 }
 
+/** Metadata fields pushed to the OS `MediaSession` API. */
 export interface MediaSessionMetadata {
 	title?: string;
 	artist?: string;
@@ -63,6 +65,7 @@ export class MediaSessionPlugin<
 	/** Last metadata passed to `metadata(meta)`, for the reader overload. */
 	private _lastMetadata: MediaSessionMetadata | undefined;
 
+	/** Wires player transport events to `navigator.mediaSession` and registers OS action handlers. */
 	override use(): void {
 		if (typeof navigator === 'undefined' || !('mediaSession' in navigator))
 			return;
@@ -103,6 +106,7 @@ export class MediaSessionPlugin<
 		this.addSeekActions();
 	}
 
+	/** Clears the OS MediaSession metadata and removes all registered action handlers. */
 	override dispose(): void {
 		if (typeof navigator === 'undefined' || !('mediaSession' in navigator))
 			return;
@@ -270,4 +274,5 @@ export class MediaSessionPlugin<
 	}
 }
 
+/** Plugin alias for {@link MediaSessionPlugin}. Pass to `addPlugin(mediaSessionPlugin)`. */
 export const mediaSessionPlugin = MediaSessionPlugin;

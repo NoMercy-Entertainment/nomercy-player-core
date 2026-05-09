@@ -2,6 +2,7 @@ import type { BaseEventMap, IPlayer } from '../types';
 import { BrowserPolicyError, StateError } from '../errors';
 import { Plugin } from '../plugin';
 
+/** Options for {@link CanvasPlugin}. */
 export interface CanvasOptions {
 	/** Where the canvas mounts. Default: the player's container element. */
 	mount?: string | HTMLElement;
@@ -16,6 +17,7 @@ export interface CanvasOptions {
 	compositeMode?: 'clear' | 'composite';
 }
 
+/** Events emitted by {@link CanvasPlugin}. */
 export interface CanvasEvents {
 	mounted: { width: number; height: number };
 	resized: { width: number; height: number };
@@ -48,6 +50,7 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 	private resizeObserver: ResizeObserver | null = null;
 	private rafRunning = false;
 
+	/** Mounts the canvas element, installs a ResizeObserver, and starts the RAF render loop. */
 	override use(): void {
 		const surface = this.mount('surface');
 		surface.style.position = 'relative';
@@ -64,6 +67,7 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 		this.startRenderLoop();
 	}
 
+	/** Stops the RAF loop, disconnects the ResizeObserver, and drops all registered renderers. */
 	override dispose(): void {
 		this.renderers.length = 0;
 		this.rafRunning = false;
@@ -239,4 +243,5 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 	}
 }
 
+/** Plugin alias for {@link CanvasPlugin}. Pass to `addPlugin(canvasPlugin)`. */
 export const canvasPlugin = CanvasPlugin;
