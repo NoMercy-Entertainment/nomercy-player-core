@@ -338,9 +338,54 @@ interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, C exten
 
 	/** Periodic emit handle for `playback:metrics`. Cleared via `_policyCleanup` on dispose. */
 	_metricsTimer: ReturnType<typeof setInterval> | undefined;
+
+	/**
+	 * Backing map for `experimental.override`. Stored on the instance so
+	 * the `getOriginals` helper in `experimentalDescriptor` can find it
+	 * without casting to `any`. TypeScript cannot see mixin-installed
+	 * instance properties through the prototype chain, so this field is
+	 * declared here rather than on the mixin object itself.
+	 */
+	_overrideOriginals?: Map<string, ((...args: unknown[]) => unknown) | undefined>;
 }
 
-type Internals = PlayerCoreState<BasePlaylistItem, BasePlayerConfig, BaseEventMap>;
+/**
+ * Cross-mixin method surface. Every method that one mixin calls on `this`
+ * but that lives on a *different* mixin is declared here so we can write
+ * `this.play()` inside `lifecycleMethods` without resorting to `as any`.
+ *
+ * The methods are composed onto the prototype at runtime via `composeMixins`;
+ * TypeScript cannot infer this, so we declare the surface explicitly and
+ * intersect it into `Internals`.
+ */
+interface MixinSurface {
+	// transportMethods
+	play(opts?: ActionOptions): Promise<void>;
+	pause(opts?: ActionOptions): Promise<void>;
+	// volumeMethods
+	mute(): void;
+	unmute(): void;
+	volume(v?: number): number | void;
+	// timeMethods
+	duration(): number;
+	buffered(): number;
+	// queueMethods
+	queue(items?: BasePlaylistItem[], opts?: ActionOptions): ReadonlyArray<BasePlaylistItem> | void;
+	// mediaTracksMethods
+	chapters(): unknown;
+	seekToChapter(idx: number, opts?: ActionOptions): void;
+	current(target?: BasePlaylistItem | string | number, opts?: ActionOptions): BasePlaylistItem | undefined | void;
+	currentTime(t?: number, opts?: ActionOptions): number | Promise<void>;
+	// pluginRegistrationMethods
+	removePluginById(id: string, opts?: { cascade?: boolean }): void;
+	// i18nMethods
+	addTranslations(bundle: Translations): void;
+	removeTranslations(prefix: string, lang?: string): void;
+	// playerCoreMethods — runtime resolution of the configured platform bundle.
+	platform(): IPlatform;
+}
+
+type Internals = PlayerCoreState<BasePlaylistItem, BasePlayerConfig, BaseEventMap> & MixinSurface;
 
 // ──────────────────────────────────────────────────────────────────────────
 // State init — call this from the player constructor before resolving the
@@ -485,7 +530,7 @@ export const lifecycleMethods = {
 		if (this.options.pauseWhenHidden) {
 			const unsubscribe = this._platform.visibility.subscribe((visible) => {
 				if (!visible) {
-					(this as any).pause({ source: 'platform' }).catch(() => { /* swallow */ });
+					this.pause({ source: 'platform' }).catch(() => { /* swallow */ });
 				}
 				if (visible) {
 					this.emit('visibility:visible');
@@ -510,7 +555,7 @@ export const lifecycleMethods = {
 				else {
 					this.emit('network:offline');
 					if (onOffline === 'pause') {
-						(this as any).pause({ source: 'platform' }).catch(() => { /* swallow */ });
+						this.pause({ source: 'platform' }).catch(() => { /* swallow */ });
 					}
 				}
 			});
@@ -798,7 +843,7 @@ function _emitBeforeMutation(self: Internals, method: string, args: ReadonlyArra
 		isDelayed(): boolean { return false; },
 	};
 
-	const listeners = (self as any).listenersOf?.('beforeMutation') ?? [];
+	const listeners = self.listenersOf('beforeMutation');
 	for (const fn of listeners) {
 		try {
 			fn(evt);
@@ -1103,7 +1148,7 @@ async function _registerPlugin(
 		// Hard failure during construction / initialize — surface and bail.
 		self.emit('plugin:failed', {
 			id,
-			error: err as any,
+			error: err as Error,
 		});
 		throw err;
 	}
@@ -1148,7 +1193,7 @@ async function _registerPlugin(
 			}
 			else {
 				// Eager: register the whole bundle as before.
-				(self as any).addTranslations(t);
+				self.addTranslations(t);
 			}
 		}
 	}
@@ -1192,7 +1237,7 @@ async function _registerPlugin(
 		catch { /* defensive */ }
 		const failPayload = {
 			id,
-			error: useError as any,
+			error: useError as Error,
 		};
 		self.emit('plugin:failed', failPayload);
 		self.emit(`plugin:${id}:failed`, failPayload);
@@ -1270,11 +1315,11 @@ export const experimentalDescriptor = {
 		const self = this as unknown as Internals;
 		const overrides = self._overrides;
 		const player = self as unknown as Record<string, any>;
-		const getOriginals = (): Map<string, ((...args: any[]) => any) | undefined> => {
-			let originals = (self as any)._overrideOriginals as Map<string, ((...args: any[]) => any) | undefined> | undefined;
+		const getOriginals = (): Map<string, ((...args: unknown[]) => unknown) | undefined> => {
+			let originals = self._overrideOriginals;
 			if (!originals) {
-				originals = new Map<string, ((...args: any[]) => any) | undefined>();
-				(self as any)._overrideOriginals = originals;
+				originals = new Map<string, ((...args: unknown[]) => unknown) | undefined>();
+				self._overrideOriginals = originals;
 			}
 			return originals;
 		};
@@ -1539,8 +1584,8 @@ export const transportMethods = {
 	async togglePlayback(this: Internals, opts?: ActionOptions): Promise<void> {
 		_assertReady(this);
 		if (this._playState === 'playing')
-			await (this as any).pause(opts);
-		else await (this as any).play(opts);
+			await this.pause(opts);
+		else await this.play(opts);
 	},
 
 	async next(this: Internals, opts: ActionOptions = {}): Promise<void> {
@@ -1635,7 +1680,7 @@ export const transportMethods = {
 				source: seekResult.data.source,
 			});
 		});
-		await (this as any).play(opts);
+		await this.play(opts);
 	},
 } as const;
 
@@ -1693,8 +1738,8 @@ export const timeMethods = {
 	},
 	timeData(this: Internals): TimeState {
 		const position = this._internalCurrentTime;
-		const duration = (this as any).duration();
-		const buffered = (this as any).buffered();
+		const duration = this.duration();
+		const buffered = this.buffered();
 		return {
 			position,
 			duration,
@@ -1750,14 +1795,14 @@ export const volumeMethods = {
 	},
 	toggleMute(this: Internals): void {
 		if (this._volumeState === 'muted')
-			(this as any).unmute();
-		else (this as any).mute();
+			this.unmute();
+		else this.mute();
 	},
 	volumeUp(this: Internals, step = 0.05): void {
-		(this as any).volume(this._internalVolume + step);
+		this.volume(this._internalVolume + step);
 	},
 	volumeDown(this: Internals, step = 0.05): void {
-		(this as any).volume(this._internalVolume - step);
+		this.volume(this._internalVolume - step);
 	},
 } as const;
 
@@ -1889,19 +1934,19 @@ export const queueMethods = {
 		_wireQueue(this);
 		if (items === undefined)
 			return this._queueList.get();
-		this._queueList.set(items as any);
+		this._queueList.set(items);
 	},
 	queueAppend(this: Internals, item: BasePlaylistItem | BasePlaylistItem[], _opts?: ActionOptions): void {
 		_wireQueue(this);
-		this._queueList.append(item as any);
+		this._queueList.append(item);
 	},
 	queuePrepend(this: Internals, item: BasePlaylistItem | BasePlaylistItem[], _opts?: ActionOptions): void {
 		_wireQueue(this);
-		this._queueList.prepend(item as any);
+		this._queueList.prepend(item);
 	},
 	queueInsert(this: Internals, item: BasePlaylistItem | BasePlaylistItem[], index: number, _opts?: ActionOptions): void {
 		_wireQueue(this);
-		this._queueList.insert(item as any, index);
+		this._queueList.insert(item, index);
 	},
 	queueRemove(this: Internals, id: string | number, _opts?: ActionOptions): void {
 		_wireQueue(this);
@@ -1925,7 +1970,7 @@ export const queueMethods = {
 	},
 	queueSort(this: Internals, compare: (a: BasePlaylistItem, b: BasePlaylistItem) => number, _opts?: ActionOptions): void {
 		_wireQueue(this);
-		this._queueList.sort(compare as any);
+		this._queueList.sort(compare);
 	},
 	peekNext(this: Internals): BasePlaylistItem | undefined {
 		return this._queueList.peekNext();
@@ -1957,7 +2002,7 @@ export const queueMethods = {
 		_wireQueue(this);
 		if (!_emitBeforeMutation(this, 'current', [target]))
 			return;
-		this._queueList.setCurrent(target as any);
+		this._queueList.setCurrent(target);
 	},
 	currentIndex(this: Internals): number {
 		return this._queueList.currentIndex();
@@ -1967,11 +2012,11 @@ export const queueMethods = {
 		_wireQueue(this);
 		if (items === undefined)
 			return this._backlogList.get();
-		this._backlogList.set(items as any);
+		this._backlogList.set(items);
 	},
 	backlogAppend(this: Internals, item: BasePlaylistItem | BasePlaylistItem[]): void {
 		_wireQueue(this);
-		this._backlogList.append(item as any);
+		this._backlogList.append(item);
 	},
 	backlogRemove(this: Internals, id: string | number): void {
 		_wireQueue(this);
@@ -2009,7 +2054,7 @@ export const pluginRegistrationMethods = {
 			const existingIdx = this._plugins.findIndex(p => p.ctor.id === ctor.replaces);
 			const queuedIdx = this._pluginQueue.findIndex(q => q.ctor.id === ctor.replaces);
 			if (existingIdx >= 0) {
-				(this as any).removePluginById(ctor.replaces);
+				this.removePluginById(ctor.replaces);
 			}
 			else if (queuedIdx >= 0) {
 				this._pluginQueue.splice(queuedIdx, 1);
@@ -2101,7 +2146,7 @@ export const pluginRegistrationMethods = {
 
 	removePlugin<P extends Plugin>(this: Internals, PluginClass: new () => P, opts?: { cascade?: boolean }): void {
 		const id = (PluginClass as unknown as typeof Plugin).id;
-		(this as any).removePluginById(id, opts);
+		this.removePluginById(id, opts);
 	},
 
 	removePluginById(this: Internals, id: string, opts?: { cascade?: boolean }): void {
@@ -2123,7 +2168,7 @@ export const pluginRegistrationMethods = {
 				);
 			}
 			for (const dep of dependents) {
-				(this as any).removePluginById(dep, { cascade: true });
+				this.removePluginById(dep, { cascade: true });
 			}
 		}
 
@@ -2141,7 +2186,7 @@ export const pluginRegistrationMethods = {
 		instance.dispose();
 		lifecycle.dispose();
 		if (ctor.translations) {
-			(this as any).removeTranslations(`plugin.${id}.`);
+			this.removeTranslations(`plugin.${id}.`);
 		}
 		this._plugins.splice(idx, 1);
 		const payload = { id };
@@ -2375,9 +2420,11 @@ function _resolveSidecarSubtitle(
 	self: Internals,
 	sidecarIdx: number,
 ): { url?: string; language?: string; label?: string; type?: string } | undefined {
+	// Read current() through a narrower type than MixinSurface declares — we
+	// need the per-item `tracks` array, not the generic BasePlaylistItem.
 	interface CurrentReader { current?: () => ItemWithTracks | undefined }
-	const cur = (self as Internals & CurrentReader).current?.();
-	const list = (cur?.tracks ?? []).filter(t => t.kind === 'subtitles');
+	const cur = (self as unknown as CurrentReader).current?.();
+	const list = (cur?.tracks ?? []).filter((t: SidecarTrack) => t.kind === 'subtitles');
 	const t = list[sidecarIdx];
 	if (!t) return undefined;
 	return { url: t.file, language: t.language, label: t.label, type: t.type };
@@ -2490,8 +2537,8 @@ export const mediaTracksMethods = {
 			return [];
 		})();
 
-		const fromItem: any[] = (() => {
-			const cur = (this as any).current?.() as { tracks?: Array<{ kind?: string; id?: any; label?: string; language?: string; type?: string; file?: string }> } | undefined;
+		const fromItem: Array<{ id: string; language?: string; label?: string; kind: 'subtitles'; type?: string; url?: string; default: boolean }> = (() => {
+			const cur = this.current?.() as { tracks?: Array<{ kind?: string; id?: string; label?: string; language?: string; type?: string; file?: string }> } | undefined;
 			const tracks = Array.isArray(cur?.tracks) ? cur!.tracks! : [];
 			return tracks
 				.filter(t => t?.kind === 'subtitles')
@@ -2674,16 +2721,16 @@ export const mediaTracksMethods = {
 		// items can carry an inline `chapters: Chapter[]` field; if absent,
 		// return []. Real chapter-file parsing happens in `lyricsPlugin`-style
 		// cue trackers, but the player surface here is just a read.
-		const current = (this as any).current?.() as { chapters?: Chapter[] } | undefined;
+		const current = this.current?.() as { chapters?: Chapter[] } | undefined;
 		return current?.chapters ?? [];
 	},
 	seekToChapter(this: Internals, idx: number, opts?: ActionOptions): void {
-		const list = ((this as any).chapters?.() ?? []) as Chapter[];
+		const list = (this.chapters() ?? []) as Chapter[];
 		const chapter = list[idx];
 		if (!chapter)
 			return; // out-of-range → no-op
-		const ret = (this as any).currentTime?.(chapter.start, opts);
-		if (ret && typeof ret.then === 'function')
+		const ret = this.currentTime(chapter.start, opts);
+		if (ret && typeof (ret as Promise<void>).then === 'function')
 			void ret;
 		this.emit('chapter', {
 			index: idx,
@@ -2691,7 +2738,7 @@ export const mediaTracksMethods = {
 		});
 	},
 	nextChapter(this: Internals, opts?: ActionOptions): void {
-		const list = ((this as any).chapters?.() ?? []) as Chapter[];
+		const list = (this.chapters() ?? []) as Chapter[];
 		if (list.length === 0)
 			return;
 		const t = this._internalCurrentTime;
@@ -2699,10 +2746,10 @@ export const mediaTracksMethods = {
 		const nextIdx = list.findIndex(c => c.start > t);
 		if (nextIdx < 0)
 			return; // already in/after the last chapter
-		(this as any).seekToChapter?.(nextIdx, opts);
+		this.seekToChapter(nextIdx, opts);
 	},
 	previousChapter(this: Internals, opts?: ActionOptions): void {
-		const list = ((this as any).chapters?.() ?? []) as Chapter[];
+		const list = (this.chapters() ?? []) as Chapter[];
 		if (list.length === 0)
 			return;
 		const t = this._internalCurrentTime;
@@ -2716,7 +2763,7 @@ export const mediaTracksMethods = {
 			return;
 		const intoChapter = t - list[currentIdx]!.start;
 		const targetIdx = (intoChapter > 10 || currentIdx === 0) ? currentIdx : currentIdx - 1;
-		(this as any).seekToChapter?.(targetIdx, opts);
+		this.seekToChapter(targetIdx, opts);
 	},
 
 	/**
@@ -2731,7 +2778,7 @@ export const mediaTracksMethods = {
 	 */
 	currentChapter(this: Internals, idx?: number): Chapter | null | void {
 		if (idx === undefined) {
-			const list = ((this as any).chapters?.() ?? []) as Chapter[];
+			const list = (this.chapters() ?? []) as Chapter[];
 			if (list.length === 0)
 				return null;
 			const t = this._internalCurrentTime;
@@ -2742,7 +2789,7 @@ export const mediaTracksMethods = {
 			}
 			return null;
 		}
-		(this as any).seekToChapter?.(idx);
+		this.seekToChapter(idx);
 	},
 } as const;
 
@@ -3250,12 +3297,12 @@ export const loadingMethods = {
 			if (!isLatest()) return;
 
 			// Move cursor to the loaded item so consumer-facing `current()` reflects it.
-			(this as any).current?.(item2.id ?? item2);
+			this.current(item2.id ?? item2);
 
 			// Honour LoadOptions.startAt by seeking once metadata is available.
 			if (typeof opts?.startAt === 'number' && opts.startAt > 0) {
-				const ret = (this as any).currentTime?.(opts.startAt);
-				if (ret && typeof ret.then === 'function')
+				const ret = this.currentTime(opts.startAt);
+				if (ret && typeof (ret as Promise<void>).then === 'function')
 					await ret;
 				if (!isLatest()) return;
 			}
@@ -3263,14 +3310,14 @@ export const loadingMethods = {
 			// Honour LoadOptions.fadeIn by ramping volume from 0→current over the configured seconds.
 			// Trivial fade — no easing curve. Plugins extend.
 			if (typeof opts?.fadeIn === 'number' && opts.fadeIn > 0) {
-				const target = (this as any).volume?.() ?? 1;
-				(this as any).volume?.(0);
+				const target = (this.volume() as number | undefined) ?? 1;
+				this.volume(0);
 				const steps = 20;
 				const stepMs = (opts.fadeIn * 1000) / steps;
 				for (let i = 1; i <= steps; i++) {
 					await new Promise(r => setTimeout(r, stepMs));
 					if (!isLatest()) return;
-					(this as any).volume?.((target * i) / steps);
+					this.volume((target * i) / steps);
 				}
 			}
 
@@ -3312,7 +3359,7 @@ export const loadingMethods = {
 				scope: 'player',
 				signal: ctrl.signal,
 			});
-			(this as any).queue?.(items);
+			this.queue(items);
 			this.emit('playlistReady', { length: items.length });
 		}
 		catch (err) {
