@@ -1,0 +1,895 @@
+import type { RetryConfig, Severity } from './errors';
+import type { LifecycleRegistry } from './lifecycle';
+import type { Logger } from './logger';
+import type { IRealtimeChannel, RealtimeFactoryOptions } from './realtime';
+import type { IStorage } from './storage';
+import type {
+	AuthConfig,
+	BaseEventMap,
+	BasePlayerConfig,
+	IPlayer,
+	PluginAdvisory,
+	PreventedReason,
+	RequireSpec,
+	ResolvedUrl,
+	Translations,
+	UrlCategory,
+} from './types';
+import { authFetch } from './auth-fetch';
+import { runDispatchBefore } from './dispatch';
+import { PlayerError } from './errors';
+import { nativeWebSocketAdapter } from './realtime';
+import { buildResolvedUrl } from './resolved-url';
+
+/**
+ * Extract the event-map generic from an `IPlayer<E>` type. Plugins typed
+ * against a specific player (`Plugin<NMMusicPlayer, ...>`) get autocomplete
+ * for the player's full event map (e.g. `MusicEventMap`, not just `BaseEventMap`).
+ */
+export type PlayerEventMap<P> = P extends IPlayer<infer E> ? E : BaseEventMap;
+
+/**
+ * Resolve listener args from either form:
+ *  - on('event', fn)       — string + fn
+ *  - on(Class, 'event', fn) — class + string + fn (event is namespaced under `plugin:<Class.id>:`)
+ */
+function resolveListenerArgs(arg1: any, arg2: any, arg3?: any): { event: string; fn: (data: any) => void } {
+	if (typeof arg1 === 'function') {
+		// Class form
+		const id = (arg1 as { id: string }).id;
+		return {
+			event: `plugin:${id}:${arg2}`,
+			fn: arg3,
+		};
+	}
+	// String form
+	return {
+		event: arg1,
+		fn: arg2,
+	};
+}
+
+/**
+ * Constructor signature matching any Plugin subclass. `never[]` is the
+ * variance-correct "accepts every constructor" form (every concrete arg type
+ * extends `never`). The concrete `Plugin<IPlayer<unknown>, unknown,
+ * Record<string, unknown>>` bound is the loosest typed shape that still
+ * matches arbitrary Plugin subclasses.
+ */
+export type AnyPluginCtor = abstract new (...args: never[]) => Plugin<IPlayer<BaseEventMap>, unknown, Record<string, unknown>>;
+
+/**
+ * Extract the event-map generic from a Plugin class type. Used by `on(Class, ...)`
+ * to type the listener payload from the target plugin's `E` generic.
+ */
+export type PluginEventMap<C> = C extends abstract new (...args: never[]) => Plugin<infer _P, infer _O, infer E>
+	? E
+	: never;
+
+/**
+ * Structured throw payload. The kit handles the rest:
+ *  - stamps `scope: { kind: 'plugin', id: this.id }`
+ *  - resolves numeric `id` from registry if available
+ *  - emits the appropriate event (`error` / `warning` / `info`,
+ *    plus `plugin:error` / `plugin:warning`)
+ *  - applies retry policy (this throw + override below)
+ *  - falls back to console if no handler called `markHandled()`
+ */
+export interface ThrowPayload {
+	code: string;
+	severity?: Severity;
+	message?: string;
+	cause?: unknown;
+	context?: Record<string, unknown>;
+	suggestion?: string;
+	/** Override per-throw retry policy. `null` disables retries entirely. */
+	retry?: RetryConfig | null;
+	/** Numeric id if registered. Optional — string code always works. */
+	id?: number;
+}
+
+/**
+ * Snapshot returned by `state()`. `runtime` is plugin-defined and intended for
+ * debug overlays / save+restore tooling.
+ */
+export interface PluginState<O = unknown> {
+	id: string;
+	version: string;
+	enabled: boolean;
+	opts: Readonly<O>;
+	runtime: Record<string, unknown>;
+}
+
+/**
+ * Result returned by `Plugin.dispatchBefore(...)`. Tells the emitter whether
+ * to proceed with its default action and surfaces the (possibly mutated) data.
+ */
+export interface BeforeDispatchResult<TData> {
+	/** The payload data — possibly mutated by listeners during dispatch. */
+	data: TData;
+	/** True if any listener called `preventDefault()` or a `delay()` promise rejected/timed out. */
+	prevented: boolean;
+	/** Reason for prevention, when `prevented === true`. */
+	reason?: PreventedReason;
+	/** Underlying cause (rejected promise's error, etc.) when applicable. */
+	cause?: unknown;
+}
+
+/** Options for `Plugin.dispatchBefore(...)`. */
+export interface DispatchBeforeOptions {
+	/** Cap on `delay()` waits before timing out. Default = player's `beforeEventTimeoutMs`. */
+	timeoutMs?: number;
+}
+
+/**
+ * Per-error recovery action. Configured per-plugin via `static onError`.
+ */
+export type PluginRecoveryAction = 'retry-once' | 'fallback' | 'disable' | 'ignore';
+
+/**
+ * Base plugin class. Subclass to write a plugin.
+ *
+ * Required statics: `id`, `description`. Recommended: `version`. Optional:
+ * `minCoreVersion`, `requires`, `replaces`, `onError`, `advisories`.
+ *
+ * Override `use()` to wire up (sync or async — the player awaits it). Override
+ * `dispose()` only if you need to release something the lifecycle helpers
+ * don't already track. Override `getRuntimeState()` to populate `state().runtime`.
+ *
+ * Inside `use()` use the protected helpers — never go around them:
+ *
+ *  - `on / once / off / hasListeners` — two forms:
+ *    `on('event', fn)` for player events, `on(PluginClass, 'event', fn)` for
+ *    another plugin's events. Both auto-dispose on teardown.
+ *  - `emit(event, data)` — fire-and-forget, scoped under `plugin:<id>:`
+ *  - `dispatchBefore(name, data, opts?)` — cancellable / mutable / async-aware
+ *  - `throw({...})` / `report({...})` — surface error vs warning
+ *  - `fetch(url, parser?)` — auth-aware fetch with retry
+ *  - `websocket(url, opts?)` — auto-reconnecting WebSocket
+ *  - `mount(name)` — claim a `<div>` on the player container
+ *  - `t(key, vars?)` — translate plugin-namespaced i18n keys
+ *  - `listen / timeout / interval / abortable / frame` — auto-cleaned
+ *  - `logger`, `storage` — scoped instances
+ *
+ * Never call `this.player.on/emit` directly (bypasses scoping + auto-dispose),
+ * never use raw `setTimeout / addEventListener` (no auto-cleanup), never throw
+ * raw `Error` (use `this.throw`). The lint pack enforces all of these.
+ */
+export class Plugin<
+	P extends IPlayer<any> = IPlayer,
+	O = unknown,
+	E extends Record<string, any> = Record<string, never>,
+> {
+	/** Plugin id. Vendored unless inside our packages (`'fillz:viz'`). Lint-enforced. */
+	static readonly id: string = 'plugin';
+
+	/** Semver string. Recommended; defaults to `'0.0.0'` if unspecified. */
+	static readonly version: string = '0.0.0';
+
+	/** Optional minimum core/kit version required (semver). Checked at registration. */
+	static readonly minCoreVersion?: string;
+
+	/** One-line human-readable. Shown in plugin listings, used in error messages. */
+	static readonly description: string = '';
+
+	/**
+	 * Plugin dependencies — class refs only. Type-safe, refactor-safe, and
+	 * uniform with the typed `on(PluginClass, ...)` event API.
+	 *
+	 * ```ts
+	 * static readonly requires = [AudioGraphPlugin, CanvasPlugin];
+	 * ```
+	 *
+	 * Object form for optional or version-pinned deps:
+	 *
+	 * ```ts
+	 * static readonly requires = [
+	 *   AudioGraphPlugin,
+	 *   { plugin: MediaSessionPlugin, optional: true },
+	 *   { plugin: SpectrumPlugin, minVersion: '2.1.0' },
+	 * ];
+	 * ```
+	 *
+	 * Required-missing throws `core:plugin/missing-dep` at registration.
+	 * Optional-missing logs debug warning; plugin runs anyway.
+	 * Version mismatch throws `core:plugin/version-mismatch`.
+	 */
+	static readonly requires?: ReadonlyArray<RequireSpec>;
+
+	/**
+	 * Opt-in same-id replacement. Without this, registering a plugin whose id
+	 * matches an already-registered plugin throws `core:plugin/duplicate-id`.
+	 */
+	static readonly replaces?: string;
+
+	/**
+	 * Event-handler ordering priority. Default `0`. Higher values run BEFORE
+	 * lower values for the same event; ties resolve in registration order.
+	 *
+	 * Used by `enabledPlugins()` to expose plugins in priority order so consumers
+	 * iterating the list (e.g. for capability negotiation) see deterministic
+	 * results. Negative priorities run AFTER registration-order plugins.
+	 */
+	static readonly priority: number = 0;
+
+	/**
+	 * Default severity if THIS plugin's `use()` or `initialize()` throws.
+	 * Subclasses override this when the plugin is critical to player behaviour.
+	 */
+	protected static readonly criticalSeverity: Severity = 'warning';
+
+	/**
+	 * Per-error recovery action map. Missing entries fall back to the kit's
+	 * default retry policy (see `DEFAULT_RETRY_POLICY` in `errors.ts`).
+	 */
+	static readonly onError?: Readonly<Record<string, PluginRecoveryAction>>;
+
+	/**
+	 * Declarative phase-aware advisories. Each entry is "this method during
+	 * this phase is risky" — at registration the player merges every plugin's
+	 * advisories into a phase-keyed lookup. When the matching mutation fires
+	 * `beforeMutation`, the player auto-emits the advisory as `info`/`warning`/`error`
+	 * with code `plugin:<this.id>/<reason>`.
+	 *
+	 * Pure data — no handler code needed. For more complex contracts (mutating
+	 * args, calling preventDefault), subscribe to `beforeMutation` directly.
+	 */
+	static readonly advisories?: ReadonlyArray<PluginAdvisory>;
+
+	/**
+	 * Static translation bundles shipped with the plugin. Auto-merged into the
+	 * player's translation table on `use()` and auto-removed on `dispose()`.
+	 * Keys must be namespaced under `plugin.<this.id>.*` to avoid collisions.
+	 *
+	 * ```ts
+	 * static readonly translations: Translations = {
+	 *   en: { 'plugin.lyrics.empty': 'No lyrics available' },
+	 *   nl: { 'plugin.lyrics.empty': 'Geen songtekst beschikbaar' },
+	 * };
+	 * ```
+	 *
+	 * For async / on-demand loading, override the instance method
+	 * `loadTranslations(lang)` — it runs after `use()` resolves and on every
+	 * `setLanguage(lang)` call.
+	 */
+	static readonly translations?: Translations;
+
+	declare player: P;
+	declare opts: O;
+	protected lifecycle!: LifecycleRegistry;
+
+	/** Auto-provided scoped logger. Output is prefixed `[nmplayer][<id>]`. */
+	protected logger!: Logger;
+
+	/** Auto-provided scoped storage. Keys are auto-prefixed `nmplayer-<id>-`. */
+	protected storage!: IStorage;
+
+	private _enabled: boolean = true;
+
+	initialize(player: P, opts: O, lifecycle: LifecycleRegistry): void {
+		this.player = player;
+		this.opts = opts;
+		this.lifecycle = lifecycle;
+	}
+
+	/**
+	 * Wire up listeners / DOM / fetches. May return `Promise<void>` for async
+	 * setup — player awaits all `use()` promises (capped by `pluginInitTimeoutMs`)
+	 * before emitting `ready`.
+	 */
+	use(): void | Promise<void> {}
+
+	dispose(): void {}
+
+	// ── Plugin Standard required surface ──
+
+	/** Return current enabled state. Default `true` after `use()` resolves. */
+	enabled(): boolean {
+		return this._enabled;
+	}
+
+	/**
+	 * Activate plugin behaviour. Idempotent. Listeners stay subscribed in either
+	 * state — handlers short-circuit on `enabled() === false`.
+	 */
+	enable(): void {
+		if (this._enabled)
+			return;
+		this._enabled = true;
+		const id = (this.constructor as typeof Plugin).id;
+		this.player.emit('plugin:enabled' as any, { id } as any);
+		// Spec §1.5: per-plugin namespaced channel mirrors the global one.
+		this.player.emit(`plugin:${id}:enabled` as any, { id } as any);
+	}
+
+	/** Deactivate plugin behavior without unloading. Idempotent. */
+	disable(reason?: string): void {
+		if (!this._enabled)
+			return;
+		this._enabled = false;
+		const id = (this.constructor as typeof Plugin).id;
+		this.player.emit('plugin:disabled' as any, {
+			id,
+			reason,
+		} as any);
+		this.player.emit(`plugin:${id}:disabled` as any, {
+			id,
+			reason,
+		} as any);
+	}
+
+	/** Snapshot for debug overlays / save+restore tooling. */
+	state(): PluginState<O> {
+		const ctor = this.constructor as typeof Plugin;
+		return {
+			id: ctor.id,
+			version: ctor.version,
+			enabled: this._enabled,
+			opts: this.opts as Readonly<O>,
+			runtime: this.getRuntimeState(),
+		};
+	}
+
+	/** Override to populate `state().runtime` with plugin-defined fields. */
+	protected getRuntimeState(): Record<string, unknown> {
+		return {};
+	}
+
+	/**
+	 * Read or write runtime options.
+	 *
+	 * `options()` — returns a frozen shallow copy of the current options.
+	 * `options(partial)` — shallow-merges `partial` into the current options
+	 * and emits `opts:changed` on the plugin and player channels.
+	 *
+	 * Subclasses override when they need to react to specific option changes
+	 * (re-render, re-subscribe, etc.).
+	 */
+	options(): Readonly<O>;
+	options(partial: Partial<O>): void;
+	options(partial?: Partial<O>): Readonly<O> | void {
+		if (partial === undefined) {
+			return Object.freeze({ ...(this.opts as object) }) as Readonly<O>;
+		}
+		this.opts = {
+			...(this.opts as object),
+			...(partial as object),
+		} as O;
+		const id = (this.constructor as typeof Plugin).id;
+		// Global channel for any consumer wiring once across all plugins.
+		this.player.emit('plugin:opts:changed' as any, {
+			id,
+			opts: this.opts,
+		} as any);
+		// Per-plugin namespaced channel — matches the spec §1.5 contract.
+		this.player.emit(`plugin:${id}:opts:changed` as any, {
+			id,
+			opts: this.opts,
+		} as any);
+		// Plugin-self namespaced (used by sibling plugins via `on(MyPluginClass, 'opts:changed', ...)`).
+		this.emit('opts:changed' as any, this.opts as any);
+	}
+
+	// ── Scoped event surface (typed-only, two overloads — string for player events, Class for plugin events) ──
+
+	/**
+	 * Listen to events with auto-dispose on plugin teardown. Two forms:
+	 *
+	 *  - `on(eventName, fn)` — listen to player / core events (`'play'`, `'time'`,
+	 *    `'beforePlay'`, etc.). Type inferred from the player's event map.
+	 *  - `on(PluginClass, eventName, fn)` — listen to another plugin's events.
+	 *    Type inferred from the target plugin's `E` generic.
+	 *
+	 * No untyped string fallback. If you need to listen to a plugin's events,
+	 * import the class — `static requires = ['<id>']` already guarantees
+	 * that class is loaded before yours, so the import is free.
+	 *
+	 * Both forms register cleanup with the lifecycle registry; consumers never
+	 * call `off()` manually unless they want to detach early.
+	 */
+	protected on<K extends keyof PlayerEventMap<P>>(event: K, fn: (data: PlayerEventMap<P>[K]) => void): void;
+	protected on<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(
+		plugin: C,
+		event: K,
+		fn: (data: PluginEventMap<C>[K]) => void,
+	): void;
+	protected on(arg1: any, arg2: any, arg3?: any): void {
+		const { event, fn } = resolveListenerArgs(arg1, arg2, arg3);
+		this.player.on(event as any, fn);
+		this.lifecycle.addCleanup(() => this.player.off(event as any, fn));
+	}
+
+	/**
+	 * Listen for a single occurrence. Same two-form contract as `on(...)`.
+	 * Auto-removes after first dispatch; auto-disposes on plugin teardown if
+	 * not yet fired.
+	 */
+	protected once<K extends keyof PlayerEventMap<P>>(event: K, fn: (data: PlayerEventMap<P>[K]) => void): void;
+	protected once<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(
+		plugin: C,
+		event: K,
+		fn: (data: PluginEventMap<C>[K]) => void,
+	): void;
+	protected once(arg1: any, arg2: any, arg3?: any): void {
+		const { event, fn } = resolveListenerArgs(arg1, arg2, arg3);
+		this.player.once(event as any, fn);
+		this.lifecycle.addCleanup(() => this.player.off(event as any, fn));
+	}
+
+	/**
+	 * Detach a listener early (before plugin dispose). Same two-form contract
+	 * as `on(...)`. Most code never calls this — lifecycle handles it.
+	 */
+	protected off<K extends keyof PlayerEventMap<P>>(event: K, fn: (data: PlayerEventMap<P>[K]) => void): void;
+	protected off<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(
+		plugin: C,
+		event: K,
+		fn: (data: PluginEventMap<C>[K]) => void,
+	): void;
+	protected off(arg1: any, arg2: any, arg3?: any): void {
+		const { event, fn } = resolveListenerArgs(arg1, arg2, arg3);
+		this.player.off(event as any, fn);
+	}
+
+	/**
+	 * Check whether any listener is registered. Same two-form contract as `on(...)`.
+	 */
+	protected hasListeners<K extends keyof PlayerEventMap<P>>(event: K): boolean;
+	protected hasListeners<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(
+		plugin: C,
+		event: K,
+	): boolean;
+	protected hasListeners(arg1: any, arg2?: any): boolean {
+		const event = typeof arg1 === 'function'
+			? `plugin:${(arg1 as any).id}:${arg2}`
+			: arg1;
+		return this.player.hasListeners(event as any);
+	}
+
+	/**
+	 * Emit a plugin-scoped event. Kit auto-namespaces with `plugin:<this.id>:`
+	 * so listeners outside the plugin see e.g. `'plugin:lyrics:line'`.
+	 *
+	 * Fire-and-forget. Listeners that throw are caught + routed via standard
+	 * error path; the emit returns synchronously.
+	 *
+	 * For cancellable / mutable / async-aware events with the same power as
+	 * core's `before*` events, use `dispatchBefore(...)` instead.
+	 */
+	protected emit<K extends keyof E>(event: K, data?: E[K]): void;
+	protected emit(event: string, data?: any): void;
+	protected emit(event: any, data?: any): void {
+		const id = (this.constructor as typeof Plugin).id;
+		const namespaced = `plugin:${id}:${String(event)}`;
+		this.player.emit(namespaced, data);
+	}
+
+	/**
+	 * Cancellable, mutable, async-aware plugin-scoped event — same power as core's
+	 * `before*` events. Returns a Promise that resolves with the dispatch outcome
+	 * after all listeners run AND every `delay()` promise resolves.
+	 *
+	 * Auto-namespaced under `plugin:<this.id>:`. Listeners (other plugins, the
+	 * consumer app) get a `BeforeEvent<TData>` payload — they can mutate
+	 * `e.data`, call `preventDefault()`, `stopImmediatePropagation()`, or
+	 * `delay(promise)` exactly like core's `beforePlay` etc.
+	 *
+	 * Plugin authors writing public mutating methods should wrap them in
+	 * `dispatchBefore` so other plugins / consumers can intercept:
+	 *
+	 * ```ts
+	 * class EqualizerPlugin extends Plugin {
+	 *   static readonly id = 'equalizer';
+	 *
+	 *   async setBand(index: number, gain: number) {
+	 *     const result = await this.dispatchBefore('beforeSetBand', { index, gain });
+	 *     if (result.prevented) {
+	 *       this.emit('setBandPrevented', { index, reason: result.reason });
+	 *       return;
+	 *     }
+	 *     // run actual mutation with possibly-mutated data
+	 *     this.applyBand(result.data.index, result.data.gain);
+	 *     this.emit('bandChanged', { index: result.data.index, gain: result.data.gain });
+	 *   }
+	 * }
+	 * ```
+	 *
+	 * Other plugins listen and orchestrate:
+	 *
+	 * ```ts
+	 * class MyAdvisorPlugin extends Plugin {
+	 *   static readonly requires = ['equalizer'];     // guarantees EqualizerPlugin is loaded
+	 *
+	 *   use() {
+	 *     this.on(EqualizerPlugin, 'beforeSetBand', e => {
+	 *       if (e.data.gain > 12) {
+	 *         e.data.gain = 12;          // mutate — clamp to safe range
+	 *       }
+	 *       if (this.player.phase() === 'playing' && Math.abs(e.data.gain) > 6) {
+	 *         e.delay(this.smoothlyApply(e.data));   // async-gate the apply
+	 *       }
+	 *     });
+	 *   }
+	 * }
+	 * ```
+	 *
+	 * The dispatch is automatically pushed onto `player.dispatching()` so other
+	 * plugins can advise on `duringEvent: 'plugin:equalizer:beforeSetBand'`.
+	 */
+	protected async dispatchBefore<TData>(event: string, data: TData, opts?: DispatchBeforeOptions): Promise<BeforeDispatchResult<TData>> {
+		const id = (this.constructor as typeof Plugin).id;
+		const namespaced = `plugin:${id}:${event}`;
+		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
+		const timeoutMs = opts?.timeoutMs ?? config.beforeEventTimeoutMs ?? 10_000;
+
+		const target = this.player as unknown as {
+			listenersOf?: (event: string) => ReadonlyArray<(data: unknown) => void>;
+			pushDispatch?: (name: string) => void;
+			popDispatch?: () => string | undefined;
+		};
+
+		// Delegate to the shared dispatcher so plugin-emitted before-events
+		// observe the IDENTICAL contract as core's `_dispatchBefore`.
+		const outcome = await runDispatchBefore<TData>(target, namespaced, data, { timeoutMs });
+		// Re-shape the outcome to satisfy this plugin's typed return.
+		return outcome as BeforeDispatchResult<TData>;
+	}
+
+	// ── Structured error escalation ──
+
+	/**
+	 * Surface an error AND abort the current flow. Use for `error` / `fatal`
+	 * severities. Returns `never`.
+	 */
+	protected throw(payload: ThrowPayload): never {
+		const error = this.buildError(payload);
+		this.surfaceError(error);
+		throw error;
+	}
+
+	/**
+	 * Surface a `warning` / `info` event WITHOUT aborting flow. Returns void.
+	 * Use when a plugin wants the consumer to know something glitched but
+	 * playback should continue.
+	 */
+	protected report(payload: ThrowPayload): void {
+		const error = this.buildError({
+			...payload,
+			severity: payload.severity ?? 'warning',
+		});
+		this.surfaceError(error);
+	}
+
+	private buildError(payload: ThrowPayload): PlayerError {
+		const id = (this.constructor as typeof Plugin).id;
+		return new PlayerError({
+			code: payload.code,
+			id: payload.id,
+			severity: payload.severity ?? 'error',
+			scope: {
+				kind: 'plugin',
+				id,
+			},
+			message: payload.message,
+			cause: payload.cause,
+			context: payload.context,
+			suggestion: payload.suggestion,
+		});
+	}
+
+	private surfaceError(error: PlayerError): void {
+		// Emit on the matching severity channel so generic error pipelines catch it
+		this.player.emit(error.severity as any, {
+			error,
+			severity: error.severity,
+			scope: error.scope,
+			timestamp: Date.now(),
+		});
+		// Also emit on the plugin-scoped channel for consumers wiring to plugin lifecycle specifically
+		if (error.severity === 'warning' || error.severity === 'error') {
+			this.player.emit(`plugin:${error.severity}` as any, {
+				error,
+				severity: error.severity,
+				scope: error.scope,
+				timestamp: Date.now(),
+			});
+		}
+	}
+
+	// ── Auth-aware fetch ──
+
+	/**
+	 * HTTP fetch using the player's configured `AuthConfig`. Auto-aborts on
+	 * `dispose()`. Optional parser turns response text into a typed result.
+	 *
+	 * Errors propagate as `AuthError` (401/403) or `NetworkError` (everything
+	 * else); both extend `PlayerError` so the standard error-event surface
+	 * still applies.
+	 *
+	 * Event scoping (`opts.scope`):
+	 *  - `'plugin'` (default) — emits `plugin:<this.id>:fetch:start|retry|complete`.
+	 *    Other plugins / consumers don't see noise from this plugin's fetches.
+	 *  - `'player'` — additionally emits player-global `fetch:*` for unified
+	 *    telemetry pipes. Use when this fetch is part of the player's primary
+	 *    flow and observers should see it.
+	 *  - `'silent'` — emits nothing. Use for purely internal probes and optional
+	 *    plugins where failure is allowed without notifying anyone.
+	 *
+	 * Auth pipeline (single source of truth shared with the player core):
+	 *  - `auth.transformUrl(url)` runs first
+	 *  - `Authorization: Bearer <token>` set if `auth.bearerToken` resolves to one
+	 *  - `auth.headers` merged in
+	 *  - `auth.signRequest(request)` is the escape hatch for HMAC / sigv4 / etc.
+	 *  - On 401: `auth.refreshOnUnauthenticated()` runs once, then retry
+	 *  - On 403: propagates immediately, never refreshed, never retried
+	 *  - On 5xx / timeout / network: retry per `auth.retryAfterRefresh` and
+	 *    plugin's RetryConfig override
+	 */
+	protected fetch<T = string>(
+		url: string,
+		parser?: (raw: string) => T,
+		opts?: { scope?: 'plugin' | 'player' | 'silent' },
+	): Promise<T> {
+		const ctrl = this.lifecycle.abortable();
+		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
+		// Read live auth via auth() so token refreshes (`auth(partial)`/
+		// `refreshAuth`) propagate. Fall back to setup-time options.auth — matches
+		// the player core's own pattern (see loadQueue in base-player.ts).
+		const liveAuth = (this.player as unknown as { auth?: () => AuthConfig | undefined }).auth?.();
+		const auth = liveAuth ?? config.auth;
+		const pluginId = (this.constructor as typeof Plugin).id;
+		const scope = opts?.scope ?? 'plugin';
+		return authFetch<T>({
+			url,
+			auth,
+			signal: ctrl.signal,
+			parser,
+			emit: (event: string, data: unknown) => this.player.emit(event as any, data as any),
+			pluginId,
+			scope,
+		});
+	}
+
+	// ── Auth-URL resolution ──
+
+	/**
+	 * Resolve a URL through the player's configured `urlResolver` (or the
+	 * built-in `auth.transformUrl` + structured-parse default). Use whenever
+	 * a URL is handed to a non-`fetch()` consumer — Worker, `<video>.src`,
+	 * Cast receiver, MediaSource, CSS — i.e. anywhere custom Authorization
+	 * headers cannot be attached and auth must travel via query string /
+	 * signed URL.
+	 *
+	 * `category` is forwarded to the resolver so custom implementations can
+	 * branch on the consumer ('media', 'subtitle', 'cast', 'license', ...).
+	 *
+	 * Returns a `ResolvedUrl` with parsed parts. Falls back to a minimal
+	 * passthrough when running against an older kit version that lacks
+	 * `player.resolveUrl`.
+	 *
+	 * `Plugin.fetch` already applies `transformUrl` internally; this helper
+	 * is for the URLs you can't route through `fetch`.
+	 */
+	protected async resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl> {
+		const fn = (this.player as unknown as { resolveUrl?: (u: string, c?: string) => Promise<ResolvedUrl> }).resolveUrl;
+		if (typeof fn === 'function') {
+			try {
+				return await fn.call(this.player, url, category);
+			}
+			catch {
+				// Fall through to passthrough below.
+			}
+		}
+		// Older kit / detached player — return a minimal `ResolvedUrl` so
+		// callers can still read `.href` / `.toString()` without branching.
+		return buildResolvedUrl(url, url);
+	}
+
+	// ── Realtime channel helper (WebSocket / SignalR / Socket.IO via factory) ──
+
+	/**
+	 * Auto-reconnecting realtime channel bound to the plugin's lifecycle.
+	 * Closes on `dispose()`. Returns an `IRealtimeChannel` regardless of the
+	 * underlying transport so plugins write against one interface.
+	 *
+	 * Factory resolution (highest priority first):
+	 *  1. `opts.factory` — per-call override
+	 *  2. `setup({ websocketFactory })` — consumer-supplied default
+	 *  3. Built-in `nativeWebSocketAdapter` — wraps `WebSocket`
+	 *
+	 * Plugin authors needing a transport-specific override should subclass and
+	 * override this method directly.
+	 */
+	protected websocket(url: string, opts?: RealtimeFactoryOptions): IRealtimeChannel {
+		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
+		const factory = opts?.factory ?? config.websocketFactory ?? nativeWebSocketAdapter;
+		const channel = factory(url, opts);
+		// Auto-close on lifecycle dispose so plugin authors don't have to track
+		// the channel reference manually.
+		this.lifecycle.addCleanup(() => {
+			try {
+				if (channel.readyState !== 'closed' && channel.readyState !== 'closing') {
+					channel.close();
+				}
+			}
+			catch (err) {
+				void err;
+			}
+		});
+		return channel;
+	}
+
+	// ── DOM mount points ──
+
+	/**
+	 * Claim a `<div>` mount point on the player container. Idempotent per
+	 * plugin instance — same `name` returns the same node. Auto-removed on
+	 * `dispose()`.
+	 *
+	 * Mount nodes are namespaced per plugin: a plugin with `id = 'message'`
+	 * claiming `'toast'` gets a node with class `nmplayer-message-toast`.
+	 * Conflict-free across plugins.
+	 *
+	 * Plugins needing non-`<div>` elements should construct their own DOM and
+	 * append it under the player container directly.
+	 */
+	protected mount(name: string): HTMLDivElement {
+		const id = (this.constructor as typeof Plugin).id;
+		const className = `nmplayer-${id}-${name}`;
+
+		// Cache mount divs per plugin instance so the same name returns the
+		// same element across calls.
+		const cache = (this as unknown as { _mountCache?: Map<string, HTMLDivElement> })._mountCache
+			?? new Map<string, HTMLDivElement>();
+		(this as unknown as { _mountCache: Map<string, HTMLDivElement> })._mountCache = cache;
+		const cached = cache.get(name);
+		if (cached)
+			return cached;
+
+		const container = (this.player as IPlayer<any> & { container: HTMLElement }).container;
+		const div = document.createElement('div');
+		div.className = className;
+		container.appendChild(div);
+		cache.set(name, div);
+
+		this.lifecycle.addCleanup(() => {
+			div.remove();
+			cache.delete(name);
+		});
+
+		return div;
+	}
+
+	// ── i18n ──
+
+	/**
+	 * Translate a plugin-scoped key. Auto-namespaces under the plugin's id —
+	 * `this.t('line.empty')` looks up `plugin.<id>.line.empty` in the player's
+	 * translations table. Missing keys fall through to
+	 * `setup({ onMissingTranslation })`, defaulting to the key itself.
+	 */
+	protected t(key: string, vars?: Record<string, string>): string {
+		const id = (this.constructor as typeof Plugin).id;
+		const namespaced = `plugin.${id}.${key}`;
+		const player = this.player as IPlayer<any> & { t?: (key: string, vars?: Record<string, string>) => string };
+		if (typeof player.t === 'function')
+			return player.t(namespaced, vars);
+		return namespaced;
+	}
+
+	/**
+	 * Async loader for this plugin's translations. Override when bundles live
+	 * outside the source tree — fetched from an API, dynamic-imported, etc.
+	 *
+	 * Called by the player after `use()` resolves and on every `setLanguage`
+	 * change for which the plugin hasn't already loaded a bundle. Resolved
+	 * key→value map is merged under `plugin.<this.id>.*` and removed on
+	 * `dispose()`.
+	 *
+	 * Default: no-op (returns `undefined`). The static `translations` field
+	 * still applies; this hook is purely additive for runtime sources.
+	 *
+	 * ```ts
+	 * async loadTranslations(lang: string) {
+	 *   try {
+	 *     return await this.fetch(`/i18n/lyrics/${lang}.json`, JSON.parse, { scope: 'silent' });
+	 *   }
+	 *   catch {
+	 *     return undefined;
+	 *   }
+	 * }
+	 * ```
+	 */
+	protected loadTranslations?(_lang: string): Promise<Record<string, string> | undefined>;
+
+	// ── Lifecycle helpers (all auto-cleaned on dispose) ──
+
+	protected listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions): void {
+		this.lifecycle.listen(target, event, handler, options);
+	}
+
+	protected timeout(fn: () => void, ms: number): number {
+		return this.lifecycle.timeout(fn, ms);
+	}
+
+	protected interval(fn: () => void, ms: number): number {
+		return this.lifecycle.interval(fn, ms);
+	}
+
+	/**
+	 * Auto-cancelled requestAnimationFrame loop. Pass a render callback;
+	 * the kit handles the RAF loop, deltaMs accounting, and cancellation
+	 * on `dispose()`. Visualization plugins use this exclusively.
+	 */
+	protected frame(fn: (deltaMs: number, time: number) => void): void {
+		this.lifecycle.frame(fn);
+	}
+
+	protected abortable(): AbortController {
+		return this.lifecycle.abortable();
+	}
+
+	// ── Sharing / persistence (deferred) ──
+
+	/**
+	 * Class-level: produce a derived plugin class with options pre-baked.
+	 * Same `static id` unless `newId` is provided. Consumer-supplied opts at
+	 * registration time win over the baked-in defaults (shallow merge).
+	 */
+	static derive<C extends typeof Plugin<any, any, any>>(
+		this: C,
+		opts: Partial<InstanceType<C>['opts']>,
+		newId?: string,
+	): C {
+		const Parent = this;
+		class Derived extends (Parent as unknown as new () => Plugin) {
+			override initialize(player: any, consumerOpts: any, lifecycle: any): void {
+				const merged = {
+					...(opts as object),
+					...((consumerOpts ?? {}) as object),
+				};
+				super.initialize(player, merged, lifecycle);
+			}
+		}
+		if (newId !== undefined) {
+			Object.defineProperty(Derived, 'id', {
+				value: newId,
+				writable: false,
+				configurable: false,
+			});
+		}
+		return Derived as unknown as C;
+	}
+
+	/**
+	 * Produce a derived plugin class with this instance's CURRENT state baked in
+	 * as the default opts. Uses `export()` to capture the snapshot, so subclasses
+	 * that override `export` automatically benefit from richer state in the clone.
+	 */
+	clone(): typeof Plugin {
+		const exported = this.export();
+		const Ctor = this.constructor as typeof Plugin;
+		return (Ctor as unknown as { derive: (opts: unknown) => typeof Plugin }).derive(exported);
+	}
+
+	/**
+	 * Serializable JSON snapshot of the plugin's current state. Default returns
+	 * a deep-cloned `opts` snapshot — most plugins don't need to override.
+	 * Subclasses with non-opts runtime state should override and return a
+	 * superset that round-trips through `derive()`.
+	 */
+	export(): O {
+		return JSON.parse(JSON.stringify(this.opts ?? {})) as O;
+	}
+}
+
+/**
+ * Internally raised by `this.throw(...)` so the kit can identify structured
+ * plugin throws vs raw exceptions. Plugin authors should not construct these
+ * directly.
+ */
+export class PluginThrow extends Error {
+	constructor(public readonly payload: ThrowPayload, public readonly pluginId: string) {
+		super(payload.message ?? payload.code);
+	}
+}
