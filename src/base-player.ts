@@ -340,6 +340,14 @@ interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, C exten
 	_metricsTimer: ReturnType<typeof setInterval> | undefined;
 
 	/**
+	 * Wall-clock timestamp of the last `progress` event emit. Used by the
+	 * `progressIntervalMs` throttle inside `setup()`. Initialised to 0 so the
+	 * first `time` event always fires `progress` (avoids a silent first-interval
+	 * gap on short clips).
+	 */
+	_lastProgressEmit: number;
+
+	/**
 	 * Backing map for `experimental.override`. Stored on the instance so
 	 * the `getOriginals` helper in `experimentalDescriptor` can find it
 	 * without casting to `any`. TypeScript cannot see mixin-installed
@@ -369,8 +377,11 @@ interface MixinSurface {
 	// timeMethods
 	duration(): number;
 	buffered(): number;
+	seekByPercentage(pct: number, opts?: ActionOptions): void;
 	// queueMethods
 	queue(items?: BasePlaylistItem[], opts?: ActionOptions): ReadonlyArray<BasePlaylistItem> | void;
+	queueLength(): number;
+	currentIndex(): number;
 	// mediaTracksMethods
 	chapters(): unknown;
 	seekToChapter(idx: number, opts?: ActionOptions): void;
@@ -441,6 +452,7 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	};
 	p._metricsStartedAt = 0;
 	p._metricsTimer = undefined;
+	p._lastProgressEmit = 0;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -669,6 +681,45 @@ export const lifecycleMethods = {
 				this._metricsTimer = undefined;
 			});
 		}
+
+		// Spec §P4-V5: throttled progress event. `time` fires every animation
+		// frame — too noisy for server-side watch-position saves. We subscribe
+		// to the player's own `time` event and re-emit `progress` at most every
+		// `progressIntervalMs` (default 5000ms, 0 = disabled). `_lastProgressEmit`
+		// starts at 0 so the first `time` event always fires `progress`.
+		const progressInterval = this.options.progressIntervalMs ?? 5_000;
+		if (progressInterval > 0) {
+			const onTime = ({ time }: { time: number }): void => {
+				const now = Date.now();
+				if (now - this._lastProgressEmit < progressInterval) return;
+				this._lastProgressEmit = now;
+				const duration = this.duration();
+				const percentage = duration > 0 ? (time / duration) * 100 : 0;
+				this.emit('progress', { time, duration, percentage });
+			};
+			this.on('time', onTime);
+			this._policyCleanup.push(() => {
+				this.off('time', onTime);
+			});
+		}
+
+		// Spec §P4-V4: `queue:exhausted` — fires when the last item in a
+		// non-repeating queue ends naturally. Condition: cursor at the last
+		// queue slot AND repeat state is 'off'. Fires whether or not an
+		// auto-advance plugin is present so consumers always get a "playlist
+		// done" signal.
+		const onEnded = (): void => {
+			if (this._repeatState !== 'off') return;
+			const length = this.queueLength();
+			if (length === 0) return;
+			if (this.currentIndex() === length - 1) {
+				this.emit('queue:exhausted');
+			}
+		};
+		this.on('ended', onEnded);
+		this._policyCleanup.push(() => {
+			this.off('ended', onEnded);
+		});
 
 		// Pre-pipeline ceremony: beforeSetup fires synchronously so consumers
 		// can attach last-mile listeners before the pipeline actually runs.
@@ -1680,6 +1731,8 @@ export const transportMethods = {
 				source: seekResult.data.source,
 			});
 		});
+		// Spec §P4-V1: emit `seeked` after the seek-to-zero settles.
+		this.emit('seeked', { time: 0 });
 		await this.play(opts);
 	},
 } as const;
@@ -1713,6 +1766,9 @@ export const timeMethods = {
 					source: result.data.source,
 				});
 			});
+			// Spec §P4-V1: emit `seeked` after the seek settles. `seek` fires at
+			// dispatch time; `seeked` fires once the phase round-trip completes.
+			this.emit('seeked', { time: this._internalCurrentTime });
 		})();
 	},
 
@@ -1747,6 +1803,22 @@ export const timeMethods = {
 			remaining: Math.max(0, duration - position),
 			percentage: duration > 0 ? (position / duration) * 100 : 0,
 		};
+	},
+
+	/**
+	 * Seek to a position expressed as a percentage (0–100) of the total duration.
+	 *
+	 * `pct` is clamped to [0, 100]. No-op when duration is zero or non-finite
+	 * (metadata not yet loaded). Delegates to `currentTime(duration * pct / 100)`.
+	 * V1 parity — mirrors `seekByPercentage(pct)` on the v1 player surface.
+	 */
+	seekByPercentage(this: Internals, pct: number, opts?: ActionOptions): void {
+		const clamped = Math.max(0, Math.min(100, pct));
+		const d = (this as unknown as { duration(): number }).duration();
+		if (!Number.isFinite(d) || d <= 0) return;
+		const ret = (this as unknown as { currentTime(t: number, opts?: ActionOptions): number | Promise<void> }).currentTime(d * clamped / 100, opts);
+		if (ret && typeof (ret as Promise<void>).then === 'function')
+			void ret;
 	},
 
 	playbackRate(this: Internals, rate?: number): number | void {
@@ -2729,6 +2801,9 @@ export const mediaTracksMethods = {
 		const chapter = list[idx];
 		if (!chapter)
 			return; // out-of-range → no-op
+		// `currentTime` is async when a beforeSeek handler is wired. Fire-and-
+		// forget here — `seeked` is emitted inside `currentTime` after the
+		// phase round-trip, so consumers still see it on the correct path.
 		const ret = this.currentTime(chapter.start, opts);
 		if (ret && typeof (ret as Promise<void>).then === 'function')
 			void ret;

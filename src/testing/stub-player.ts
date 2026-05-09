@@ -298,6 +298,17 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		this._audioTrackState = AudioTrackState.MANUAL;
 	}
 
+	// ── Time helpers ──
+
+	/**
+	 * Seek to a percentage (0–100) of duration. No-op in the stub — duration
+	 * is always 0 so the real impl would exit early anyway. Tests that need
+	 * a real seek should use `currentTime()` directly.
+	 */
+	seekByPercentage(_pct: number, _opts?: import('../types').ActionOptions): void {
+		// stub — no media in tests
+	}
+
 	// ── Cue parsers ──
 
 	registerCueParser(parser: CueParser, prepend?: boolean): void {

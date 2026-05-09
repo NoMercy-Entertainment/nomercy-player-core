@@ -300,6 +300,20 @@ export interface BaseEventMap {
 	'previous': ActionOptions;
 	'ended': void;
 	'seek': { time: number; source?: ActionSource };
+
+	/**
+	 * Fires after a seek settles (backend resolves the new position).
+	 * V1 parity — v1 emitted `seeked` post-resolve; `seek` fires at dispatch time.
+	 */
+	'seeked': { time: number };
+
+	/**
+	 * Throttled time update — fires at most every `progressIntervalMs` (default 5000ms).
+	 * Use this instead of `time` for server-side watch-position saves and analytics.
+	 * V1 parity — mirrors `lastTimeTrigger` behaviour.
+	 */
+	'progress': { time: number; duration: number; percentage: number };
+
 	'time': { time: number };
 	'dispose': void;
 
@@ -329,6 +343,14 @@ export interface BaseEventMap {
 	'queue:clear': { previousLength: number };
 	'queue:shuffle': void;
 	'queue:sort': void;
+
+	/**
+	 * Fires when the last item in a non-repeating queue ends naturally.
+	 * V1 parity — mirrors `playlistComplete`. Fires regardless of whether
+	 * an auto-advance plugin is registered; consumers get the "playlist done"
+	 * signal unconditionally.
+	 */
+	'queue:exhausted': void;
 
 	// Backlog / history — items already played. Separate MediaList<T> at the
 	// player level. `next()` pushes the current item onto the backlog before
@@ -691,6 +713,13 @@ export interface BasePlayerConfig {
 
 	/** How often the player emits `playback:metrics`. `0` disables. Default 10000. */
 	metricsIntervalMs?: number;
+
+	/**
+	 * How often the player emits `progress` (throttled time updates for
+	 * server-side watch-position persistence). `0` disables. Default 5000.
+	 * Consumers use `progress` instead of `time` to avoid per-frame noise.
+	 */
+	progressIntervalMs?: number;
 
 	/** Pause when document goes hidden. Default `false` for both libraries. */
 	pauseWhenHidden?: boolean;
@@ -1144,6 +1173,15 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap> {
 	 */
 	currentAudioOutput(): Promise<string | null>;
 	currentAudioOutput(deviceId: string): Promise<void>;
+
+	/**
+	 * Seek to a position expressed as a percentage of the total duration.
+	 *
+	 * `pct` is clamped to [0, 100]. No-op when duration is not yet known
+	 * (zero or non-finite). Delegates to `currentTime(duration * pct / 100)`.
+	 * V1 parity — mirrors `seekByPercentage(pct)` on the v1 player surface.
+	 */
+	seekByPercentage(pct: number, opts?: ActionOptions): void;
 
 	/**
 	 * Buffer state derived from the active backend ('idle' → 'loading' →
