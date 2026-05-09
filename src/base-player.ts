@@ -2637,7 +2637,7 @@ export const mediaTracksMethods = {
 			b.setAudioTrack(idx);
 		}
 		// No backend track support — emit for symmetry.
-		this.emit('audioTrack' as any, { id: idx } as any);
+		this.emit('audioTrack', { id: idx });
 	},
 	qualityLevels(this: Internals): unknown {
 		const b = _peekBackend(this) as { qualityLevels?: () => unknown } | undefined;
@@ -2685,10 +2685,10 @@ export const mediaTracksMethods = {
 		const ret = (this as any).currentTime?.(chapter.start, opts);
 		if (ret && typeof ret.then === 'function')
 			void ret;
-		this.emit('chapter' as any, {
+		this.emit('chapter', {
 			index: idx,
 			title: chapter.title,
-		} as any);
+		});
 	},
 	nextChapter(this: Internals, opts?: ActionOptions): void {
 		const list = ((this as any).chapters?.() ?? []) as Chapter[];
@@ -2956,7 +2956,7 @@ export const castMethods = {
 	async transferTo(this: Internals, target: 'cast' | 'airplay' | 'remote-playback' | 'local'): Promise<void> {
 		const setState = (s: _CastStateEnum): void => {
 			(this as unknown as { _castState?: _CastStateEnum })._castState = s;
-			this.emit('castState' as any, { state: s } as any);
+			this.emit('castState', { state: s });
 		};
 
 		switch (target) {
@@ -3193,10 +3193,10 @@ export const loadingMethods = {
 			},
 		);
 		if (beforeResult.prevented) {
-			this.emit('loadPrevented' as any, {
+			this.emit('loadPrevented', {
 				reason: beforeResult.reason ?? 'listener-prevented',
 				cause: beforeResult.cause,
-			} as any);
+			});
 			return;
 		}
 
@@ -3279,7 +3279,7 @@ export const loadingMethods = {
 			if (this._phase === 'loading') {
 				_transitionPhase(this, 'ready');
 			}
-			this.emit('mediaReady' as any);
+			this.emit('mediaReady');
 		}
 		catch (err) {
 			// Restore phase on failure.
@@ -3297,7 +3297,7 @@ export const loadingMethods = {
 	): Promise<void> {
 		_assertReady(this);
 
-		this.emit('playlistResolving' as any, { url } as any);
+		this.emit('playlistResolving', { url });
 
 		// Use authFetch under the hood so the consumer's auth pipeline is honored.
 		const config = this.options ?? {};
@@ -3307,13 +3307,13 @@ export const loadingMethods = {
 				url,
 				auth: this._authConfig ?? config.auth,
 				parser: parser ?? ((raw: string) => JSON.parse(raw) as T[]),
-				emit: (event: string, data: unknown) => this.emit(event as any, data as any),
+				emit: (event: string, data: unknown) => this.emit(event, data),
 				pluginId: undefined,
 				scope: 'player',
 				signal: ctrl.signal,
 			});
 			(this as any).queue?.(items);
-			this.emit('playlistReady' as any, { length: items.length } as any);
+			this.emit('playlistReady', { length: items.length });
 		}
 		catch (err) {
 			const errorPayload = {
@@ -3328,8 +3328,8 @@ export const loadingMethods = {
 				preventDefault: () => {},
 				isDefaultPrevented: () => false,
 			};
-			this.emit('playlistResolveError' as any, errorPayload as any);
-			this.emit('error' as any, errorPayload as any);
+			this.emit('playlistResolveError', errorPayload);
+			this.emit('error', errorPayload);
 			throw err;
 		}
 	},

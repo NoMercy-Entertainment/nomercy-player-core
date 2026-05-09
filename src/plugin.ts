@@ -297,9 +297,9 @@ export class Plugin<
 			return;
 		this._enabled = true;
 		const id = (this.constructor as typeof Plugin).id;
-		this.player.emit('plugin:enabled' as any, { id } as any);
+		this.player.emit('plugin:enabled', { id });
 		// Spec §1.5: per-plugin namespaced channel mirrors the global one.
-		this.player.emit(`plugin:${id}:enabled` as any, { id } as any);
+		this.player.emit(`plugin:${id}:enabled`, { id });
 	}
 
 	/** Deactivate plugin behavior without unloading. Idempotent. */
@@ -308,14 +308,14 @@ export class Plugin<
 			return;
 		this._enabled = false;
 		const id = (this.constructor as typeof Plugin).id;
-		this.player.emit('plugin:disabled' as any, {
+		this.player.emit('plugin:disabled', {
 			id,
 			reason,
-		} as any);
-		this.player.emit(`plugin:${id}:disabled` as any, {
+		});
+		this.player.emit(`plugin:${id}:disabled`, {
 			id,
 			reason,
-		} as any);
+		});
 	}
 
 	/** Snapshot for debug overlays / save+restore tooling. */
@@ -357,17 +357,17 @@ export class Plugin<
 		} as O;
 		const id = (this.constructor as typeof Plugin).id;
 		// Global channel for any consumer wiring once across all plugins.
-		this.player.emit('plugin:opts:changed' as any, {
+		this.player.emit('plugin:opts:changed', {
 			id,
 			opts: this.opts,
-		} as any);
+		});
 		// Per-plugin namespaced channel — matches the spec §1.5 contract.
-		this.player.emit(`plugin:${id}:opts:changed` as any, {
+		this.player.emit(`plugin:${id}:opts:changed`, {
 			id,
 			opts: this.opts,
-		} as any);
+		});
 		// Plugin-self namespaced (used by sibling plugins via `on(MyPluginClass, 'opts:changed', ...)`).
-		this.emit('opts:changed' as any, this.opts as any);
+		this.emit('opts:changed', this.opts);
 	}
 
 	// ── Scoped event surface (typed-only, two overloads — string for player events, Class for plugin events) ──
@@ -395,8 +395,8 @@ export class Plugin<
 	): void;
 	protected on(arg1: any, arg2: any, arg3?: any): void {
 		const { event, fn } = resolveListenerArgs(arg1, arg2, arg3);
-		this.player.on(event as any, fn);
-		this.lifecycle.addCleanup(() => this.player.off(event as any, fn));
+		this.player.on(event, fn);
+		this.lifecycle.addCleanup(() => this.player.off(event, fn));
 	}
 
 	/**
@@ -412,8 +412,8 @@ export class Plugin<
 	): void;
 	protected once(arg1: any, arg2: any, arg3?: any): void {
 		const { event, fn } = resolveListenerArgs(arg1, arg2, arg3);
-		this.player.once(event as any, fn);
-		this.lifecycle.addCleanup(() => this.player.off(event as any, fn));
+		this.player.once(event, fn);
+		this.lifecycle.addCleanup(() => this.player.off(event, fn));
 	}
 
 	/**
@@ -428,7 +428,7 @@ export class Plugin<
 	): void;
 	protected off(arg1: any, arg2: any, arg3?: any): void {
 		const { event, fn } = resolveListenerArgs(arg1, arg2, arg3);
-		this.player.off(event as any, fn);
+		this.player.off(event, fn);
 	}
 
 	/**
@@ -443,7 +443,7 @@ export class Plugin<
 		const event = typeof arg1 === 'function'
 			? `plugin:${(arg1 as any).id}:${arg2}`
 			: arg1;
-		return this.player.hasListeners(event as any);
+		return this.player.hasListeners(event);
 	}
 
 	/**
@@ -579,7 +579,7 @@ export class Plugin<
 
 	private surfaceError(error: PlayerError): void {
 		// Emit on the matching severity channel so generic error pipelines catch it
-		this.player.emit(error.severity as any, {
+		this.player.emit(error.severity, {
 			error,
 			severity: error.severity,
 			scope: error.scope,
@@ -587,7 +587,7 @@ export class Plugin<
 		});
 		// Also emit on the plugin-scoped channel for consumers wiring to plugin lifecycle specifically
 		if (error.severity === 'warning' || error.severity === 'error') {
-			this.player.emit(`plugin:${error.severity}` as any, {
+			this.player.emit(`plugin:${error.severity}`, {
 				error,
 				severity: error.severity,
 				scope: error.scope,
@@ -644,7 +644,7 @@ export class Plugin<
 			auth,
 			signal: ctrl.signal,
 			parser,
-			emit: (event: string, data: unknown) => this.player.emit(event as any, data as any),
+			emit: (event: string, data: unknown) => this.player.emit(event, data),
 			pluginId,
 			scope,
 		});

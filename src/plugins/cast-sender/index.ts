@@ -180,40 +180,46 @@ export class CastSenderPlugin<
 	private applyingFromRemote: boolean = false;
 
 	override use(): void {
-		this.on('current' as any, (_data: any) => {
+		this.on('current', (_data) => {
 			if (!this.isConnected() || this.applyingFromRemote)
 				return;
 			void this.forwardCurrent();
 		});
-		this.on('play' as any, (data: any) => {
-			if (!this.isConnected() || this.applyingFromRemote || data?.source === 'cast')
+		this.on('play', (data) => {
+			const d = data as Record<string, unknown> | undefined;
+			if (!this.isConnected() || this.applyingFromRemote || d?.['source'] === 'cast')
 				return;
 			this.forwardPlayPause(true);
 		});
-		this.on('pause' as any, (data: any) => {
-			if (!this.isConnected() || this.applyingFromRemote || data?.source === 'cast')
+		this.on('pause', (data) => {
+			const d = data as Record<string, unknown> | undefined;
+			if (!this.isConnected() || this.applyingFromRemote || d?.['source'] === 'cast')
 				return;
 			this.forwardPlayPause(false);
 		});
-		this.on('stop' as any, (data: any) => {
-			if (!this.isConnected() || this.applyingFromRemote || data?.source === 'cast')
+		this.on('stop', (data) => {
+			const d = data as Record<string, unknown> | undefined;
+			if (!this.isConnected() || this.applyingFromRemote || d?.['source'] === 'cast')
 				return;
 			this.forwardStop();
 		});
-		this.on('seek' as any, (data: any) => {
-			if (!this.isConnected() || this.applyingFromRemote || data?.source === 'cast')
+		this.on('seek', (data) => {
+			const d = data as Record<string, unknown> | undefined;
+			if (!this.isConnected() || this.applyingFromRemote || d?.['source'] === 'cast')
 				return;
-			this.forwardSeek(typeof data?.time === 'number' ? data.time : 0);
+			this.forwardSeek(typeof d?.['time'] === 'number' ? d['time'] as number : 0);
 		});
-		this.on('volume' as any, (data: any) => {
+		this.on('volume', (data) => {
+			const d = data as Record<string, unknown> | undefined;
 			if (!this.isConnected() || this.applyingFromRemote)
 				return;
-			this.forwardVolume(typeof data?.level === 'number' ? data.level : 1);
+			this.forwardVolume(typeof d?.['level'] === 'number' ? d['level'] as number : 1);
 		});
-		this.on('mute' as any, (data: any) => {
+		this.on('mute', (data) => {
+			const d = data as Record<string, unknown> | undefined;
 			if (!this.isConnected() || this.applyingFromRemote)
 				return;
-			this.forwardMute(!!data?.muted);
+			this.forwardMute(!!d?.['muted']);
 		});
 	}
 
