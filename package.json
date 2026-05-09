@@ -1,0 +1,134 @@
+{
+	"name": "@nomercy-entertainment/nomercy-player-core",
+	"type": "module",
+	"version": "0.0.0",
+	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+	"description": "NoMercy player core — shared spine for nomercy-music-player and nomercy-video-player. Plugin runtime, event system, lifecycle helpers, streams, cues, errors, auth.",
+	"author": {
+		"name": "NoMercy Entertainment",
+		"email": "info@nomercy.tv",
+		"url": "https://nomercy.tv"
+	},
+	"contributors": [
+		"Stoney Eagle <stoney@nomercy.tv>"
+	],
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/NoMercy-Entertainment/nomercy-player-kit.git"
+	},
+	"keywords": [
+		"player",
+		"plugin",
+		"hls",
+		"webvtt",
+		"NoMercy"
+	],
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./plugins/tab-leader": {
+			"types": "./dist/plugins/tab-leader.d.ts",
+			"import": "./dist/plugins/tab-leader.js"
+		},
+		"./plugins/key-handler": {
+			"types": "./dist/plugins/key-handler.d.ts",
+			"import": "./dist/plugins/key-handler.js"
+		},
+		"./plugins/media-session": {
+			"types": "./dist/plugins/media-session.d.ts",
+			"import": "./dist/plugins/media-session.js"
+		},
+		"./plugins/message": {
+			"types": "./dist/plugins/message.d.ts",
+			"import": "./dist/plugins/message.js"
+		},
+		"./plugins/embed": {
+			"types": "./dist/plugins/embed.d.ts",
+			"import": "./dist/plugins/embed.js"
+		},
+		"./plugins/audio-graph": {
+			"types": "./dist/plugins/audio-graph.d.ts",
+			"import": "./dist/plugins/audio-graph.js"
+		},
+		"./plugins/canvas": {
+			"types": "./dist/plugins/canvas.d.ts",
+			"import": "./dist/plugins/canvas.js"
+		},
+		"./plugins/mixer": {
+			"types": "./dist/plugins/mixer.d.ts",
+			"import": "./dist/plugins/mixer.js"
+		},
+		"./plugins/equalizer": {
+			"types": "./dist/plugins/equalizer/index.d.ts",
+			"import": "./dist/plugins/equalizer/index.js"
+		},
+		"./plugins/spectrum": {
+			"types": "./dist/plugins/spectrum.d.ts",
+			"import": "./dist/plugins/spectrum.js"
+		},
+		"./plugins/visualization": {
+			"types": "./dist/plugins/visualization.d.ts",
+			"import": "./dist/plugins/visualization.js"
+		},
+		"./streams/native": {
+			"types": "./dist/streams/native.d.ts",
+			"import": "./dist/streams/native.js"
+		},
+		"./streams/hls": {
+			"types": "./dist/streams/hls.d.ts",
+			"import": "./dist/streams/hls.js"
+		},
+		"./cues/parsers/vtt": {
+			"types": "./dist/cues/parsers/vtt.d.ts",
+			"import": "./dist/cues/parsers/vtt.js"
+		},
+		"./cues/parsers/lrc": {
+			"types": "./dist/cues/parsers/lrc.d.ts",
+			"import": "./dist/cues/parsers/lrc.js"
+		},
+		"./testing": {
+			"types": "./dist/testing/index.d.ts",
+			"import": "./dist/testing/index.js"
+		},
+		"./vite-plugin": {
+			"types": "./dist/vite-plugin.d.ts",
+			"import": "./dist/vite-plugin.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"src"
+	],
+	"scripts": {
+		"build": "vite build",
+		"dev": "vite build --watch",
+		"typecheck": "tsc --noEmit",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"prepublishOnly": "npm run build"
+	},
+	"dependencies": {
+		"hls.js": "^1.6.0"
+	},
+	"devDependencies": {
+		"@antfu/eslint-config": "^4.0.0",
+		"@types/node": "^22.0.0",
+		"@vitest/ui": "^4.1.5",
+		"eslint": "^9.0.0",
+		"happy-dom": "^20.8.9",
+		"typescript": "^5.6.0",
+		"vite": "^8.0.11",
+		"vite-plugin-dts": "^4.0.0",
+		"vitest": "^4.1.5"
+	}
+}
