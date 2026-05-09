@@ -3149,6 +3149,18 @@ export const loadingMethods = {
 			_transitionPhase(this, 'loading');
 		}
 
+		// Race-guard: bump a monotonic load epoch and capture it. When the
+		// consumer fires p.load(A) and p.load(B) in quick succession, the
+		// older call's continuation otherwise lands AFTER the newer one and
+		// drags cursor / phase / opts back to A — bridges that listen to
+		// `current` then chase B again, producing a load-loop. Anything
+		// observably side-effectful AFTER the awaited backend.load only
+		// runs when our epoch is still the latest.
+		const internals = this as unknown as { _loadEpoch?: number };
+		const epoch = (internals._loadEpoch ?? 0) + 1;
+		internals._loadEpoch = epoch;
+		const isLatest = (): boolean => internals._loadEpoch === epoch;
+
 		try {
 			const backend = (this as unknown as { backend: () => unknown }).backend?.();
 			if (!backend || typeof (backend as { load?: unknown }).load !== 'function') {
@@ -3160,6 +3172,7 @@ export const loadingMethods = {
 				});
 			}
 			await (backend as { load: (url: string) => Promise<void> }).load(url);
+			if (!isLatest()) return;
 
 			// Move cursor to the loaded item so consumer-facing `current()` reflects it.
 			(this as any).current?.(item2.id ?? item2);
@@ -3169,6 +3182,7 @@ export const loadingMethods = {
 				const ret = (this as any).currentTime?.(opts.startAt);
 				if (ret && typeof ret.then === 'function')
 					await ret;
+				if (!isLatest()) return;
 			}
 
 			// Honour LoadOptions.fadeIn by ramping volume from 0→current over the configured seconds.
@@ -3180,10 +3194,12 @@ export const loadingMethods = {
 				const stepMs = (opts.fadeIn * 1000) / steps;
 				for (let i = 1; i <= steps; i++) {
 					await new Promise(r => setTimeout(r, stepMs));
+					if (!isLatest()) return;
 					(this as any).volume?.((target * i) / steps);
 				}
 			}
 
+			if (!isLatest()) return;
 			// Restore phase to ready (or whatever state the backend resolved to).
 			if (this._phase === 'loading') {
 				_transitionPhase(this, 'ready');
