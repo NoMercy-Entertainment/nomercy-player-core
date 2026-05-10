@@ -721,6 +721,15 @@ export const lifecycleMethods = {
 			this.off('ended', onEnded);
 		});
 
+		if (this.options.expose === true && typeof window !== 'undefined') {
+			Object.assign(window, { player: this });
+			this._policyCleanup.push(() => {
+				if (Object.is(Reflect.get(window, 'player'), this)) {
+					Reflect.deleteProperty(window, 'player');
+				}
+			});
+		}
+
 		// Pre-pipeline ceremony: beforeSetup fires synchronously so consumers
 		// can attach last-mile listeners before the pipeline actually runs.
 		this.emit('beforeSetup');

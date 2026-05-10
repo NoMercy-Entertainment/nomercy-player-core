@@ -770,6 +770,15 @@ export interface BasePlayerConfig {
 
 	/** Initial playlist. Pass items directly, or a URL the player will fetch. */
 	playlist?: BasePlaylistItem[] | string;
+
+	/**
+	 * Attach the player instance to `window.player` for console debugging.
+	 * Cleaned up on `dispose()`. Default `false`.
+	 *
+	 * The library factory (`nmplayer` / `nmMPlayer`) additionally attaches
+	 * itself to `window.nmplayer` / `window.nmMPlayer` when this is `true`.
+	 */
+	expose?: boolean;
 }
 
 /**
