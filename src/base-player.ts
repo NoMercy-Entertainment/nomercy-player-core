@@ -383,6 +383,7 @@ interface MixinSurface {
 	queue(items?: BasePlaylistItem[], opts?: ActionOptions): ReadonlyArray<BasePlaylistItem> | void;
 	queueLength(): number;
 	currentIndex(): number;
+	next(opts?: ActionOptions): Promise<void>;
 	// mediaTracksMethods
 	chapters(): ReadonlyArray<Chapter>;
 	seekToChapter(idx: number, opts?: ActionOptions): void;
@@ -725,8 +726,7 @@ export const lifecycleMethods = {
 		if (this.options.autoAdvance !== false) {
 			const onEnded = (): void => {
 				if (this._repeatState !== 'off') return;
-				const self = this as unknown as { next: (opts: ActionOptions) => Promise<void>; play: (opts?: ActionOptions) => Promise<void> };
-				void self.next({ source: 'auto-advance' }).then(() => self.play({ source: 'auto-advance' }));
+				void this.next({ source: 'auto-advance' }).then(() => this.play({ source: 'auto-advance' }));
 			};
 			this.on('ended', onEnded);
 			this._policyCleanup.push(() => {
