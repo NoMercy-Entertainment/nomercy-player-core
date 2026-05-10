@@ -871,6 +871,23 @@ function _shouldGuardMutation(self: Internals, method: string): boolean {
  * current phase + currently-dispatching event names. Advisories surface as
  * `info`/`warning`/`error` events with code `plugin:<plugin-id>/<reason>`.
  */
+interface _BackendShape {
+	play?: () => Promise<void> | void;
+	pause?: () => void;
+	stop?: () => void;
+	currentTime?: (t: number) => void;
+	volume?: (v: number) => void;
+	mute?: () => void;
+	unmute?: () => void;
+}
+
+function _backend(self: Internals): _BackendShape | undefined {
+	const fn = (self as { backend?: () => unknown }).backend;
+	if (typeof fn !== 'function') return undefined;
+	const result = fn.call(self);
+	return result as _BackendShape | undefined;
+}
+
 function _emitBeforeMutation(self: Internals, method: string, args: ReadonlyArray<unknown>): boolean {
 	if (!_shouldGuardMutation(self, method))
 		return true;
@@ -1592,12 +1609,12 @@ export const transportMethods = {
 			return;
 		}
 		this._playState = 'playing';
-		// Spec §D phase machine: ready/paused → starting on play(); backend's
-		// `firstFrame` later transitions starting → playing.
 		if (this._phase === 'ready' || this._phase === 'paused') {
 			_transitionPhase(this, 'starting');
 		}
 		this.emit('play', result.data);
+
+		await _backend(this)?.play?.();
 	},
 
 	async pause(this: Internals, opts: ActionOptions = {}): Promise<void> {
@@ -1615,6 +1632,8 @@ export const transportMethods = {
 			_transitionPhase(this, 'paused');
 		}
 		this.emit('pause', result.data);
+
+		_backend(this)?.pause?.();
 	},
 
 	async stop(this: Internals, opts: ActionOptions = {}): Promise<void> {
@@ -1630,6 +1649,8 @@ export const transportMethods = {
 		this._playState = 'stopped';
 		_transitionPhase(this, 'stopped');
 		this.emit('stop', result.data);
+
+		_backend(this)?.stop?.();
 	},
 
 	async togglePlayback(this: Internals, opts?: ActionOptions): Promise<void> {
@@ -1766,8 +1787,9 @@ export const timeMethods = {
 					source: result.data.source,
 				});
 			});
-			// Spec §P4-V1: emit `seeked` after the seek settles. `seek` fires at
-			// dispatch time; `seeked` fires once the phase round-trip completes.
+
+			_backend(this)?.currentTime?.(this._internalCurrentTime);
+
 			this.emit('seeked', { time: this._internalCurrentTime });
 		})();
 	},
@@ -1841,8 +1863,6 @@ export const volumeMethods = {
 		if (v === undefined) {
 			return this._volumeState === 'muted' ? 0 : this._internalVolume;
 		}
-		// Spec §C: volume is a HOT mutation — skipped by default. Opt in via
-		// `setup({ mutationGuards: 'all' })` or `mutationGuards: ['volume']`.
 		if (!_emitBeforeMutation(this, 'volume', [v]))
 			return;
 		this._internalVolume = Math.max(0, Math.min(1, v));
@@ -1850,6 +1870,8 @@ export const volumeMethods = {
 			this._volumeBeforeMute = this._internalVolume;
 		}
 		this.emit('volume', { level: this._internalVolume });
+
+		_backend(this)?.volume?.(this._internalVolume);
 	},
 	mute(this: Internals): void {
 		if (this._volumeState === 'muted')
@@ -1857,6 +1879,8 @@ export const volumeMethods = {
 		this._volumeBeforeMute = this._internalVolume;
 		this._volumeState = 'muted';
 		this.emit('mute', { muted: true });
+
+		_backend(this)?.mute?.();
 	},
 	unmute(this: Internals): void {
 		if (this._volumeState === 'unmuted')
@@ -1864,6 +1888,8 @@ export const volumeMethods = {
 		this._volumeState = 'unmuted';
 		this._internalVolume = this._volumeBeforeMute;
 		this.emit('mute', { muted: false });
+
+		_backend(this)?.unmute?.();
 	},
 	toggleMute(this: Internals): void {
 		if (this._volumeState === 'muted')
