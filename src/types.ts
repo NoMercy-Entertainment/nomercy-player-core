@@ -1147,6 +1147,9 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap> {
 	/** Unregister a cue parser by id. */
 	unregisterCueParser(id: string): void;
 
+	/** Resolve the registered parser for the given URL, or `undefined` if none match. */
+	resolveCueParser(url: string): CueParser | undefined;
+
 	/**
 	 * Read or write the auth config.
 	 *

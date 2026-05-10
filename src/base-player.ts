@@ -1692,6 +1692,9 @@ export const cueParserMethods = {
 	unregisterCueParser(this: Internals, id: string): void {
 		this._cueParsers.unregister(id);
 	},
+	resolveCueParser(this: Internals, url: string): CueParser | undefined {
+		return this._cueParsers.resolve(url);
+	},
 } as const;
 
 // ──────────────────────────────────────────────────────────────────────────

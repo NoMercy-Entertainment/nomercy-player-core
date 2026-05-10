@@ -330,6 +330,10 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 			this._registeredParsers.splice(idx, 1);
 	}
 
+	resolveCueParser(url: string): CueParser | undefined {
+		return this._registeredParsers.find(p => p.canParse(url));
+	}
+
 	/** Test-only: introspect registered parsers without going through `resolve()`. */
 	cueParsers(): ReadonlyArray<CueParser> {
 		return this._registeredParsers;
