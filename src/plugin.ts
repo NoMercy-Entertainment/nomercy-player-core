@@ -1,5 +1,4 @@
 import type { RetryConfig, Severity } from './errors';
-import type { EventEmitter } from './events';
 import type { LifecycleRegistry } from './lifecycle';
 import type { Logger } from './logger';
 import type { IRealtimeChannel, RealtimeFactoryOptions } from './realtime';
@@ -33,9 +32,11 @@ import { buildResolvedUrl } from './resolved-url';
  * complexity blocks TypeScript's conditional-type inference through `IPlayer`.
  */
 export type PlayerEventMap<P> =
-	P extends IPlayer<infer E> ? E :
-	P extends EventEmitter<infer E> ? (E extends BaseEventMap ? E : BaseEventMap) :
-	BaseEventMap;
+	P extends { readonly __eventMap__: infer E }
+		? (E extends BaseEventMap ? E : BaseEventMap)
+		: P extends IPlayer<infer E>
+			? E
+			: BaseEventMap;
 
 /**
  * Resolve listener args from either form:

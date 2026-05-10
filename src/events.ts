@@ -20,6 +20,13 @@ type AnyHandler = (data: any) => void;
  *   base just keeps the dispatch alive.
  */
 export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
+	/**
+	 * Phantom type brand — never assigned at runtime. Exists solely so
+	 * `PlayerEventMap<P>` can infer `E` from a plain `P extends EventEmitter<infer E>`
+	 * check without being confused by the overloaded `on()` signatures.
+	 */
+	declare readonly __eventMap__: E;
+
 	private readonly listeners = new Map<string, Set<AnyHandler>>();
 	private readonly onceWrappers = new WeakMap<AnyHandler, AnyHandler>();
 	private readonly _lcPending = new Set<string>();
