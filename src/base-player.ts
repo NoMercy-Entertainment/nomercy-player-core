@@ -683,6 +683,14 @@ export const lifecycleMethods = {
 			});
 		}
 
+		const onTimeSync = ({ time }: { time: number }): void => {
+			this._internalCurrentTime = time;
+		};
+		this.on('time', onTimeSync);
+		this._policyCleanup.push(() => {
+			this.off('time', onTimeSync);
+		});
+
 		// Spec §P4-V5: throttled progress event. `time` fires every animation
 		// frame — too noisy for server-side watch-position saves. We subscribe
 		// to the player's own `time` event and re-emit `progress` at most every
