@@ -37,7 +37,7 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 		queueMicrotask(() => {
 			this._lcPending.delete(name);
 			const current = this.listeners.get(name)?.size ?? 0;
-			this.emit('listeners-changed' as any, { name, count: current } as any);
+			this.emit('listeners-changed', { name, count: current });
 		});
 	}
 
