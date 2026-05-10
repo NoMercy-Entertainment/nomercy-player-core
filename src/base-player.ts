@@ -29,7 +29,7 @@
  */
 
 import type { CueParser } from './cues/parser-registry';
-import type { EventEmitter } from './events';
+import { EventEmitter } from './events';
 import type { IPlatform } from './platform';
 import type { Plugin } from './plugin';
 import type { StreamFactory } from './streams/source';
@@ -455,6 +455,7 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	p._lastProgressEmit = 0;
 }
 
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: lifecycle (setup, ready, dispose, setupState, phase, dispatching,
 // _transitionPhase, _assertReady, _dispatchBefore)
@@ -730,6 +731,10 @@ export const lifecycleMethods = {
 			});
 		}
 
+		if (this.container && typeof this.container.classList !== 'undefined') {
+			this.container.classList.add('nomercyplayer', 'paused');
+		}
+
 		// Pre-pipeline ceremony: beforeSetup fires synchronously so consumers
 		// can attach last-mile listeners before the pipeline actually runs.
 		this.emit('beforeSetup');
@@ -826,11 +831,85 @@ export const lifecycleMethods = {
 	},
 } as const;
 
+const PLAY_STATE_CLASSES: ReadonlyArray<string> = ['playing', 'paused', 'stopped', 'ended', 'loading', 'buffering'] as const;
+
+type ContainerClassRule =
+	| { kind: 'swap'; add: string; remove: readonly string[] }
+	| { kind: 'drop'; remove: readonly string[] }
+	| { kind: 'toggle'; cls: string; payloadKey: string }
+	| { kind: 'binary'; whenTrue: string; whenFalse: string; payloadKey: string }
+	| { kind: 'phase' };
+
+const CONTAINER_CLASS_RULES: ReadonlyMap<string, ContainerClassRule> = new Map<string, ContainerClassRule>([
+	['play', { kind: 'swap', add: 'playing', remove: PLAY_STATE_CLASSES.filter(c => c !== 'playing') }],
+	['pause', { kind: 'swap', add: 'paused', remove: PLAY_STATE_CLASSES.filter(c => c !== 'paused') }],
+	['stop', { kind: 'swap', add: 'stopped', remove: PLAY_STATE_CLASSES.filter(c => c !== 'stopped') }],
+	['ended', { kind: 'swap', add: 'ended', remove: PLAY_STATE_CLASSES.filter(c => c !== 'ended') }],
+	['waiting', { kind: 'swap', add: 'buffering', remove: ['playing'] }],
+	['stalled', { kind: 'swap', add: 'buffering', remove: ['playing'] }],
+	['canplay', { kind: 'drop', remove: ['buffering'] }],
+	['mute', { kind: 'toggle', cls: 'muted', payloadKey: 'muted' }],
+	['fullscreen', { kind: 'toggle', cls: 'fullscreen', payloadKey: 'active' }],
+	['pip', { kind: 'toggle', cls: 'pip', payloadKey: 'active' }],
+	['theater', { kind: 'toggle', cls: 'theater', payloadKey: 'active' }],
+	['phase', { kind: 'phase' }],
+	['activity', { kind: 'binary', whenTrue: 'active', whenFalse: 'inactive', payloadKey: 'active' }],
+]);
+
+function _applyContainerClassRule(container: HTMLElement | undefined, rule: ContainerClassRule, data: unknown): void {
+	if (!container || typeof container.classList === 'undefined') return;
+
+	if (rule.kind === 'swap') {
+		for (const cls of rule.remove) container.classList.remove(cls);
+		container.classList.add(rule.add);
+		return;
+	}
+
+	if (rule.kind === 'drop') {
+		for (const cls of rule.remove) container.classList.remove(cls);
+		return;
+	}
+
+	if (rule.kind === 'toggle') {
+		const payload = data as Record<string, unknown>;
+		container.classList.toggle(rule.cls, Boolean(payload[rule.payloadKey]));
+		return;
+	}
+
+	if (rule.kind === 'binary') {
+		const payload = data as Record<string, unknown>;
+		const on = Boolean(payload[rule.payloadKey]);
+		container.classList.add(on ? rule.whenTrue : rule.whenFalse);
+		container.classList.remove(on ? rule.whenFalse : rule.whenTrue);
+		return;
+	}
+
+	if (rule.kind === 'phase') {
+		const payload = data as { to: PlayerPhase };
+		if (PLAY_STATE_CLASSES.includes(payload.to)) {
+			for (const cls of PLAY_STATE_CLASSES) container.classList.remove(cls);
+			container.classList.add(payload.to);
+		}
+	}
+}
+
+export const containerClassEmitMethods = {
+	emit(this: Internals, event: any, data?: any): void {
+		const rule = CONTAINER_CLASS_RULES.get(String(event));
+		if (rule) {
+			_applyContainerClassRule(this.container, rule, data);
+		}
+		EventEmitter.prototype.emit.call(this, event, data);
+	},
+} as const;
+
+
 function _transitionPhase(self: Internals, next: PlayerPhase): void {
 	const from = self._phase;
 	if (from === next)
 		return;
 	self._phase = next;
+
 	self.emit('phase', {
 		from,
 		to: next,
@@ -1716,6 +1795,10 @@ export const transportMethods = {
 				source: result.data.source,
 			});
 		});
+
+		_backend(this)?.currentTime?.(this._internalCurrentTime);
+
+		this.emit('seeked', { time: this._internalCurrentTime });
 	},
 
 	async forward(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
@@ -1738,6 +1821,10 @@ export const transportMethods = {
 				source: result.data.source,
 			});
 		});
+
+		_backend(this)?.currentTime?.(this._internalCurrentTime);
+
+		this.emit('seeked', { time: this._internalCurrentTime });
 	},
 
 	async restart(this: Internals, opts: ActionOptions = {}): Promise<void> {
@@ -3524,4 +3611,5 @@ export const playerCoreMethods = [
 	metricsMethods,
 	domMethods,
 	loadingMethods,
+	containerClassEmitMethods,
 ] as const;
