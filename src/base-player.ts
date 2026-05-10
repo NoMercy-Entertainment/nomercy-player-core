@@ -722,21 +722,10 @@ export const lifecycleMethods = {
 			});
 		}
 
-		// Kit-level auto-advance: when an item ends, advance to the next item
-		// unless autoAdvance is disabled or repeat is not 'off'. If there is no
-		// next item, emit queue:exhausted. The music plugin's AutoAdvancePlugin
-		// layers crossfade / preload on top of this base behaviour.
 		const onEnded = (): void => {
 			if (this._repeatState !== 'off') return;
-			if (this.options.autoAdvance === false) {
-				const length = this.queueLength();
-				if (length > 0 && this.currentIndex() === length - 1) {
-					this.emit('queue:exhausted');
-				}
-				return;
-			}
-			void (this as unknown as { next: (opts: ActionOptions) => Promise<void> })
-				.next({ source: 'auto-advance' });
+			const self = this as unknown as { next: (opts: ActionOptions) => Promise<void>; play: (opts?: ActionOptions) => Promise<void> };
+			void self.next({ source: 'auto-advance' }).then(() => self.play({ source: 'auto-advance' }));
 		};
 		this.on('ended', onEnded);
 		this._policyCleanup.push(() => {
@@ -985,6 +974,8 @@ interface _BackendShape {
 	pause?: () => void;
 	stop?: () => void;
 	currentTime?: (t: number) => void;
+	buffered?: () => number;
+	bufferedRanges?: () => TimeRanges;
 	volume?: (v: number) => void;
 	mute?: () => void;
 	unmute?: () => void;
@@ -1787,17 +1778,10 @@ export const transportMethods = {
 			return;
 		}
 
-		const wasPlaying = this._playState === 'playing';
-
 		this.emit('next', result.data);
 
 		await (this as unknown as { load: (item: BasePlaylistItem, opts?: ActionOptions) => Promise<void> })
 			.load(nextItem, { source: result.data?.source });
-
-		if (wasPlaying) {
-			await (this as unknown as { play: (opts?: ActionOptions) => Promise<void> })
-				.play({ source: 'auto-advance' });
-		}
 	},
 
 	async previous(this: Internals, opts: ActionOptions = {}): Promise<void> {
@@ -1816,17 +1800,10 @@ export const transportMethods = {
 			return;
 		}
 
-		const wasPlaying = this._playState === 'playing';
-
 		this.emit('previous', result.data);
 
 		await (this as unknown as { load: (item: BasePlaylistItem, opts?: ActionOptions) => Promise<void> })
 			.load(prevItem, { source: result.data?.source });
-
-		if (wasPlaying) {
-			await (this as unknown as { play: (opts?: ActionOptions) => Promise<void> })
-				.play({ source: 'auto-advance' });
-		}
 	},
 
 	async rewind(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
@@ -1949,14 +1926,14 @@ export const timeMethods = {
 		return this._internalDuration;
 	},
 	buffered(this: Internals): number {
-		return 0;
+		return _backend(this)?.buffered?.() ?? 0;
 	},
 	bufferedRanges(this: Internals): TimeRanges {
-		return {
+		return _backend(this)?.bufferedRanges?.() ?? ({
 			length: 0,
 			start: () => 0,
 			end: () => 0,
-		} as unknown as TimeRanges;
+		} as unknown as TimeRanges);
 	},
 	seekable(this: Internals): TimeRanges {
 		return {
