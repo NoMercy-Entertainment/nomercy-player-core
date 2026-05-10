@@ -68,7 +68,7 @@ import { CueParserRegistry } from './cues/parser-registry';
 import { builtInCueParsers } from './cues/parsers/built-ins';
 import type { Cue } from './cues/cue';
 import { CueTracker } from './cues/tracker';
-import { parseVttSubtitles, type VTTSubtitlePayload } from './cues/parsers/vtt';
+import { parseVtt, parseVttSubtitles, type VTTSubtitlePayload } from './cues/parsers/vtt';
 import { runDispatchBefore } from './dispatch';
 import {
 	BrowserPolicyError,
@@ -2621,6 +2621,63 @@ interface ItemWithTracks extends BasePlaylistItem {
 	tracks?: SidecarTrack[];
 }
 
+
+async function _resolveItemTrackUrls<T extends BasePlaylistItem>(
+	self: Internals,
+	item: T,
+): Promise<T> {
+	const typed = item as T & ItemWithTracks;
+	if (!Array.isArray(typed.tracks) || typed.tracks.length === 0) return item;
+
+	const transformer = self._authConfig?.transformUrl;
+	const base = self._baseUrl;
+
+	const resolved = await Promise.all(
+		typed.tracks.map(async (t: SidecarTrack): Promise<SidecarTrack> => {
+			if (!t.file) return t;
+			const transformed = transformer ? await transformer(t.file) : t.file;
+			return { ...t, file: buildResolvedUrl(t.file, transformed, base).href };
+		}),
+	);
+
+	const withTracks = { ...item, tracks: resolved } as T & ItemWithTracks;
+
+	// If no inline chapters are present, try to populate them from a sidecar
+	// `tracks[{ kind: 'chapters', file }]` VTT. Runs after URL resolution so
+	// the file href is already absolute + auth-transformed.
+	const existingChapters = (withTracks as { chapters?: Chapter[] }).chapters;
+	if (!Array.isArray(existingChapters) || existingChapters.length === 0) {
+		const chapterTrack = resolved.find((t: SidecarTrack) => t.kind === 'chapters' && t.file);
+		if (chapterTrack?.file) {
+			const chapters = await _fetchChaptersVtt(chapterTrack.file);
+			if (chapters.length > 0) {
+				return { ...withTracks, chapters } as T;
+			}
+		}
+	}
+
+	return withTracks as T;
+}
+
+/** Fetch a WebVTT chapters file and convert its cues into `Chapter[]`. */
+async function _fetchChaptersVtt(url: string): Promise<Chapter[]> {
+	try {
+		const r = await fetch(url);
+		if (!r.ok) return [];
+		const text = await r.text();
+		return parseVtt(text).cues.map((cue, i) => ({
+			index: i,
+			start: cue.start,
+			end: cue.end,
+			title: cue.payload,
+		}));
+	}
+	catch {
+		return [];
+	}
+}
+
+
 function _resolveSidecarSubtitle(
 	self: Internals,
 	sidecarIdx: number,
@@ -3471,6 +3528,11 @@ export const loadingMethods = {
 		const transformer = this._authConfig?.transformUrl;
 		if (transformer) {
 			url = await transformer(url);
+		}
+
+		const resolvedItem = await _resolveItemTrackUrls(this, item2);
+		if (resolvedItem !== item2) {
+			this._queueList.replaceItem(resolvedItem);
 		}
 
 		// Phase: ready/playing/paused → loading while the backend mounts.
