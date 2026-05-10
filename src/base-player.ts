@@ -879,6 +879,7 @@ interface _BackendShape {
 	volume?: (v: number) => void;
 	mute?: () => void;
 	unmute?: () => void;
+	playbackRate?: (rate: number) => void;
 }
 
 function _backend(self: Internals): _BackendShape | undefined {
@@ -1848,6 +1849,8 @@ export const timeMethods = {
 			return this._playbackRate;
 		this._playbackRate = rate;
 		this.emit('backend:ratechange', { rate });
+
+		_backend(this)?.playbackRate?.(rate);
 	},
 	playbackRates(this: Internals): number[] {
 		return [0.5, 0.75, 1, 1.25, 1.5, 2];
