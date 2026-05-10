@@ -758,6 +758,16 @@ export interface BasePlayerConfig {
 	 */
 	mutationGuards?: false | 'all' | ReadonlyArray<string>;
 
+	/**
+	 * Base URL prepended to relative image / poster paths in playlist items
+	 * (`image`, `poster`, `thumbnail`, `cover`). Absolute URLs are passed
+	 * through unchanged. For TMDB: `'https://image.tmdb.org/t/p/w780'`.
+	 *
+	 * Consumers needing per-category signing use `urlResolver` with
+	 * `category: 'poster'` instead.
+	 */
+	imageBasePath?: string;
+
 	/** Initial playlist. Pass items directly, or a URL the player will fetch. */
 	playlist?: BasePlaylistItem[] | string;
 }
