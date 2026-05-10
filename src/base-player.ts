@@ -722,15 +722,17 @@ export const lifecycleMethods = {
 			});
 		}
 
-		const onEnded = (): void => {
-			if (this._repeatState !== 'off') return;
-			const self = this as unknown as { next: (opts: ActionOptions) => Promise<void>; play: (opts?: ActionOptions) => Promise<void> };
-			void self.next({ source: 'auto-advance' }).then(() => self.play({ source: 'auto-advance' }));
-		};
-		this.on('ended', onEnded);
-		this._policyCleanup.push(() => {
-			this.off('ended', onEnded);
-		});
+		if (this.options.autoAdvance !== false) {
+			const onEnded = (): void => {
+				if (this._repeatState !== 'off') return;
+				const self = this as unknown as { next: (opts: ActionOptions) => Promise<void>; play: (opts?: ActionOptions) => Promise<void> };
+				void self.next({ source: 'auto-advance' }).then(() => self.play({ source: 'auto-advance' }));
+			};
+			this.on('ended', onEnded);
+			this._policyCleanup.push(() => {
+				this.off('ended', onEnded);
+			});
+		}
 
 		if (this.options.expose === true && typeof window !== 'undefined') {
 			Object.assign(window, { player: this });

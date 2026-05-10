@@ -785,6 +785,13 @@ export interface BasePlayerConfig {
 	playlist?: BasePlaylistItem[] | string;
 
 	/**
+	 * Automatically advance to the next queue item when the current item ends.
+	 * Default `true`. Set to `false` to opt out — the player stops after each
+	 * item and waits for an explicit `next()` / `play()` call.
+	 */
+	autoAdvance?: boolean;
+
+	/**
 	 * Attach the player instance to `window.player` for console debugging.
 	 * Cleaned up on `dispose()`. Default `false`.
 	 *
