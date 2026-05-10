@@ -265,6 +265,7 @@ interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, C exten
 	_internalVolume: number;
 	_volumeBeforeMute: number;
 	_internalCurrentTime: number;
+	_internalDuration: number;
 	_playbackRate: number;
 
 	_queueList: MediaList<T>;
@@ -421,6 +422,7 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	p._internalVolume = 1;
 	p._volumeBeforeMute = 1;
 	p._internalCurrentTime = 0;
+	p._internalDuration = 0;
 	p._playbackRate = 1;
 	p._queueList = new MediaList();
 	p._backlogList = new MediaList();
@@ -689,6 +691,14 @@ export const lifecycleMethods = {
 		this.on('time', onTimeSync);
 		this._policyCleanup.push(() => {
 			this.off('time', onTimeSync);
+		});
+
+		const onDurationSync = ({ duration }: { duration: number }): void => {
+			this._internalDuration = duration;
+		};
+		this.on('duration', onDurationSync);
+		this._policyCleanup.push(() => {
+			this.off('duration', onDurationSync);
 		});
 
 		// Spec §P4-V5: throttled progress event. `time` fires every animation
@@ -1922,7 +1932,7 @@ export const timeMethods = {
 	},
 
 	duration(this: Internals): number {
-		return 0;
+		return this._internalDuration;
 	},
 	buffered(this: Internals): number {
 		return 0;
