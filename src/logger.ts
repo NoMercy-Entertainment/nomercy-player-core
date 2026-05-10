@@ -70,7 +70,7 @@ const LEVEL_RANK: Record<LogLevel, number> = {
  */
 export class Logger implements ILogger {
 	private _level: LogLevel;
-	private readonly prefix: string;
+	private prefix: string;
 	private readonly sinks: LogSink[] = [];
 
 	constructor(opts?: LoggerOptions) {
@@ -146,12 +146,18 @@ export class Logger implements ILogger {
 	 *   log.debug('cue loaded');  // → "[nmplayer][lyrics] cue loaded"
 	 */
 	child(suffix: string): Logger {
-		const child = new Logger({ level: this._level });
-		(child as any).prefix = `${this.prefix}[${suffix}]`;
+		const child = Logger._withPrefix(`${this.prefix}[${suffix}]`, this._level);
 		// Children share their parent's sinks so consumer-installed pipes
 		// (Sentry, Datadog) capture every plugin's logs uniformly.
 		for (const sink of this.sinks) child.sinks.push(sink);
 		return child;
+	}
+
+	/** Internal factory — creates a Logger with a pre-formatted prefix string. */
+	private static _withPrefix(rawPrefix: string, level: LogLevel): Logger {
+		const instance = new Logger({ level });
+		instance.prefix = rawPrefix;
+		return instance;
 	}
 
 	private dispatch(lvl: LogLevel, args: unknown[]): void {

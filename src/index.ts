@@ -7,6 +7,7 @@ export type { AuthFetchOptions } from './auth-fetch';
 export {
 	authMethods,
 	baseUrlAudioContextMethods,
+	containerClassEmitMethods,
 	cueParserMethods,
 	experimentalDescriptor,
 	i18nMethods,

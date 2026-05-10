@@ -193,8 +193,8 @@ export class CueTracker<T> {
 			try {
 				this.playerRef.emit(playerEvent, {
 					trackerId: this.trackerId,
-					cue: cue as any,
-				} as any);
+					cue,
+				});
 			}
 			catch (err) {
 				void err;

@@ -8,6 +8,7 @@ import type {
 	StreamSourceState,
 } from './source';
 import Hls from 'hls.js';
+import type { Loader, LoaderCallbacks, LoaderConfiguration, LoaderContext, LoaderResponse, LoaderStats, HlsConfig } from 'hls.js';
 import { MediaFormatError, StreamError } from '../errors';
 
 /**
@@ -279,39 +280,46 @@ function canPlayNativeHls(element: HTMLMediaElement): boolean {
  * untouched. The wrapped loader is whichever loader hls.js's DefaultConfig
  * picked at construction time (FetchLoader where available, XhrLoader fallback).
  */
-function makeInterceptingLoader(registry: StreamRegistry): any {
-	const Base: any = (Hls as any).DefaultConfig?.loader;
+/** Narrow view of hls.js's static DefaultConfig — only the loader field we use. */
+interface HlsWithDefaultConfig {
+	DefaultConfig?: { loader?: new (config: HlsConfig) => Loader<LoaderContext> };
+}
+
+function makeInterceptingLoader(registry: StreamRegistry): (new (config: HlsConfig) => Loader<LoaderContext>) | undefined {
+	const Base = (Hls as unknown as HlsWithDefaultConfig).DefaultConfig?.loader;
 	if (!Base)
 		return undefined;
 
-	return class InterceptingLoader {
-		private inner: any;
-		public context: any = null;
-		public stats: any;
+	// TS doesn't narrow closure captures across deferred class bodies. The guard
+	// above guarantees Base is defined; BaseCtor carries that proof as a typed
+	// local so the constructor body compiles without `as any`.
+	const BaseCtor: new (config: HlsConfig) => Loader<LoaderContext> = Base;
 
-		constructor(config: any) {
-			this.inner = new Base(config);
+	return class InterceptingLoader {
+		private inner: Loader<LoaderContext>;
+		public context: LoaderContext | null = null;
+		public stats: LoaderStats;
+
+		constructor(config: HlsConfig) {
+			this.inner = new BaseCtor(config);
 			this.stats = this.inner.stats;
 		}
 
-		destroy(): void { this.inner.destroy?.(); }
-		abort(): void { this.inner.abort?.(); }
+		destroy(): void { this.inner.destroy(); }
+		abort(): void { this.inner.abort(); }
 		getCacheAge(): number | null { return this.inner.getCacheAge?.() ?? null; }
 		getResponseHeader(name: string): string | null { return this.inner.getResponseHeader?.(name) ?? null; }
 
-		load(context: any, config: any, callbacks: any): void {
+		load(context: LoaderContext, config: LoaderConfiguration, callbacks: LoaderCallbacks<LoaderContext>): void {
 			this.context = context;
-			const wrapped = {
+			const wrapped: LoaderCallbacks<LoaderContext> = {
 				...callbacks,
-				onSuccess: async (response: any, stats: any, ctx: any, networkDetails: any) => {
+				onSuccess: async (response: LoaderResponse, stats: LoaderStats, ctx: LoaderContext, networkDetails: unknown) => {
 					try {
-						const synthetic = toResponse(response, ctx?.url ?? context.url);
-						const intercepted = await registry.runInterceptors(ctx?.url ?? context.url, synthetic);
+						const synthetic = toResponse(response, ctx.url ?? context.url);
+						const intercepted = await registry.runInterceptors(ctx.url ?? context.url, synthetic);
 						const data = await readBody(intercepted, response.data);
-						callbacks.onSuccess({
-							...response,
-							data,
-						}, stats, ctx, networkDetails);
+						callbacks.onSuccess({ ...response, data }, stats, ctx, networkDetails);
 					}
 					catch {
 						// Interceptor failure must not break playback — pass through

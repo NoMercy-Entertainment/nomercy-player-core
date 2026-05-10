@@ -22,8 +22,8 @@ describe('translationsFromGlob — eager path', () => {
 			'./i18n/pt-BR.ts': { default: { 'plugin.x.k': 'BR' } },
 			'./i18n/zh-Hant-TW.ts': { default: { 'plugin.x.k': 'ZH' } },
 		});
-		expect(out.en).toEqual({ 'plugin.x.k': 'EN' });
-		expect(out.nl).toEqual({ 'plugin.x.k': 'NL' });
+		expect(out['en']).toEqual({ 'plugin.x.k': 'EN' });
+		expect(out['nl']).toEqual({ 'plugin.x.k': 'NL' });
 		expect(out['pt-BR']).toEqual({ 'plugin.x.k': 'BR' });
 		expect(out['zh-Hant-TW']).toEqual({ 'plugin.x.k': 'ZH' });
 	});
@@ -41,7 +41,7 @@ describe('translationsFromGlob — eager path', () => {
 		const out = translationsFromGlob({
 			'./i18n/en.ts': { en: { 'plugin.x.k': 'EN-named' } } as any,
 		});
-		expect(out.en).toEqual({ 'plugin.x.k': 'EN-named' });
+		expect(out['en']).toEqual({ 'plugin.x.k': 'EN-named' });
 	});
 
 	it('drops non-string values defensively', () => {
@@ -54,7 +54,7 @@ describe('translationsFromGlob — eager path', () => {
 				},
 			},
 		});
-		expect(out.en).toEqual({ 'plugin.x.ok': 'string' });
+		expect(out['en']).toEqual({ 'plugin.x.ok': 'string' });
 	});
 
 	it('returns an empty object when no files match', () => {
@@ -66,8 +66,8 @@ describe('translationsFromGlob — eager path', () => {
 			'./deeply/nested/i18n/en.ts': { default: { x: 'X' } },
 			'/abs/path/to/nl.ts': { default: { x: 'Y' } },
 		});
-		expect(out.en).toEqual({ x: 'X' });
-		expect(out.nl).toEqual({ x: 'Y' });
+		expect(out['en']).toEqual({ x: 'X' });
+		expect(out['nl']).toEqual({ x: 'Y' });
 	});
 
 	it('ignores modules without a default or matching named export', () => {

@@ -250,6 +250,10 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		this._currentQualityIdx = idx;
 	}
 
+	chapters(): ReadonlyArray<import('../types').Chapter> {
+		return [];
+	}
+
 	currentChapter(): import('../types').Chapter | null;
 	currentChapter(idx: number): void;
 	currentChapter(_idx?: number): import('../types').Chapter | null | void {

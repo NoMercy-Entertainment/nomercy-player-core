@@ -71,6 +71,16 @@ export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaLis
 		return this.cursor;
 	}
 
+	/**
+	 * Replace the item with the same `id` in place. Cursor and all other
+	 * positions are unaffected. Fires no events — callers that need to
+	 * notify listeners must do so themselves.
+	 */
+	replaceItem(item: T): void {
+		const idx = this.items.findIndex(i => i.id === item.id);
+		if (idx >= 0) this.items[idx] = item;
+	}
+
 	setCurrent(target: T | string | number): void {
 		let idx: number;
 

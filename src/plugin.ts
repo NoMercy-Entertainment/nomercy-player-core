@@ -1,4 +1,5 @@
 import type { RetryConfig, Severity } from './errors';
+import type { EventEmitter } from './events';
 import type { LifecycleRegistry } from './lifecycle';
 import type { Logger } from './logger';
 import type { IRealtimeChannel, RealtimeFactoryOptions } from './realtime';
@@ -22,11 +23,19 @@ import { nativeWebSocketAdapter } from './realtime';
 import { buildResolvedUrl } from './resolved-url';
 
 /**
- * Extract the event-map generic from an `IPlayer<E>` type. Plugins typed
- * against a specific player (`Plugin<NMMusicPlayer, ...>`) get autocomplete
- * for the player's full event map (e.g. `MusicEventMap`, not just `BaseEventMap`).
+ * Extract the event-map generic from an `IPlayer<E>` or `EventEmitter<E>` type.
+ * Plugins typed against a specific player (`Plugin<NMMusicPlayer, ...>`) get
+ * autocomplete for the player's full event map (e.g. `MusicEventMap`, not just
+ * `BaseEventMap`).
+ *
+ * Two-pass inference: first tries `IPlayer<infer E>` (works for simple player
+ * types); falls back to `EventEmitter<infer E>` for players whose class
+ * complexity blocks TypeScript's conditional-type inference through `IPlayer`.
  */
-export type PlayerEventMap<P> = P extends IPlayer<infer E> ? E : BaseEventMap;
+export type PlayerEventMap<P> =
+	P extends IPlayer<infer E> ? E :
+	P extends EventEmitter<infer E> ? (E extends BaseEventMap ? E : BaseEventMap) :
+	BaseEventMap;
 
 /**
  * Resolve listener args from either form:
@@ -441,7 +450,7 @@ export class Plugin<
 	): boolean;
 	protected hasListeners(arg1: any, arg2?: any): boolean {
 		const event = typeof arg1 === 'function'
-			? `plugin:${(arg1 as any).id}:${arg2}`
+			? `plugin:${(arg1 as AnyPluginCtor & { id: string }).id}:${arg2}`
 			: arg1;
 		return this.player.hasListeners(event);
 	}

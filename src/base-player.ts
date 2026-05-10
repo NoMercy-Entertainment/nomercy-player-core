@@ -383,7 +383,7 @@ interface MixinSurface {
 	queueLength(): number;
 	currentIndex(): number;
 	// mediaTracksMethods
-	chapters(): unknown;
+	chapters(): ReadonlyArray<Chapter>;
 	seekToChapter(idx: number, opts?: ActionOptions): void;
 	current(target?: BasePlaylistItem | string | number, opts?: ActionOptions): BasePlaylistItem | undefined | void;
 	currentTime(t?: number, opts?: ActionOptions): number | Promise<void>;
@@ -2126,6 +2126,13 @@ function _wireQueue(self: Internals): void {
 		// happens (via `currentSubtitle` from a UI / preferences plugin).
 		_disposeSidecarSubtitle(self);
 		self.emit('current', data);
+
+		// Ensure chapter data is populated for the new item and announce it.
+		// Fire-and-forget: load() already calls _resolveItemTrackUrls before
+		// moving the cursor, so this is a no-op for the initial load path.
+		// For cursor-only switches (player.current(i), next, previous) where
+		// load() was never called for that item, this is the only trigger.
+		void _resolveAndEmitChapters(self, data.item?.id);
 	});
 
 	self._backlogList.on('change', ({ items }) => self.emit('backlog', items));
@@ -2677,6 +2684,43 @@ async function _fetchChaptersVtt(url: string): Promise<Chapter[]> {
 	}
 }
 
+/**
+ * Ensure the currently-selected item has its chapters populated, then emit
+ * `'chapters'` so subscribers can repaint chapter markers.
+ *
+ * Called fire-and-forget from the `_wireQueue` cursor-change handler and
+ * from `load()` after the cursor is moved. A monotonic `_chapterEpoch` field
+ * on the player instance guards against stale completions when the user
+ * switches items rapidly.
+ */
+async function _resolveAndEmitChapters(self: Internals, itemId: string | number | undefined): Promise<void> {
+	// Monotonic epoch — bump before the await, compare after.
+	const internals = self as unknown as { _chapterEpoch?: number };
+	const epoch = (internals._chapterEpoch ?? 0) + 1;
+	internals._chapterEpoch = epoch;
+	const isLatest = (): boolean => internals._chapterEpoch === epoch;
+
+	const item = self._queueList.get().find(i => i.id === itemId) as (BasePlaylistItem & { chapters?: Chapter[] }) | undefined;
+	if (!item) return;
+
+	if (Array.isArray(item.chapters) && item.chapters.length > 0) {
+		// Already resolved — just announce.
+		self.emit('chapters', { chapters: item.chapters });
+		return;
+	}
+
+	const resolved = await _resolveItemTrackUrls(self, item);
+
+	if (!isLatest()) return;
+
+	const chapters = (resolved as { chapters?: Chapter[] }).chapters;
+	if (!Array.isArray(chapters) || chapters.length === 0) return;
+
+	self._queueList.replaceItem(resolved);
+
+	self.emit('chapters', { chapters });
+}
+
 
 function _resolveSidecarSubtitle(
 	self: Internals,
@@ -2978,45 +3022,49 @@ export const mediaTracksMethods = {
 		}
 		// No HLS variants on audio backend — no-op.
 	},
-	chapters(this: Internals): unknown {
-		// Chapter list comes from the active playlist item. Music + video
-		// items can carry an inline `chapters: Chapter[]` field; if absent,
-		// return []. Real chapter-file parsing happens in `lyricsPlugin`-style
-		// cue trackers, but the player surface here is just a read.
-		const current = this.current?.() as { chapters?: Chapter[] } | undefined;
+	chapters(this: Internals): ReadonlyArray<Chapter> {
+		// Chapter list comes from the active playlist item. Items carry an
+		// inline `chapters: Chapter[]` field once the kit resolves the sidecar
+		// VTT (either during `load()` or on cursor change). Returns [] until
+		// the async fetch settles — subscribe to 'chapters' for the ready signal.
+		const current = this.current?.() as { chapters?: ReadonlyArray<Chapter> } | undefined;
 		return current?.chapters ?? [];
 	},
 	seekToChapter(this: Internals, idx: number, opts?: ActionOptions): void {
-		const list = (this.chapters() ?? []) as Chapter[];
+		const list = this.chapters();
 		const chapter = list[idx];
 		if (!chapter)
 			return; // out-of-range → no-op
+
 		// `currentTime` is async when a beforeSeek handler is wired. Fire-and-
 		// forget here — `seeked` is emitted inside `currentTime` after the
 		// phase round-trip, so consumers still see it on the correct path.
 		const ret = this.currentTime(chapter.start, opts);
 		if (ret && typeof (ret as Promise<void>).then === 'function')
 			void ret;
+
 		this.emit('chapter', {
 			index: idx,
 			title: chapter.title,
 		});
 	},
 	nextChapter(this: Internals, opts?: ActionOptions): void {
-		const list = (this.chapters() ?? []) as Chapter[];
+		const list = this.chapters();
 		if (list.length === 0)
 			return;
+
 		const t = this._internalCurrentTime;
-		// Find the first chapter whose start is strictly after current time.
 		const nextIdx = list.findIndex(c => c.start > t);
 		if (nextIdx < 0)
 			return; // already in/after the last chapter
+
 		this.seekToChapter(nextIdx, opts);
 	},
 	previousChapter(this: Internals, opts?: ActionOptions): void {
-		const list = (this.chapters() ?? []) as Chapter[];
+		const list = this.chapters();
 		if (list.length === 0)
 			return;
+
 		const t = this._internalCurrentTime;
 		// v1 UX: if more than 10s into the current chapter, jump to its start
 		// instead of the previous chapter. Otherwise, walk back one.
@@ -3026,6 +3074,7 @@ export const mediaTracksMethods = {
 		}
 		if (currentIdx < 0)
 			return;
+
 		const intoChapter = t - list[currentIdx]!.start;
 		const targetIdx = (intoChapter > 10 || currentIdx === 0) ? currentIdx : currentIdx - 1;
 		this.seekToChapter(targetIdx, opts);
@@ -3043,9 +3092,10 @@ export const mediaTracksMethods = {
 	 */
 	currentChapter(this: Internals, idx?: number): Chapter | null | void {
 		if (idx === undefined) {
-			const list = (this.chapters() ?? []) as Chapter[];
+			const list = this.chapters();
 			if (list.length === 0)
 				return null;
+
 			const t = this._internalCurrentTime;
 			for (let i = list.length - 1; i >= 0; i--) {
 				const ch = list[i]!;

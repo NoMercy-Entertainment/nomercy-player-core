@@ -416,6 +416,12 @@ export interface BaseEventMap {
 	// may carry additional fields (start/end) via extension.
 	'chapter': { index: number; title: string };
 
+	// Chapter list populated — emitted after the kit resolves a sidecar
+	// chapters VTT for the active item (either via `load()` or cursor change).
+	// Consumers that read `player.chapters()` reactively subscribe here
+	// instead of polling.
+	'chapters': { chapters: ReadonlyArray<Chapter> };
+
 	// Cast / handoff state — emitted by `transferTo()` on every state
 	// transition (connecting → connected → disconnected). Mirrors the
 	// return value of `castState()` for reactive subscriptions.
@@ -1176,6 +1182,14 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap> {
 	 */
 	currentQuality(): number | 'auto';
 	currentQuality(idx: number | 'auto'): void;
+
+	/**
+	 * The chapter list for the active item. Returns `[]` when no item is
+	 * active or the item carries no chapter data. The list is populated
+	 * asynchronously from a sidecar VTT when the item is loaded or selected;
+	 * subscribe to the `'chapters'` event for the "list is now ready" signal.
+	 */
+	chapters(): ReadonlyArray<Chapter>;
 
 	/**
 	 * Read or seek by chapter.
