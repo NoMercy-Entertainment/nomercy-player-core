@@ -1787,10 +1787,17 @@ export const transportMethods = {
 			return;
 		}
 
+		const wasPlaying = this._playState === 'playing';
+
 		this.emit('next', result.data);
 
 		await (this as unknown as { load: (item: BasePlaylistItem, opts?: ActionOptions) => Promise<void> })
 			.load(nextItem, { source: result.data?.source });
+
+		if (wasPlaying) {
+			await (this as unknown as { play: (opts?: ActionOptions) => Promise<void> })
+				.play({ source: 'auto-advance' });
+		}
 	},
 
 	async previous(this: Internals, opts: ActionOptions = {}): Promise<void> {
@@ -1809,10 +1816,17 @@ export const transportMethods = {
 			return;
 		}
 
+		const wasPlaying = this._playState === 'playing';
+
 		this.emit('previous', result.data);
 
 		await (this as unknown as { load: (item: BasePlaylistItem, opts?: ActionOptions) => Promise<void> })
 			.load(prevItem, { source: result.data?.source });
+
+		if (wasPlaying) {
+			await (this as unknown as { play: (opts?: ActionOptions) => Promise<void> })
+				.play({ source: 'auto-advance' });
+		}
 	},
 
 	async rewind(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
