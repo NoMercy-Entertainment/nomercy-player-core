@@ -781,6 +781,15 @@ export interface BasePlayerConfig {
 	 */
 	imageBasePath?: string;
 
+	/**
+	 * Automatically advance to the next queue item when the current item ends.
+	 * Default `true`. Set to `false` to stop at the end of each item and let
+	 * the consumer (or a plugin) drive advancement. When `false`, the player
+	 * still emits `queue:exhausted` when the last item ends so consumers can
+	 * show a "replay" affordance.
+	 */
+	autoAdvance?: boolean;
+
 	/** Initial playlist. Pass items directly, or a URL the player will fetch. */
 	playlist?: BasePlaylistItem[] | string;
 

@@ -712,18 +712,21 @@ export const lifecycleMethods = {
 			});
 		}
 
-		// Spec §P4-V4: `queue:exhausted` — fires when the last item in a
-		// non-repeating queue ends naturally. Condition: cursor at the last
-		// queue slot AND repeat state is 'off'. Fires whether or not an
-		// auto-advance plugin is present so consumers always get a "playlist
-		// done" signal.
+		// Kit-level auto-advance: when an item ends, advance to the next item
+		// unless autoAdvance is disabled or repeat is not 'off'. If there is no
+		// next item, emit queue:exhausted. The music plugin's AutoAdvancePlugin
+		// layers crossfade / preload on top of this base behaviour.
 		const onEnded = (): void => {
 			if (this._repeatState !== 'off') return;
-			const length = this.queueLength();
-			if (length === 0) return;
-			if (this.currentIndex() === length - 1) {
-				this.emit('queue:exhausted');
+			if (this.options.autoAdvance === false) {
+				const length = this.queueLength();
+				if (length > 0 && this.currentIndex() === length - 1) {
+					this.emit('queue:exhausted');
+				}
+				return;
 			}
+			void (this as unknown as { next: (opts: ActionOptions) => Promise<void> })
+				.next({ source: 'auto-advance' });
 		};
 		this.on('ended', onEnded);
 		this._policyCleanup.push(() => {
@@ -1767,7 +1770,17 @@ export const transportMethods = {
 			});
 			return;
 		}
+
+		const nextItem = this._queueList.peekNext();
+		if (!nextItem) {
+			this.emit('queue:exhausted');
+			return;
+		}
+
 		this.emit('next', result.data);
+
+		await (this as unknown as { load: (item: BasePlaylistItem, opts?: ActionOptions) => Promise<void> })
+			.load(nextItem, { source: result.data?.source });
 	},
 
 	async previous(this: Internals, opts: ActionOptions = {}): Promise<void> {
@@ -1780,7 +1793,16 @@ export const transportMethods = {
 			});
 			return;
 		}
+
+		const prevItem = this._queueList.peekPrevious();
+		if (!prevItem) {
+			return;
+		}
+
 		this.emit('previous', result.data);
+
+		await (this as unknown as { load: (item: BasePlaylistItem, opts?: ActionOptions) => Promise<void> })
+			.load(prevItem, { source: result.data?.source });
 	},
 
 	async rewind(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
