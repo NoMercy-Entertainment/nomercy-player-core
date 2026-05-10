@@ -124,6 +124,9 @@ export interface QualityLevel {
 	width?: number;
 	label: string;
 	index: number;
+	/** Set when `qualityLevels({ includeUnsupported: true })` is called.
+	 *  `true` = browser can decode, `false` = MediaCapabilities reports unsupported. */
+	supported?: boolean;
 }
 
 /** Audio track metadata returned by `audioTracks()`. */
@@ -459,6 +462,8 @@ export interface BaseEventMap {
 	'fetch:start': { url: string; pluginId?: string };
 	'fetch:retry': { url: string; attempt: number; reason: 'unauthenticated' | 'http-5xx' | 'timeout' | 'network'; delayMs: number; pluginId?: string };
 	'fetch:complete': { url: string; ok: boolean; status?: number; durationMs: number; pluginId?: string };
+
+	'activity': { active: boolean };
 }
 
 /** Header value — static, sync getter, or async getter. */

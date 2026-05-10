@@ -2891,11 +2891,11 @@ export const mediaTracksMethods = {
 		// No backend track support — emit for symmetry.
 		this.emit('audioTrack', { id: idx });
 	},
-	qualityLevels(this: Internals): unknown {
-		const b = _peekBackend(this) as { qualityLevels?: () => unknown } | undefined;
+	qualityLevels(this: Internals, opts?: { includeUnsupported?: true }): unknown {
+		const b = _peekBackend(this) as { qualityLevels?: (opts?: { includeUnsupported?: true }) => unknown } | undefined;
 		if (typeof b?.qualityLevels === 'function') {
 			try {
-				return b.qualityLevels();
+				return b.qualityLevels(opts);
 			}
 			catch { return []; }
 		}
