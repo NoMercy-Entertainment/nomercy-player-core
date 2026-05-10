@@ -22,6 +22,17 @@ type AnyHandler = (data: any) => void;
 export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	private readonly listeners = new Map<string, Set<AnyHandler>>();
 	private readonly onceWrappers = new WeakMap<AnyHandler, AnyHandler>();
+	private readonly _lcPending = new Set<string>();
+
+	private _scheduleListenersChanged(name: string, count: number): void {
+		if (this._lcPending.has(name)) return;
+		this._lcPending.add(name);
+		queueMicrotask(() => {
+			this._lcPending.delete(name);
+			const current = this.listeners.get(name)?.size ?? 0;
+			this.emit('listeners-changed' as any, { name, count: current } as any);
+		});
+	}
 
 	on<K extends keyof E>(_event: K, _fn: (data: E[K]) => void): void;
 	on(_event: string, _fn: AnyHandler): void;
@@ -32,7 +43,9 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 			set = new Set();
 			this.listeners.set(key, set);
 		}
+		const wasEmpty = set.size === 0;
 		set.add(fn);
+		if (wasEmpty && key !== 'listeners-changed') this._scheduleListenersChanged(key, 1);
 	}
 
 	once<K extends keyof E>(_event: K, _fn: (data: E[K]) => void): void;
@@ -61,11 +74,14 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 			return;
 
 		if (!fn) {
+			const wasNonEmpty = set.size > 0;
 			set.clear();
 			this.listeners.delete(key);
+			if (wasNonEmpty && key !== 'listeners-changed') this._scheduleListenersChanged(key, 0);
 			return;
 		}
 
+		const sizeBefore = set.size;
 		const wrapper = this.onceWrappers.get(fn);
 		if (wrapper) {
 			set.delete(wrapper);
@@ -75,8 +91,10 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 			set.delete(fn);
 		}
 
-		if (set.size === 0)
+		if (set.size === 0) {
 			this.listeners.delete(key);
+			if (sizeBefore > 0 && key !== 'listeners-changed') this._scheduleListenersChanged(key, 0);
+		}
 	}
 
 	emit<K extends keyof E>(_event: K, _data?: E[K]): void;

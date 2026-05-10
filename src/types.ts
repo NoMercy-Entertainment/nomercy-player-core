@@ -470,6 +470,8 @@ export interface BaseEventMap {
 	'fetch:complete': { url: string; ok: boolean; status?: number; durationMs: number; pluginId?: string };
 
 	'activity': { active: boolean };
+
+	'listeners-changed': { name: string; count: number };
 }
 
 /** Header value — static, sync getter, or async getter. */
