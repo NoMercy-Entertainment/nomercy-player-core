@@ -16,6 +16,7 @@ import type {
 	UrlCategory,
 } from './types';
 import { authFetch } from './auth-fetch';
+import { mergeConfig } from './config-merge';
 import { runDispatchBefore } from './dispatch';
 import { PlayerError } from './errors';
 import { nativeWebSocketAdapter } from './realtime';
@@ -361,10 +362,7 @@ export class Plugin<
 		if (partial === undefined) {
 			return Object.freeze({ ...(this.opts as object) }) as Readonly<O>;
 		}
-		this.opts = {
-			...(this.opts as object),
-			...(partial as object),
-		} as O;
+		this.opts = mergeConfig(this.opts, partial);
 		const id = (this.constructor as typeof Plugin).id;
 		// Global channel for any consumer wiring once across all plugins.
 		this.player.emit('plugin:opts:changed', {
