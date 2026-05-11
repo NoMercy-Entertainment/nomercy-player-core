@@ -89,6 +89,8 @@ import { StreamRegistry } from './streams/registry';
 import { getLazyTranslationLoader } from './translations-glob';
 import { bcp47FallbackChain, DefaultTranslator } from './translator';
 import { AudioTrackState, BufferState, CastState as _CastStateEnum, NetworkState, QualityState, SetupState, VisibilityState } from './types';
+import type { PreloadAsset, PreloadStrategy, TransitionBackend, TransitionStrategy } from './preload-strategy';
+import { DefaultPreloadStrategy } from './preload-strategy';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Sidecar subtitle context — declared here so PlayerCoreState can reference
@@ -381,6 +383,26 @@ interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, C exten
 	/** Monotonic counter bumped on each `load()` call; stale continuations bail when epoch mismatches. */
 	_loadEpoch?: number;
 
+	// ── Preload + transition state ────────────────────────────────────────────
+
+	/** Active preload strategy. Set from config or `setPreloadStrategy()`. */
+	_preloadStrategy: PreloadStrategy;
+
+	/** Active transition strategy. Set from config or `setTransitionStrategy()`. */
+	_transitionStrategy: TransitionStrategy;
+
+	/** `true` after `shouldPreload` returns `true` for the current cursor position. Reset on `current` change. */
+	_preloadFired: boolean;
+
+	/** `true` after `shouldTransition` returns `true` for the current cursor. Reset on `current` change. */
+	_transitionFired: boolean;
+
+	/** RAF handle for the per-frame transition ticker. `undefined` when no transition is in progress. */
+	_transitionRafHandle: number | undefined;
+
+	/** Monotonically increasing epoch. Bumped whenever the cursor changes. Stale RAF callbacks bail when epoch differs. */
+	_preloadEpoch: number;
+
 	/** Monotonic counter bumped on each `_resolveAndEmitChapters` call. */
 	_chapterEpoch?: number;
 
@@ -501,6 +523,123 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._metricsStartedAt = 0;
 	target._metricsTimer = undefined;
 	target._lastProgressEmit = 0;
+
+	target._preloadStrategy = new DefaultPreloadStrategy(10);
+	target._transitionStrategy = _NOOP_TRANSITION;
+	target._preloadFired = false;
+	target._transitionFired = false;
+	target._transitionRafHandle = undefined;
+	target._preloadEpoch = 0;
+}
+
+// A no-op transition strategy used as the initial default in initPlayerCoreState.
+// Per-library players overwrite this immediately after setup() with their own default
+// (CrossfadeTransitionStrategy for music, GaplessTransitionStrategy for video).
+const _NOOP_TRANSITION: TransitionStrategy = {
+	shouldTransition: () => false,
+	tick: () => {},
+	start: () => {},
+	complete: () => {},
+	cancel: () => {},
+};
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// Preload + transition orchestration helpers
+// ──────────────────────────────────────────────────────────────────────────
+
+async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strategy: PreloadStrategy): Promise<void> {
+	const capturedEpoch = player._preloadEpoch;
+	const assets = strategy.assetsToPreload(nextItem);
+
+	player.emit('preloadStart', {
+		item: nextItem,
+		assets: assets.map(asset => ({ url: asset.url, category: asset.category })),
+	});
+
+	let loaded = 0;
+	const total = assets.length;
+
+	if (total === 0) {
+		player.emit('preloadComplete', { item: nextItem });
+		return;
+	}
+
+	const fetchAsset = async (asset: PreloadAsset): Promise<void> => {
+		if (player._preloadEpoch !== capturedEpoch) return;
+
+		try {
+			const request = new Request(asset.url, {
+				method: 'HEAD',
+				mode: 'no-cors',
+			});
+			await fetch(request).catch(() => {});
+
+			loaded += 1;
+
+			if (player._preloadEpoch !== capturedEpoch) return;
+
+			player.emit('preloadProgress', { item: nextItem, loaded, total });
+
+			if (loaded === total) {
+				player.emit('preloadComplete', { item: nextItem });
+			}
+		}
+		catch (error: unknown) {
+			if (player._preloadEpoch !== capturedEpoch) return;
+			player.emit('preloadError', { item: nextItem, error });
+		}
+	};
+
+	await Promise.all(assets.map(fetchAsset));
+}
+
+function _runTransition(player: Internals, outgoing: BasePlaylistItem, incoming: BasePlaylistItem): void {
+	const backend = _resolveTransitionBackend(player);
+
+	player._transitionStrategy.start(outgoing, incoming, backend);
+	player.emit('transitionStart', { outgoing, incoming });
+
+	const capturedEpoch = player._preloadEpoch;
+	const crossfadeLeadSeconds = player.options.crossfadeLeadSeconds ?? 3;
+	const crossfadeTailSeconds = player.options.crossfadeTailSeconds ?? 3;
+	const totalWindowSeconds = crossfadeLeadSeconds + crossfadeTailSeconds;
+
+	const tick = (): void => {
+		if (player._preloadEpoch !== capturedEpoch) return;
+		if (player._phase === 'disposed' || player._phase === 'disposing') return;
+
+		const currentTime = player._internalCurrentTime;
+		const duration = player._internalDuration;
+		const elapsed = currentTime - (duration - crossfadeLeadSeconds);
+		const fraction = totalWindowSeconds > 0 ? Math.max(0, Math.min(1, elapsed / totalWindowSeconds)) : 1;
+
+		const context = { currentTime, duration, outgoingItem: outgoing, incomingItem: incoming, fraction };
+
+		player._transitionStrategy.tick(context, backend);
+		player.emit('transitionProgress', { outgoing, incoming, fraction });
+
+		if (fraction >= 1) {
+			player._transitionStrategy.complete(outgoing, incoming);
+			player.emit('transitionComplete', { from: outgoing, to: incoming });
+			player._transitionRafHandle = undefined;
+			return;
+		}
+
+		player._transitionRafHandle = requestAnimationFrame(tick);
+	};
+
+	player._transitionRafHandle = requestAnimationFrame(tick);
+}
+
+function _resolveTransitionBackend(player: Internals): import('./preload-strategy').TransitionBackend | null {
+	const backend = player.backend?.();
+	if (!backend) return null;
+	const candidate = backend as Partial<import('./preload-strategy').TransitionBackend>;
+	if (typeof candidate.supportsCrossfade === 'function') {
+		return candidate as import('./preload-strategy').TransitionBackend;
+	}
+	return null;
 }
 
 
@@ -778,6 +917,71 @@ export const lifecycleMethods = {
 				this.off('ended', onEnded);
 			});
 		}
+
+		// ── Preload + transition orchestration ────────────────────────────────
+		// Override strategies from config if supplied. Per-library players set
+		// their own defaults AFTER initPlayerCoreState; config injection always
+		// wins over library defaults when both are present.
+		if (this.options.preloadStrategy) {
+			this._preloadStrategy = this.options.preloadStrategy;
+		}
+		if (this.options.transitionStrategy) {
+			this._transitionStrategy = this.options.transitionStrategy;
+		}
+
+		// Apply config-level lead times to the default strategy when no custom
+		// strategy has been injected. We rebuild the default strategy so the
+		// per-library player's preloadLeadSeconds takes effect here.
+		const configuredLeadSeconds = this.options.preloadLeadSeconds ?? 10;
+		if (!this.options.preloadStrategy) {
+			this._preloadStrategy = new DefaultPreloadStrategy(configuredLeadSeconds);
+		}
+
+		// Cursor-change guard: reset preload/transition flags whenever the active
+		// item changes so the next item gets a fresh cycle.
+		const onCurrentChange = (): void => {
+			this._preloadFired = false;
+			this._transitionFired = false;
+			this._preloadStrategy.cancel();
+			this._transitionStrategy.cancel('cursor-changed');
+			this._preloadEpoch += 1;
+
+			if (this._transitionRafHandle !== undefined) {
+				cancelAnimationFrame(this._transitionRafHandle);
+				this._transitionRafHandle = undefined;
+			}
+		};
+		this.on('current', onCurrentChange);
+		this._policyCleanup.push(() => {
+			this.off('current', onCurrentChange);
+		});
+
+		// Time-driven orchestration: check preload + transition on every time tick.
+		const onTimeOrchestration = ({ time }: { time: number }): void => {
+			const duration = this._internalDuration;
+			const nextItem = (this._queueList.peekNext() ?? null) as BasePlaylistItem | null;
+			const context = { currentTime: time, duration, nextItem };
+
+			// Preload gate.
+			if (!this._preloadFired && this._preloadStrategy.shouldPreload(context) && nextItem !== null) {
+				this._preloadFired = true;
+				_runPreload(this, nextItem, this._preloadStrategy);
+			}
+
+			// Transition gate.
+			const crossfadeEnabled = this.options.crossfadeEnabled ?? false;
+			if (crossfadeEnabled && !this._transitionFired && this._transitionStrategy.shouldTransition(context) && nextItem !== null) {
+				this._transitionFired = true;
+				const outgoing = (this._queueList.current() ?? null) as BasePlaylistItem | null;
+				if (outgoing !== null) {
+					_runTransition(this, outgoing, nextItem);
+				}
+			}
+		};
+		this.on('time', onTimeOrchestration);
+		this._policyCleanup.push(() => {
+			this.off('time', onTimeOrchestration);
+		});
 
 		if (this.options.expose === true && typeof window !== 'undefined') {
 			Object.assign(window, { player: this });
@@ -3783,6 +3987,48 @@ export const loadingMethods = {
 } as const;
 
 // ──────────────────────────────────────────────────────────────────────────
+// Mixin: preload + transition strategy swappers
+// ──────────────────────────────────────────────────────────────────────────
+
+export const preloadStrategyMethods = {
+	/**
+	 * Replace the active preload strategy at runtime. The new strategy takes
+	 * effect on the next `time` tick. Cancels any in-flight prefetch first.
+	 */
+	setPreloadStrategy(this: Internals, strategy: PreloadStrategy): void {
+		this._preloadStrategy.cancel();
+		this._preloadFired = false;
+		this._preloadStrategy = strategy;
+	},
+
+	/**
+	 * Replace the active transition strategy at runtime. Cancels any in-progress
+	 * transition first (emitting `transitionCancelled`).
+	 */
+	setTransitionStrategy(this: Internals, strategy: TransitionStrategy): void {
+		if (this._transitionRafHandle !== undefined) {
+			cancelAnimationFrame(this._transitionRafHandle);
+			this._transitionRafHandle = undefined;
+		}
+		this._transitionStrategy.cancel('strategy-replaced');
+		this.emit('transitionCancelled', { reason: 'strategy-replaced' });
+		this._transitionFired = false;
+		this._transitionStrategy = strategy;
+	},
+
+	/** Return the active preload strategy instance. */
+	preloadStrategy(this: Internals): PreloadStrategy {
+		return this._preloadStrategy;
+	},
+
+	/** Return the active transition strategy instance. */
+	transitionStrategy(this: Internals): TransitionStrategy {
+		return this._transitionStrategy;
+	},
+} as const;
+
+
+// ──────────────────────────────────────────────────────────────────────────
 // Convenience aggregator — every shared mixin in one tuple. Player libraries
 // `composeMixins(MyPlayer.prototype, ...playerCoreMethods)` and they're
 // fully wired.
@@ -3812,4 +4058,5 @@ export const playerCoreMethods = [
 	domMethods,
 	loadingMethods,
 	containerClassEmitMethods,
+	preloadStrategyMethods,
 ] as const;

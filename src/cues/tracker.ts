@@ -1,6 +1,13 @@
 import type { BaseEventMap, IPlayer } from '../types';
 import type { Cue, CueList } from './cue';
 
+/** Minimal player surface `CueTracker.attach` subscribes to. */
+export interface CueTrackerTarget {
+	on: IPlayer<BaseEventMap>['on'];
+	off: IPlayer<BaseEventMap>['off'];
+	emit: IPlayer<BaseEventMap>['emit'];
+}
+
 export interface CueTrackerOptions {
 	/** How close to a boundary still counts as "in" (seconds). Default 0. */
 	tolerance?: number;
@@ -31,7 +38,7 @@ export class CueTracker<T> {
 	private readonly tolerance: number;
 	private readonly listeners = new Map<TrackerEvent, Set<Handler<T>>>();
 	private active = new Set<Cue<T>>();
-	private playerRef?: IPlayer<BaseEventMap>;
+	private playerRef?: CueTrackerTarget;
 	private boundOnTime?: (data: { time: number }) => void;
 	private boundOnSeek?: (data: { time: number }) => void;
 	private suspended = false;
@@ -50,7 +57,7 @@ export class CueTracker<T> {
 		this.historyMax = opts?.historyMax ?? 32;
 	}
 
-	attach(player: IPlayer<BaseEventMap>): void {
+	attach(player: CueTrackerTarget): void {
 		this.playerRef = player;
 
 		this.boundOnTime = ({ time }) => this.onTime(time);

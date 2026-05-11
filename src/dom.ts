@@ -11,6 +11,8 @@ export interface AddClasses<T extends Element> {
 	appendTo: (parent: Element) => AppendTo<T>;
 	prependTo: (parent: Element) => AppendTo<T>;
 	addClasses: (names: string[]) => AddClasses<T>;
+	setAttribute: (name: string, value: string) => AddClasses<T>;
+	setProperty: (name: string, value: string) => AddClasses<T>;
 }
 
 export interface AppendTo<T extends Element> {
@@ -123,5 +125,14 @@ function makeAddClasses<T extends Element>(el: T): AddClasses<T> {
 			return makeAppendTo(el);
 		},
 		addClasses: (names: string[]) => addClasses(el, names),
+		setAttribute: (name: string, value: string) => {
+			el.setAttribute(name, value);
+			return makeAddClasses(el);
+		},
+		setProperty: (name: string, value: string) => {
+			if (el instanceof HTMLElement)
+				el.style.setProperty(name, value);
+			return makeAddClasses(el);
+		},
 	};
 }

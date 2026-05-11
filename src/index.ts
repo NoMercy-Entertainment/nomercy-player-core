@@ -196,6 +196,7 @@ export type {
 	BasePlayerConfig,
 	BasePlaylistItem,
 	BeforeEvent,
+	CanPlayResult,
 	Chapter,
 	CueEventPayload,
 	DeviceCapabilities,
@@ -233,3 +234,19 @@ export {
 	SetupState,
 	VisibilityState,
 } from './types';
+
+// Preload + transition strategy interfaces and default implementations
+export {
+	CrossfadeTransitionStrategy,
+	DefaultPreloadStrategy,
+	GaplessTransitionStrategy,
+} from './preload-strategy';
+export type {
+	PreloadAsset,
+	PreloadContext,
+	PreloadStrategy,
+	TransitionBackend,
+	TransitionContext,
+	TransitionStrategy,
+} from './preload-strategy';
+export { preloadStrategyMethods } from './base-player';

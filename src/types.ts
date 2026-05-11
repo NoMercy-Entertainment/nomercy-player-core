@@ -117,6 +117,13 @@ export interface PlaybackMetrics {
 	[customMetric: string]: number;
 }
 
+/** Minimal decode-capability result returned by `canPlay()`. */
+export interface CanPlayResult {
+	supported: boolean;
+	smooth: boolean;
+	powerEfficient: boolean;
+}
+
 /** Quality level metadata returned by `qualityLevels()` and stream sources. */
 export interface QualityLevel {
 	bitrate: number;
@@ -472,6 +479,38 @@ export interface BaseEventMap {
 	'activity': { active: boolean };
 
 	'listeners-changed': { name: string; count: number };
+
+	// ── Preload lifecycle events ──────────────────────────────────────────────
+	// Emitted by the generic preload orchestration in `preloadMethods`.
+
+	/** The player began prefetching assets for the next item. */
+	'preloadStart': { item: BasePlaylistItem; assets: ReadonlyArray<{ url: string; category: string }> };
+
+	/** An individual preload asset completed or failed — progress update. */
+	'preloadProgress': { item: BasePlaylistItem; loaded: number; total: number };
+
+	/** All queued preload assets have been fetched successfully. */
+	'preloadComplete': { item: BasePlaylistItem };
+
+	/** One or more preload assets could not be fetched (non-fatal). */
+	'preloadError': { item: BasePlaylistItem; error: unknown };
+
+	// ── Transition lifecycle events ───────────────────────────────────────────
+
+	/** The transition window has begun (outgoing fading, incoming starting). */
+	'transitionStart': { outgoing: BasePlaylistItem; incoming: BasePlaylistItem };
+
+	/**
+	 * Per-frame progress during the transition window.
+	 * `fraction` is [0..1] — 0 at transition start, 1 at completion.
+	 */
+	'transitionProgress': { outgoing: BasePlaylistItem; incoming: BasePlaylistItem; fraction: number };
+
+	/** The transition completed — incoming is now primary. */
+	'transitionComplete': { from: BasePlaylistItem; to: BasePlaylistItem };
+
+	/** The transition was aborted before it could complete. */
+	'transitionCancelled': { reason: string };
 }
 
 /** Header value — static, sync getter, or async getter. */
@@ -805,6 +844,56 @@ export interface BasePlayerConfig {
 	 */
 	autoAdvance?: boolean;
 
+	// ── Preload + transition ──────────────────────────────────────────────────
+
+	/**
+	 * How many seconds before the outgoing item ends the player begins prefetching
+	 * the next item's assets (manifest, first segments, poster, sidecars).
+	 * Default `10`. Set to `0` to disable preloading.
+	 */
+	preloadLeadSeconds?: number;
+
+	/**
+	 * How many seconds before the outgoing item ends the player begins the
+	 * crossfade / transition window. Only used when `crossfadeEnabled: true`.
+	 * Default `3`.
+	 */
+	crossfadeLeadSeconds?: number;
+
+	/**
+	 * How many seconds the incoming item plays in parallel with (on top of) the
+	 * outgoing item before the outgoing is fully silent. Only used when
+	 * `crossfadeEnabled: true`. Default `3`.
+	 */
+	crossfadeTailSeconds?: number;
+
+	/**
+	 * Enable the crossfade / overlap transition between queue items.
+	 * When `false` (the default for video) the player uses a hard-cut gapless
+	 * transition — assets are still preloaded, but there is no audio overlap.
+	 * Per-library defaults:
+	 *  - Music: `true`
+	 *  - Video: `false`
+	 */
+	crossfadeEnabled?: boolean;
+
+	/**
+	 * Custom preload strategy. When supplied, replaces the default
+	 * `DefaultPreloadStrategy`. Inject this to customise which assets are
+	 * prefetched, or to implement a different timing heuristic.
+	 *
+	 * The strategy is stateless — a single instance is reused across items.
+	 * Call `strategy.cancel()` before navigating away if you hold a reference.
+	 */
+	preloadStrategy?: import('./preload-strategy').PreloadStrategy;
+
+	/**
+	 * Custom transition strategy. When supplied, replaces the per-library default
+	 * (`CrossfadeTransitionStrategy` for music, `GaplessTransitionStrategy` for
+	 * video). Inject this to implement custom fades, cuts, or creative transitions.
+	 */
+	transitionStrategy?: import('./preload-strategy').TransitionStrategy;
+
 	/**
 	 * Attach the player instance to `window.player` for console debugging.
 	 * Cleaned up on `dispose()`. Default `false`.
@@ -934,11 +1023,23 @@ export type PreventedReason
  * optional-missing logs a debug warning and the dependent plugin runs anyway.
  * Version mismatch throws `core:plugin/version-mismatch`.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/** A plugin constructor carrying the static fields the kit reads at registration time. */
+export type PluginCtorWithId = (new (...args: never[]) => unknown) & {
+	readonly id: string;
+	readonly version?: string;
+	readonly description?: string;
+	readonly minCoreVersion?: string;
+	readonly requires?: ReadonlyArray<RequireSpec>;
+	readonly replaces?: string;
+	readonly priority?: number;
+	readonly onError?: Readonly<Record<string, string>>;
+	readonly advisories?: ReadonlyArray<PluginAdvisory>;
+	readonly translations?: Translations;
+};
+
 export type RequireSpec
-	= | (new (...args: any[]) => { /* Plugin instance */ })
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		| { plugin: new (...args: any[]) => { /* Plugin instance */ }; optional?: boolean; minVersion?: string };
+	= | PluginCtorWithId
+		| { plugin: PluginCtorWithId; optional?: boolean; minVersion?: string };
 
 /**
  * Declarative advisory — `static advisories` on a Plugin class. Lets plugins
@@ -992,7 +1093,7 @@ export interface PluginAdvisory {
  * which methods have been monkey-patched and by whom.
  */
 export interface PlayerExperimental {
-	override<K extends string>(method: K, fn: (...args: any[]) => any): () => void;
+	override<K extends string>(method: K, fn: (...args: unknown[]) => unknown): () => void;
 	restore(method: string): void;
 	overrides(): Array<{ method: string; by: string | 'consumer' }>;
 }
