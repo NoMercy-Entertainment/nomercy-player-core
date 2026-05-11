@@ -909,17 +909,6 @@ export const lifecycleMethods = {
 			});
 		}
 
-		if (this.options.autoAdvance !== false) {
-			const onEnded = (): void => {
-				if (this._repeatState !== 'off') return;
-				void this.next({ source: 'auto-advance' }).then(() => this.play({ source: 'auto-advance' }));
-			};
-			this.on('ended', onEnded);
-			this._policyCleanup.push(() => {
-				this.off('ended', onEnded);
-			});
-		}
-
 		// ── Preload + transition orchestration ────────────────────────────────
 		// Override strategies from config if supplied. Per-library players set
 		// their own defaults AFTER initPlayerCoreState; config injection always
@@ -1151,9 +1140,17 @@ function _applyContainerClassRule(container: HTMLElement | undefined, rule: Cont
 		const phasePayload = typeof data === 'object' && data !== null && 'to' in data
 			? (data as { to: PlayerPhase })
 			: undefined;
-		if (phasePayload && PLAY_STATE_CLASSES.includes(phasePayload.to)) {
+		if (!phasePayload) return;
+
+		if (PLAY_STATE_CLASSES.includes(phasePayload.to)) {
 			for (const cls of PLAY_STATE_CLASSES) container.classList.remove(cls);
 			container.classList.add(phasePayload.to);
+			return;
+		}
+
+		if (phasePayload.to === 'ready') {
+			for (const cls of PLAY_STATE_CLASSES) container.classList.remove(cls);
+			container.classList.add('paused');
 		}
 	}
 }
@@ -2522,6 +2519,15 @@ export const queueMethods = {
 		_wireQueue(this);
 		if (!_emitBeforeMutation(this, 'current', [target]))
 			return;
+
+		// Invalidate any in-flight load() so its cursor-move continuation does
+		// not overwrite the position we're about to set here. This covers the
+		// case where current(B) is called while a previous load(A) is awaiting
+		// the backend — readyToLoad is false so we skip calling load() again,
+		// but without bumping the epoch the load(A) continuation would move the
+		// cursor back to A once it resolves.
+		this._loadEpoch = (this._loadEpoch ?? 0) + 1;
+
 		this._queueList.setCurrent(target);
 
 		const readyToLoad = this._phase === 'ready'
@@ -3875,6 +3881,11 @@ export const loadingMethods = {
 	): Promise<void> {
 		_assertReady(this);
 
+		// Capture phase before any async work so the loading transition
+		// reflects the actual state at call time — not the state after
+		// awaited setup-pipeline steps have already moved to 'ready'.
+		const priorPhase = this._phase;
+
 		const beforeResult = await _dispatchBefore<{ item: T; source?: string }>(
 			this,
 			'beforeLoad',
@@ -3914,8 +3925,13 @@ export const loadingMethods = {
 			this._queueList.replaceItem(resolvedItem);
 		}
 
-		// Phase: ready/playing/paused → loading while the backend mounts.
-		const priorPhase = this._phase;
+		// Phase: ready/playing/paused/starting → loading while the backend
+		// mounts. idle/setup are excluded: when load() is called before the
+		// setup pipeline has finished (initial auto-load pattern), the player
+		// has never shown content, so flashing loading→paused is noise and
+		// causes a test-visible oscillation. The setup pipeline ends with
+		// _transitionPhase('ready') which maps to 'paused' on the container,
+		// giving a clean settled state once backend.load() completes.
 		if (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused' || priorPhase === 'starting') {
 			_transitionPhase(this, 'loading');
 		}
@@ -3946,7 +3962,12 @@ export const loadingMethods = {
 
 			// Move cursor to the loaded item so consumer-facing `current()` reflects it.
 			// Use setCurrent directly — calling this.current() here would re-trigger load().
-			this._queueList.setCurrent(item2.id ?? item2);
+			// Guard: skip if the cursor is already at this item (e.g. current() mixin
+			// moved it before calling load()) to prevent a duplicate `current` event.
+			const alreadyCurrent = this._queueList.current()?.id === item2.id;
+			if (!alreadyCurrent) {
+				this._queueList.setCurrent(item2.id ?? item2);
+			}
 
 			// Honour LoadOptions.startAt by seeking once metadata is available.
 			if (typeof opts?.startAt === 'number' && opts.startAt > 0) {
