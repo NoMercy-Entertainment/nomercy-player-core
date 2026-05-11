@@ -230,8 +230,24 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		return new Ctor({ latencyHint });
 	}
 
-	/** Override hook: connect backend media element to the graph. Default creates `MediaElementSourceNode`. */
+	/**
+	 * Override hook: produce the source node for the graph.
+	 *
+	 * When the backend already owns a `MediaElementAudioSourceNode` (i.e. it
+	 * exposes `outputNode(ctx)`), we reuse that node as our source rather than
+	 * calling `createMediaElementSource(element)` a second time. A second call on
+	 * the same element returns a silent node in Chrome without throwing — the
+	 * browser silently stops routing audio through the new node.
+	 *
+	 * The backend's outputGain becomes this plugin's source. `rebuildChain` then
+	 * connects it through any registered effects to `ctx.destination`, replacing
+	 * the backend's own baseline `outputGain → destination` connection.
+	 */
 	protected mountSource(ctx: AudioContext, element: HTMLMediaElement): AudioNode {
+		const backendOutputNode = this.resolveBackendOutputNode(ctx);
+		if (backendOutputNode !== null) {
+			return backendOutputNode;
+		}
 		return ctx.createMediaElementSource(element);
 	}
 
@@ -244,6 +260,35 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 			const backend = player.backend?.();
 			const el = backend?.mediaElement?.();
 			return el ?? null;
+		}
+		catch {
+			return null;
+		}
+	}
+
+	/**
+	 * Best-effort lookup of the backend's pre-built output node.
+	 *
+	 * The backend contract (`IAudioBackend`) exposes `outputNode(ctx)` — when
+	 * present and callable, it returns the tail of the backend's internal graph
+	 * (e.g. `AudioElementBackend`'s `outputGain`). We extend the chain from that
+	 * node instead of creating a second `MediaElementAudioSourceNode`.
+	 *
+	 * Returns `null` when:
+	 *  - the player has no `backend()` method (kit-only mock player)
+	 *  - the backend doesn't expose `outputNode` (non-audio-element backend)
+	 *  - any access throws
+	 */
+	private resolveBackendOutputNode(ctx: AudioContext): AudioNode | null {
+		const player = this.player as unknown as {
+			backend?: () => { outputNode?: (ctx: AudioContext) => AudioNode } | null | undefined;
+		};
+		try {
+			const backend = player.backend?.();
+			if (backend?.outputNode && typeof backend.outputNode === 'function') {
+				return backend.outputNode(ctx);
+			}
+			return null;
 		}
 		catch {
 			return null;
