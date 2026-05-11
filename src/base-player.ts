@@ -534,6 +534,17 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._preloadEpoch = 0;
 }
 
+/**
+ * Kit-internal setter for the player's shared `AudioContext` reference.
+ * Used by {@link AudioGraphPlugin} to write back the context it creates so
+ * other kit plugins can find it via `player.audioContext()` without going
+ * through a cast.
+ */
+export function setPlayerAudioContext(player: object, ctx: AudioContext | undefined): void {
+	(player as Internals)._audioContext = ctx;
+}
+
+
 // A no-op transition strategy used as the initial default in initPlayerCoreState.
 // Per-library players overwrite this immediately after setup() with their own default
 // (CrossfadeTransitionStrategy for music, GaplessTransitionStrategy for video).
@@ -1657,10 +1668,13 @@ async function _registerPlugin(
 	}
 
 	if (useFailed) {
-		// Soft-fail: mark plugin disabled and emit, but continue pipeline.
-		try {
-			instance.disable(`use-failed`);
-		}
+		// Soft-fail: dispose the partially-initialised instance so any DOM
+		// mounted before the throw is removed, then emit plugin:failed and
+		// cascade. Do NOT push onto _plugins — a plugin whose use() threw is
+		// not usable and removePlugin would double-dispose it.
+		try { instance.dispose(); }
+		catch { /* defensive */ }
+		try { lifecycle.dispose(); }
 		catch { /* defensive */ }
 		const failPayload = {
 			id,
@@ -1668,13 +1682,6 @@ async function _registerPlugin(
 		};
 		self.emit('plugin:failed', failPayload);
 		self.emit(`plugin:${id}:failed`, failPayload);
-		// Still push onto the registered list so `removePlugin` can clean up
-		// and so `_findDependents` can walk the graph.
-		self._plugins.push({
-			instance,
-			lifecycle,
-			ctor,
-		});
 		// Spec §C cascade: every plugin transitively depending on this one
 		// gets disabled with reason `dep-failed:<id>`.
 		_cascadeDisable(self, id, `dep-failed:${id}`);

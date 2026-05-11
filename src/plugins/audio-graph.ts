@@ -1,5 +1,6 @@
 import type { BaseEventMap, IPlayer } from '../types';
 import { BrowserPolicyError, PluginError } from '../errors';
+import { setPlayerAudioContext } from '../base-player';
 import { Plugin } from '../plugin';
 
 /** Options for {@link AudioGraphPlugin}. */
@@ -76,7 +77,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		const ctx = existing ?? this.createContext();
 
 		// Write the context back onto the player so other plugins / accessors see it.
-		(this.player as unknown as { _audioContext: AudioContext })._audioContext = ctx;
+		setPlayerAudioContext(this.player, ctx);
 		this.ctx = ctx;
 
 		// Source: try the active backend's mediaElement, else use a silent
@@ -116,7 +117,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 			});
 		}
 		const ctx = this.createContext();
-		(this.player as unknown as { _audioContext: AudioContext })._audioContext = ctx;
+		setPlayerAudioContext(this.player, ctx);
 		this.ctx = ctx;
 		return ctx;
 	}
@@ -328,9 +329,8 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		}
 
 		// Clear the player-level reference so the next `use()` starts clean.
-		const player = this.player as unknown as { _audioContext?: AudioContext };
-		if (player._audioContext === ctx) {
-			player._audioContext = undefined;
+		if (this.player.audioContext?.() === ctx) {
+			setPlayerAudioContext(this.player, undefined);
 		}
 		this.ctx = null;
 	}

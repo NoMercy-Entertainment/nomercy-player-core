@@ -839,13 +839,6 @@ export interface BasePlayerConfig {
 	/** Initial playlist. Pass items directly, or a URL the player will fetch. */
 	playlist?: BasePlaylistItem[] | string;
 
-	/**
-	 * Automatically advance to the next queue item when the current item ends.
-	 * Default `true`. Set to `false` to opt out — the player stops after each
-	 * item and waits for an explicit `next()` / `play()` call.
-	 */
-	autoAdvance?: boolean;
-
 	// ── Preload + transition ──────────────────────────────────────────────────
 
 	/**
