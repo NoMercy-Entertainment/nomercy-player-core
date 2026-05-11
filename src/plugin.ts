@@ -1,6 +1,6 @@
 import type { RetryConfig, Severity } from './errors';
 import type { LifecycleRegistry } from './lifecycle';
-import type { Logger } from './logger';
+import type { ILogger } from './logger';
 import type { IRealtimeChannel, RealtimeFactoryOptions } from './realtime';
 import type { IStorage } from './storage';
 import type {
@@ -15,12 +15,15 @@ import type {
 	Translations,
 	UrlCategory,
 } from './types';
+
 import { authFetch } from './auth-fetch';
 import { mergeConfig } from './config-merge';
 import { runDispatchBefore } from './dispatch';
 import { PlayerError } from './errors';
+import { Logger } from './logger';
 import { nativeWebSocketAdapter } from './realtime';
 import { buildResolvedUrl } from './resolved-url';
+import { LocalStorageBackend } from './storage';
 
 /**
  * Extract the event-map generic from an `IPlayer<E>` or `EventEmitter<E>` type.
@@ -59,6 +62,24 @@ function resolveListenerArgs(arg1: any, arg2: any, arg3?: any): { event: string;
 		fn: arg2,
 	};
 }
+
+/**
+ * Wraps a shared storage backend with a fixed key prefix so each plugin's
+ * keys never collide with another plugin's or with player-level keys.
+ *
+ * Keys stored by `DesktopUiPlugin` with id `'desktop-ui'` become
+ * `nmplayer-desktop-ui-<key>` in the underlying backend.
+ */
+function _namespacedStorage(backend: IStorage, prefix: string): IStorage {
+	return {
+		get: (key: string) => backend.get(prefix + key),
+		set: (key: string, value: string) => backend.set(prefix + key, value),
+		remove: (key: string) => backend.remove(prefix + key),
+		getJSON: <T>(key: string) => backend.getJSON<T>(prefix + key),
+		setJSON: <T>(key: string, value: T) => backend.setJSON<T>(prefix + key, value),
+	};
+}
+
 
 /**
  * Constructor signature matching any Plugin subclass. `never[]` is the
@@ -270,7 +291,7 @@ export class Plugin<
 	protected lifecycle!: LifecycleRegistry;
 
 	/** Auto-provided scoped logger. Output is prefixed `[nmplayer][<id>]`. */
-	protected logger!: Logger;
+	protected logger!: ILogger;
 
 	/** Auto-provided scoped storage. Keys are auto-prefixed `nmplayer-<id>-`. */
 	protected storage!: IStorage;
@@ -281,6 +302,15 @@ export class Plugin<
 		this.player = player;
 		this.opts = opts;
 		this.lifecycle = lifecycle;
+
+		const id = (this.constructor as typeof Plugin).id;
+		const config = (player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
+
+		const rootLogger: ILogger = config.logger ?? new Logger({ prefix: 'nmplayer', level: config.logLevel });
+		this.logger = rootLogger.child(id);
+
+		const rootStorage: IStorage = config.storage ?? new LocalStorageBackend();
+		this.storage = _namespacedStorage(rootStorage, `nmplayer-${id}-`);
 	}
 
 	/**

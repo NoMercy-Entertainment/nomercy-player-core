@@ -12,6 +12,7 @@ import {
 	composeMixins,
 	EventEmitter,
 	initPlayerCoreState,
+	Logger,
 	playerCoreMethods,
 	PlayerError,
 	Plugin,
@@ -929,6 +930,111 @@ describe('player-core mixins (kit)', () => {
 			expect(p.enabledPlugins().length).toBe(0);
 		});
 	});
+
+	// ── Plugin.initialize() wires storage + logger ──
+
+	describe('Plugin.initialize() provides storage and logger', () => {
+		it('this.storage is a namespaced IStorage after initialize()', async () => {
+			class StorageProbePlugin extends Plugin {
+				static override readonly id = 'storage-probe';
+				static override readonly description = 'storage probe';
+				storedValue: string | null = null;
+
+				override use(): void {
+					this.storage.set('key', 'hello');
+					this.storedValue = this.storage.get('key') as string | null;
+				}
+			}
+
+			const player = setupPlayer();
+			player.addPlugin(StorageProbePlugin as any);
+			await player.ready();
+
+			const inst = player.getPlugin(StorageProbePlugin as any) as StorageProbePlugin | undefined;
+			expect(inst).toBeDefined();
+			expect(inst?.storedValue).toBe('hello');
+		});
+
+		it('this.logger is scoped to the plugin id after initialize()', async () => {
+			const loggedMessages: string[] = [];
+
+			class LoggerProbePlugin extends Plugin {
+				static override readonly id = 'logger-probe';
+				static override readonly description = 'logger probe';
+
+				override use(): void {
+					this.logger.info('probe message');
+				}
+			}
+
+			const mockLogger = new Logger({ prefix: 'nmplayer' });
+			mockLogger.addSink((_level, prefix, args) => {
+				loggedMessages.push(`${prefix} ${args.join(' ')}`);
+			});
+
+			const div = document.createElement('div');
+			div.id = 'logger-probe-player';
+			document.body.appendChild(div);
+			const player = new MockPlayer('logger-probe-player').setup({ logger: mockLogger } as any);
+			player.addPlugin(LoggerProbePlugin as any);
+			await player.ready();
+
+			expect(loggedMessages.some(msg => msg.includes('logger-probe') && msg.includes('probe message'))).toBe(true);
+		});
+	});
+
+
+	// ── Plugin use() failures are never silent ──
+
+	describe('plugin use() failure is never silent', () => {
+		it('emits plugin:failed when use() throws', async () => {
+			class ThrowingPlugin extends Plugin {
+				static override readonly id = 'thrower';
+				static override readonly description = 'throws on use';
+
+				override use(): void {
+					throw new Error('intentional use() failure');
+				}
+			}
+
+			const player = setupPlayer();
+			const failedIds: string[] = [];
+			player.on('plugin:failed' as any, (data: any) => failedIds.push(data.id));
+			player.addPlugin(ThrowingPlugin as any);
+			await player.ready();
+
+			expect(failedIds).toContain('thrower');
+			expect(player.getPlugin(ThrowingPlugin as any)).toBeUndefined();
+		});
+
+		it('logs the failure through the plugin scoped logger regardless of listener timing', async () => {
+			class ThrowingPlugin2 extends Plugin {
+				static override readonly id = 'thrower2';
+				static override readonly description = 'throws on use';
+
+				override use(): void {
+					throw new Error('use() blow-up');
+				}
+			}
+
+			const errorMessages: string[] = [];
+			const mockLogger = new Logger({ prefix: 'nmplayer' });
+			mockLogger.addSink((_level, prefix, args) => {
+				errorMessages.push(`${prefix} ${args.join(' ')}`);
+			});
+
+			const div = document.createElement('div');
+			div.id = 'thrower2-player';
+			document.body.appendChild(div);
+			const player = new MockPlayer('thrower2-player').setup({ logger: mockLogger } as any);
+
+			player.addPlugin(ThrowingPlugin2 as any);
+			await player.ready();
+
+			expect(errorMessages.some(msg => msg.includes('thrower2') && msg.includes('use() blow-up'))).toBe(true);
+		});
+	});
+
 
 	// ── stateError helper sanity ──
 

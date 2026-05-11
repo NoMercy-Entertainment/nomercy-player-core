@@ -80,6 +80,7 @@ import {
 	StateError,
 } from './errors';
 import { LifecycleRegistry } from './lifecycle';
+import { Logger } from './logger';
 import { MediaList } from './medialist';
 import { browserPlatform } from './platform';
 import { buildResolvedUrl } from './resolved-url';
@@ -1555,6 +1556,14 @@ function _cascadeDisable(self: Internals, failedId: string, reason: string): voi
 	}
 }
 
+/** Build a scoped child logger from the player's configured logger or a fallback. */
+function _makePlayerLogger(self: Internals, scope: string): Logger {
+	const configured = (self.options as unknown as { logger?: Logger } | undefined)?.logger;
+	const root = configured ?? new Logger({ prefix: 'nmplayer', level: (self.options as unknown as { logLevel?: string } | undefined)?.logLevel as Parameters<Logger['level']>[0] | undefined });
+	return root.child(scope) as Logger;
+}
+
+
 /**
  * Register a single plugin: instantiate, initialize, merge static translations,
  * await `use()` (bounded by timeout), push onto the registered list, emit
@@ -1672,14 +1681,22 @@ async function _registerPlugin(
 		// mounted before the throw is removed, then emit plugin:failed and
 		// cascade. Do NOT push onto _plugins — a plugin whose use() threw is
 		// not usable and removePlugin would double-dispose it.
+		const failError = useError instanceof Error ? useError : new Error(String(useError));
+
+		// Always log through the plugin's own logger (wired during initialize())
+		// so failures are never silent regardless of `plugin:failed` listener timing.
+		// Fallback: construct a scoped logger from player options when the plugin's
+		// logger field is somehow unset (defensive for subclasses that skip super.initialize).
+		const pluginLogger = (instance as unknown as { logger?: { error: (...args: unknown[]) => void } }).logger
+			?? _makePlayerLogger(self, id);
+		pluginLogger.error('plugin use() failed — plugin will not be registered', failError);
+
 		try { instance.dispose(); }
 		catch { /* defensive */ }
 		try { lifecycle.dispose(); }
 		catch { /* defensive */ }
-		const failPayload = {
-			id,
-			error: useError instanceof Error ? useError : new Error(String(useError)),
-		};
+
+		const failPayload = { id, error: failError };
 		self.emit('plugin:failed', failPayload);
 		self.emit(`plugin:${id}:failed`, failPayload);
 		// Spec §C cascade: every plugin transitively depending on this one
