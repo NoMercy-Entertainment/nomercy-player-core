@@ -90,6 +90,18 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 
 		this.rebuildChain();
 
+		// Browser autoplay policy: AudioContext starts in 'suspended' state.
+		// Resume on the first player 'play' event — that event fires inside or
+		// immediately after a user-gesture callback, satisfying the browser's
+		// activation requirement. Without this, the graph is wired but silent.
+		const resumeOnPlay = (): void => {
+			if (ctx.state === 'suspended') {
+				ctx.resume().catch(() => { /* best-effort — policy blocks are silent */ });
+			}
+		};
+		this.player.on('play', resumeOnPlay);
+		this.lifecycle.addCleanup(() => this.player.off('play', resumeOnPlay));
+
 		this.lifecycle.addCleanup(() => this.tearDownGraph());
 
 		this.emit('context:ready', { sampleRate: ctx.sampleRate });
