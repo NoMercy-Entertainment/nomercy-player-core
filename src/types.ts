@@ -24,6 +24,8 @@ export type ActionSource = 'user' | 'remote' | 'plugin' | (string & {});
 export interface ActionOptions {
 	source?: ActionSource;
 	silent?: boolean;
+	/** When `true`, the player calls `play()` immediately after the load resolves. */
+	autoplay?: boolean;
 }
 
 /** `LoadOptions` — passed to `player.load(item, opts?)`. */

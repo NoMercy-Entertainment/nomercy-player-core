@@ -2054,6 +2054,7 @@ export const transportMethods = {
 		this.emit('next', result.data);
 
 		await this.load(nextItem, { source: result.data?.source });
+		void this.play({ source: result.data?.source });
 	},
 
 	async previous(this: Internals, opts: ActionOptions = {}): Promise<void> {
@@ -2075,6 +2076,7 @@ export const transportMethods = {
 		this.emit('previous', result.data);
 
 		await this.load(prevItem, { source: result.data?.source });
+		void this.play({ source: result.data?.source });
 	},
 
 	async rewind(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
@@ -2513,7 +2515,7 @@ export const queueMethods = {
 	 * string, or index). Fires `beforeMutation` so advisory plugins can cancel
 	 * the change. Emits the `current` event when the cursor moves.
 	 */
-	current(this: Internals, target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), _opts?: ActionOptions): BasePlaylistItem | undefined | void {
+	current(this: Internals, target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: ActionOptions): BasePlaylistItem | undefined | void {
 		if (target === undefined) {
 			return this._queueList.current();
 		}
@@ -2521,6 +2523,22 @@ export const queueMethods = {
 		if (!_emitBeforeMutation(this, 'current', [target]))
 			return;
 		this._queueList.setCurrent(target);
+
+		const readyToLoad = this._phase === 'ready'
+			|| this._phase === 'playing'
+			|| this._phase === 'paused'
+			|| this._phase === 'ended'
+			|| this._phase === 'stopped';
+		if (!readyToLoad) return;
+
+		const item = this._queueList.current();
+		if (!item) return;
+
+		void this.load(item as BasePlaylistItem & { url?: string }, { source: opts?.source }).then(() => {
+			if (opts?.autoplay) {
+				void this.play({ source: opts.source });
+			}
+		}).catch(() => { /* load errors surface via the 'error' event; suppress unhandled rejection */ });
 	},
 	currentIndex(this: Internals): number {
 		return this._queueList.currentIndex();
@@ -3927,7 +3945,8 @@ export const loadingMethods = {
 			if (!isLatest()) return;
 
 			// Move cursor to the loaded item so consumer-facing `current()` reflects it.
-			this.current(item2.id ?? item2);
+			// Use setCurrent directly — calling this.current() here would re-trigger load().
+			this._queueList.setCurrent(item2.id ?? item2);
 
 			// Honour LoadOptions.startAt by seeking once metadata is available.
 			if (typeof opts?.startAt === 'number' && opts.startAt > 0) {
