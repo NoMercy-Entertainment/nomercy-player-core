@@ -40,6 +40,7 @@ import type {
 	BaseEventMap,
 	BasePlayerConfig,
 	BasePlaylistItem,
+	CanPlayResult,
 	Chapter,
 	DeviceCapabilities,
 	IPlayer,
@@ -47,6 +48,7 @@ import type {
 	PlaybackMetrics,
 	PlayerExperimental,
 	PlayerPhase,
+	PluginCtorWithId,
 	ResolvedUrl,
 	SubtitleCue as SubtitleCuePayload,
 	SubtitleTrack,
@@ -87,6 +89,18 @@ import { StreamRegistry } from './streams/registry';
 import { getLazyTranslationLoader } from './translations-glob';
 import { bcp47FallbackChain, DefaultTranslator } from './translator';
 import { AudioTrackState, BufferState, CastState as _CastStateEnum, NetworkState, QualityState, SetupState, VisibilityState } from './types';
+
+// ──────────────────────────────────────────────────────────────────────────
+// Sidecar subtitle context — declared here so PlayerCoreState can reference
+// it before the mediaTracksMethods block that implements the full feature.
+// ──────────────────────────────────────────────────────────────────────────
+
+interface SidecarSubtitleContext {
+	tracker: CueTracker<VTTSubtitlePayload>;
+	active: Set<Cue<VTTSubtitlePayload>>;
+	language?: string;
+}
+
 
 // ──────────────────────────────────────────────────────────────────────────
 // Error helpers
@@ -172,6 +186,10 @@ export type PlayerCtorResolution<C>
 	= | { kind: 'existing'; instance: C }
 		| { kind: 'mount'; id: string; div: HTMLDivElement };
 
+function _isHTMLDivElement(el: Element): el is HTMLDivElement {
+	return el.tagName === 'DIV';
+}
+
 export function resolvePlayerConstructor<C>(
 	id: string | number | undefined,
 	instances: Map<string, C>,
@@ -218,14 +236,14 @@ export function resolvePlayerConstructor<C>(
 	if (!element) {
 		throw resourceError('core:player/element-missing', `No element found with id "${id}".`);
 	}
-	if (element.tagName !== 'DIV') {
+	if (!_isHTMLDivElement(element)) {
 		throw stateError('core:player/element-not-div', `Element with id "${id}" is a <${element.tagName.toLowerCase()}>, not a <div>.`);
 	}
 
 	return {
 		kind: 'mount',
 		id,
-		div: element as HTMLDivElement,
+		div: element,
 	};
 }
 
@@ -271,7 +289,7 @@ interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, C exten
 	_queueList: MediaList<T>;
 	_backlogList: MediaList<T>;
 	_queueWired: boolean;
-	_plugins: Array<{ instance: Plugin; lifecycle: LifecycleRegistry; ctor: typeof Plugin }>;
+	_plugins: Array<{ instance: Plugin; lifecycle: LifecycleRegistry; ctor: PluginCtorWithId }>;
 
 	/**
 	 * Pre-setup plugin queue. `addPlugin` calls during `'idle'` or `'setup'` phase
@@ -280,7 +298,7 @@ interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, C exten
 	 *
 	 * Post-setup `addPlugin` runs the same pipeline inline.
 	 */
-	_pluginQueue: Array<{ ctor: typeof Plugin; opts?: unknown }>;
+	_pluginQueue: Array<{ ctor: PluginCtorWithId; opts?: unknown }>;
 
 	/** Live `AuthConfig` — readable via `auth()`, mutable via `auth(config)` / `auth(partial)`. */
 	_authConfig: AuthConfig | undefined;
@@ -356,6 +374,21 @@ interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, C exten
 	 * declared here rather than on the mixin object itself.
 	 */
 	_overrideOriginals?: Map<string, ((...args: unknown[]) => unknown) | undefined>;
+
+	/** Active cast/handoff state. Written by `transferTo()`; read by `castState()`. */
+	_castState?: _CastStateEnum;
+
+	/** Monotonic counter bumped on each `load()` call; stale continuations bail when epoch mismatches. */
+	_loadEpoch?: number;
+
+	/** Monotonic counter bumped on each `_resolveAndEmitChapters` call. */
+	_chapterEpoch?: number;
+
+	/** Active sidecar VTT subtitle context. One per player. Torn down on track change or item change. */
+	_sidecarSubtitle?: SidecarSubtitleContext;
+
+	/** Subtitle style patch cache. Seeded on first read; mutated by `subtitleStyle(patch)`. */
+	_subtitleStyle?: Record<string, unknown>;
 }
 
 /**
@@ -384,6 +417,8 @@ interface MixinSurface {
 	queueLength(): number;
 	currentIndex(): number;
 	next(opts?: ActionOptions): Promise<void>;
+	// loadingMethods — per-library mixin composes this; kit transport methods call it cross-mixin.
+	load(item: BasePlaylistItem, opts?: ActionOptions): Promise<void>;
 	// mediaTracksMethods
 	chapters(): ReadonlyArray<Chapter>;
 	seekToChapter(idx: number, opts?: ActionOptions): void;
@@ -396,6 +431,16 @@ interface MixinSurface {
 	removeTranslations(prefix: string, lang?: string): void;
 	// playerCoreMethods — runtime resolution of the configured platform bundle.
 	platform(): IPlatform;
+	// i18nMethods — language() lives in i18nMethods mixin, called cross-mixin.
+	language(lang?: string): string | Promise<void>;
+	// Per-library backend accessor. Optional — kit mixins probe its presence defensively.
+	backend?(): unknown;
+	// Per-library video element. Optional — only NMVideoPlayer carries it; kit reads defensively.
+	videoElement?: HTMLMediaElement & { webkitShowPlaybackTargetPicker?: () => void; remote?: { prompt: () => Promise<void> }; setSinkId?: (id: string) => Promise<void>; sinkId?: string };
+	// dispatch helpers exposed by lifecycleMethods.
+	listenersOf?(event: string): ReadonlyArray<(data: unknown) => void>;
+	pushDispatch?(name: string): void;
+	popDispatch?(): string | undefined;
 }
 
 type Internals = PlayerCoreState<BasePlaylistItem, BasePlayerConfig, BaseEventMap> & MixinSurface;
@@ -406,44 +451,44 @@ type Internals = PlayerCoreState<BasePlaylistItem, BasePlayerConfig, BaseEventMa
 // ──────────────────────────────────────────────────────────────────────────
 
 export function initPlayerCoreState(player: object, opts: { className: string }): void {
-	const p = player as Internals;
-	p.className = opts.className;
-	p._phase = 'idle';
-	p._dispatchStack = [];
-	p._setupCalled = false;
-	p._baseUrl = undefined;
-	p._audioContext = undefined;
-	p._translator = undefined;
-	p._cueParsers = new CueParserRegistry();
-	p._overrides = new Map();
-	p._playState = 'idle';
-	p._volumeState = 'unmuted';
-	p._repeatState = 'off';
-	p._shuffleState = 'off';
-	p._internalVolume = 1;
-	p._volumeBeforeMute = 1;
-	p._internalCurrentTime = 0;
-	p._internalDuration = 0;
-	p._playbackRate = 1;
-	p._queueList = new MediaList();
-	p._backlogList = new MediaList();
-	p._queueWired = false;
-	p._plugins = [];
-	p._pluginQueue = [];
-	p._authConfig = undefined;
-	p._urlResolver = undefined;
-	p._currentSubtitleIdx = null;
-	p._currentAudioTrackIdx = null;
-	p._currentQualityIdx = 'auto';
-	p._currentAudioOutputId = null;
-	p._qualityState = QualityState.AUTO;
-	p._audioTrackState = AudioTrackState.DEFAULT;
-	p._platform = undefined;
-	p._policyCleanup = [];
-	p._streamRegistry = undefined;
-	p._bandwidthEstimate = 0;
-	p._bandwidthEstimator = undefined;
-	p._metrics = {
+	const target = player as Internals;
+	target.className = opts.className;
+	target._phase = 'idle';
+	target._dispatchStack = [];
+	target._setupCalled = false;
+	target._baseUrl = undefined;
+	target._audioContext = undefined;
+	target._translator = undefined;
+	target._cueParsers = new CueParserRegistry();
+	target._overrides = new Map();
+	target._playState = 'idle';
+	target._volumeState = 'unmuted';
+	target._repeatState = 'off';
+	target._shuffleState = 'off';
+	target._internalVolume = 1;
+	target._volumeBeforeMute = 1;
+	target._internalCurrentTime = 0;
+	target._internalDuration = 0;
+	target._playbackRate = 1;
+	target._queueList = new MediaList();
+	target._backlogList = new MediaList();
+	target._queueWired = false;
+	target._plugins = [];
+	target._pluginQueue = [];
+	target._authConfig = undefined;
+	target._urlResolver = undefined;
+	target._currentSubtitleIdx = null;
+	target._currentAudioTrackIdx = null;
+	target._currentQualityIdx = 'auto';
+	target._currentAudioOutputId = null;
+	target._qualityState = QualityState.AUTO;
+	target._audioTrackState = AudioTrackState.DEFAULT;
+	target._platform = undefined;
+	target._policyCleanup = [];
+	target._streamRegistry = undefined;
+	target._bandwidthEstimate = 0;
+	target._bandwidthEstimator = undefined;
+	target._metrics = {
 		ttfb: 0,
 		ttff: 0,
 		rebufferRatio: 0,
@@ -453,9 +498,9 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 		joinTime: 0,
 		sessionDurationMs: 0,
 	};
-	p._metricsStartedAt = 0;
-	p._metricsTimer = undefined;
-	p._lastProgressEmit = 0;
+	target._metricsStartedAt = 0;
+	target._metricsTimer = undefined;
+	target._lastProgressEmit = 0;
 }
 
 
@@ -476,7 +521,7 @@ export const lifecycleMethods = {
 		}
 		this._setupCalled = true;
 
-		this.options = { ...config } as BasePlayerConfig;
+		this.options = { ...config };
 
 		// Spec §G: deprecated `debug: true` → `logLevel = 'debug'` when no
 		// explicit logLevel set. Explicit value always wins.
@@ -883,13 +928,13 @@ function _applyContainerClassRule(container: HTMLElement | undefined, rule: Cont
 	}
 
 	if (rule.kind === 'toggle') {
-		const payload = data as Record<string, unknown>;
+		const payload: Record<string, unknown> = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {};
 		container.classList.toggle(rule.cls, Boolean(payload[rule.payloadKey]));
 		return;
 	}
 
 	if (rule.kind === 'binary') {
-		const payload = data as Record<string, unknown>;
+		const payload: Record<string, unknown> = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {};
 		const on = Boolean(payload[rule.payloadKey]);
 		container.classList.add(on ? rule.whenTrue : rule.whenFalse);
 		container.classList.remove(on ? rule.whenFalse : rule.whenTrue);
@@ -897,10 +942,12 @@ function _applyContainerClassRule(container: HTMLElement | undefined, rule: Cont
 	}
 
 	if (rule.kind === 'phase') {
-		const payload = data as { to: PlayerPhase };
-		if (PLAY_STATE_CLASSES.includes(payload.to)) {
+		const phasePayload = typeof data === 'object' && data !== null && 'to' in data
+			? (data as { to: PlayerPhase })
+			: undefined;
+		if (phasePayload && PLAY_STATE_CLASSES.includes(phasePayload.to)) {
 			for (const cls of PLAY_STATE_CLASSES) container.classList.remove(cls);
-			container.classList.add(payload.to);
+			container.classList.add(phasePayload.to);
 		}
 	}
 }
@@ -975,6 +1022,7 @@ interface _BackendShape {
 	play?: () => Promise<void> | void;
 	pause?: () => void;
 	stop?: () => void;
+	load?: (url: string) => Promise<void>;
 	currentTime?: (t: number) => void;
 	buffered?: () => number;
 	bufferedRanges?: () => TimeRanges;
@@ -984,11 +1032,14 @@ interface _BackendShape {
 	playbackRate?: (rate: number) => void;
 }
 
+function _isBackendShape(value: unknown): value is _BackendShape {
+	return typeof value === 'object' && value !== null;
+}
+
 function _backend(self: Internals): _BackendShape | undefined {
-	const fn = (self as { backend?: () => unknown }).backend;
-	if (typeof fn !== 'function') return undefined;
-	const result = fn.call(self);
-	return result as _BackendShape | undefined;
+	if (typeof self.backend !== 'function') return undefined;
+	const result = self.backend();
+	return _isBackendShape(result) ? result : undefined;
 }
 
 function _emitBeforeMutation(self: Internals, method: string, args: ReadonlyArray<unknown>): boolean {
@@ -1194,7 +1245,7 @@ function _runSetupPipeline(self: Internals): void {
 			// Playlist stage — spec §14 says fire `playlistReady` with `length: 0`
 			// even when no playlist is configured. URL form (string) is reserved
 			// for §L impl; for now treat any non-string as inline.
-			const playlist = (self.options as { playlist?: unknown }).playlist;
+			const playlist = self.options.playlist;
 			if (typeof playlist === 'string') {
 				self.emit('playlistResolving', { url: playlist });
 				// Fetch+parse lands with §L; emit ready with length 0 for now.
@@ -1232,10 +1283,10 @@ function _runSetupPipeline(self: Internals): void {
 function _findDependents(self: Internals, id: string): string[] {
 	const directDependents: string[] = [];
 
-	const requiresId = (ctor: typeof Plugin, target: string): boolean => {
+	const requiresId = (ctor: PluginCtorWithId, target: string): boolean => {
 		const requires = ctor.requires ?? [];
 		for (const spec of requires) {
-			const requiredCtor = (typeof spec === 'function' ? spec : spec.plugin) as unknown as typeof Plugin;
+			const requiredCtor: PluginCtorWithId = typeof spec === 'function' ? spec : spec.plugin;
 			if (requiredCtor.id === target)
 				return true;
 		}
@@ -1298,7 +1349,7 @@ function _cascadeDisable(self: Internals, failedId: string, reason: string): voi
  */
 async function _registerPlugin(
 	self: Internals,
-	ctor: typeof Plugin,
+	ctor: PluginCtorWithId,
 	opts: unknown,
 	timeoutMs: number,
 ): Promise<void> {
@@ -1309,17 +1360,18 @@ async function _registerPlugin(
 		return;
 	}
 
+	type _InstantiableCtor = new () => Plugin;
 	const lifecycle = new LifecycleRegistry();
 	let instance: Plugin;
 	try {
-		instance = new (ctor as unknown as new () => Plugin)();
-		instance.initialize(self as unknown as IPlayer<any>, opts, lifecycle);
+		instance = new (ctor as unknown as _InstantiableCtor)();
+		instance.initialize(self as unknown as IPlayer<BaseEventMap>, opts, lifecycle);
 	}
 	catch (err) {
 		// Hard failure during construction / initialize — surface and bail.
 		self.emit('plugin:failed', {
 			id,
-			error: err as Error,
+			error: err instanceof Error ? err : new Error(String(err)),
 		});
 		throw err;
 	}
@@ -1337,14 +1389,15 @@ async function _registerPlugin(
 	// chain — Chinese never enters memory when the user wants Dutch.
 	{
 		const stack: Translations[] = [];
-		let cur: any = ctor;
+		let cur: unknown = ctor;
 		while (cur && cur !== Function.prototype) {
-			if (Object.prototype.hasOwnProperty.call(cur, 'translations') && cur.translations) {
-				stack.unshift(cur.translations as Translations);
+			if (Object.prototype.hasOwnProperty.call(cur, 'translations')) {
+				const withT = cur as { translations?: Translations };
+				if (withT.translations) stack.unshift(withT.translations);
 			}
 			cur = Object.getPrototypeOf(cur);
 		}
-		const currentLang = (self as unknown as { language: () => string }).language();
+		const currentLang = String(self.language());
 		const langChain = bcp47FallbackChain(currentLang);
 		// Apply base → subclass so subclass keys override on collision.
 		for (const t of stack) {
@@ -1358,7 +1411,7 @@ async function _registerPlugin(
 					const bundle = await lazy(tag);
 					if (!bundle)
 						continue;
-					(self as unknown as { addTranslations: (b: Translations) => void }).addTranslations({ [tag]: bundle });
+					self.addTranslations({ [tag]: bundle });
 					_markPluginLangLoaded(self, id, tag);
 				}
 			}
@@ -1375,7 +1428,7 @@ async function _registerPlugin(
 	let useError: unknown;
 	try {
 		const result = instance.use();
-		if (result && typeof (result as Promise<unknown>).then === 'function') {
+		if (result instanceof Promise) {
 			let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 			const timeout = new Promise<never>((_, reject) => {
 				timeoutHandle = setTimeout(
@@ -1408,7 +1461,7 @@ async function _registerPlugin(
 		catch { /* defensive */ }
 		const failPayload = {
 			id,
-			error: useError as Error,
+			error: useError instanceof Error ? useError : new Error(String(useError)),
 		};
 		self.emit('plugin:failed', failPayload);
 		self.emit(`plugin:${id}:failed`, failPayload);
@@ -1454,12 +1507,7 @@ function _assertReady(self: Internals): void {
  */
 async function _dispatchBefore<TData>(self: Internals, beforeEvent: string, data: TData): Promise<{ data: TData; prevented: boolean; reason?: 'listener-prevented' | 'delay-rejected' | 'delay-timeout'; cause?: unknown }> {
 	const timeoutMs = self.options?.beforeEventTimeoutMs;
-	const target = self as unknown as {
-		listenersOf?: (event: string) => ReadonlyArray<(data: unknown) => void>;
-		pushDispatch?: (name: string) => void;
-		popDispatch?: () => string | undefined;
-	};
-	return runDispatchBefore<TData>(target, beforeEvent, data, timeoutMs !== undefined ? { timeoutMs } : undefined);
+	return runDispatchBefore<TData>(self, beforeEvent, data, timeoutMs !== undefined ? { timeoutMs } : undefined);
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -1485,7 +1533,7 @@ export const experimentalDescriptor = {
 	get experimental(): PlayerExperimental {
 		const self = this as unknown as Internals;
 		const overrides = self._overrides;
-		const player = self as unknown as Record<string, any>;
+		const player: Record<string, unknown> = self as unknown as Record<string, unknown>;
 		const getOriginals = (): Map<string, ((...args: unknown[]) => unknown) | undefined> => {
 			let originals = self._overrideOriginals;
 			if (!originals) {
@@ -1510,22 +1558,23 @@ export const experimentalDescriptor = {
 			originals.delete(method);
 		};
 		return {
-			override: <K extends string>(method: K, fn: (...args: any[]) => any): (() => void) => {
+			override: <K extends string>(method: K, fn: (...args: unknown[]) => unknown): (() => void) => {
 				const originals = getOriginals();
 				if (!originals.has(method)) {
 					// Resolve original via the prototype chain so we capture the
 					// mixin-installed method. If the instance already owns the
 					// property (unlikely for kit-composed methods), we still capture
 					// whatever `player[method]` resolves to today.
-					const original = player[method] as ((...args: any[]) => any) | undefined;
-					originals.set(method, typeof original === 'function' ? original : undefined);
+					const raw: unknown = player[method];
+					const typed: ((...args: unknown[]) => unknown) | undefined = typeof raw === 'function' ? raw as (...args: unknown[]) => unknown : undefined;
+					originals.set(method, typed);
 				}
 				overrides.set(method, {
 					fn,
 					by: 'consumer',
 				});
 				Object.defineProperty(player, method, {
-					value: (...args: any[]) => {
+					value: (...args: unknown[]) => {
 						const entry = overrides.get(method);
 						if (entry)
 							return entry.fn.apply(self, args);
@@ -1588,6 +1637,17 @@ function _hasPluginLangLoaded(self: Internals, pluginId: string, lang: string): 
 	return _pluginLangLoaded.get(self)?.has(`${pluginId}::${lang}`) ?? false;
 }
 
+type _LoadTranslationsFn = (lang: string) => Promise<Record<string, string> | undefined>;
+
+function _getLoadTranslations(instance: unknown): _LoadTranslationsFn | undefined {
+	if (typeof instance !== 'object' || instance === null)
+		return undefined;
+	if (!('loadTranslations' in instance))
+		return undefined;
+	const fn: unknown = (instance as { loadTranslations: unknown }).loadTranslations;
+	return typeof fn === 'function' ? (fn as _LoadTranslationsFn) : undefined;
+}
+
 export const i18nMethods = {
 	t(this: Internals, key: string, vars?: Record<string, string>): string {
 		return _ensureTranslator(this).t(key, vars);
@@ -1607,10 +1667,11 @@ export const i18nMethods = {
 				// (1) Lazy `static translations` chain — pull bundles for every
 				// tag in the BCP-47 chain that hasn't been loaded yet. Walks the
 				// prototype chain so subclass + base lazy bundles both get hit.
-				let cur: any = ctor;
+				let cur: unknown = ctor;
 				while (cur && cur !== Function.prototype) {
-					if (Object.prototype.hasOwnProperty.call(cur, 'translations') && cur.translations) {
-						const lazy = getLazyTranslationLoader(cur.translations as Translations);
+					if (Object.prototype.hasOwnProperty.call(cur, 'translations')) {
+						const withT = cur as { translations?: Translations };
+						const lazy = withT.translations ? getLazyTranslationLoader(withT.translations) : undefined;
 						if (lazy) {
 							for (const tag of langChain) {
 								if (_hasPluginLangLoaded(this, pluginId, tag))
@@ -1621,7 +1682,7 @@ export const i18nMethods = {
 									if (!bundle)
 										continue;
 									// Static bundles include the `plugin.<id>.` prefix already.
-									(this as unknown as { addTranslations: (b: Translations) => void }).addTranslations({ [tag]: bundle });
+									this.addTranslations({ [tag]: bundle });
 								}
 								catch (err) {
 									if (typeof console !== 'undefined' && console.error) {
@@ -1636,7 +1697,8 @@ export const i18nMethods = {
 
 				// (2) Spec §U: instance-level `loadTranslations(lang)` hook —
 				// runtime sources (CDN, dynamic JSON). Per-plugin+lang dedupe.
-				const hook = (instance as unknown as { loadTranslations?: (lang: string) => Promise<Record<string, string> | undefined> }).loadTranslations;
+				// loadTranslations is protected — reflect via unknown to bypass visibility without widening to any.
+				const hook = _getLoadTranslations(instance);
 				if (typeof hook !== 'function')
 					continue;
 				if (_hasPluginLangLoaded(this, pluginId, lang))
@@ -1650,7 +1712,7 @@ export const i18nMethods = {
 					for (const [key, value] of Object.entries(bundle)) {
 						namespaced[`plugin.${pluginId}.${key}`] = value;
 					}
-					(this as unknown as { addTranslations: (b: Translations) => void }).addTranslations({ [lang]: namespaced });
+					this.addTranslations({ [lang]: namespaced });
 				}
 				catch (err) {
 					if (typeof console !== 'undefined' && console.error) {
@@ -1785,8 +1847,7 @@ export const transportMethods = {
 
 		this.emit('next', result.data);
 
-		await (this as unknown as { load: (item: BasePlaylistItem, opts?: ActionOptions) => Promise<void> })
-			.load(nextItem, { source: result.data?.source });
+		await this.load(nextItem, { source: result.data?.source });
 	},
 
 	async previous(this: Internals, opts: ActionOptions = {}): Promise<void> {
@@ -1807,8 +1868,7 @@ export const transportMethods = {
 
 		this.emit('previous', result.data);
 
-		await (this as unknown as { load: (item: BasePlaylistItem, opts?: ActionOptions) => Promise<void> })
-			.load(prevItem, { source: result.data?.source });
+		await this.load(prevItem, { source: result.data?.source });
 	},
 
 	async rewind(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
@@ -1895,6 +1955,10 @@ export const transportMethods = {
 // Mixin: time / position
 // ──────────────────────────────────────────────────────────────────────────
 
+function _emptyTimeRanges(): TimeRanges {
+	return { length: 0, start: (): number => 0, end: (): number => 0 } as unknown as TimeRanges;
+}
+
 export const timeMethods = {
 	currentTime(this: Internals, t?: number, opts: ActionOptions = {}): number | Promise<void> {
 		if (t === undefined)
@@ -1934,18 +1998,10 @@ export const timeMethods = {
 		return _backend(this)?.buffered?.() ?? 0;
 	},
 	bufferedRanges(this: Internals): TimeRanges {
-		return _backend(this)?.bufferedRanges?.() ?? ({
-			length: 0,
-			start: () => 0,
-			end: () => 0,
-		} as unknown as TimeRanges);
+		return _backend(this)?.bufferedRanges?.() ?? _emptyTimeRanges();
 	},
 	seekable(this: Internals): TimeRanges {
-		return {
-			length: 0,
-			start: () => 0,
-			end: () => 0,
-		} as unknown as TimeRanges;
+		return _emptyTimeRanges();
 	},
 	timeData(this: Internals): TimeState {
 		const position = this._internalCurrentTime;
@@ -1969,10 +2025,10 @@ export const timeMethods = {
 	 */
 	seekByPercentage(this: Internals, pct: number, opts?: ActionOptions): void {
 		const clamped = Math.max(0, Math.min(100, pct));
-		const d = (this as unknown as { duration(): number }).duration();
+		const d = this.duration();
 		if (!Number.isFinite(d) || d <= 0) return;
-		const ret = (this as unknown as { currentTime(t: number, opts?: ActionOptions): number | Promise<void> }).currentTime(d * clamped / 100, opts);
-		if (ret && typeof (ret as Promise<void>).then === 'function')
+		const ret = this.currentTime(d * clamped / 100, opts);
+		if (ret instanceof Promise)
 			void ret;
 	},
 
@@ -2074,10 +2130,27 @@ export const stateMethods = {
 // video context.
 // ──────────────────────────────────────────────────────────────────────────
 
+interface _BackendWithState { state?: () => string }
+interface _BackendWithSetQuality { setQuality?: (idx: number | 'auto') => void }
+interface _BackendWithSetAudioTrack { setAudioTrack?: (idx: number) => void }
+interface _BackendWithSubtitleTracks {
+	setSubtitleTrack?: (idx: number | null) => void;
+	subtitleTracks?: () => SubtitleTrack[];
+}
+interface _BackendWithAudioTrack { setAudioTrack?: (idx: number) => void }
+interface _BackendWithQualityLevels { qualityLevels?: (opts?: { includeUnsupported?: true }) => unknown }
+interface _BackendWithSetQualityLevel { setQuality?: (idx: number | 'auto') => void }
+interface _BackendWithAudioTracks { audioTracks?: () => unknown }
+interface _BackendWithMediaElement { mediaElement?: () => HTMLMediaElement & { setSinkId?: (id: string) => Promise<void>; sinkId?: string } }
+
+function _peekBackendTyped<S extends object>(self: Internals): S | undefined {
+	return _peekBackend(self) as S | undefined;
+}
+
 export const playerStateMethods = {
 	bufferState(this: Internals): BufferState {
-		const b = _peekBackend(this) as { state?: () => string } | undefined;
-		switch (b?.state?.()) {
+		const backend = _peekBackendTyped<_BackendWithState>(this);
+		switch (backend?.state?.()) {
 			case 'loading': return BufferState.LOADING;
 			case 'seeking': return BufferState.SEEKING;
 			case 'stalled': return BufferState.STALLED;
@@ -2098,10 +2171,10 @@ export const playerStateMethods = {
 	},
 
 	streamState(this: Internals): string {
-		const b = _peekBackend(this) as { state?: () => string } | undefined;
-		if (!b)
+		const backend = _peekBackendTyped<_BackendWithState>(this);
+		if (!backend)
 			return 'idle';
-		return b.state?.() ?? 'idle';
+		return backend.state?.() ?? 'idle';
 	},
 
 	visibilityState(this: Internals): VisibilityState {
@@ -2113,8 +2186,8 @@ export const playerStateMethods = {
 		if (target === undefined)
 			return this._qualityState;
 		this._qualityState = target === 'auto' ? QualityState.AUTO : QualityState.MANUAL;
-		const b = _peekBackend(this) as { setQuality?: (idx: number | 'auto') => void } | undefined;
-		b?.setQuality?.(target);
+		const backend = _peekBackendTyped<_BackendWithSetQuality>(this);
+		backend?.setQuality?.(target);
 		this.emit('qualityState', { state: this._qualityState });
 	},
 
@@ -2122,8 +2195,8 @@ export const playerStateMethods = {
 		if (idx === undefined)
 			return this._audioTrackState;
 		this._audioTrackState = AudioTrackState.MANUAL;
-		const b = _peekBackend(this) as { setAudioTrack?: (idx: number) => void } | undefined;
-		b?.setAudioTrack?.(idx);
+		const backend = _peekBackendTyped<_BackendWithSetAudioTrack>(this);
+		backend?.setAudioTrack?.(idx);
 		this.emit('audioTrackState', { state: this._audioTrackState });
 	},
 } as const;
@@ -2277,9 +2350,8 @@ export const pluginRegistrationMethods = {
 	// options-generic `O` (the second `Plugin<P, O, E>` slot) flows back to the
 	// `opts` parameter, so consumers get full type-checking + completion on the
 	// inline literal — no `satisfies` needed at the call site.
-	addPlugin<P extends Plugin>(this: Internals, PluginClass: new () => P, opts?: P['opts']): unknown {
-		const ctor = PluginClass as unknown as typeof Plugin;
-		const id = ctor.id;
+	addPlugin<P extends Plugin>(this: Internals, PluginClass: PluginCtorWithId & (new () => P), opts?: P['opts']): unknown {
+		const id = PluginClass.id;
 
 		// Spec §23.6: post-dispose addPlugin throws.
 		if (this._phase === 'disposed' || this._phase === 'disposing') {
@@ -2290,11 +2362,11 @@ export const pluginRegistrationMethods = {
 		// When the existing-plugin id matches, dispose+remove it before
 		// continuing — `plugin:disposed` fires for the old, then
 		// `plugin:installed` for the new.
-		if (ctor.replaces) {
-			const existingIdx = this._plugins.findIndex(p => p.ctor.id === ctor.replaces);
-			const queuedIdx = this._pluginQueue.findIndex(q => q.ctor.id === ctor.replaces);
+		if (PluginClass.replaces) {
+			const existingIdx = this._plugins.findIndex(p => p.ctor.id === PluginClass.replaces);
+			const queuedIdx = this._pluginQueue.findIndex(q => q.ctor.id === PluginClass.replaces);
 			if (existingIdx >= 0) {
-				this.removePluginById(ctor.replaces);
+				this.removePluginById(PluginClass.replaces);
 			}
 			else if (queuedIdx >= 0) {
 				this._pluginQueue.splice(queuedIdx, 1);
@@ -2309,9 +2381,9 @@ export const pluginRegistrationMethods = {
 
 		// Required-dependency presence + version check. Looks across registered
 		// AND queued plugins so pre-setup ordering doesn't matter.
-		const requires = ctor.requires ?? [];
+		const requires = PluginClass.requires ?? [];
 		for (const spec of requires) {
-			const requiredCtor = (typeof spec === 'function' ? spec : spec.plugin) as unknown as typeof Plugin;
+			const requiredCtor: PluginCtorWithId = typeof spec === 'function' ? spec : spec.plugin;
 			const optional = typeof spec === 'function' ? false : (spec.optional ?? false);
 			const minVersion = typeof spec === 'function' ? undefined : spec.minVersion;
 			const reqId = requiredCtor.id;
@@ -2345,13 +2417,13 @@ export const pluginRegistrationMethods = {
 
 		// Spec §23.6: minCoreVersion check. Kit declares its own version via
 		// the static `_kitVersion` constant exported below.
-		if (ctor.minCoreVersion && _compareSemver(KIT_VERSION, ctor.minCoreVersion) < 0) {
+		if (PluginClass.minCoreVersion && _compareSemver(KIT_VERSION, PluginClass.minCoreVersion) < 0) {
 			throw pluginErrorFactory(
 				'core:plugin/incompatible-core-version',
-				`Plugin "${id}" requires kit version >= ${ctor.minCoreVersion} but ${KIT_VERSION} is running.`,
+				`Plugin "${id}" requires kit version >= ${PluginClass.minCoreVersion} but ${KIT_VERSION} is running.`,
 				{
 					id,
-					requiredCoreVersion: ctor.minCoreVersion,
+					requiredCoreVersion: PluginClass.minCoreVersion,
 					kitVersion: KIT_VERSION,
 				},
 			);
@@ -2360,7 +2432,7 @@ export const pluginRegistrationMethods = {
 		// Pre-setup / mid-setup: queue for the pluginsRegistering pipeline stage.
 		if (this._phase === 'idle' || this._phase === 'setup') {
 			this._pluginQueue.push({
-				ctor,
+				ctor: PluginClass,
 				opts,
 			});
 			return this;
@@ -2371,22 +2443,21 @@ export const pluginRegistrationMethods = {
 		const timeoutMs = this.options.pluginInitTimeoutMs ?? 30_000;
 		// Fire-and-forget — consumer can `await player.ready()`-style by
 		// listening to `plugin:installed` / `plugin:failed`.
-		void _registerPlugin(this, ctor, opts, timeoutMs);
+		void _registerPlugin(this, PluginClass, opts, timeoutMs);
 		return this;
 	},
 
-	getPlugin<P extends Plugin>(this: Internals, PluginClass: new () => P): P | undefined {
-		const id = (PluginClass as unknown as typeof Plugin).id;
-		return this._plugins.find(p => p.ctor.id === id)?.instance as P | undefined;
+	getPlugin<P extends Plugin>(this: Internals, PluginClass: PluginCtorWithId & (new () => P)): P | undefined {
+		const entry = this._plugins.find(registration => registration.ctor.id === PluginClass.id);
+		return entry?.instance as P | undefined;
 	},
 
 	getPluginById(this: Internals, id: string): Plugin | undefined {
 		return this._plugins.find(p => p.ctor.id === id)?.instance;
 	},
 
-	removePlugin<P extends Plugin>(this: Internals, PluginClass: new () => P, opts?: { cascade?: boolean }): void {
-		const id = (PluginClass as unknown as typeof Plugin).id;
-		this.removePluginById(id, opts);
+	removePlugin<P extends Plugin>(this: Internals, PluginClass: PluginCtorWithId & (new () => P), opts?: { cascade?: boolean }): void {
+		this.removePluginById(PluginClass.id, opts);
 	},
 
 	removePluginById(this: Internals, id: string, opts?: { cascade?: boolean }): void {
@@ -2482,7 +2553,7 @@ export const authMethods = {
 		if (configOrPartial === undefined) {
 			if (!this._authConfig)
 				return undefined;
-			return Object.freeze({ ...this._authConfig }) as Readonly<AuthConfig>;
+			return Object.freeze({ ...this._authConfig });
 		}
 		const next: AuthConfig = {
 			...(this._authConfig ?? {}),
@@ -2505,8 +2576,7 @@ export const authMethods = {
 	 * interpolate the object — `toString()` returns `href`) to the consumer.
 	 */
 	async resolveUrl(this: Internals, url: string, category?: UrlCategory): Promise<ResolvedUrl> {
-		const baseUrl = this as unknown as { _baseUrl?: string; options?: { baseUrl?: string } };
-		const base = baseUrl._baseUrl ?? baseUrl.options?.baseUrl;
+		const base = this._baseUrl ?? this.options?.baseUrl;
 		const auth = this._authConfig;
 
 		const defaultResolve = async (rawUrl: string) => {
@@ -2617,25 +2687,12 @@ function _ensureStreamRegistry(self: Internals): StreamRegistry {
 // playlist UI, etc.) can react regardless of backend support.
 // ──────────────────────────────────────────────────────────────────────────
 
-/**
- * Sidecar subtitle context — a `CueTracker` plus the active set of cues
- * driven by it. `currentSubtitle(idx)` builds one when the user picks a
- * sidecar VTT track; `_disposeSidecarSubtitle` tears it down when the
- * choice changes (or the active item changes). One context at a time per player.
- */
-interface SidecarSubtitleContext {
-	tracker: CueTracker<VTTSubtitlePayload>;
-	active: Set<Cue<VTTSubtitlePayload>>;
-	language?: string;
-}
-
 function _disposeSidecarSubtitle(self: Internals): void {
-	const slot = self as Internals & { _sidecarSubtitle?: SidecarSubtitleContext };
-	const ctx = slot._sidecarSubtitle;
+	const ctx = self._sidecarSubtitle;
 	if (!ctx) return;
 	try { ctx.tracker.dispose(); }
 	catch { /* defensive */ }
-	slot._sidecarSubtitle = undefined;
+	self._sidecarSubtitle = undefined;
 }
 
 /**
@@ -2646,6 +2703,7 @@ function _disposeSidecarSubtitle(self: Internals): void {
  * stays player-agnostic without resorting to `any`.
  */
 interface SidecarTrack {
+	id?: string;
 	kind?: string;
 	file?: string;
 	language?: string;
@@ -2654,44 +2712,53 @@ interface SidecarTrack {
 }
 interface ItemWithTracks extends BasePlaylistItem {
 	tracks?: SidecarTrack[];
+	chapters?: Chapter[];
 }
 
+
+interface ItemWithDefinedTracks extends BasePlaylistItem {
+	tracks: SidecarTrack[];
+	chapters?: Chapter[];
+}
+
+function _hasTracksField(item: BasePlaylistItem): item is ItemWithDefinedTracks {
+	return 'tracks' in item && Array.isArray((item as ItemWithTracks).tracks) && (item as ItemWithTracks).tracks!.length > 0;
+}
 
 async function _resolveItemTrackUrls<T extends BasePlaylistItem>(
 	self: Internals,
 	item: T,
 ): Promise<T> {
-	const typed = item as T & ItemWithTracks;
-	if (!Array.isArray(typed.tracks) || typed.tracks.length === 0) return item;
+	if (!_hasTracksField(item)) return item;
 
 	const transformer = self._authConfig?.transformUrl;
 	const base = self._baseUrl;
 
 	const resolved = await Promise.all(
-		typed.tracks.map(async (t: SidecarTrack): Promise<SidecarTrack> => {
-			if (!t.file) return t;
-			const transformed = transformer ? await transformer(t.file) : t.file;
-			return { ...t, file: buildResolvedUrl(t.file, transformed, base).href };
+		item.tracks.map(async (sidecarTrack: SidecarTrack): Promise<SidecarTrack> => {
+			if (!sidecarTrack.file) return sidecarTrack;
+			const transformed = transformer ? await transformer(sidecarTrack.file) : sidecarTrack.file;
+			return { ...sidecarTrack, file: buildResolvedUrl(sidecarTrack.file, transformed, base).href };
 		}),
 	);
 
-	const withTracks = { ...item, tracks: resolved } as T & ItemWithTracks;
+	const withTracks: T & ItemWithTracks = { ...item, tracks: resolved };
 
 	// If no inline chapters are present, try to populate them from a sidecar
 	// `tracks[{ kind: 'chapters', file }]` VTT. Runs after URL resolution so
 	// the file href is already absolute + auth-transformed.
-	const existingChapters = (withTracks as { chapters?: Chapter[] }).chapters;
+	const existingChapters = withTracks.chapters;
 	if (!Array.isArray(existingChapters) || existingChapters.length === 0) {
-		const chapterTrack = resolved.find((t: SidecarTrack) => t.kind === 'chapters' && t.file);
+		const chapterTrack = resolved.find((sidecarTrack: SidecarTrack) => sidecarTrack.kind === 'chapters' && sidecarTrack.file);
 		if (chapterTrack?.file) {
 			const chapters = await _fetchChaptersVtt(chapterTrack.file);
 			if (chapters.length > 0) {
-				return { ...withTracks, chapters } as T;
+				return { ...withTracks, chapters };
 			}
 		}
 	}
 
-	return withTracks as T;
+	return withTracks;
 }
 
 /** Fetch a WebVTT chapters file and convert its cues into `Chapter[]`. */
@@ -2722,14 +2789,13 @@ async function _fetchChaptersVtt(url: string): Promise<Chapter[]> {
  * switches items rapidly.
  */
 async function _resolveAndEmitChapters(self: Internals, itemId: string | number | undefined): Promise<void> {
-	// Monotonic epoch — bump before the await, compare after.
-	const internals = self as unknown as { _chapterEpoch?: number };
-	const epoch = (internals._chapterEpoch ?? 0) + 1;
-	internals._chapterEpoch = epoch;
-	const isLatest = (): boolean => internals._chapterEpoch === epoch;
+	const epoch = (self._chapterEpoch ?? 0) + 1;
+	self._chapterEpoch = epoch;
+	const isLatest = (): boolean => self._chapterEpoch === epoch;
 
-	const item = self._queueList.get().find(i => i.id === itemId) as (BasePlaylistItem & { chapters?: Chapter[] }) | undefined;
-	if (!item) return;
+	const foundItem = self._queueList.get().find(queued => queued.id === itemId);
+	if (!foundItem) return;
+	const item = foundItem as ItemWithTracks;
 
 	if (Array.isArray(item.chapters) && item.chapters.length > 0) {
 		// Already resolved — just announce.
@@ -2741,7 +2807,7 @@ async function _resolveAndEmitChapters(self: Internals, itemId: string | number 
 
 	if (!isLatest()) return;
 
-	const chapters = (resolved as { chapters?: Chapter[] }).chapters;
+	const chapters = resolved.chapters;
 	if (!Array.isArray(chapters) || chapters.length === 0) return;
 
 	self._queueList.replaceItem(resolved);
@@ -2754,14 +2820,12 @@ function _resolveSidecarSubtitle(
 	self: Internals,
 	sidecarIdx: number,
 ): { url?: string; language?: string; label?: string; type?: string } | undefined {
-	// Read current() through a narrower type than MixinSurface declares — we
-	// need the per-item `tracks` array, not the generic BasePlaylistItem.
-	interface CurrentReader { current?: () => ItemWithTracks | undefined }
-	const cur = (self as unknown as CurrentReader).current?.();
-	const list = (cur?.tracks ?? []).filter((t: SidecarTrack) => t.kind === 'subtitles');
-	const t = list[sidecarIdx];
-	if (!t) return undefined;
-	return { url: t.file, language: t.language, label: t.label, type: t.type };
+	const rawCur = self.current?.();
+	const cur: ItemWithDefinedTracks | undefined = rawCur && _hasTracksField(rawCur) ? rawCur : undefined;
+	const list = (cur?.tracks ?? []).filter((sidecarTrack: SidecarTrack) => sidecarTrack.kind === 'subtitles');
+	const sidecarTrack = list[sidecarIdx];
+	if (!sidecarTrack) return undefined;
+	return { url: sidecarTrack.file, language: sidecarTrack.language, label: sidecarTrack.label, type: sidecarTrack.type };
 }
 
 /**
@@ -2793,8 +2857,7 @@ async function _startSidecarSubtitle(
 
 	// User may have switched tracks mid-fetch; bail if the slot was
 	// (re)populated by a later `currentSubtitle` while we were waiting.
-	const slot = self as Internals & { _sidecarSubtitle?: SidecarSubtitleContext };
-	if (slot._sidecarSubtitle) return;
+	if (self._sidecarSubtitle) return;
 
 	const cueList = parseVttSubtitles(raw);
 	const tracker = new CueTracker<VTTSubtitlePayload>(cueList, { trackerId: 'subtitle-sidecar' });
@@ -2803,7 +2866,7 @@ async function _startSidecarSubtitle(
 		active: new Set(),
 		language: track.language,
 	};
-	slot._sidecarSubtitle = ctx;
+	self._sidecarSubtitle = ctx;
 
 	const emitChange = (): void => {
 		const cues: SubtitleCuePayload[] = [...ctx.active].map(c => _toSubtitleCue(c.payload));
@@ -2818,7 +2881,7 @@ async function _startSidecarSubtitle(
 		ctx.active.delete(cue);
 		emitChange();
 	});
-	tracker.attach(self as unknown as IPlayer<BaseEventMap>);
+	tracker.attach(self);
 }
 
 /**
@@ -2842,11 +2905,10 @@ function _toSubtitleCue(p: VTTSubtitlePayload): SubtitleCuePayload {
  * player without a load() return empty arrays instead of throwing).
  */
 function _peekBackend(self: Internals): unknown {
-	const get = (self as unknown as { backend?: () => unknown }).backend;
-	if (typeof get !== 'function')
+	if (typeof self.backend !== 'function')
 		return undefined;
 	try {
-		return get.call(self);
+		return self.backend();
 	}
 	catch { return undefined; }
 }
@@ -2860,11 +2922,11 @@ export const mediaTracksMethods = {
 		//      `tracks: [{ kind: 'subtitles', ... }]`
 		// Consumers should not have to know which side a track came from —
 		// they get one flat list to render and a stable index per entry.
-		const fromBackend: any[] = (() => {
-			const b = _peekBackend(this) as { subtitleTracks?: () => any[] } | undefined;
-			if (typeof b?.subtitleTracks === 'function') {
+		const fromBackend: SubtitleTrack[] = (() => {
+			const backend = _peekBackendTyped<_BackendWithSubtitleTracks>(this);
+			if (typeof backend?.subtitleTracks === 'function') {
 				try {
-					return b.subtitleTracks() ?? [];
+					return backend.subtitleTracks() ?? [];
 				}
 				catch { return []; }
 			}
@@ -2872,17 +2934,18 @@ export const mediaTracksMethods = {
 		})();
 
 		const fromItem: Array<{ id: string; language?: string; label?: string; kind: 'subtitles'; type?: string; url?: string; default: boolean }> = (() => {
-			const cur = this.current?.() as { tracks?: Array<{ kind?: string; id?: string; label?: string; language?: string; type?: string; file?: string }> } | undefined;
-			const tracks = Array.isArray(cur?.tracks) ? cur!.tracks! : [];
+			const rawCur = this.current?.();
+			const cur: ItemWithDefinedTracks | undefined = rawCur && _hasTracksField(rawCur) ? rawCur : undefined;
+			const tracks = cur?.tracks ?? [];
 			return tracks
-				.filter(t => t?.kind === 'subtitles')
-				.map((t, i) => ({
-					id: t.id ?? `subtitle-sidecar-${i}`,
-					language: t.language,
-					label: t.label,
+				.filter(sidecarTrack => sidecarTrack?.kind === 'subtitles')
+				.map((sidecarTrack, idx) => ({
+					id: sidecarTrack.id ?? `subtitle-sidecar-${idx}`,
+					language: sidecarTrack.language,
+					label: sidecarTrack.label,
 					kind: 'subtitles' as const,
-					type: t.type,
-					url: t.file,
+					type: sidecarTrack.type,
+					url: sidecarTrack.file,
 					default: false,
 				}));
 		})();
@@ -2911,11 +2974,7 @@ export const mediaTracksMethods = {
 		// keep emitting active cues from the old track.
 		_disposeSidecarSubtitle(this);
 
-		interface SubtitleCapableBackend {
-			setSubtitleTrack?: (idx: number | null) => void;
-			subtitleTracks?: () => SubtitleTrack[];
-		}
-		const b = _peekBackend(this) as SubtitleCapableBackend | undefined;
+		const b = _peekBackendTyped<_BackendWithSubtitleTracks>(this);
 		const backendCount = (typeof b?.subtitleTracks === 'function')
 			? (b.subtitleTracks() ?? []).length
 			: 0;
@@ -2980,20 +3039,19 @@ export const mediaTracksMethods = {
 			windowOpacity: 0,
 		});
 
-		const self = this as Internals & { _subtitleStyle?: Record<string, unknown> };
-		if (!self._subtitleStyle) self._subtitleStyle = seed();
+		if (!this._subtitleStyle) this._subtitleStyle = seed();
 
-		if (patch === undefined) return { ...self._subtitleStyle };
+		if (patch === undefined) return { ...this._subtitleStyle };
 
-		self._subtitleStyle = { ...self._subtitleStyle, ...patch };
-		this.emit('subtitleStyle', { ...self._subtitleStyle });
+		this._subtitleStyle = { ...this._subtitleStyle, ...patch };
+		this.emit('subtitleStyle', { ...this._subtitleStyle });
 		return undefined;
 	},
 	audioTracks(this: Internals): unknown {
-		const b = _peekBackend(this) as { audioTracks?: () => unknown } | undefined;
-		if (typeof b?.audioTracks === 'function') {
+		const backend = _peekBackendTyped<_BackendWithAudioTracks>(this);
+		if (typeof backend?.audioTracks === 'function') {
 			try {
-				return b.audioTracks();
+				return backend.audioTracks();
 			}
 			catch { return []; }
 		}
@@ -3013,18 +3071,18 @@ export const mediaTracksMethods = {
 			return this._currentAudioTrackIdx;
 		}
 		this._currentAudioTrackIdx = idx;
-		const b = _peekBackend(this) as { setAudioTrack?: (idx: number) => void } | undefined;
-		if (typeof b?.setAudioTrack === 'function') {
-			b.setAudioTrack(idx);
+		const backend = _peekBackendTyped<_BackendWithAudioTrack>(this);
+		if (typeof backend?.setAudioTrack === 'function') {
+			backend.setAudioTrack(idx);
 		}
 		// No backend track support — emit for symmetry.
 		this.emit('audioTrack', { id: idx });
 	},
 	qualityLevels(this: Internals, opts?: { includeUnsupported?: true }): unknown {
-		const b = _peekBackend(this) as { qualityLevels?: (opts?: { includeUnsupported?: true }) => unknown } | undefined;
-		if (typeof b?.qualityLevels === 'function') {
+		const backend = _peekBackendTyped<_BackendWithQualityLevels>(this);
+		if (typeof backend?.qualityLevels === 'function') {
 			try {
-				return b.qualityLevels(opts);
+				return backend.qualityLevels(opts);
 			}
 			catch { return []; }
 		}
@@ -3044,9 +3102,9 @@ export const mediaTracksMethods = {
 			return this._currentQualityIdx;
 		}
 		this._currentQualityIdx = idx;
-		const b = _peekBackend(this) as { setQuality?: (idx: number | 'auto') => void } | undefined;
-		if (typeof b?.setQuality === 'function') {
-			b.setQuality(idx);
+		const backend = _peekBackendTyped<_BackendWithSetQualityLevel>(this);
+		if (typeof backend?.setQuality === 'function') {
+			backend.setQuality(idx);
 		}
 		// No HLS variants on audio backend — no-op.
 	},
@@ -3055,7 +3113,8 @@ export const mediaTracksMethods = {
 		// inline `chapters: Chapter[]` field once the kit resolves the sidecar
 		// VTT (either during `load()` or on cursor change). Returns [] until
 		// the async fetch settles — subscribe to 'chapters' for the ready signal.
-		const current = this.current?.() as { chapters?: ReadonlyArray<Chapter> } | undefined;
+		const rawCurrent = this.current?.();
+		const current: ItemWithDefinedTracks | undefined = rawCurrent && _hasTracksField(rawCurrent) ? rawCurrent : undefined;
 		return current?.chapters ?? [];
 	},
 	seekToChapter(this: Internals, idx: number, opts?: ActionOptions): void {
@@ -3068,7 +3127,7 @@ export const mediaTracksMethods = {
 		// forget here — `seeked` is emitted inside `currentTime` after the
 		// phase round-trip, so consumers still see it on the correct path.
 		const ret = this.currentTime(chapter.start, opts);
-		if (ret && typeof (ret as Promise<void>).then === 'function')
+		if (ret instanceof Promise)
 			void ret;
 
 		this.emit('chapter', {
@@ -3199,7 +3258,7 @@ export const deviceMethods = {
 		const platform = this._platform ?? browserPlatform;
 		const fullscreenSupported = platform.fullscreen?.isSupported() ?? false;
 		const pipSupported = platform.pip?.isSupported() ?? false;
-		const webLocksSupported = typeof navigator !== 'undefined' && !!(navigator as { locks?: unknown }).locks;
+		const webLocksSupported = typeof navigator !== 'undefined' && 'locks' in navigator;
 		// Autoplay policy is hard to detect synchronously — flag unknown.
 		// Real probe lands when the player tries autoplay and catches the rejection.
 		return {
@@ -3239,9 +3298,9 @@ export const audioOutputMethods = {
 	 * Returns the selected device or `null` when the user cancels.
 	 */
 	async selectAudioOutput(this: Internals): Promise<MediaDeviceInfo | null> {
-		const md = (typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined) as unknown as {
-			selectAudioOutput?: () => Promise<MediaDeviceInfo>;
-		} | undefined;
+		// selectAudioOutput is Chrome ≥105 only — not yet in TypeScript's bundled DOM lib.
+		type MediaDevicesWithPicker = MediaDevices & { selectAudioOutput?: () => Promise<MediaDeviceInfo> };
+		const md: MediaDevicesWithPicker | undefined = typeof navigator !== 'undefined' ? navigator.mediaDevices as MediaDevicesWithPicker : undefined;
 		if (!md?.selectAudioOutput) {
 			throw new BrowserPolicyError({
 				code: 'core:policy/audioOutputPickerUnsupported',
@@ -3254,7 +3313,7 @@ export const audioOutputMethods = {
 			return await md.selectAudioOutput();
 		}
 		catch (err) {
-			const name = (err as { name?: string }).name;
+			const name = err instanceof Error ? err.name : '';
 			if (name === 'AbortError' || name === 'NotAllowedError')
 				return null;
 			throw err;
@@ -3277,10 +3336,8 @@ export const audioOutputMethods = {
 		if (deviceId === undefined) {
 			return this._currentAudioOutputId;
 		}
-		const backend = (this as unknown as { backend?: () => unknown }).backend;
-		const b = typeof backend === 'function' ? backend.call(this) : undefined;
-		const el = (b as { mediaElement?: () => HTMLMediaElement & { setSinkId?: (id: string) => Promise<void>; sinkId?: string } } | undefined)
-			?.mediaElement?.();
+		const backend = _peekBackendTyped<_BackendWithMediaElement>(this);
+		const el = backend?.mediaElement?.();
 		if (!el || typeof el.setSinkId !== 'function') {
 			throw new BrowserPolicyError({
 				code: 'core:policy/setSinkIdUnsupported',
@@ -3298,27 +3355,27 @@ export const audioOutputMethods = {
 // Mixin: cast / handoff — `castState`, `transferTo`.
 // ──────────────────────────────────────────────────────────────────────────
 
+interface _CastGlobal {
+	cast: { framework: { CastContext: { getInstance: () => { requestSession: () => Promise<unknown> } } } };
+}
+
 /** Probe whether the Cast Web Sender SDK is loaded on the page. */
 function _isCastAvailable(): boolean {
-	if (typeof globalThis === 'undefined')
-		return false;
-	const cast = (globalThis as { cast?: { framework?: { CastContext?: unknown } } }).cast;
-	return !!cast?.framework?.CastContext;
+	// Cast Web Sender SDK not in standard DOM types — probe via `in`.
+	return typeof globalThis !== 'undefined' && 'cast' in globalThis;
 }
 
 /** Probe whether AirPlay is available (WebKit-only, on a video element). */
 function _isAirPlayAvailable(): boolean {
-	if (typeof navigator === 'undefined')
-		return false;
-	return !!(window as { WebKitPlaybackTargetAvailabilityEvent?: unknown }).WebKitPlaybackTargetAvailabilityEvent;
+	// WebKitPlaybackTargetAvailabilityEvent not in standard DOM types — probe via `in`.
+	return typeof window !== 'undefined' && 'WebKitPlaybackTargetAvailabilityEvent' in window;
 }
 
 /** Probe whether the W3C RemotePlayback API is available. */
 function _isRemotePlaybackAvailable(): boolean {
-	if (typeof window === 'undefined')
-		return false;
-	const proto = window.HTMLMediaElement?.prototype as unknown as { remote?: unknown } | undefined;
-	return proto !== undefined && 'remote' in proto;
+	// RemotePlayback not yet in standard TS DOM lib — probe via `in`.
+	const proto: unknown = typeof window !== 'undefined' ? window.HTMLMediaElement?.prototype : undefined;
+	return proto !== undefined && typeof proto === 'object' && proto !== null && 'remote' in proto;
 }
 
 export const castMethods = {
@@ -3328,10 +3385,8 @@ export const castMethods = {
 	 * available, returns `'unavailable'`.
 	 */
 	castState(this: Internals): _CastStateEnum {
-		// Internal flag updated by transferTo() — falls back to capability probe.
-		const internal = (this as unknown as { _castState?: _CastStateEnum })._castState;
-		if (internal !== undefined)
-			return internal;
+		if (this._castState !== undefined)
+			return this._castState;
 		if (_isCastAvailable() || _isAirPlayAvailable() || _isRemotePlaybackAvailable()) {
 			return _CastStateEnum.AVAILABLE;
 		}
@@ -3345,7 +3400,7 @@ export const castMethods = {
 	 */
 	async transferTo(this: Internals, target: 'cast' | 'airplay' | 'remote-playback' | 'local'): Promise<void> {
 		const setState = (s: _CastStateEnum): void => {
-			(this as unknown as { _castState?: _CastStateEnum })._castState = s;
+			this._castState = s;
 			this.emit('castState', { state: s });
 		};
 
@@ -3361,8 +3416,8 @@ export const castMethods = {
 				}
 				setState(_CastStateEnum.CONNECTING);
 				try {
-					const cast = (globalThis as unknown as { cast: { framework: { CastContext: { getInstance: () => { requestSession: () => Promise<unknown> } } } } }).cast;
-					await cast.framework.CastContext.getInstance().requestSession();
+					const castGlobal = globalThis as unknown as _CastGlobal;
+					await castGlobal.cast.framework.CastContext.getInstance().requestSession();
 					setState(_CastStateEnum.CONNECTED);
 				}
 				catch (err) {
@@ -3385,9 +3440,8 @@ export const castMethods = {
 				// because Safari binds the picker to user-gesture events.
 				// Mark the state as connecting; consumer wires the picker.
 				setState(_CastStateEnum.CONNECTING);
-				const video = (this as unknown as { videoElement?: HTMLVideoElement }).videoElement as (HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void }) | undefined;
-				if (video?.webkitShowPlaybackTargetPicker) {
-					video.webkitShowPlaybackTargetPicker();
+				if (this.videoElement?.webkitShowPlaybackTargetPicker) {
+					this.videoElement.webkitShowPlaybackTargetPicker();
 				}
 				return;
 			}
@@ -3400,7 +3454,7 @@ export const castMethods = {
 						message: 'RemotePlayback API not supported in this browser.',
 					});
 				}
-				const video = (this as unknown as { videoElement?: HTMLMediaElement & { remote?: { prompt: () => Promise<void> } } }).videoElement;
+				const video = this.videoElement;
 				if (!video?.remote) {
 					throw new BrowserPolicyError({
 						code: 'core:policy/remotePlaybackUnavailable',
@@ -3463,16 +3517,14 @@ export const abrMethods = {
 	 * platform's `capabilities.canDecode` bridge. Returns the standard
 	 * `MediaCapabilitiesDecodingInfo` shape.
 	 */
-	async canPlay(this: Internals, profile: { contentType: string; width?: number; height?: number; bitrate?: number; framerate?: number }): Promise<MediaCapabilitiesDecodingInfo> {
+	async canPlay(this: Internals, profile: { contentType: string; width?: number; height?: number; bitrate?: number; framerate?: number }): Promise<CanPlayResult> {
 		const platform = this._platform ?? browserPlatform;
 		const result = await platform.capabilities.canDecode(profile);
 		return {
 			supported: result.supported,
 			smooth: result.smooth,
 			powerEfficient: result.powerEfficient,
-			configuration: undefined as unknown as MediaDecodingConfiguration,
-			keySystemAccess: null,
-		} as unknown as MediaCapabilitiesDecodingInfo;
+		};
 	},
 } as const;
 
@@ -3626,14 +3678,13 @@ export const loadingMethods = {
 		// `current` then chase B again, producing a load-loop. Anything
 		// observably side-effectful AFTER the awaited backend.load only
 		// runs when our epoch is still the latest.
-		const internals = this as unknown as { _loadEpoch?: number };
-		const epoch = (internals._loadEpoch ?? 0) + 1;
-		internals._loadEpoch = epoch;
-		const isLatest = (): boolean => internals._loadEpoch === epoch;
+		const epoch = (this._loadEpoch ?? 0) + 1;
+		this._loadEpoch = epoch;
+		const isLatest = (): boolean => this._loadEpoch === epoch;
 
 		try {
-			const backend = (this as unknown as { backend: () => unknown }).backend?.();
-			if (!backend || typeof (backend as { load?: unknown }).load !== 'function') {
+			const backend = _backend(this);
+			if (!backend || typeof backend.load !== 'function') {
 				throw new StateError({
 					code: 'core:player/backend-missing',
 					severity: 'error',
@@ -3641,7 +3692,7 @@ export const loadingMethods = {
 					message: 'No backend wired — backend() returned null/undefined.',
 				});
 			}
-			await (backend as { load: (url: string) => Promise<void> }).load(url);
+			await backend.load(url);
 			if (!isLatest()) return;
 
 			// Move cursor to the loaded item so consumer-facing `current()` reflects it.
@@ -3650,7 +3701,7 @@ export const loadingMethods = {
 			// Honour LoadOptions.startAt by seeking once metadata is available.
 			if (typeof opts?.startAt === 'number' && opts.startAt > 0) {
 				const ret = this.currentTime(opts.startAt);
-				if (ret && typeof (ret as Promise<void>).then === 'function')
+				if (ret instanceof Promise)
 					await ret;
 				if (!isLatest()) return;
 			}
@@ -3658,7 +3709,8 @@ export const loadingMethods = {
 			// Honour LoadOptions.fadeIn by ramping volume from 0→current over the configured seconds.
 			// Trivial fade — no easing curve. Plugins extend.
 			if (typeof opts?.fadeIn === 'number' && opts.fadeIn > 0) {
-				const target = (this.volume() as number | undefined) ?? 1;
+				const rawVolume = this.volume();
+			const target = typeof rawVolume === 'number' ? rawVolume : 1;
 				this.volume(0);
 				const steps = 20;
 				const stepMs = (opts.fadeIn * 1000) / steps;
@@ -3701,7 +3753,7 @@ export const loadingMethods = {
 			const items = await authFetch<T[]>({
 				url,
 				auth: this._authConfig ?? config.auth,
-				parser: parser ?? ((raw: string) => JSON.parse(raw) as T[]),
+				parser: parser ?? ((raw: string): T[] => JSON.parse(raw)),
 				emit: (event: string, data: unknown) => this.emit(event, data),
 				pluginId: undefined,
 				scope: 'player',
