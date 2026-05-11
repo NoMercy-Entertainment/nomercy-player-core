@@ -8,6 +8,7 @@
  *  - Static metadata defaults
  *  - initialize() — wires player/opts/lifecycle
  *  - enabled() / enable() / disable() — emits plugin:enabled / plugin:disabled
+ *  - enabled() registry truth — use()-failed plugin is NOT returned by plugins()
  *  - state() — id, version, enabled, opts, runtime
  *  - getRuntimeState() — default empty, override hook
  *  - options() — shallow merge + plugin:opts:changed event

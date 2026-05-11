@@ -144,36 +144,34 @@ describe('VisualizationPlugin', () => {
 	});
 
 	describe('graceful degradation when AudioContext is unavailable', () => {
-		it('install succeeds and emits `unsupported` when the spectrum dep is disabled (no AudioContext)', async () => {
-			// happy-dom precondition — spectrum plugin will fail at `use()` because
-			// AudioGraphPlugin can't acquire an AudioContext, and the kit marks it
-			// disabled. VisualizationPlugin detects that and skips registration.
+		it('addPlugin(AudioGraphPlugin) emits plugin:failed when AudioContext is undefined', async () => {
+			// happy-dom precondition — AudioGraphPlugin.use() throws because
+			// AudioContext is unavailable.
 			expect(typeof (globalThis as any).AudioContext).toBe('undefined');
 
 			const p = makePlayer('viz-degrade').setup({});
 			await p.ready();
 
-			let unsupportedReason: string | undefined;
-			p.on('plugin:fillz:waveform:unsupported' as any, (data: any) => {
-				unsupportedReason = data?.reason;
-			});
+			const failures: string[] = [];
+			p.on('plugin:failed' as any, (data: any) => { failures.push(data?.id); });
 
 			p.addPlugin(AudioGraphPlugin);
-			p.addPlugin(SpectrumPlugin);
-			p.addPlugin(CanvasPlugin);
-			p.addPlugin(WaveformVisualization);
-
-			// Allow the kit's async install path to settle.
 			await new Promise(r => setTimeout(r, 0));
 
-			const inst = p.getPluginById('fillz:waveform');
-			expect(inst).toBeDefined();
-			expect(unsupportedReason).toBe('spectrum-unavailable');
-			// Plugin itself stays enabled — it just silently no-ops on render.
-			expect(inst.enabled()).toBe(true);
-			// And `currentFrame()` returns undefined because no spectrum frame
-			// was ever produced.
-			expect(inst.currentFrame()).toBeUndefined();
+			expect(failures).toContain('audio-graph');
+			// AudioGraph is NOT in _plugins after failing.
+			expect(p.getPluginById('audio-graph')).toBeUndefined();
+		});
+
+		it('addPlugin(SpectrumPlugin) throws missing-dep when AudioGraph failed', async () => {
+			const p = makePlayer('viz-degrade2').setup({});
+			await p.ready();
+
+			p.addPlugin(AudioGraphPlugin);
+			await new Promise(r => setTimeout(r, 0));
+
+			// Spectrum requires audio-graph which is not in _plugins.
+			expect(() => p.addPlugin(SpectrumPlugin)).toThrow('missing-dep');
 		});
 	});
 

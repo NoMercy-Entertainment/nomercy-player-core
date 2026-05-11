@@ -123,12 +123,10 @@ describe('Audio chain plugins (audio-graph / mixer / spectrum)', () => {
 
 			expect(captured).toBeInstanceOf(BrowserPolicyError);
 			expect((captured as BrowserPolicyError).code).toBe('core:policy/audioContextUnsupported');
-			// Per the kit's soft-fail contract (spec §C), a plugin whose use()
-			// throws is still tracked so `removePlugin` / dependent cascades can
-			// clean up — but it's marked disabled.
+			// Plugin whose use() throws is disposed + NOT pushed onto _plugins.
+			// plugins() must never return a ghost instance with enabled:false.
 			const inst = p.getPluginById('audio-graph');
-			expect(inst).toBeDefined();
-			expect(inst.enabled()).toBe(false);
+			expect(inst).toBeUndefined();
 		});
 
 		it('context() throws BrowserPolicyError directly when AudioContext is unavailable', () => {

@@ -287,7 +287,7 @@ describe('EqualizerPlugin', () => {
 	});
 
 	describe('graceful degradation in environments without AudioContext', () => {
-		it('install fails with a structured BrowserPolicyError when AudioContext is undefined', async () => {
+		it('addPlugin(AudioGraphPlugin) emits plugin:failed when AudioContext is undefined', async () => {
 			expect(typeof (globalThis as any).AudioContext).toBe('undefined');
 			expect(typeof (globalThis as any).webkitAudioContext).toBe('undefined');
 
@@ -300,15 +300,23 @@ describe('EqualizerPlugin', () => {
 			});
 
 			p.addPlugin(AudioGraphPlugin);
-			p.addPlugin(EqualizerPlugin);
 			await new Promise(r => setTimeout(r, 0));
 
 			expect(failures.some(f => f instanceof BrowserPolicyError)).toBe(true);
 
-			const inst = p.getPluginById('equalizer');
-			if (inst) {
-				expect(inst.enabled()).toBe(false);
-			}
+			// AudioGraph failed, so it is NOT in _plugins.
+			expect(p.getPluginById('audio-graph')).toBeUndefined();
+		});
+
+		it('addPlugin(EqualizerPlugin) throws missing-dep when AudioGraph failed (not in _plugins)', async () => {
+			const p = makePlayer('eq-unsupported2').setup({});
+			await p.ready();
+
+			p.addPlugin(AudioGraphPlugin);
+			await new Promise(r => setTimeout(r, 0));
+
+			// AudioGraph is not in _plugins after failing. Adding Equalizer must throw missing-dep.
+			expect(() => p.addPlugin(EqualizerPlugin)).toThrow('missing-dep');
 		});
 
 		it('refuses to wire up if AudioGraphPlugin is missing from the player', () => {
