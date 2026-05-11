@@ -1,6 +1,7 @@
 // Auth-aware fetch (shared between Plugin.fetch and the player core's setup-time loads)
 export { authFetch, isAuthError, isNetworkError } from './auth-fetch';
 export type { AuthFetchOptions } from './auth-fetch';
+export { mergeConfig } from './config-merge';
 // Player core — shared logic composed onto NMMusicPlayer + NMVideoPlayer
 // prototypes via `composeMixins`. Lives here so neither library can drift
 // from the spec; one fix lands once and applies everywhere.
