@@ -438,14 +438,16 @@ interface MixinSurface {
 	queue(items?: BasePlaylistItem[], opts?: ActionOptions): ReadonlyArray<BasePlaylistItem> | void;
 	queueLength(): number;
 	currentIndex(): number;
+	seekToIndex(position: number, opts?: ActionOptions): void;
 	next(opts?: ActionOptions): Promise<void>;
 	// loadingMethods — per-library mixin composes this; kit transport methods call it cross-mixin.
 	load(item: BasePlaylistItem, opts?: ActionOptions): Promise<void>;
 	// mediaTracksMethods
 	chapters(): ReadonlyArray<Chapter>;
 	seekToChapter(idx: number, opts?: ActionOptions): void;
-	current(target?: BasePlaylistItem | string | number, opts?: ActionOptions): BasePlaylistItem | undefined | void;
-	currentTime(t?: number, opts?: ActionOptions): number | Promise<void>;
+	current(target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: ActionOptions): BasePlaylistItem | undefined | void;
+	currentTime(): number;
+	currentTime(t: number, opts?: ActionOptions): Promise<void>;
 	// pluginRegistrationMethods
 	removePluginById(id: string, opts?: { cascade?: boolean }): void;
 	// i18nMethods
@@ -959,7 +961,7 @@ export const lifecycleMethods = {
 		// Time-driven orchestration: check preload + transition on every time tick.
 		const onTimeOrchestration = ({ time }: { time: number }): void => {
 			const duration = this._internalDuration;
-			const nextItem = (this._queueList.peekNext() ?? null) as BasePlaylistItem | null;
+			const nextItem: BasePlaylistItem | null = this._queueList.peekNext() ?? null;
 			const context = { currentTime: time, duration, nextItem };
 
 			// Preload gate.
@@ -972,7 +974,7 @@ export const lifecycleMethods = {
 			const crossfadeEnabled = this.options.crossfadeEnabled ?? false;
 			if (crossfadeEnabled && !this._transitionFired && this._transitionStrategy.shouldTransition(context) && nextItem !== null) {
 				this._transitionFired = true;
-				const outgoing = (this._queueList.current() ?? null) as BasePlaylistItem | null;
+				const outgoing: BasePlaylistItem | null = this._queueList.current() ?? null;
 				if (outgoing !== null) {
 					_runTransition(this, outgoing, nextItem);
 				}
@@ -2165,8 +2167,7 @@ function _emptyTimeRanges(): TimeRanges {
 
 export const timeMethods = {
 	currentTime(this: Internals, t?: number, opts: ActionOptions = {}): number | Promise<void> {
-		if (t === undefined)
-			return this._internalCurrentTime;
+		if (t === undefined) return this._internalCurrentTime;
 		const target = Math.max(0, t);
 		// Async setter — returns Promise<void> so callers can await delay() resolution.
 		return (async () => {
@@ -2512,7 +2513,7 @@ export const queueMethods = {
 	 * string, or index). Fires `beforeMutation` so advisory plugins can cancel
 	 * the change. Emits the `current` event when the cursor moves.
 	 */
-	current(this: Internals, target?: BasePlaylistItem | string | number, _opts?: ActionOptions): BasePlaylistItem | undefined | void {
+	current(this: Internals, target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), _opts?: ActionOptions): BasePlaylistItem | undefined | void {
 		if (target === undefined) {
 			return this._queueList.current();
 		}
@@ -2523,6 +2524,32 @@ export const queueMethods = {
 	},
 	currentIndex(this: Internals): number {
 		return this._queueList.currentIndex();
+	},
+
+	/**
+	 * Navigate to a playlist item by 1-based ordinal position.
+	 *
+	 * `seekToIndex(1)` loads the first item, `seekToIndex(queueLength())` loads
+	 * the last. Out-of-range values are silently ignored (no cursor move).
+	 * Fires the same `beforeMutation` / `current` lifecycle as `current(target)`.
+	 *
+	 * @throws {RangeError} when `position` is not a positive integer.
+	 */
+	seekToIndex(this: Internals, position: number, opts?: ActionOptions): void {
+		if (!Number.isInteger(position) || position < 1) {
+			throw new RangeError(`seekToIndex: position must be a positive integer, got ${position}`);
+		}
+
+		const zeroBasedIndex = position - 1;
+		const items = this._queueList.get();
+
+		if (zeroBasedIndex >= items.length) return;
+
+		_wireQueue(this);
+		if (!_emitBeforeMutation(this, 'current', [zeroBasedIndex]))
+			return;
+
+		this._queueList.setCurrent(zeroBasedIndex);
 	},
 
 	backlog(this: Internals, items?: BasePlaylistItem[]): ReadonlyArray<BasePlaylistItem> | void {
@@ -2656,8 +2683,8 @@ export const pluginRegistrationMethods = {
 		return entry?.instance as P | undefined;
 	},
 
-	getPluginById(this: Internals, id: string): Plugin | undefined {
-		return this._plugins.find(p => p.ctor.id === id)?.instance;
+	getPluginById<P extends Plugin = Plugin>(this: Internals, id: string): P | undefined {
+		return this._plugins.find(reg => reg.ctor.id === id)?.instance as P | undefined;
 	},
 
 	removePlugin<P extends Plugin>(this: Internals, PluginClass: PluginCtorWithId & (new () => P), opts?: { cascade?: boolean }): void {

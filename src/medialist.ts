@@ -81,10 +81,13 @@ export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaLis
 		if (idx >= 0) this.items[idx] = item;
 	}
 
-	setCurrent(target: T | string | number): void {
+	setCurrent(target: T | string | number | ((item: T) => boolean)): void {
 		let idx: number;
 
-		if (typeof target === 'number' && Number.isInteger(target)) {
+		if (typeof target === 'function') {
+			idx = this.items.findIndex(target);
+		}
+		else if (typeof target === 'number' && Number.isInteger(target)) {
 			idx = target;
 		}
 		else if (typeof target === 'string' || typeof target === 'number') {
