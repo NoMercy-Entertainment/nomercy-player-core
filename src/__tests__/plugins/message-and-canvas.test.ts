@@ -36,8 +36,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare dispose: () => void;
 	declare phase: () => string;
 	declare addPlugin: (PluginClass: any, opts?: any) => this;
-	declare getPlugin: (PluginClass: any) => any;
-	declare getPluginById: (id: string) => any;
+	declare getPlugin: <P extends object>(PluginClass: { id: string; new(): P }) => P | undefined;
+	declare getPluginById: <P extends object = object>(id: string) => P | undefined;
 	declare removePlugin: (PluginClass: any) => void;
 	declare removePluginById: (id: string) => void;
 	declare plugins: () => ReadonlyArray<any>;
@@ -124,7 +124,7 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			p.addPlugin(MessagePlugin);
 			await p.ready();
 
-			const inst = p.getPluginById('message') as MessagePlugin;
+			const inst = p.getPluginById<MessagePlugin>('message')!;
 			inst.show('hello', 100);
 
 			const toast = p.container.querySelector<HTMLDivElement>('.nmplayer-message-toast');
@@ -145,7 +145,7 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			p.addPlugin(MessagePlugin);
 			await p.ready();
 
-			const inst = p.getPluginById('message') as MessagePlugin;
+			const inst = p.getPluginById<MessagePlugin>('message')!;
 			inst.show('keep', 1000);
 			const toast = p.container.querySelector<HTMLDivElement>('.nmplayer-message-toast')!;
 			expect(toast.style.display).toBe('block');
@@ -166,7 +166,7 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			p.addPlugin(MessagePlugin);
 			await p.ready();
 
-			const inst = p.getPluginById('message') as MessagePlugin;
+			const inst = p.getPluginById<MessagePlugin>('message')!;
 			inst.queue([
 				{ text: 'one', durationMs: 50 },
 				{ text: 'two', durationMs: 50 },
@@ -198,7 +198,7 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			p.addPlugin(CanvasPlugin);
 			await p.ready();
 
-			const inst = p.getPluginById('canvas') as CanvasPlugin;
+			const inst = p.getPluginById<CanvasPlugin>('canvas')!;
 			const canvas = inst.canvas();
 			expect(canvas).toBeInstanceOf(HTMLCanvasElement);
 			// Canvas lives inside the namespaced surface div, which is itself
@@ -213,7 +213,7 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			p.addPlugin(CanvasPlugin);
 			await p.ready();
 
-			const inst = p.getPluginById('canvas') as CanvasPlugin;
+			const inst = p.getPluginById<CanvasPlugin>('canvas')!;
 			const fn = vi.fn();
 			inst.addRenderer(fn);
 
@@ -236,7 +236,7 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			p.addPlugin(CanvasPlugin);
 			await p.ready();
 
-			const inst = p.getPluginById('canvas') as CanvasPlugin;
+			const inst = p.getPluginById<CanvasPlugin>('canvas')!;
 			const fn = vi.fn();
 			inst.addRenderer(fn);
 

@@ -2678,12 +2678,12 @@ export const pluginRegistrationMethods = {
 		return this;
 	},
 
-	getPlugin<P extends Plugin>(this: Internals, PluginClass: PluginCtorWithId & (new () => P)): P | undefined {
+	getPlugin<P extends object>(this: Internals, PluginClass: PluginCtorWithId & (new () => P)): P | undefined {
 		const entry = this._plugins.find(registration => registration.ctor.id === PluginClass.id);
 		return entry?.instance as P | undefined;
 	},
 
-	getPluginById<P extends Plugin = Plugin>(this: Internals, id: string): P | undefined {
+	getPluginById<P extends object = object>(this: Internals, id: string): P | undefined {
 		return this._plugins.find(reg => reg.ctor.id === id)?.instance as P | undefined;
 	},
 

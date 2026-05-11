@@ -4,6 +4,7 @@ import type {
 	IPlayer,
 	PlayerExperimental,
 	PlayerPhase,
+	PluginCtorWithId,
 	ResolvedUrl,
 	Translations,
 	UrlCategory,
@@ -379,6 +380,14 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	createSVG(_id: string, _viewBox: string): SVGSVGElement {
 		return document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+	}
+
+	getPlugin<P extends object>(_PluginClass: PluginCtorWithId & (new () => P)): P | undefined {
+		return undefined;
+	}
+
+	getPluginById<P extends object = object>(_id: string): P | undefined {
+		return undefined;
 	}
 
 	addClasses<T extends Element>(el: T, _names: string[]): import('../dom').AddClasses<T> {

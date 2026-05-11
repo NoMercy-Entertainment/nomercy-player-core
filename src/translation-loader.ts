@@ -62,7 +62,10 @@ export type NetworkTranslationLoader = (lang: string) => Promise<Record<string, 
  * through naturally to the parent / fallback language.
  */
 export function createNetworkTranslationLoader(opts: NetworkTranslationLoaderOptions): NetworkTranslationLoader {
-	const parser = opts.parser ?? ((raw: string) => JSON.parse(raw) as Record<string, string>);
+	const parser = opts.parser ?? ((raw: string): Record<string, string> => {
+		const parsed: unknown = JSON.parse(raw);
+		return (parsed !== null && typeof parsed === 'object') ? parsed as Record<string, string> : {};
+	});
 
 	return async (lang: string) => {
 		const url = opts.url.replace(/\{lang\}/g, encodeURIComponent(lang));

@@ -50,8 +50,7 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 
 	/** Inserts gain and stereo-panner nodes into the audio graph and restores persisted state. */
 	override use(): void {
-		const playerWithPluginAccess = this.player as unknown as { getPlugin?: <T>(c: new () => T) => T | undefined };
-		const graph = playerWithPluginAccess.getPlugin?.(AudioGraphPlugin) as AudioGraphPlugin | undefined;
+		const graph = this.player.getPlugin?.(AudioGraphPlugin);
 		if (!graph) {
 			// requires-check should have already prevented this, but guard anyway.
 			throw new PluginError({
@@ -243,7 +242,8 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 			// Storage may be sync OR async. Only synchronous values are honoured
 			// at `use()` time — async backends restore lazily on the next setter.
 			if (typeof raw === 'string') {
-				return JSON.parse(raw) as PersistedMixerState;
+				const parsed: unknown = JSON.parse(raw);
+				if (parsed !== null && typeof parsed === 'object') return parsed as PersistedMixerState;
 			}
 		}
 		catch {

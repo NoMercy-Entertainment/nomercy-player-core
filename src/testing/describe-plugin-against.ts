@@ -118,8 +118,8 @@ export function describePluginAgainst<C extends typeof Plugin<any, any, any>, P 
 				});
 			}
 			playerWithAddPlugin.addPlugin(PluginClass, opts.opts);
-			ctx.plugin = playerWithAddPlugin.getPlugin?.(PluginClass) as InstanceType<C>;
-			if (!ctx.plugin) {
+			const pluginInstance = playerWithAddPlugin.getPlugin?.(PluginClass);
+			if (!pluginInstance) {
 				throw new StateError({
 					code: 'core:test/getplugin-returned-undefined',
 					severity: 'fatal',
@@ -131,6 +131,7 @@ export function describePluginAgainst<C extends typeof Plugin<any, any, any>, P 
 					suggestion: 'Ensure the real player class registers plugins via getPlugin() lookup.',
 				});
 			}
+			ctx.plugin = pluginInstance;
 		});
 
 		afterEach(async () => {

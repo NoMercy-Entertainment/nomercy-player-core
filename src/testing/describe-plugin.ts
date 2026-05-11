@@ -107,7 +107,7 @@ export function describePlugin<C extends typeof Plugin<any, any, any>>(
 		let listenerBaseline = 0;
 
 		beforeEach(async () => {
-			ctx.player = (opts?.createPlayer?.() ?? new StubPlayer()) as StubPlayer;
+			ctx.player = opts?.createPlayer?.() ?? new StubPlayer();
 			listenerBaseline = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
 
 			lifecycle = new LifecycleRegistry();

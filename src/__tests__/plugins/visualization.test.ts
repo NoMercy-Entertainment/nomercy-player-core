@@ -210,10 +210,10 @@ describe('VisualizationPlugin', () => {
 			const fakeCanvas = document.createElement('canvas');
 			fakeCanvas.width = 320;
 			fakeCanvas.height = 240;
-			const ctx = fakeCanvas.getContext('2d') as CanvasRenderingContext2D;
+			const ctx = fakeCanvas.getContext('2d');
 			expect(ctx).toBeTruthy();
 
-			(inst as any)._renderTick(ctx, 16.7, 1.234);
+			(inst as any)._renderTick(ctx!, 16.7, 1.234);
 
 			expect(renderSpy).toHaveBeenCalledTimes(1);
 			const [calledCtx, calledFrame] = renderSpy.mock.calls[0]!;
@@ -247,10 +247,10 @@ describe('VisualizationPlugin', () => {
 			(inst as any)._latestFrame = fakeFrame;
 
 			const fakeCanvas = document.createElement('canvas');
-			const ctx = fakeCanvas.getContext('2d') as CanvasRenderingContext2D;
+			const ctx = fakeCanvas.getContext('2d');
 			const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-			expect(() => (inst as any)._renderTick(ctx, 16, 0)).not.toThrow();
+			expect(() => (inst as any)._renderTick(ctx!, 16, 0)).not.toThrow();
 			expect(errSpy).toHaveBeenCalled();
 			errSpy.mockRestore();
 		});

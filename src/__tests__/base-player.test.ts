@@ -606,18 +606,18 @@ describe('player-core mixins (kit)', () => {
 			p.on('seek' as any, (data: any) => {
 				seekTime = data.time;
 			});
-			await (p.currentTime(15) as Promise<void>);
+			await p.currentTime(15);
 			expect(p.currentTime()).toBe(15);
 			expect(seekTime).toBe(15);
 		});
 
 		it('currentTime preventDefault leaves the value unchanged', async () => {
 			const p = setupPlayer();
-			await (p.currentTime(7) as Promise<void>);
+			await p.currentTime(7);
 			p.on('beforeSeek' as any, (e: any) => {
 				e.preventDefault();
 			});
-			await (p.currentTime(99) as Promise<void>);
+			await p.currentTime(99);
 			expect(p.currentTime()).toBe(7);
 		});
 
@@ -634,7 +634,7 @@ describe('player-core mixins (kit)', () => {
 
 		it('timeData returns aggregated TimeState shape', async () => {
 			const p = setupPlayer();
-			await (p.currentTime(3) as Promise<void>);
+			await p.currentTime(3);
 			const data = p.timeData();
 			expect(data.position).toBe(3);
 			expect(data).toHaveProperty('duration');
@@ -850,7 +850,7 @@ describe('player-core mixins (kit)', () => {
 			});
 			p.addPlugin(HelloPlugin);
 			await p.ready();
-			const inst = p.getPlugin(HelloPlugin) as HelloPlugin | undefined;
+			const inst = p.getPlugin(HelloPlugin);
 			expect(inst?.used).toBe(true);
 			expect(payload).toEqual({ id: 'hello', version: '1.0.0' });
 		});
@@ -909,7 +909,7 @@ describe('player-core mixins (kit)', () => {
 			const p = setupPlayer();
 			p.addPlugin(HelloPlugin);
 			await p.ready();
-			const inst = p.getPlugin(HelloPlugin) as HelloPlugin | undefined;
+			const inst = p.getPlugin(HelloPlugin);
 			let disposedId: string | undefined;
 			p.on('plugin:disposed' as any, (data: any) => {
 				disposedId = data.id;
@@ -925,7 +925,7 @@ describe('player-core mixins (kit)', () => {
 			p.addPlugin(HelloPlugin);
 			await p.ready();
 			expect(p.plugins().length).toBe(1);
-			(p.getPlugin(HelloPlugin) as HelloPlugin).disable();
+			p.getPlugin(HelloPlugin)?.disable();
 			expect(p.enabledPlugins().length).toBe(0);
 		});
 	});

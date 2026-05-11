@@ -445,7 +445,7 @@ export class CastSenderPlugin<
 		const remote = this.remotePlayer;
 		const wasPaused = remote?.isPaused ?? true;
 		const lastTime = remote?.currentTime ?? 0;
-		const opts = (this.opts ?? {}) as CastSenderOptions;
+		const opts: CastSenderOptions = this.opts ?? {};
 		const resume = opts.resumeLocalOnDisconnect !== false;
 
 		this.detachRemoteListeners();
@@ -478,7 +478,7 @@ export class CastSenderPlugin<
 		const item = (this.player as unknown as PlayerSurface<TItem>).current?.();
 		if (!item)
 			return;
-		const opts = (this.opts ?? {}) as CastSenderOptions;
+		const opts: CastSenderOptions = this.opts ?? {};
 		const rawUrl = (item as unknown as { url?: string }).url;
 		if (!rawUrl)
 			return;

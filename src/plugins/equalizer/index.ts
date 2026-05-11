@@ -109,8 +109,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 
 	/** Builds the biquad filter chain, inserts it into the audio graph, and restores persisted state. */
 	override use(): void {
-		const playerWithPluginAccess = this.player as unknown as { getPlugin?: <T>(c: new () => T) => T | undefined };
-		const graph = playerWithPluginAccess.getPlugin?.(AudioGraphPlugin) as AudioGraphPlugin | undefined;
+		const graph = this.player.getPlugin?.(AudioGraphPlugin);
 		if (!graph) {
 			throw new PluginError({
 				code: 'core:plugin/missing-dep',
@@ -489,9 +488,9 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 				return fromOpts;
 			// JSON-string fallback (Fillz parity).
 			try {
-				const parsed = JSON.parse(target) as EqPreset;
-				if (parsed?.name && Array.isArray(parsed.values))
-					return parsed;
+				const raw: unknown = JSON.parse(target);
+				if (raw !== null && typeof raw === 'object' && 'name' in raw && Array.isArray((raw as EqPreset).values))
+					return raw as EqPreset;
 			}
 			catch {
 				return undefined;
@@ -577,8 +576,10 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			return undefined;
 		try {
 			const raw = this.storage?.get?.(key);
-			if (typeof raw === 'string')
-				return JSON.parse(raw) as PersistedEqState;
+			if (typeof raw === 'string') {
+				const parsed: unknown = JSON.parse(raw);
+				if (parsed !== null && typeof parsed === 'object') return parsed as PersistedEqState;
+			}
 		}
 		catch { /* swallow */ }
 		return undefined;

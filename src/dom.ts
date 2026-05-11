@@ -43,7 +43,7 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
 ): CreateElement<HTMLElementTagNameMap[K]> {
 	let el: HTMLElementTagNameMap[K];
 	if (unique) {
-		const existing = document.getElementById(id) as HTMLElementTagNameMap[K] | null;
+		const existing = document.querySelector<HTMLElementTagNameMap[K]>(`#${CSS.escape(id)}`);
 		el = existing ?? document.createElement(type);
 	}
 	else {

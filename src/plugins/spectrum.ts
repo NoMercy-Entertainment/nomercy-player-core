@@ -40,8 +40,7 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 
 	/** Acquires the shared AnalyserNode from AudioGraphPlugin and starts the per-frame tick. */
 	override use(): void {
-		const playerWithPluginAccess = this.player as unknown as { getPlugin?: <T>(c: new () => T) => T | undefined };
-		const graph = playerWithPluginAccess.getPlugin?.(AudioGraphPlugin) as AudioGraphPlugin | undefined;
+		const graph = this.player.getPlugin?.(AudioGraphPlugin);
 		if (!graph) {
 			throw new PluginError({
 				code: 'core:plugin/missing-dep',

@@ -32,8 +32,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare dispose: () => void;
 	declare phase: () => string;
 	declare addPlugin: (PluginClass: any, opts?: any) => this;
-	declare getPlugin: (PluginClass: any) => any;
-	declare getPluginById: (id: string) => any;
+	declare getPlugin: <P extends object>(PluginClass: { id: string; new(): P }) => P | undefined;
+	declare getPluginById: <P extends object = object>(id: string) => P | undefined;
 	declare removePlugin: (PluginClass: any) => void;
 	declare removePluginById: (id: string) => void;
 	declare plugins: () => ReadonlyArray<any>;
@@ -87,7 +87,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('embed-1').setup({});
 			p.addPlugin(EmbedPlugin);
 			await p.ready();
-			const inst = p.getPluginById('embed') as EmbedPlugin;
+			const inst = p.getPluginById<EmbedPlugin>('embed')!;
 			expect((inst as any).inIframe()).toBe(false);
 		});
 
@@ -95,7 +95,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('embed-2').setup({});
 			p.addPlugin(EmbedPlugin, { allowedOrigins: ['https://trusted.example.com'] });
 			await p.ready();
-			const inst = p.getPluginById('embed') as EmbedPlugin;
+			const inst = p.getPluginById<EmbedPlugin>('embed')!;
 			// Surface the internal allow-list so the helper has data to compare against.
 			inst.allowedOrigins(['https://trusted.example.com']);
 			expect((inst as any).isOriginAllowed('https://trusted.example.com')).toBe(true);
@@ -107,7 +107,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('embed-3').setup({});
 			p.addPlugin(EmbedPlugin);
 			await p.ready();
-			const inst = p.getPluginById('embed') as EmbedPlugin;
+			const inst = p.getPluginById<EmbedPlugin>('embed')!;
 			const msg = (inst as any).formatEvent('play', {});
 			expect(msg).toEqual({ type: 'nm:event', name: 'play', data: {} });
 		});
@@ -118,7 +118,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('lock-1').setup({});
 			p.addPlugin(TabLeaderPlugin);
 			await p.ready();
-			const inst = p.getPluginById('tab-leader') as TabLeaderPlugin;
+			const inst = p.getPluginById<TabLeaderPlugin>('tab-leader')!;
 			expect(typeof inst.isLeader()).toBe('boolean');
 		});
 
@@ -126,7 +126,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('lock-2').setup({});
 			p.addPlugin(TabLeaderPlugin);
 			await p.ready();
-			const inst = p.getPluginById('tab-leader') as TabLeaderPlugin;
+			const inst = p.getPluginById<TabLeaderPlugin>('tab-leader')!;
 			expect((inst as any).getLockKey()).toBe('nomercy-player-leader');
 		});
 	});

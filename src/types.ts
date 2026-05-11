@@ -1401,4 +1401,18 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap> {
 	createSVG(id: string, viewBox: string): SVGSVGElement;
 	addClasses<T extends Element>(el: T, names: string[]): AddClasses<T>;
 	removeClasses<T extends Element>(el: T, names: string[]): T;
+
+	/**
+	 * Retrieve a registered plugin instance by constructor. Returns `undefined`
+	 * when the plugin is not registered. Generic `P` is inferred from the
+	 * constructor argument — no explicit type parameter needed at the call site.
+	 */
+	getPlugin<P extends object>(PluginClass: PluginCtorWithId & (new () => P)): P | undefined;
+
+	/**
+	 * Retrieve a registered plugin instance by its static `id` string.
+	 * Use `getPlugin(PluginClass)` instead when you have the class reference —
+	 * the constructor form is type-safe and refactor-proof.
+	 */
+	getPluginById<P extends object = object>(id: string): P | undefined;
 }
