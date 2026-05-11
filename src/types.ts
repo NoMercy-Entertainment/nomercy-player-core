@@ -570,8 +570,22 @@ export interface ResolvedUrl {
  *  - Lint pack flags any code that handles 401 + 403 in the same branch.
  */
 export interface AuthConfig {
-	/** Convenience for the most common case — value goes into `Authorization: Bearer {value}`. */
+	/**
+	 * Convenience for the most common case — value goes into `Authorization: Bearer {value}`.
+	 * Accepts a static string, a sync getter, or an async getter so Vue refs, signals, and
+	 * reactive stores all work: `auth: { bearerToken: () => myRef.value }`.
+	 */
 	bearerToken?: AuthHeaderValue;
+
+	/**
+	 * Alias for `bearerToken`. Lets consumers use the field name they already know
+	 * from the top-level deprecated `accessToken` config: `auth: { accessToken: () => store.token }`.
+	 * When both are set, `bearerToken` wins.
+	 *
+	 * @deprecated Prefer `bearerToken`. This alias exists to ease migration from the
+	 * top-level `BasePlayerConfig.accessToken` field.
+	 */
+	accessToken?: AuthHeaderValue;
 
 	/** Arbitrary headers — static, sync getter, async getter. */
 	headers?: Record<string, AuthHeaderValue>;

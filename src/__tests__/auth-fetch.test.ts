@@ -119,6 +119,54 @@ describe('authFetch', () => {
 			expect(req.headers.get('Authorization')).toBe('Bearer async-tok');
 		});
 
+		it('auth.accessToken (string) attaches Bearer header', async () => {
+			mockFetchResponse(200);
+			// eslint-disable-next-line deprecation/deprecation
+			await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { accessToken: 'compat-tok' } as Parameters<typeof authFetch>[0]['auth'] & object,
+			});
+			const req = fetchSpy.mock.calls[0]![0] as Request;
+			expect(req.headers.get('Authorization')).toBe('Bearer compat-tok');
+		});
+
+		it('auth.accessToken (sync getter) resolves and attaches Bearer header', async () => {
+			mockFetchResponse(200);
+			await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { accessToken: () => 'getter-tok' } as Parameters<typeof authFetch>[0]['auth'] & object,
+			});
+			const req = fetchSpy.mock.calls[0]![0] as Request;
+			expect(req.headers.get('Authorization')).toBe('Bearer getter-tok');
+		});
+
+		it('auth.accessToken (async getter) resolves and attaches Bearer header', async () => {
+			mockFetchResponse(200);
+			await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { accessToken: async () => 'async-getter-tok' } as Parameters<typeof authFetch>[0]['auth'] & object,
+			});
+			const req = fetchSpy.mock.calls[0]![0] as Request;
+			expect(req.headers.get('Authorization')).toBe('Bearer async-getter-tok');
+		});
+
+		it('bearerToken wins over accessToken when both are set', async () => {
+			mockFetchResponse(200);
+			await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: {
+					bearerToken: 'winner',
+					accessToken: 'loser',
+				} as Parameters<typeof authFetch>[0]['auth'] & object,
+			});
+			const req = fetchSpy.mock.calls[0]![0] as Request;
+			expect(req.headers.get('Authorization')).toBe('Bearer winner');
+		});
+
 		it('merges static auth.headers', async () => {
 			mockFetchResponse(200);
 			await authFetch({

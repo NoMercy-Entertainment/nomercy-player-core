@@ -286,8 +286,9 @@ async function resolveHeader(value: AuthHeaderValue): Promise<string> {
 async function buildRequest<T>(url: string, opts: AuthFetchOptions<T>): Promise<Request> {
 	const headers = new Headers();
 
-	if (opts.auth?.bearerToken !== undefined) {
-		const token = await resolveHeader(opts.auth.bearerToken);
+	const effectiveBearer = opts.auth?.bearerToken ?? opts.auth?.accessToken;
+	if (effectiveBearer !== undefined) {
+		const token = await resolveHeader(effectiveBearer);
 		if (token)
 			headers.set('Authorization', `Bearer ${token}`);
 	}
