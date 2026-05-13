@@ -205,6 +205,17 @@ export class Plugin<
 	static readonly description: string = '';
 
 	/**
+	 * Module URL of the plugin file — set by the plugin class itself with
+	 * `static override readonly moduleUrl = import.meta.url`. Bundlers (Vite /
+	 * Rollup) replace `import.meta.url` with the final asset URL at build time.
+	 *
+	 * `appendStyles('./styles.css', 'id')` resolves the relative path against
+	 * this URL, so plugin authors never have to write `new URL(...)` ceremony
+	 * at the call site.
+	 */
+	static readonly moduleUrl?: string;
+
+	/**
 	 * Plugin dependencies — class refs only. Type-safe, refactor-safe, and
 	 * uniform with the typed `on(PluginClass, ...)` event API.
 	 *
@@ -771,6 +782,38 @@ export class Plugin<
 	 * Plugins needing non-`<div>` elements should construct their own DOM and
 	 * append it under the player container directly.
 	 */
+	/**
+	 * Append a stylesheet to `document.head` exactly once per `id`. Re-entrant:
+	 * a second call with the same `id` is a no-op.
+	 *
+	 * `href` is resolved against the plugin class's `static moduleUrl` (which
+	 * the plugin sets to `import.meta.url` so bundlers rewrite it to the final
+	 * asset URL). The editor still treats `styles.css` as a normal stylesheet
+	 * with full syntax highlighting.
+	 *
+	 * ```ts
+	 * export class MyPlugin extends Plugin {
+	 *   static override readonly id = 'myplugin';
+	 *   static override readonly moduleUrl = import.meta.url;
+	 *
+	 *   override use(): void {
+	 *     void this.appendStyles('./styles.css', 'plugin-myplugin-styles');
+	 *   }
+	 * }
+	 * ```
+	 */
+	protected appendStyles(href: string, id: string): void {
+		if (typeof document === 'undefined') return;
+		if (document.getElementById(id)) return;
+		const baseUrl = (this.constructor as typeof Plugin).moduleUrl;
+		const url = baseUrl ? new URL(href, baseUrl) : new URL(href, document.baseURI);
+		const link = document.createElement('link');
+		link.id = id;
+		link.rel = 'stylesheet';
+		link.href = url.href;
+		document.head.appendChild(link);
+	}
+
 	protected mount(name: string): HTMLDivElement {
 		const id = (this.constructor as typeof Plugin).id;
 		const className = `nmplayer-${id}-${name}`;
