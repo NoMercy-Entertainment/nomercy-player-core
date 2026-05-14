@@ -48,14 +48,34 @@ function _shouldGuardMutation(self: Internals, method: string): boolean {
 // ──────────────────────────────────────────────────────────────────────────
 
 export const stateMethods = {
+	/**
+	 * Return the current play-state token (`'playing'`, `'paused'`, `'stopped'`,
+	 * …). Read-only snapshot — subscribe to `play` / `pause` / `stop` events to
+	 * track changes reactively.
+	 */
 	playState(this: Internals): PlayStateToken {
 		return this._playState;
 	},
 
+	/**
+	 * Return the current volume-state token (`'unmuted'` or `'muted'`).
+	 * Read-only snapshot — subscribe to `volume` / `mute` events to track
+	 * changes reactively.
+	 */
 	volumeState(this: Internals): VolumeStateToken {
 		return this._volumeState;
 	},
 
+	/**
+	 * Read or write the repeat mode.
+	 *
+	 * `repeatState()` — returns the current `RepeatStateToken`
+	 * (`'none'` / `'one'` / `'all'`).
+	 *
+	 * `repeatState(state)` — set the repeat mode and emit `repeat` with the
+	 * new token. The transport mixin honours this token inside `next()` to
+	 * decide whether to loop the current item or advance.
+	 */
 	repeatState(this: Internals, state?: RepeatStateToken): RepeatStateToken | void {
 		if (state === undefined)
 			return this._repeatState;
@@ -63,6 +83,16 @@ export const stateMethods = {
 		this.emit('repeat', { state });
 	},
 
+	/**
+	 * Read or write the shuffle mode.
+	 *
+	 * `shuffleState()` — returns the current `ShuffleStateToken`
+	 * (`'on'` / `'off'`).
+	 *
+	 * `shuffleState(state)` — accepts a `ShuffleStateToken` or a plain
+	 * boolean (`true` → `'on'`, `false` → `'off'`). Emits `shuffle` with
+	 * the normalised token.
+	 */
 	shuffleState(this: Internals, state?: ShuffleStateToken | boolean): ShuffleStateToken | void {
 		if (state === undefined)
 			return this._shuffleState;
@@ -72,15 +102,19 @@ export const stateMethods = {
 	},
 
 	/**
-	 * Synchronously dispatch `beforeMutation` for a mutation method. Returns true
-	 * if the mutation should proceed, false if a listener cancelled it (in which
-	 * case `mutationPrevented` was emitted by this helper). Async `delay()` is
-	 * NOT supported here — mutations are sync by spec and dispatchBefore's full
-	 * async contract only applies to transport `before*` events.
+	 * Synchronously dispatch `beforeMutation` for a mutation method. Returns
+	 * `true` if the mutation should proceed, `false` if a listener cancelled it
+	 * (in which case `mutationPrevented` was already emitted).
 	 *
-	 * Also auto-fires every `static advisories` entry that matches the method +
-	 * current phase + currently-dispatching event names. Advisories surface as
-	 * `info`/`warning`/`error` events with code `plugin:<plugin-id>/<reason>`.
+	 * The `delay()` hook on the event object is a no-op — mutations are
+	 * synchronous. The async `delay()` contract only applies to transport
+	 * `before*` events.
+	 *
+	 * Also walks every registered plugin's `static advisories` entries and fires
+	 * matching ones as `info` / `warning` / `error` events. Matching criteria:
+	 * the advisory's `method` equals `method`, `duringPhase` (if set) includes
+	 * the current phase, and `duringEvent` (if set) overlaps the current
+	 * dispatch stack.
 	 */
 	_emitBeforeMutation(this: Internals, method: string, args: ReadonlyArray<unknown>): boolean {
 		if (!_shouldGuardMutation(this, method))
@@ -118,7 +152,7 @@ export const stateMethods = {
 			}
 		}
 
-		// Spec §C: auto-fire matching advisories.
+		// Walk advisories for all enabled plugins.
 		for (const { instance, ctor } of this._plugins) {
 			if (!instance.enabled())
 				continue;
