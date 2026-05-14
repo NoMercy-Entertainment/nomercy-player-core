@@ -5,9 +5,12 @@ import type { Internals } from '../state';
 
 
 // ──────────────────────────────────────────────────────────────────────────
-// Container class rules — driven by player events to keep CSS state in sync.
+// Container class rules — data-driven table that maps player event names to
+// the CSS class mutations they produce on `.nomercyplayer`. Adding a new
+// event-to-class mapping only requires a new entry here; no touch to emit().
 // ──────────────────────────────────────────────────────────────────────────
 
+/** Mutually exclusive playback-state classes managed as a group by the rules table. */
 const PLAY_STATE_CLASSES: ReadonlyArray<string> = ['playing', 'paused', 'stopped', 'ended', 'loading', 'buffering'] as const;
 
 type ContainerClassRule =
@@ -33,6 +36,18 @@ const CONTAINER_CLASS_RULES: ReadonlyMap<string, ContainerClassRule> = new Map<s
 	['activity', { kind: 'binary', whenTrue: 'active', whenFalse: 'inactive', payloadKey: 'active' }],
 ]);
 
+/**
+ * Apply a single `ContainerClassRule` to `container` given the event `data`.
+ * Each rule kind maps cleanly to a class-list mutation:
+ * - `swap` — remove competing classes then add the target class.
+ * - `drop` — remove a set of classes with no addition.
+ * - `toggle` — boolean-toggle one class from a payload key.
+ * - `binary` — apply one of two classes depending on a boolean payload key.
+ * - `phase` — when entering a recognised play-state phase, swap the class;
+ *   entering `ready` resets to `paused` as the initial resting state.
+ *
+ * No-ops silently when `container` is absent (player not mounted yet).
+ */
 function _applyContainerClassRule(container: HTMLElement | undefined, rule: ContainerClassRule, data: unknown): void {
 	if (!container || typeof container.classList === 'undefined') return;
 
@@ -83,10 +98,22 @@ function _applyContainerClassRule(container: HTMLElement | undefined, rule: Cont
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: containerClassEmit — wraps `emit` to keep `.nomercyplayer` CSS
-// state classes in sync with every player event.
+// state classes in sync with every player event without any additional
+// wiring in caller code. The override is transparent: all events still
+// propagate to registered listeners through EventEmitter.
 // ──────────────────────────────────────────────────────────────────────────
 
 export const containerClassEmitMethods = {
+	/**
+	 * Override of `EventEmitter.emit` that applies container class mutations
+	 * before forwarding to the listener chain. Looks up `event` in
+	 * `CONTAINER_CLASS_RULES`; when a rule matches, calls
+	 * `_applyContainerClassRule` on `this.container`. All events — including
+	 * those with no rule — then propagate normally.
+	 *
+	 * The parameter types mirror the base `EventEmitter` implementation
+	 * signature so this override compiles without a cast.
+	 */
 	emit(this: Internals, event: any, data?: any): void {
 		const rule = CONTAINER_CLASS_RULES.get(String(event));
 		if (rule) {
