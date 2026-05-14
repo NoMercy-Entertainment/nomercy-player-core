@@ -17,10 +17,24 @@ function _emptyTimeRanges(): TimeRanges {
 // ──────────────────────────────────────────────────────────────────────────
 
 export const timeMethods = {
+	/**
+	 * Get or seek to a playback position in seconds.
+	 *
+	 * - Called with no argument: returns the current position as a number.
+	 * - Called with a time: dispatches `beforeSeek`; a listener may
+	 *   `preventDefault()` to cancel, in which case `seekPrevented` fires and
+	 *   the position is unchanged. Otherwise runs a `seeking` phase round-trip,
+	 *   updates `_internalCurrentTime`, emits `seek` then `seeked`, and
+	 *   forwards the position to the backend. The setter returns a
+	 *   `Promise<void>` so callers can `await` the full seek cycle.
+	 *
+	 * Negative values are clamped to 0. `opts.source` flows through to the
+	 * `seek` / `seeked` payloads so listeners can attribute the seek origin.
+	 */
 	currentTime(this: Internals, t?: number, opts: ActionOptions = {}): number | Promise<void> {
 		if (t === undefined) return this._internalCurrentTime;
 		const target = Math.max(0, t);
-		// Async setter — returns Promise<void> so callers can await delay() resolution.
+
 		return (async () => {
 			const result = await this._dispatchBefore<{ time: number; source?: string }>('beforeSeek', {
 				time: target,
@@ -47,18 +61,44 @@ export const timeMethods = {
 		})();
 	},
 
+	/** Total track/clip duration in seconds. Returns 0 when metadata has not yet loaded. */
 	duration(this: Internals): number {
 		return this._internalDuration;
 	},
+
+	/**
+	 * How many seconds of media are buffered ahead of the current position.
+	 * Delegates to the backend; returns 0 when no backend is registered.
+	 */
 	buffered(this: Internals): number {
 		return this._resolveBackend()?.buffered?.() ?? 0;
 	},
+
+	/**
+	 * Full buffered `TimeRanges` from the backend, mirroring the
+	 * `HTMLMediaElement.buffered` shape. Returns an empty range set when no
+	 * backend is registered or the backend does not expose `bufferedRanges`.
+	 */
 	bufferedRanges(this: Internals): TimeRanges {
 		return this._resolveBackend()?.bufferedRanges?.() ?? _emptyTimeRanges();
 	},
+
+	/**
+	 * Seekable `TimeRanges` for the current source. Currently returns an
+	 * empty range set as a stub; backends that support fine-grained seekable
+	 * ranges should override this via the backend contract.
+	 */
 	seekable(this: Internals): TimeRanges {
 		return _emptyTimeRanges();
 	},
+
+	/**
+	 * Snapshot of all time-related state in one call. Useful for consumers
+	 * that need to render a progress bar without individually calling
+	 * `currentTime()`, `duration()`, `buffered()`, and computing the rest.
+	 * All derived values (remaining, percentage) are computed from live
+	 * getters so the snapshot is consistent at the moment of the call.
+	 */
 	timeData(this: Internals): TimeState {
 		const position = this._internalCurrentTime;
 		const duration = this.duration();
@@ -75,9 +115,10 @@ export const timeMethods = {
 	/**
 	 * Seek to a position expressed as a percentage (0–100) of the total duration.
 	 *
-	 * `pct` is clamped to [0, 100]. No-op when duration is zero or non-finite
-	 * (metadata not yet loaded). Delegates to `currentTime(duration * pct / 100)`.
-	 * V1 parity — mirrors `seekByPercentage(pct)` on the v1 player surface.
+	 * `pct` is clamped to [0, 100]. No-op when duration is zero or
+	 * non-finite (metadata not yet loaded). Delegates to
+	 * `currentTime(duration * pct / 100)`, so `beforeSeek` fires and
+	 * the full seek cycle applies.
 	 */
 	seekByPercentage(this: Internals, pct: number, opts?: ActionOptions): void {
 		const clamped = Math.max(0, Math.min(100, pct));
@@ -88,6 +129,13 @@ export const timeMethods = {
 			void ret;
 	},
 
+	/**
+	 * Get or set the playback rate multiplier.
+	 *
+	 * - Called with no argument: returns the current rate.
+	 * - Called with a value: stores the rate, emits `backend:ratechange`,
+	 *   and forwards to the backend's `playbackRate()`.
+	 */
 	playbackRate(this: Internals, rate?: number): number | void {
 		if (rate === undefined)
 			return this._playbackRate;
@@ -96,6 +144,12 @@ export const timeMethods = {
 
 		this._resolveBackend()?.playbackRate?.(rate);
 	},
+
+	/**
+	 * Supported playback rate values for UI speed-selector controls. The
+	 * list is intentionally fixed — backends clamp out-of-range values on
+	 * their own.
+	 */
 	playbackRates(this: Internals): number[] {
 		return [0.5, 0.75, 1, 1.25, 1.5, 2];
 	},
