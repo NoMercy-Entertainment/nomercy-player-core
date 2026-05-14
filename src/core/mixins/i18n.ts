@@ -27,6 +27,7 @@ function _getLoadTranslations(instance: unknown): _LoadTranslationsFn | undefine
 		return undefined;
 	if (!('loadTranslations' in instance))
 		return undefined;
+	// loadTranslations is protected — reflect via unknown to avoid widening to any.
 	const fn: unknown = (instance as { loadTranslations: unknown }).loadTranslations;
 	return typeof fn === 'function' ? (fn as _LoadTranslationsFn) : undefined;
 }
@@ -37,24 +38,48 @@ function _getLoadTranslations(instance: unknown): _LoadTranslationsFn | undefine
 // ──────────────────────────────────────────────────────────────────────────
 
 export const i18nMethods = {
+	/**
+	 * Translate a key using the active language. Variables in the key template
+	 * are interpolated from `vars` when provided. Returns the key itself when
+	 * no translation is registered for it.
+	 */
 	t(this: Internals, key: string, vars?: Record<string, string>): string {
 		return _ensureTranslator(this).t(key, vars);
 	},
+
+	/**
+	 * Read or set the active language.
+	 *
+	 * `language()` — returns the current BCP-47 language tag (e.g. `'en'`,
+	 * `'pt-BR'`).
+	 *
+	 * `language(tag)` — switch to `tag`. Returns a `Promise<void>` that
+	 * resolves once all plugin translation bundles for the tag (and its BCP-47
+	 * parent chain) have been loaded. `pt-BR` triggers loads for both `pt-BR`
+	 * and `pt` so regional variants get the parent bundle as natural fallback.
+	 *
+	 * Plugin bundles are loaded in two passes per language switch:
+	 *
+	 * 1. Static `translations` — lazy-loaded bundle files declared on the
+	 *    plugin class (walks the prototype chain so subclass + base bundles
+	 *    both get hit). Bundles include the `plugin.<id>.` key prefix already.
+	 *
+	 * 2. Instance `loadTranslations(lang)` — runtime hook for CDN / dynamic
+	 *    JSON sources. Bundles returned here are namespaced automatically under
+	 *    `plugin.<id>.`. Each plugin+lang pair is loaded at most once per
+	 *    player lifetime.
+	 */
 	language(this: Internals, lang?: string): string | Promise<void> {
 		if (lang === undefined) return _ensureTranslator(this).language();
 		return (async () => {
 			await _ensureTranslator(this).language(lang);
-			// Walk the BCP-47 chain on language switch — `pt-BR` triggers loads
-			// for both `pt-BR` and `pt`, so regional variants get the parent
-			// bundle in memory as natural fallback.
 			const langChain = bcp47FallbackChain(lang);
 
 			for (const { instance, ctor } of this._plugins) {
 				const pluginId = ctor.id;
 
 				// (1) Lazy `static translations` chain — pull bundles for every
-				// tag in the BCP-47 chain that hasn't been loaded yet. Walks the
-				// prototype chain so subclass + base lazy bundles both get hit.
+				// tag in the BCP-47 chain that hasn't been loaded yet.
 				let cur: unknown = ctor;
 				while (cur && cur !== Function.prototype) {
 					if (Object.prototype.hasOwnProperty.call(cur, 'translations')) {
@@ -69,7 +94,6 @@ export const i18nMethods = {
 									this._markPluginLangLoaded(pluginId, tag);
 									if (!bundle)
 										continue;
-									// Static bundles include the `plugin.<id>.` prefix already.
 									this.addTranslations({ [tag]: bundle });
 								}
 								catch (err) {
@@ -83,9 +107,8 @@ export const i18nMethods = {
 					cur = Object.getPrototypeOf(cur);
 				}
 
-				// (2) Spec §U: instance-level `loadTranslations(lang)` hook —
-				// runtime sources (CDN, dynamic JSON). Per-plugin+lang dedupe.
-				// loadTranslations is protected — reflect via unknown to bypass visibility without widening to any.
+				// (2) Instance-level `loadTranslations(lang)` hook — runtime
+				// sources (CDN, dynamic JSON). Per-plugin+lang dedupe.
 				const hook = _getLoadTranslations(instance);
 				if (typeof hook !== 'function')
 					continue;
@@ -110,9 +133,16 @@ export const i18nMethods = {
 			}
 		})();
 	},
+
+	/**
+	 * Merge `bundle` into the translator's in-memory store. `bundle` is a map
+	 * of BCP-47 tag → key/value translation pairs. Existing keys are
+	 * overwritten; keys not present in `bundle` are retained.
+	 */
 	addTranslations(this: Internals, bundle: Translations): void {
 		_ensureTranslator(this).addTranslations(bundle);
 	},
+
 	/**
 	 * Read or write a single translation key.
 	 *
@@ -128,6 +158,12 @@ export const i18nMethods = {
 		}
 		_ensureTranslator(this).translation(lang, key, value);
 	},
+
+	/**
+	 * Remove all translation keys matching `prefix` from the in-memory store.
+	 * Pass `lang` to restrict removal to one language; omit to remove across
+	 * all languages.
+	 */
 	removeTranslations(this: Internals, prefix: string, lang?: string): void {
 		_ensureTranslator(this).removeTranslations(prefix, lang);
 	},
