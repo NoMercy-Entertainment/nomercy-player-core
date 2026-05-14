@@ -200,7 +200,8 @@ function _guardSetup(self: Internals): void {
 }
 
 /**
- * Snapshot the config onto `self.options` and apply v1 → v2 back-compat shims:
+ * Snapshot the config onto `self.options` and apply back-compat shims for
+ * older option shapes:
  *  - `debug: true` upgrades to `logLevel: 'debug'` (only when logLevel is unset).
  *  - top-level `accessToken` folds into `auth.bearerToken` (only when bearerToken
  *    is unset). Explicit auth always wins.
@@ -240,6 +241,12 @@ function _seedFromOptions(self: Internals): void {
 	}
 }
 
+/**
+ * Build the i18n translator. Uses the consumer-supplied `options.translator`
+ * if present (custom backend like i18next or FormatJS); otherwise constructs
+ * a `DefaultTranslator` seeded with language, in-memory translations, and the
+ * optional async loader / missing-key hook from config.
+ */
 function _initTranslator(self: Internals): void {
 	self._translator = self.options.translator ?? new DefaultTranslator({
 		language: self.options.language,
@@ -265,6 +272,12 @@ function _registerCueParsers(self: Internals): void {
 	}
 }
 
+/**
+ * Pin the platform bundle for this player instance. Defaults to
+ * `browserPlatform`; consumers swap via `options.platform` for native
+ * runtimes (Capacitor / Tauri / Electron) or to mock for tests. Must run
+ * before any `_wire*` helper that touches `self._platform`.
+ */
 function _resolvePlatform(self: Internals): void {
 	self._platform = self.options.platform ?? browserPlatform;
 }
@@ -437,6 +450,11 @@ function _wireMetrics(self: Internals): void {
 	}
 }
 
+/**
+ * Mirror the latest `time` and `duration` event values onto internal slots
+ * so reads from non-event paths (transition tick, progress emit, preload
+ * orchestration) don't need to re-derive them from the backend on every call.
+ */
 function _wireTimeAndDurationSync(self: Internals): void {
 	const onTimeSync = ({ time }: { time: number }): void => {
 		self._internalCurrentTime = time;
@@ -767,6 +785,12 @@ function _runTransition(player: Internals, outgoing: BasePlaylistItem, incoming:
 	player._transitionRafHandle = requestAnimationFrame(tick);
 }
 
+/**
+ * Probe the active backend for crossfade capability. Returns the backend
+ * narrowed to `TransitionBackend` when it implements `supportsCrossfade`,
+ * or `null` for backends without crossfade hooks (most video backends —
+ * audio backends are where this matters).
+ */
 function _resolveTransitionBackend(player: Internals): TransitionBackend | null {
 	const backend = player.backend?.();
 	if (!backend) return null;
