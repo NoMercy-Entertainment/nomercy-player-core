@@ -23,19 +23,15 @@ function _wireQueue(self: Internals): void {
 	self._queueList.on('shuffle', () => self.emit('queue:shuffle'));
 	self._queueList.on('sort', () => self.emit('queue:sort'));
 	self._queueList.on('current', (data) => {
-		// Item changed → drop any in-flight sidecar subtitle context
-		// (its CueTracker is bound to the old item's time stream and
-		// would emit stale cues against the new media). Renderers will
-		// receive a fresh `subtitleCue` event when the next selection
-		// happens (via `currentSubtitle` from a UI / preferences plugin).
+		// The sidecar subtitle CueTracker is bound to the old item's time stream —
+		// disposing it here prevents stale cues from leaking into the new item.
+		// The renderer will get a fresh `subtitleCue` once the next subtitle
+		// selection fires via `currentSubtitle`.
 		self._disposeSidecarSubtitle();
 		self.emit('current', data);
 
-		// Ensure chapter data is populated for the new item and announce it.
-		// Fire-and-forget: load() already calls _resolveItemTrackUrls before
-		// moving the cursor, so this is a no-op for the initial load path.
-		// For cursor-only switches (player.current(i), next, previous) where
-		// load() was never called for that item, this is the only trigger.
+		// For cursor-only switches (current(i), next, previous) where load() was
+		// not called for that item, this is the only trigger for chapter data.
 		void self._resolveAndEmitChapters(data.item?.id);
 	});
 
@@ -51,57 +47,132 @@ function _wireQueue(self: Internals): void {
 // ──────────────────────────────────────────────────────────────────────────
 
 export const queueMethods = {
+	/**
+	 * Read or write the queue.
+	 *
+	 * `queue()` — returns the current playlist as a read-only array. Wires the
+	 * internal `MediaList` event bridge on first call so subsequent mutations
+	 * automatically emit the corresponding `queue:*` events.
+	 *
+	 * `queue(items)` — replace the entire playlist with `items`. Emits `queue`
+	 * with the new array.
+	 */
 	queue(this: Internals, items?: BasePlaylistItem[], _opts?: ActionOptions): ReadonlyArray<BasePlaylistItem> | void {
 		_wireQueue(this);
 		if (items === undefined)
 			return this._queueList.get();
 		this._queueList.set(items);
 	},
+
+	/**
+	 * Append one item or an array of items to the end of the queue. Emits
+	 * `queue:append` with the added item(s) and index range.
+	 */
 	queueAppend(this: Internals, item: BasePlaylistItem | BasePlaylistItem[], _opts?: ActionOptions): void {
 		_wireQueue(this);
 		this._queueList.append(item);
 	},
+
+	/**
+	 * Prepend one item or an array of items to the start of the queue. Emits
+	 * `queue:prepend` with the added item(s).
+	 */
 	queuePrepend(this: Internals, item: BasePlaylistItem | BasePlaylistItem[], _opts?: ActionOptions): void {
 		_wireQueue(this);
 		this._queueList.prepend(item);
 	},
+
+	/**
+	 * Insert one item or an array of items at `index`. Items at and after that
+	 * position shift right. Emits `queue:insert` with the item(s) and insertion
+	 * index.
+	 */
 	queueInsert(this: Internals, item: BasePlaylistItem | BasePlaylistItem[], index: number, _opts?: ActionOptions): void {
 		_wireQueue(this);
 		this._queueList.insert(item, index);
 	},
+
+	/**
+	 * Remove the item with the given `id` from the queue. No-op when the id is
+	 * not found. Emits `queue:remove` with the removed item and its former index.
+	 */
 	queueRemove(this: Internals, id: string | number, _opts?: ActionOptions): void {
 		_wireQueue(this);
 		this._queueList.remove(id);
 	},
+
+	/**
+	 * Remove the item at the given zero-based `index`. No-op when `index` is
+	 * out of range. Emits `queue:remove`.
+	 */
 	queueRemoveAt(this: Internals, index: number, _opts?: ActionOptions): void {
 		_wireQueue(this);
 		this._queueList.removeAt(index);
 	},
+
+	/**
+	 * Move the item at position `from` to position `to` (both zero-based).
+	 * No-op when either index is out of range. Emits `queue:move` with the
+	 * old and new indices.
+	 */
 	queueMove(this: Internals, from: number, to: number, _opts?: ActionOptions): void {
 		_wireQueue(this);
 		this._queueList.move(from, to);
 	},
+
+	/**
+	 * Remove all items from the queue. Emits `queue:clear`.
+	 */
 	queueClear(this: Internals, _opts?: ActionOptions): void {
 		_wireQueue(this);
 		this._queueList.clear();
 	},
+
+	/**
+	 * Randomly reorder all items in the queue in-place. Emits `queue:shuffle`.
+	 */
 	queueShuffle(this: Internals, _opts?: ActionOptions): void {
 		_wireQueue(this);
 		this._queueList.shuffle();
 	},
+
+	/**
+	 * Sort the queue in-place using `compare` (same contract as
+	 * `Array.prototype.sort`). Emits `queue:sort`.
+	 */
 	queueSort(this: Internals, compare: (a: BasePlaylistItem, b: BasePlaylistItem) => number, _opts?: ActionOptions): void {
 		_wireQueue(this);
 		this._queueList.sort(compare);
 	},
+
+	/**
+	 * Return the item that would become active if `next()` were called now,
+	 * without moving the cursor. Returns `undefined` when the queue is
+	 * exhausted.
+	 */
 	peekNext(this: Internals): BasePlaylistItem | undefined {
 		return this._queueList.peekNext();
 	},
+
+	/**
+	 * Return the item that would become active if `previous()` were called now,
+	 * without moving the cursor. Returns `undefined` when already at the start.
+	 */
 	peekPrevious(this: Internals): BasePlaylistItem | undefined {
 		return this._queueList.peekPrevious();
 	},
+
+	/**
+	 * Return the total number of items in the queue.
+	 */
 	queueLength(this: Internals): number {
 		return this._queueList.length();
 	},
+
+	/**
+	 * Return the zero-based index of the item with the given `id`, or `-1`
+	 * when not found.
+	 */
 	queueIndexOf(this: Internals, id: string | number): number {
 		return this._queueList.get().findIndex(item => item.id === id);
 	},
@@ -124,12 +195,10 @@ export const queueMethods = {
 		if (!this._emitBeforeMutation( 'current', [target]))
 			return;
 
-		// Invalidate any in-flight load() so its cursor-move continuation does
-		// not overwrite the position we're about to set here. This covers the
-		// case where current(B) is called while a previous load(A) is awaiting
-		// the backend — readyToLoad is false so we skip calling load() again,
-		// but without bumping the epoch the load(A) continuation would move the
-		// cursor back to A once it resolves.
+		// Bump the load epoch so any in-flight load()'s cursor-move continuation
+		// does not overwrite the position we're about to set. Without this,
+		// current(B) called while load(A) is still awaiting the backend would
+		// let load(A) snap the cursor back to A on resolution.
 		this._loadEpoch = (this._loadEpoch ?? 0) + 1;
 
 		this._queueList.setCurrent(target);
@@ -150,6 +219,11 @@ export const queueMethods = {
 			}
 		}).catch(() => { /* load errors surface via the 'error' event; suppress unhandled rejection */ });
 	},
+
+	/**
+	 * Return the zero-based index of the currently active item, or `-1` when
+	 * the queue is empty.
+	 */
 	currentIndex(this: Internals): number {
 		return this._queueList.currentIndex();
 	},
@@ -180,20 +254,42 @@ export const queueMethods = {
 		this._queueList.setCurrent(zeroBasedIndex);
 	},
 
+	/**
+	 * Read or write the backlog (items that have already played and precede the
+	 * current queue). The backlog does not drive cursor movement — it is a
+	 * history store that consumers populate manually.
+	 *
+	 * `backlog()` — returns the backlog as a read-only array.
+	 * `backlog(items)` — replace the backlog with `items`. Emits `backlog`.
+	 */
 	backlog(this: Internals, items?: BasePlaylistItem[]): ReadonlyArray<BasePlaylistItem> | void {
 		_wireQueue(this);
 		if (items === undefined)
 			return this._backlogList.get();
 		this._backlogList.set(items);
 	},
+
+	/**
+	 * Append one item or an array of items to the backlog. Emits
+	 * `backlog:append`.
+	 */
 	backlogAppend(this: Internals, item: BasePlaylistItem | BasePlaylistItem[]): void {
 		_wireQueue(this);
 		this._backlogList.append(item);
 	},
+
+	/**
+	 * Remove the item with the given `id` from the backlog. No-op when not
+	 * found. Emits `backlog:remove`.
+	 */
 	backlogRemove(this: Internals, id: string | number): void {
 		_wireQueue(this);
 		this._backlogList.remove(id);
 	},
+
+	/**
+	 * Remove all items from the backlog. Emits `backlog:clear`.
+	 */
 	backlogClear(this: Internals): void {
 		_wireQueue(this);
 		this._backlogList.clear();
