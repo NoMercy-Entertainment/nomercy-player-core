@@ -590,4 +590,46 @@ describe('authFetch', () => {
 			expect(req.method).toBe('POST');
 		});
 	});
+
+	// ─────────────────────────────────────────────────────────────────────
+	// Per-request headers
+	// ─────────────────────────────────────────────────────────────────────
+
+	describe('per-request headers', () => {
+		it('forwards opts.headers onto the request', async () => {
+			mockFetchResponse(200);
+			await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				headers: { 'X-License-Sig': 'abc123' },
+			});
+			const req = fetchSpy.mock.calls[0]![0] as Request;
+			expect(req.headers.get('X-License-Sig')).toBe('abc123');
+		});
+
+		it('per-request headers override auth.headers on collision', async () => {
+			mockFetchResponse(200);
+			await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { headers: { 'X-Tenant': 'auth-default' } },
+				headers: { 'X-Tenant': 'request-override' },
+			});
+			const req = fetchSpy.mock.calls[0]![0] as Request;
+			expect(req.headers.get('X-Tenant')).toBe('request-override');
+		});
+
+		it('keeps Authorization from bearerToken when per-request headers do not override it', async () => {
+			mockFetchResponse(200);
+			await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { bearerToken: 'kit-token' },
+				headers: { 'X-License-Sig': 'abc123' },
+			});
+			const req = fetchSpy.mock.calls[0]![0] as Request;
+			expect(req.headers.get('Authorization')).toBe('Bearer kit-token');
+			expect(req.headers.get('X-License-Sig')).toBe('abc123');
+		});
+	});
 });

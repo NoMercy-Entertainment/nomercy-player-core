@@ -42,6 +42,12 @@ interface AuthFetchBase {
 	scope?: 'plugin' | 'player' | 'silent';
 	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
 	body?: BodyInit;
+	/**
+	 * Per-request headers, merged on top of `auth.headers` (per-request wins on
+	 * collision). The `Authorization` header is still set from `auth.bearerToken`
+	 * unless overridden here.
+	 */
+	headers?: Record<string, string>;
 	timeoutMs?: number;
 }
 
@@ -331,6 +337,13 @@ async function buildRequest(url: string, opts: AuthFetchBase): Promise<Request> 
 			const resolved = await resolveHeader(value);
 			if (resolved)
 				headers.set(name, resolved);
+		}
+	}
+
+	if (opts.headers) {
+		for (const [name, value] of Object.entries(opts.headers)) {
+			if (value)
+				headers.set(name, value);
 		}
 	}
 

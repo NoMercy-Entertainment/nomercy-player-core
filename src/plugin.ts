@@ -31,10 +31,19 @@ import { LocalStorageBackend } from './storage';
  * The discriminated `responseType` controls how the response body is decoded.
  * `pluginId` and `scope` are injected internally — plugin authors never set them.
  */
+type FetchHttp = {
+	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
+	body?: BodyInit;
+	headers?: Record<string, string>;
+	timeoutMs?: number;
+	retry?: RetryConfig;
+	scope?: 'plugin' | 'player' | 'silent';
+};
+
 export type FetchOptions<T> =
-	| { responseType?: 'text'; parser?: (raw: string) => T; timeoutMs?: number; retry?: RetryConfig; scope?: 'plugin' | 'player' | 'silent' }
-	| { responseType: 'json'; timeoutMs?: number; retry?: RetryConfig; scope?: 'plugin' | 'player' | 'silent' }
-	| { responseType: 'arrayBuffer'; timeoutMs?: number; retry?: RetryConfig; scope?: 'plugin' | 'player' | 'silent' };
+	| (FetchHttp & { responseType?: 'text'; parser?: (raw: string) => T })
+	| (FetchHttp & { responseType: 'json' })
+	| (FetchHttp & { responseType: 'arrayBuffer' });
 
 type InternalFetchOptions<T> = AuthFetchOptions<T> & {
 	pluginId: string;
