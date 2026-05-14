@@ -58,24 +58,50 @@ function _detectDevice(): { isTv: boolean; isMobile: boolean; isDesktop: boolean
 // ──────────────────────────────────────────────────────────────────────────
 
 export const deviceMethods = {
+	/**
+	 * Whether the current environment appears to be a Smart TV or set-top
+	 * box. Detection is UA-based and best-effort — see `_detectDevice` for
+	 * the full list of UA hints consulted.
+	 */
 	isTv(this: Internals): boolean {
 		return _detectDevice().isTv;
 	},
+
+	/**
+	 * Whether the current environment appears to be a mobile phone or
+	 * tablet. Returns `false` on TV environments even when the OS is
+	 * Android — TV detection takes priority.
+	 */
 	isMobile(this: Internals): boolean {
 		return _detectDevice().isMobile;
 	},
+
+	/**
+	 * Whether the current environment is classified as desktop — the
+	 * catch-all when neither TV nor mobile hints are detected in the UA.
+	 */
 	isDesktop(this: Internals): boolean {
 		return _detectDevice().isDesktop;
 	},
+
+	/**
+	 * Full device capabilities snapshot. Combines UA-based device
+	 * classification with platform API probes:
+	 * - `fullscreenSupported` — from the platform's fullscreen bridge.
+	 * - `pipSupported` — from the platform's PiP bridge.
+	 * - `webLocksSupported` — `'locks' in navigator` probe.
+	 * - `autoplayAllowed` — always `'unknown'`; synchronous detection is
+	 *   unreliable. The real answer emerges when the player attempts
+	 *   autoplay and handles a NotAllowedError from the backend.
+	 * - `preferred` — `'powerEfficient'` on TV and mobile, `'smooth'` on
+	 *   desktop; used by quality selection heuristics.
+	 */
 	device(this: Internals): DeviceCapabilities {
 		const detected = _detectDevice();
 		const platform = this._platform ?? browserPlatform;
 		const fullscreenSupported = platform.fullscreen?.isSupported() ?? false;
 		const pipSupported = platform.pip?.isSupported() ?? false;
 		const webLocksSupported = typeof navigator !== 'undefined' && 'locks' in navigator;
-		// Autoplay policy is hard to detect synchronously — flag unknown.
-		// Experimental, see: https://developer.mozilla.org/en-US/docs/Web/API/Navigator/getAutoplayPolicy
-		// Real probe lands when the player tries autoplay and catches the rejection.
 		return {
 			isTv: detected.isTv,
 			isMobile: detected.isMobile,
