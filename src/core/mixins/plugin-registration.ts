@@ -29,17 +29,13 @@ function makePlayerLogger(self: Internals, scope: string): Logger {
 	return root.child(scope) as Logger;
 }
 
-type _LoadTranslationsFn = (lang: string) => Promise<Record<string, string> | undefined>;
-
-function _getLoadTranslations(instance: unknown): _LoadTranslationsFn | undefined {
-	if (typeof instance !== 'object' || instance === null)
-		return undefined;
-	if (!('loadTranslations' in instance))
-		return undefined;
-	const fn: unknown = (instance as { loadTranslations: unknown }).loadTranslations;
-	return typeof fn === 'function' ? (fn as _LoadTranslationsFn) : undefined;
-}
-
+/**
+ * Disable every plugin that depends on a failed plugin, cascading through the
+ * dependency tree. Called from `_registerPlugin` when a plugin's `use()` throws —
+ * keeps the dependent set in a sane state instead of leaving them wired to a
+ * partly-disposed peer. Each `disable()` call is wrapped defensively so one
+ * plugin's misbehaving teardown doesn't block the rest of the cascade.
+ */
 function _cascadeDisable(self: Internals, failedId: string, reason: string, findDependents: (id: string) => string[]): void {
 	const dependents = findDependents(failedId);
 	for (const depId of dependents) {
@@ -47,7 +43,7 @@ function _cascadeDisable(self: Internals, failedId: string, reason: string, find
 		if (!entry)
 			continue;
 		if (!entry.instance.enabled())
-			continue; // already disabled
+			continue;
 		try {
 			entry.instance.disable(reason);
 		}
@@ -139,14 +135,28 @@ function _findDependents(self: Internals, id: string): string[] {
 
 
 // ──────────────────────────────────────────────────────────────────────────
-// Mixin: plugin registration
+// Mixin: pluginRegistration — owns the plugin lifecycle. Handles enqueueing
+// during setup, post-setup inline registration, dependency + version checks,
+// the `static replaces` opt-in same-id swap, cascade-on-remove, plugin
+// translation merging, and the `plugin:installed` / `plugin:failed` /
+// `plugin:disposed` event surface (both bare and id-namespaced).
 // ──────────────────────────────────────────────────────────────────────────
 
 export const pluginRegistrationMethods = {
+	/**
+	 * Read the per-player set of `pluginId::lang` pairs whose lazy translation
+	 * bundles have already been fetched. Returns `undefined` if no plugin has
+	 * loaded a translation yet (the WeakMap entry is created lazily). Used by
+	 * `i18nMethods.setLanguage` to avoid double-fetching.
+	 */
 	_pluginLangLoadedSet(this: Internals): Set<string> | undefined {
 		return _pluginLangLoaded.get(this);
 	},
 
+	/**
+	 * Record that a plugin's lazy translation bundle for a specific language has
+	 * been loaded into the translator. Creates the per-player set on first call.
+	 */
 	_markPluginLangLoaded(this: Internals, pluginId: string, lang: string): void {
 		let set = _pluginLangLoaded.get(this);
 		if (!set) {
@@ -285,22 +295,47 @@ export const pluginRegistrationMethods = {
 		this.emit(`plugin:${id}:installed`, installedPayload);
 	},
 
-	// `opts?: P['opts']` is the load-bearing line for autocomplete: the plugin's
-	// options-generic `O` (the second `Plugin<P, O, E>` slot) flows back to the
-	// `opts` parameter, so consumers get full type-checking + completion on the
-	// inline literal — no `satisfies` needed at the call site.
+	/**
+	 * Register a plugin with the player.
+	 *
+	 * Pre-setup or mid-setup (`idle` / `setup` phase): the plugin is queued and
+	 * gets registered during the `pluginsRegistering` pipeline stage. Returns
+	 * the player for chaining.
+	 *
+	 * Post-setup: registration runs inline (fire-and-forget). The plugin's
+	 * `use()` is invoked immediately, bounded by `options.pluginInitTimeoutMs`
+	 * (default 30s); listen for `plugin:installed` or `plugin:failed` to know
+	 * when it settled.
+	 *
+	 * Throws on:
+	 *  - `core:lifecycle/use-plugin-after-dispose` — `addPlugin` called after
+	 *    `dispose()` has run or started.
+	 *  - `core:plugin/duplicate-id` — another plugin with the same id is already
+	 *    registered or queued. Use `static replaces = 'other-id'` to opt in to
+	 *    same-id swap.
+	 *  - `core:plugin/missing-dep` — `static requires` lists a plugin that isn't
+	 *    registered (and isn't marked `optional`).
+	 *  - `core:plugin/version-mismatch` — a required dependency's version is
+	 *    below the `minVersion` declared in the requires spec.
+	 *  - `core:plugin/incompatible-core-version` — `static minCoreVersion`
+	 *    exceeds the running kit version.
+	 *
+	 * The `opts?: P['opts']` parameter is type-bound to the plugin's options
+	 * generic (the second slot in `Plugin<P, O, E>`), so consumers get full
+	 * autocomplete and type-checking on the inline literal — no `satisfies`
+	 * needed at the call site.
+	 */
 	addPlugin<P extends Plugin>(this: Internals, PluginClass: PluginCtorWithId & (new () => P), opts?: P['opts']): unknown {
 		const id = PluginClass.id;
 
-		// Spec §23.6: post-dispose addPlugin throws.
 		if (this._phase === 'disposed' || this._phase === 'disposing') {
 			throw stateError('core:lifecycle/use-plugin-after-dispose', `addPlugin("${id}") called after dispose().`, { id });
 		}
 
-		// Spec §3.1 / §8.1: opt-in same-id replacement via `static replaces`.
-		// When the existing-plugin id matches, dispose+remove it before
-		// continuing — `plugin:disposed` fires for the old, then
-		// `plugin:installed` for the new.
+		// `static replaces` opt-in: when a plugin declares it replaces another
+		// id, dispose the existing peer (firing `plugin:disposed`) before this
+		// one registers (which will fire `plugin:installed`). Non-matching id
+		// is not an error — registration proceeds as a fresh install.
 		if (PluginClass.replaces) {
 			const existingIdx = this._plugins.findIndex(p => p.ctor.id === PluginClass.replaces);
 			const queuedIdx = this._pluginQueue.findIndex(q => q.ctor.id === PluginClass.replaces);
@@ -310,8 +345,6 @@ export const pluginRegistrationMethods = {
 			else if (queuedIdx >= 0) {
 				this._pluginQueue.splice(queuedIdx, 1);
 			}
-			// If no match, registration proceeds as a fresh install (spec §3.1
-			// "replaces is opt-in — non-matching id is not an error").
 		}
 
 		if (this._plugins.some(p => p.ctor.id === id) || this._pluginQueue.some(q => q.ctor.id === id)) {
@@ -358,8 +391,8 @@ export const pluginRegistrationMethods = {
 			}
 		}
 
-		// Spec §23.6: minCoreVersion check. Kit declares its own version via
-		// the static `_kitVersion` constant exported below.
+		// Kit version compatibility — `static minCoreVersion` lets a plugin
+		// declare it needs at least this kit version to run.
 		if (PluginClass.minCoreVersion && _compareSemver(KIT_VERSION, PluginClass.minCoreVersion) < 0) {
 			throw pluginError(
 				'core:plugin/incompatible-core-version',
@@ -392,25 +425,50 @@ export const pluginRegistrationMethods = {
 		return this;
 	},
 
+	/**
+	 * Look up a registered plugin instance by class. Returns the instance typed
+	 * as the class's `P` generic, or `undefined` when not registered. Prefer
+	 * this over `getPluginById` whenever the class is in scope — you get
+	 * full type information instead of `object`.
+	 */
 	getPlugin<P extends object>(this: Internals, PluginClass: PluginCtorWithId & (new () => P)): P | undefined {
 		const entry = this._plugins.find(registration => registration.ctor.id === PluginClass.id);
 		return entry?.instance as P | undefined;
 	},
 
+	/**
+	 * Look up a registered plugin instance by string id. Returns the instance
+	 * cast to the caller-provided generic, or `undefined` when not registered.
+	 * Use when the class isn't in scope (e.g. cross-plugin discovery by id).
+	 */
 	getPluginById<P extends object = object>(this: Internals, id: string): P | undefined {
 		return this._plugins.find(reg => reg.ctor.id === id)?.instance as P | undefined;
 	},
 
+	/**
+	 * Remove a plugin by class. Disposes its instance, drops its lifecycle
+	 * resources, removes its translations, and emits `plugin:disposed`.
+	 *
+	 * Cascade behaviour: when other plugins depend on the one being removed,
+	 * they're removed first (recursively). Pass `{ cascade: false }` to opt
+	 * out and have the call throw `core:plugin/has-dependents` instead. The
+	 * default is cascade because removing a dependency without its dependents
+	 * leaves them in a broken state.
+	 */
 	removePlugin<P extends Plugin>(this: Internals, PluginClass: PluginCtorWithId & (new () => P), opts?: { cascade?: boolean }): void {
 		this.removePluginById(PluginClass.id, opts);
 	},
 
+	/**
+	 * String-id version of `removePlugin` — see that method for cascade semantics.
+	 * Also clears any pending queue entry for the same id, so a plugin queued
+	 * pre-setup that gets removed before `pluginsRegistering` runs won't
+	 * register later.
+	 */
 	removePluginById(this: Internals, id: string, opts?: { cascade?: boolean }): void {
-		// Spec §C: required-dependency awareness. Reverse-walk both registered
-		// AND queued plugins to find anything that requires `id`. Cascade is the
-		// default — pass `{ cascade: false }` to opt out and surface a hard error
-		// instead. Removing a dep without its dependents leaves them in a broken
-		// state so cascading is the correct default.
+		// Reverse-walk registered AND queued plugins to find anything that
+		// requires `id`. Cascade is the default — pass `{ cascade: false }`
+		// to opt out and surface a hard error instead.
 		const dependents = _findDependents(this, id);
 		if (dependents.length > 0) {
 			if (opts?.cascade === false) {
@@ -452,13 +510,22 @@ export const pluginRegistrationMethods = {
 		this.emit(`plugin:${id}:disposed`, payload);
 	},
 
+	/**
+	 * All registered plugin instances in registration order (both enabled and
+	 * disabled). Returns a fresh array; mutating it does not affect the player's
+	 * internal list. For only-enabled, ordered by priority, use `enabledPlugins`.
+	 */
 	plugins(this: Internals): ReadonlyArray<Plugin> {
 		return this._plugins.map(p => p.instance);
 	},
 
+	/**
+	 * Registered plugins that are currently enabled, ordered by `static priority`
+	 * descending. Ties break by registration order (the natural insertion order).
+	 * Use this when running plugins in priority sequence — e.g. for `before*`
+	 * dispatch chains where higher-priority plugins should see the event first.
+	 */
 	enabledPlugins(this: Internals): ReadonlyArray<Plugin> {
-		// Spec §3.2: order by `static priority` descending, ties broken by
-		// registration order (which is the array's natural insertion order).
 		const enabled = this._plugins
 			.map((entry, index) => ({
 				entry,
