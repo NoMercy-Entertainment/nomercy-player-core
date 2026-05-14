@@ -57,12 +57,62 @@ export type AuthFetchOptions<T> = AuthFetchBase & (
 	| { responseType: 'arrayBuffer' }
 );
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// Internal types
+// ─────────────────────────────────────────────────────────────────────────
+
+type Outcome<T> =
+	| { kind: 'value'; value: T }
+	| { kind: 'throw'; error: NetworkError | AuthError }
+	| {
+		kind: 'retry';
+		reason: 'network' | 'timeout' | 'http-5xx' | 'unauthenticated';
+		delayMs: number;
+		consumesAttempt: boolean;
+	};
+
+interface AttemptCtx<T> {
+	url: string;
+	signal: AbortSignal;
+	auth: AuthConfig | undefined;
+	pluginId: string | undefined;
+	timeoutMs: number | undefined;
+	maxAttempts: number;
+	maxRefreshes: number;
+	responseType: 'text' | 'json' | 'arrayBuffer' | undefined;
+	parser: ((raw: string) => T) | undefined;
+	retry: RetryConfig;
+
+	dispatch: (suffix: 'start' | 'retry' | 'complete', data: unknown) => void;
+	complete: (ok: boolean, status: number | undefined) => void;
+	authErr: (code: string, status: number | undefined, message: string, cause?: unknown) => AuthError;
+	netErr: (code: string, status: number | undefined, message: string, cause?: unknown, severity?: 'fatal' | 'error' | 'warning' | 'info') => NetworkError;
+
+	lastStatus: number | undefined;
+	lastError: unknown;
+	refreshesUsed: number;
+
+	// Forwarded for buildRequest
+	method: AuthFetchBase['method'];
+	body: AuthFetchBase['body'];
+	headers: AuthFetchBase['headers'];
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// Layer 1 — context bag built once per call
+// ─────────────────────────────────────────────────────────────────────────
+
 const DEFAULT_RETRY: RetryConfig = { attempts: 0 };
 
-export async function authFetch<T = string>(opts: AuthFetchOptions<T>): Promise<T> {
+async function prepareAttempt<T>(opts: AuthFetchOptions<T>): Promise<AttemptCtx<T>> {
+	const url = await applyTransformUrl(opts.url, opts.auth);
+
 	const start = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 	const rawEmit = opts.emit ?? (() => { /* no-op */ });
 	const scope = opts.scope ?? (opts.pluginId ? 'plugin' : 'player');
+
 	const eventName = (suffix: 'start' | 'retry' | 'complete'): string | null => {
 		if (scope === 'silent')
 			return null;
@@ -70,243 +120,263 @@ export async function authFetch<T = string>(opts: AuthFetchOptions<T>): Promise<
 			return `plugin:${opts.pluginId}:fetch:${suffix}`;
 		return `fetch:${suffix}`;
 	};
+
 	const dispatch = (suffix: 'start' | 'retry' | 'complete', data: unknown): void => {
 		const name = eventName(suffix);
 		if (name)
 			rawEmit(name, data);
 	};
 
+	const complete = (ok: boolean, status: number | undefined): void => {
+		const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+		dispatch('complete', {
+			url,
+			ok,
+			status,
+			durationMs: now - start,
+			pluginId: opts.pluginId,
+		});
+	};
+
+	const authErr = (code: string, status: number | undefined, message: string, cause?: unknown): AuthError =>
+		new AuthError({
+			code,
+			severity: 'error',
+			scope: { kind: 'auth' },
+			message,
+			cause,
+			context: {
+				url,
+				httpStatus: status,
+			},
+		});
+
+	const netErr = (code: string, status: number | undefined, message: string, cause?: unknown, severity: 'fatal' | 'error' | 'warning' | 'info' = 'error'): NetworkError =>
+		new NetworkError({
+			code,
+			severity,
+			scope: { kind: 'network' },
+			message,
+			cause,
+			context: {
+				url,
+				httpStatus: status,
+			},
+		});
+
 	const retry = opts.retry ?? DEFAULT_RETRY;
 	const maxAttempts = Math.max(1, retry.attempts + 1);
 	const maxRefreshes = (opts.auth?.refreshOnUnauthenticated && (opts.auth.retryAfterRefresh ?? 1) > 0) ? 1 : 0;
 
-	let attempt = 0;
-	let refreshes = 0;
-	let lastError: unknown;
+	const responseType = opts.responseType;
+	const parser = (opts as AuthFetchBase & { parser?: (raw: string) => T }).parser;
 
-	const url = await applyTransformUrl(opts.url, opts.auth);
-	dispatch('start', {
+	return {
 		url,
+		signal: opts.signal,
+		auth: opts.auth,
 		pluginId: opts.pluginId,
-	});
-
-	// Two independent budgets:
-	//  - `attempt` consumes maxAttempts (5xx + network retries)
-	//  - `refreshes` consumes maxRefreshes (401 → refresh + free retry)
-	// Refresh-retry doesn't consume an attempt slot; the `attempt -= 1` after
-	// refresh gives it back so the next iteration starts with a clean budget.
-	while (true) {
-		attempt += 1;
-
-		const request = await buildRequest(url, opts);
-
-		let response: Response;
-		try {
-			response = await Promise.race([
-				fetch(request),
-				timeoutPromise(opts.timeoutMs, opts.signal),
-			]);
-		}
-		catch (cause) {
-			lastError = cause;
-			if (opts.signal.aborted) {
-				throw new NetworkError({
-					code: 'core:network/aborted',
-					severity: 'info',
-					scope: { kind: 'network' },
-					message: 'fetch aborted',
-					cause,
-					context: { url },
-				});
-			}
-
-			// Network-level error (DNS, CORS, offline)
-			if (attempt < maxAttempts) {
-				const delay = computeBackoff(retry, attempt);
-				dispatch('retry', {
-					url,
-					attempt,
-					reason: isTimeout(cause) ? 'timeout' : 'network',
-					delayMs: delay,
-					pluginId: opts.pluginId,
-				});
-				await sleep(delay, opts.signal);
-				continue;
-			}
-			throw new NetworkError({
-				code: isTimeout(cause) ? 'core:network/timeout' : 'core:network/offline',
-				severity: 'error',
-				scope: { kind: 'network' },
-				message: isTimeout(cause) ? `fetch timed out after ${opts.timeoutMs}ms` : 'network error',
-				cause,
-				context: { url },
-			});
-		}
-
-		// 401 — try refresh once (free retry, doesn't consume attempt budget)
-		if (response.status === 401) {
-			if (refreshes < maxRefreshes) {
-				refreshes += 1;
-				try {
-					await opts.auth!.refreshOnUnauthenticated!();
-				}
-				catch (refreshErr) {
-					dispatchComplete(dispatch, url, false, response.status, start, opts.pluginId);
-					throw new AuthError({
-						code: 'core:auth/refresh-failed',
-						severity: 'error',
-						scope: { kind: 'auth' },
-						message: 'token refresh failed',
-						cause: refreshErr,
-						context: {
-							url,
-							httpStatus: 401,
-						},
-					});
-				}
-				dispatch('retry', {
-					url,
-					attempt,
-					reason: 'unauthenticated',
-					delayMs: 0,
-					pluginId: opts.pluginId,
-				});
-				attempt -= 1; // refresh-retry is free; give the slot back
-				continue;
-			}
-			dispatchComplete(dispatch, url, false, response.status, start, opts.pluginId);
-			throw new AuthError({
-				code: 'core:auth/unauthenticated',
-				severity: 'error',
-				scope: { kind: 'auth' },
-				message: 'authentication required (401)',
-				context: {
-					url,
-					httpStatus: 401,
-				},
-			});
-		}
-
-		// 403 — never retry, never refresh, propagate immediately
-		if (response.status === 403) {
-			dispatchComplete(dispatch, url, false, 403, start, opts.pluginId);
-			throw new AuthError({
-				code: 'core:auth/forbidden',
-				severity: 'error',
-				scope: { kind: 'auth' },
-				message: 'forbidden (403) — authenticated but not authorized for this resource',
-				context: {
-					url,
-					httpStatus: 403,
-				},
-			});
-		}
-
-		// Other 4xx — propagate, do not retry
-		if (response.status >= 400 && response.status < 500) {
-			dispatchComplete(dispatch, url, false, response.status, start, opts.pluginId);
-			throw new NetworkError({
-				code: codeFor4xx(response.status),
-				severity: 'error',
-				scope: { kind: 'network' },
-				message: `HTTP ${response.status}`,
-				context: {
-					url,
-					httpStatus: response.status,
-				},
-			});
-		}
-
-		// 5xx — retry per policy
-		if (response.status >= 500) {
-			lastError = new NetworkError({
-				code: codeFor5xx(response.status),
-				severity: 'error',
-				scope: { kind: 'network' },
-				message: `HTTP ${response.status}`,
-				context: {
-					url,
-					httpStatus: response.status,
-				},
-			});
-
-			if (attempt < maxAttempts) {
-				const delay = computeBackoff(retry, attempt);
-				dispatch('retry', {
-					url,
-					attempt,
-					reason: 'http-5xx',
-					delayMs: delay,
-					pluginId: opts.pluginId,
-				});
-				await sleep(delay, opts.signal);
-				continue;
-			}
-			dispatchComplete(dispatch, url, false, response.status, start, opts.pluginId);
-			throw lastError;
-		}
-
-		// Success path
-		dispatchComplete(dispatch, url, true, response.status, start, opts.pluginId);
-
-		if (opts.responseType === 'arrayBuffer') {
-			return (await response.arrayBuffer()) as unknown as T;
-		}
-
-		if (opts.responseType === 'json') {
-			try {
-				return (await response.json()) as T;
-			}
-			catch (parseErr) {
-				throw new NetworkError({
-					code: 'core:network/parse-failed',
-					severity: 'error',
-					scope: { kind: 'network' },
-					message: 'response body is not valid JSON',
-					cause: parseErr,
-					context: {
-						url,
-						httpStatus: response.status,
-					},
-				});
-			}
-		}
-
-		const text = await response.text();
-		const textOpts = opts as AuthFetchBase & { parser?: (raw: string) => T };
-		if (textOpts.parser) {
-			try {
-				return textOpts.parser(text);
-			}
-			catch (parseErr) {
-				throw new NetworkError({
-					code: 'core:network/parse-failed',
-					severity: 'error',
-					scope: { kind: 'network' },
-					message: 'response parser threw',
-					cause: parseErr,
-					context: {
-						url,
-						httpStatus: response.status,
-					},
-				});
-			}
-		}
-		return text as unknown as T;
-	}
-
-	// Should be unreachable — every path above either continues, returns, or throws.
-	throw lastError ?? new NetworkError({
-		code: 'core:network/timeout',
-		severity: 'error',
-		scope: { kind: 'network' },
-		message: 'fetch retry budget exhausted',
-		context: { url },
-	});
+		timeoutMs: opts.timeoutMs,
+		maxAttempts,
+		maxRefreshes,
+		responseType,
+		parser,
+		retry,
+		dispatch,
+		complete,
+		authErr,
+		netErr,
+		lastStatus: undefined,
+		lastError: undefined,
+		refreshesUsed: 0,
+		method: opts.method,
+		body: opts.body,
+		headers: opts.headers,
+	};
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────
-// Internals
+// Layer 2 — single fetch + classify + decode
+// ─────────────────────────────────────────────────────────────────────────
+
+async function attemptOnce<T>(ctx: AttemptCtx<T>): Promise<Outcome<T>> {
+	const request = await buildRequest(ctx.url, ctx);
+
+	let response: Response;
+	try {
+		response = await Promise.race([
+			fetch(request),
+			timeoutPromise(ctx.timeoutMs, ctx.signal),
+		]);
+	}
+	catch (cause) {
+		if (ctx.signal.aborted) {
+			return {
+				kind: 'throw',
+				error: ctx.netErr('core:network/aborted', undefined, 'fetch aborted', cause, 'info'),
+			};
+		}
+
+		const timedOut = isTimeout(cause);
+		ctx.lastError = ctx.netErr(
+			timedOut ? 'core:network/timeout' : 'core:network/offline',
+			undefined,
+			timedOut ? `fetch timed out after ${ctx.timeoutMs}ms` : 'network error',
+			cause,
+		);
+
+		return {
+			kind: 'retry',
+			reason: timedOut ? 'timeout' : 'network',
+			delayMs: computeBackoff(ctx.retry, 1),
+			consumesAttempt: true,
+		};
+	}
+
+	ctx.lastStatus = response.status;
+
+	if (response.status === 401) {
+		if (ctx.refreshesUsed < ctx.maxRefreshes) {
+			ctx.refreshesUsed += 1;
+			try {
+				await ctx.auth!.refreshOnUnauthenticated!();
+			}
+			catch (cause) {
+				return {
+					kind: 'throw',
+					error: ctx.authErr('core:auth/refresh-failed', 401, 'token refresh failed', cause),
+				};
+			}
+
+			return {
+				kind: 'retry',
+				reason: 'unauthenticated',
+				delayMs: 0,
+				consumesAttempt: false,
+			};
+		}
+
+		return {
+			kind: 'throw',
+			error: ctx.authErr('core:auth/unauthenticated', 401, 'authentication required (401)'),
+		};
+	}
+
+	if (response.status === 403) {
+		return {
+			kind: 'throw',
+			error: ctx.authErr('core:auth/forbidden', 403, 'forbidden (403) — authenticated but not authorized for this resource'),
+		};
+	}
+
+	if (response.status >= 400 && response.status < 500) {
+		return {
+			kind: 'throw',
+			error: ctx.netErr(codeFor4xx(response.status), response.status, `HTTP ${response.status}`),
+		};
+	}
+
+	if (response.status >= 500) {
+		ctx.lastError = ctx.netErr(codeFor5xx(response.status), response.status, `HTTP ${response.status}`);
+
+		return {
+			kind: 'retry',
+			reason: 'http-5xx',
+			delayMs: computeBackoff(ctx.retry, 1),
+			consumesAttempt: true,
+		};
+	}
+
+	return decodeBody<T>(response, ctx);
+}
+
+async function decodeBody<T>(response: Response, ctx: AttemptCtx<T>): Promise<Outcome<T>> {
+	if (ctx.responseType === 'arrayBuffer') {
+		const buffer = await response.arrayBuffer();
+		return { kind: 'value', value: buffer as unknown as T };
+	}
+
+	if (ctx.responseType === 'json') {
+		try {
+			const parsed = await response.json() as T;
+			return { kind: 'value', value: parsed };
+		}
+		catch (parseErr) {
+			return {
+				kind: 'throw',
+				error: ctx.netErr('core:network/parse-failed', response.status, 'response body is not valid JSON', parseErr),
+			};
+		}
+	}
+
+	const text = await response.text();
+
+	if (ctx.parser) {
+		try {
+			return { kind: 'value', value: ctx.parser(text) };
+		}
+		catch (parseErr) {
+			return {
+				kind: 'throw',
+				error: ctx.netErr('core:network/parse-failed', response.status, 'response parser threw', parseErr),
+			};
+		}
+	}
+
+	return { kind: 'value', value: text as unknown as T };
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// Layer 3 — orchestrator, bounded loop
+// ─────────────────────────────────────────────────────────────────────────
+
+export async function authFetch<T = string>(opts: AuthFetchOptions<T>): Promise<T> {
+	const ctx = await prepareAttempt<T>(opts);
+
+	ctx.dispatch('start', {
+		url: ctx.url,
+		pluginId: ctx.pluginId,
+	});
+
+	let attempt = 0;
+
+	while (attempt < ctx.maxAttempts) {
+		const outcome = await attemptOnce<T>(ctx);
+
+		if (outcome.kind === 'value') {
+			ctx.complete(true, ctx.lastStatus);
+			return outcome.value;
+		}
+
+		if (outcome.kind === 'throw') {
+			ctx.complete(false, ctx.lastStatus);
+			throw outcome.error;
+		}
+
+		ctx.dispatch('retry', {
+			url: ctx.url,
+			attempt: attempt + 1,
+			reason: outcome.reason,
+			delayMs: outcome.delayMs,
+			pluginId: ctx.pluginId,
+		});
+
+		if (outcome.consumesAttempt) {
+			attempt += 1;
+		}
+
+		await sleep(outcome.delayMs, ctx.signal);
+	}
+
+	ctx.complete(false, ctx.lastStatus);
+	throw ctx.lastError ?? ctx.netErr('core:network/timeout', undefined, 'fetch retry budget exhausted');
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// Helpers
 // ─────────────────────────────────────────────────────────────────────────
 
 async function applyTransformUrl(url: string, auth?: AuthConfig): Promise<string> {
@@ -427,23 +497,6 @@ function codeFor5xx(status: number): string {
 	}
 }
 
-function dispatchComplete(
-	dispatch: (suffix: 'start' | 'retry' | 'complete', data: unknown) => void,
-	url: string,
-	ok: boolean,
-	status: number | undefined,
-	startTime: number,
-	pluginId: string | undefined,
-): void {
-	const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-	dispatch('complete', {
-		url,
-		ok,
-		status,
-		durationMs: now - startTime,
-		pluginId,
-	});
-}
 
 /** Type guard helper exposed for player + plugin code that needs to inspect errors. */
 export function isAuthError(err: unknown): err is AuthError {
