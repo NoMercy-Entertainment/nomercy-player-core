@@ -113,7 +113,6 @@ export const castMethods = {
 				return;
 			}
 			case 'local': {
-				// Tear down any active remote session.
 				setState(_CastStateEnum.DISCONNECTED);
 				return;
 			}
