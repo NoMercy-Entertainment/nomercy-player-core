@@ -1,9 +1,6 @@
 import type { ActionOptions } from '../../types';
 
 import type { Internals } from '../state';
-import { resolveBackend } from '../util/backend';
-import { assertReady, dispatchBefore } from '../util/guards';
-import { transitionPhase } from '../util/phase';
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -25,11 +22,11 @@ export function seekingTransition(self: Internals, doSeek: () => void): void {
 	const prior = self._phase;
 	const shouldTransition = prior === 'playing' || prior === 'paused' || prior === 'starting';
 	if (shouldTransition) {
-		transitionPhase(self, 'seeking');
+		self._transitionPhase('seeking');
 	}
 	doSeek();
 	if (shouldTransition) {
-		transitionPhase(self, prior);
+		self._transitionPhase(prior);
 	}
 }
 
@@ -40,8 +37,8 @@ export function seekingTransition(self: Internals, doSeek: () => void): void {
 
 export const transportMethods = {
 	async play(this: Internals, opts: ActionOptions = {}): Promise<void> {
-		assertReady(this);
-		const result = await dispatchBefore<ActionOptions>(this, 'beforePlay', { ...opts });
+		this._assertReady();
+		const result = await this._dispatchBefore<ActionOptions>('beforePlay', { ...opts });
 		if (result.prevented) {
 			this.emit('playPrevented', {
 				reason: result.reason ?? 'listener-prevented',
@@ -51,16 +48,16 @@ export const transportMethods = {
 		}
 		this._playState = 'playing';
 		if (this._phase === 'ready' || this._phase === 'paused') {
-			transitionPhase(this, 'starting');
+			this._transitionPhase('starting');
 		}
 		this.emit('play', result.data);
 
-		await resolveBackend(this)?.play?.();
+		await this._resolveBackend()?.play?.();
 	},
 
 	async pause(this: Internals, opts: ActionOptions = {}): Promise<void> {
-		assertReady(this);
-		const result = await dispatchBefore<ActionOptions>(this, 'beforePause', { ...opts });
+		this._assertReady();
+		const result = await this._dispatchBefore<ActionOptions>('beforePause', { ...opts });
 		if (result.prevented) {
 			this.emit('pausePrevented', {
 				reason: result.reason ?? 'listener-prevented',
@@ -70,16 +67,16 @@ export const transportMethods = {
 		}
 		this._playState = 'paused';
 		if (this._phase === 'playing' || this._phase === 'starting') {
-			transitionPhase(this, 'paused');
+			this._transitionPhase('paused');
 		}
 		this.emit('pause', result.data);
 
-		resolveBackend(this)?.pause?.();
+		this._resolveBackend()?.pause?.();
 	},
 
 	async stop(this: Internals, opts: ActionOptions = {}): Promise<void> {
-		assertReady(this);
-		const result = await dispatchBefore<ActionOptions>(this, 'beforeStop', { ...opts });
+		this._assertReady();
+		const result = await this._dispatchBefore<ActionOptions>('beforeStop', { ...opts });
 		if (result.prevented) {
 			this.emit('stopPrevented', {
 				reason: result.reason ?? 'listener-prevented',
@@ -88,22 +85,22 @@ export const transportMethods = {
 			return;
 		}
 		this._playState = 'stopped';
-		transitionPhase(this, 'stopped');
+		this._transitionPhase('stopped');
 		this.emit('stop', result.data);
 
-		resolveBackend(this)?.stop?.();
+		this._resolveBackend()?.stop?.();
 	},
 
 	async togglePlayback(this: Internals, opts?: ActionOptions): Promise<void> {
-		assertReady(this);
+		this._assertReady();
 		if (this._playState === 'playing')
 			await this.pause(opts);
 		else await this.play(opts);
 	},
 
 	async next(this: Internals, opts: ActionOptions = {}): Promise<void> {
-		assertReady(this);
-		const result = await dispatchBefore<ActionOptions>(this, 'beforeNext', { ...opts });
+		this._assertReady();
+		const result = await this._dispatchBefore<ActionOptions>('beforeNext', { ...opts });
 		if (result.prevented) {
 			this.emit('nextPrevented', {
 				reason: result.reason ?? 'listener-prevented',
@@ -125,8 +122,8 @@ export const transportMethods = {
 	},
 
 	async previous(this: Internals, opts: ActionOptions = {}): Promise<void> {
-		assertReady(this);
-		const result = await dispatchBefore<ActionOptions>(this, 'beforePrevious', { ...opts });
+		this._assertReady();
+		const result = await this._dispatchBefore<ActionOptions>('beforePrevious', { ...opts });
 		if (result.prevented) {
 			this.emit('previousPrevented', {
 				reason: result.reason ?? 'listener-prevented',
@@ -147,8 +144,8 @@ export const transportMethods = {
 	},
 
 	async rewind(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
-		assertReady(this);
-		const result = await dispatchBefore<{ time: number; source?: string }>(this, 'beforeSeek', {
+		this._assertReady();
+		const result = await this._dispatchBefore<{ time: number; source?: string }>('beforeSeek', {
 			time: -seconds,
 			source: opts.source,
 		});
@@ -167,14 +164,14 @@ export const transportMethods = {
 			});
 		});
 
-		resolveBackend(this)?.currentTime?.(this._internalCurrentTime);
+		this._resolveBackend()?.currentTime?.(this._internalCurrentTime);
 
 		this.emit('seeked', { time: this._internalCurrentTime });
 	},
 
 	async forward(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
-		assertReady(this);
-		const result = await dispatchBefore<{ time: number; source?: string }>(this, 'beforeSeek', {
+		this._assertReady();
+		const result = await this._dispatchBefore<{ time: number; source?: string }>('beforeSeek', {
 			time: seconds,
 			source: opts.source,
 		});
@@ -193,14 +190,14 @@ export const transportMethods = {
 			});
 		});
 
-		resolveBackend(this)?.currentTime?.(this._internalCurrentTime);
+		this._resolveBackend()?.currentTime?.(this._internalCurrentTime);
 
 		this.emit('seeked', { time: this._internalCurrentTime });
 	},
 
 	async restart(this: Internals, opts: ActionOptions = {}): Promise<void> {
-		assertReady(this);
-		const seekResult = await dispatchBefore<{ time: number; source?: string }>(this, 'beforeSeek', {
+		this._assertReady();
+		const seekResult = await this._dispatchBefore<{ time: number; source?: string }>('beforeSeek', {
 			time: 0,
 			source: opts.source,
 		});

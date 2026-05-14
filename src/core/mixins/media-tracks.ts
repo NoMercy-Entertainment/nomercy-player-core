@@ -1,14 +1,57 @@
-import type { ActionOptions, Chapter, SubtitleCue as SubtitleCuePayload, SubtitleTrack } from '../../types';
+import type { ActionOptions, BasePlaylistItem, Chapter, SubtitleCue as SubtitleCuePayload, SubtitleTrack } from '../../types';
 import { CueTracker } from '../../cues/tracker';
-import { parseVttSubtitles } from '../../cues/parsers/vtt';
+import { parseVttSubtitles, parseVtt } from '../../cues/parsers/vtt';
 import type { VTTSubtitlePayload } from '../../cues/parsers/vtt';
 import type { Cue } from '../../cues/cue';
+import { buildResolvedUrl } from '../../resolved-url';
 
 import type { Internals, SidecarSubtitleContext } from '../state';
-import { peekBackendTyped } from '../util/backend';
-import { disposeSidecarSubtitle } from '../util/sidecar';
-import { hasTracksField, resolveItemTrackUrls } from '../util/tracks';
-import type { ItemWithDefinedTracks, ItemWithTracks, SidecarTrack } from '../util/tracks';
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// Sidecar track types — structural interfaces for item track fields.
+// Items carry inline tracks under `tracks: [{ kind, file, language, ... }]`.
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface SidecarTrack {
+	id?: string;
+	kind?: string;
+	file?: string;
+	language?: string;
+	label?: string;
+	type?: string;
+}
+
+export interface ItemWithTracks extends BasePlaylistItem {
+	tracks?: SidecarTrack[];
+	chapters?: Chapter[];
+}
+
+export interface ItemWithDefinedTracks extends BasePlaylistItem {
+	tracks: SidecarTrack[];
+	chapters?: Chapter[];
+}
+
+function hasTracksField(item: BasePlaylistItem): item is ItemWithDefinedTracks {
+	return 'tracks' in item && Array.isArray((item as ItemWithTracks).tracks) && (item as ItemWithTracks).tracks!.length > 0;
+}
+
+async function fetchChaptersVtt(url: string): Promise<Chapter[]> {
+	try {
+		const r = await fetch(url);
+		if (!r.ok) return [];
+		const text = await r.text();
+		return parseVtt(text).cues.map((cue, i) => ({
+			index: i,
+			start: cue.start,
+			end: cue.end,
+			title: cue.payload,
+		}));
+	}
+	catch {
+		return [];
+	}
+}
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -122,6 +165,70 @@ function _toSubtitleCue(p: VTTSubtitlePayload): SubtitleCuePayload {
 // ──────────────────────────────────────────────────────────────────────────
 
 export const mediaTracksMethods = {
+	_disposeSidecarSubtitle(this: Internals): void {
+		const ctx = this._sidecarSubtitle;
+		if (!ctx) return;
+		try { ctx.tracker.dispose(); }
+		catch { /* defensive */ }
+		this._sidecarSubtitle = undefined;
+	},
+
+	async resolveItemTrackUrls<T extends BasePlaylistItem>(this: Internals, item: T): Promise<T> {
+		if (!hasTracksField(item)) return item;
+
+		const transformer = this._authConfig?.transformUrl;
+		const base = this._baseUrl;
+
+		const resolved = await Promise.all(
+			item.tracks.map(async (sidecarTrack: SidecarTrack): Promise<SidecarTrack> => {
+				if (!sidecarTrack.file) return sidecarTrack;
+				const transformed = transformer ? await transformer(sidecarTrack.file) : sidecarTrack.file;
+				return { ...sidecarTrack, file: buildResolvedUrl(sidecarTrack.file, transformed, base).href };
+			}),
+		);
+
+		const withTracks: T & ItemWithTracks = { ...item, tracks: resolved };
+
+		const existingChapters = withTracks.chapters;
+		if (!Array.isArray(existingChapters) || existingChapters.length === 0) {
+			const chapterTrack = resolved.find((sidecarTrack: SidecarTrack) => sidecarTrack.kind === 'chapters' && sidecarTrack.file);
+			if (chapterTrack?.file) {
+				const chapters = await fetchChaptersVtt(chapterTrack.file);
+				if (chapters.length > 0) {
+					return { ...withTracks, chapters };
+				}
+			}
+		}
+
+		return withTracks;
+	},
+
+	async _resolveAndEmitChapters(this: Internals, itemId: string | number | undefined): Promise<void> {
+		const epoch = (this._chapterEpoch ?? 0) + 1;
+		this._chapterEpoch = epoch;
+		const isLatest = (): boolean => this._chapterEpoch === epoch;
+
+		const foundItem = this._queueList.get().find(queued => queued.id === itemId);
+		if (!foundItem) return;
+		const item = foundItem as ItemWithTracks;
+
+		if (Array.isArray(item.chapters) && item.chapters.length > 0) {
+			this.emit('chapters', { chapters: item.chapters });
+			return;
+		}
+
+		const resolved = await this.resolveItemTrackUrls(item);
+
+		if (!isLatest()) return;
+
+		const chapters = resolved.chapters;
+		if (!Array.isArray(chapters) || chapters.length === 0) return;
+
+		this._queueList.replaceItem(resolved);
+
+		this.emit('chapters', { chapters });
+	},
+
 	subtitles(this: Internals): unknown {
 		// Subtitles are the union of:
 		//   1. tracks the backend exposes (HLS-managed in-manifest subtitles
@@ -131,7 +238,7 @@ export const mediaTracksMethods = {
 		// Consumers should not have to know which side a track came from —
 		// they get one flat list to render and a stable index per entry.
 		const fromBackend: SubtitleTrack[] = (() => {
-			const backend = peekBackendTyped<_BackendWithSubtitleTracks>(this);
+			const backend = this._peekBackendTyped<_BackendWithSubtitleTracks>();
 			if (typeof backend?.subtitleTracks === 'function') {
 				try {
 					return backend.subtitleTracks() ?? [];
@@ -162,6 +269,7 @@ export const mediaTracksMethods = {
 		// to `hls.subtitleTrack`); sidecar VTTs trail the list.
 		return [...fromBackend, ...fromItem];
 	},
+
 	/**
 	 * Read or write the active subtitle track.
 	 *
@@ -180,9 +288,9 @@ export const mediaTracksMethods = {
 		// Tear down any in-flight sidecar tracker first; switching tracks
 		// (or to null) must release the prior cue stream so it doesn't
 		// keep emitting active cues from the old track.
-		disposeSidecarSubtitle(this);
+		this._disposeSidecarSubtitle();
 
-		const b = peekBackendTyped<_BackendWithSubtitleTracks>(this);
+		const b = this._peekBackendTyped<_BackendWithSubtitleTracks>();
 		const backendCount = (typeof b?.subtitleTracks === 'function')
 			? (b.subtitleTracks() ?? []).length
 			: 0;
@@ -220,6 +328,7 @@ export const mediaTracksMethods = {
 		}
 		void _startSidecarSubtitle(this, sidecar);
 	},
+
 	/**
 	 * Read or write the subtitle style. Mirrors the v1 player API so
 	 * settings menus and overlay plugins talk through one surface and
@@ -255,8 +364,9 @@ export const mediaTracksMethods = {
 		this.emit('subtitleStyle', { ...this._subtitleStyle });
 		return undefined;
 	},
+
 	audioTracks(this: Internals): unknown {
-		const backend = peekBackendTyped<_BackendWithAudioTracks>(this);
+		const backend = this._peekBackendTyped<_BackendWithAudioTracks>();
 		if (typeof backend?.audioTracks === 'function') {
 			try {
 				return backend.audioTracks();
@@ -265,6 +375,7 @@ export const mediaTracksMethods = {
 		}
 		return [];
 	},
+
 	/**
 	 * Read or write the active audio track.
 	 *
@@ -279,15 +390,16 @@ export const mediaTracksMethods = {
 			return this._currentAudioTrackIdx;
 		}
 		this._currentAudioTrackIdx = idx;
-		const backend = peekBackendTyped<_BackendWithAudioTrack>(this);
+		const backend = this._peekBackendTyped<_BackendWithAudioTrack>();
 		if (typeof backend?.setAudioTrack === 'function') {
 			backend.setAudioTrack(idx);
 		}
 		// No backend track support — emit for symmetry.
 		this.emit('audioTrack', { id: idx });
 	},
+
 	qualityLevels(this: Internals, opts?: { includeUnsupported?: true }): unknown {
-		const backend = peekBackendTyped<_BackendWithQualityLevels>(this);
+		const backend = this._peekBackendTyped<_BackendWithQualityLevels>();
 		if (typeof backend?.qualityLevels === 'function') {
 			try {
 				return backend.qualityLevels(opts);
@@ -296,6 +408,7 @@ export const mediaTracksMethods = {
 		}
 		return [];
 	},
+
 	/**
 	 * Read or write the active quality level.
 	 *
@@ -310,12 +423,13 @@ export const mediaTracksMethods = {
 			return this._currentQualityIdx;
 		}
 		this._currentQualityIdx = idx;
-		const backend = peekBackendTyped<_BackendWithSetQualityLevel>(this);
+		const backend = this._peekBackendTyped<_BackendWithSetQualityLevel>();
 		if (typeof backend?.setQuality === 'function') {
 			backend.setQuality(idx);
 		}
 		// No HLS variants on audio backend — no-op.
 	},
+
 	chapters(this: Internals): ReadonlyArray<Chapter> {
 		// Chapter list comes from the active playlist item. Items carry an
 		// inline `chapters: Chapter[]` field once the kit resolves the sidecar
@@ -325,6 +439,7 @@ export const mediaTracksMethods = {
 		const current: ItemWithDefinedTracks | undefined = rawCurrent && hasTracksField(rawCurrent) ? rawCurrent : undefined;
 		return current?.chapters ?? [];
 	},
+
 	seekToChapter(this: Internals, idx: number, opts?: ActionOptions): void {
 		const list = this.chapters();
 		const chapter = list[idx];
@@ -343,6 +458,7 @@ export const mediaTracksMethods = {
 			title: chapter.title,
 		});
 	},
+
 	nextChapter(this: Internals, opts?: ActionOptions): void {
 		const list = this.chapters();
 		if (list.length === 0)
@@ -355,6 +471,7 @@ export const mediaTracksMethods = {
 
 		this.seekToChapter(nextIdx, opts);
 	},
+
 	previousChapter(this: Internals, opts?: ActionOptions): void {
 		const list = this.chapters();
 		if (list.length === 0)
@@ -402,8 +519,3 @@ export const mediaTracksMethods = {
 		this.seekToChapter(idx);
 	},
 } as const;
-
-
-// Export the resolveItemTrackUrls helper so loadingMethods can use it.
-// (It's in util/tracks.ts — this is just a re-export for mixin co-location.)
-export { resolveItemTrackUrls } from '../util/tracks';

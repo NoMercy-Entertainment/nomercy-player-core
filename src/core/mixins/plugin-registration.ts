@@ -1,10 +1,59 @@
+import type { IPlayer, PluginCtorWithId, Translations } from '../../types';
 import type { Plugin } from '../../plugin';
-import type { PluginCtorWithId } from '../../types';
+import { LifecycleRegistry } from '../../lifecycle';
+import { Logger } from '../../logger';
+import { bcp47FallbackChain } from '../../translator';
+import { getLazyTranslationLoader } from '../../translations-glob';
 
 import { pluginErrorFactory, stateError } from '../errors';
 import type { Internals } from '../state';
 import { KIT_VERSION } from '../kit-version';
-import { registerPlugin } from '../util/register-plugin';
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// Per-player lang-loaded tracking
+// WeakMap lifetime is tied to the player instance — no manual cleanup needed.
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Per-player set of plugin-id|lang pairs whose runtime translation bundle has
+ * already been loaded. Prevents `loadTranslations` from being invoked twice
+ * for the same plugin+language pair when consumers call `setLanguage` repeatedly.
+ */
+const _pluginLangLoaded = new WeakMap<Internals, Set<string>>();
+
+/** Build a scoped child logger from the player's configured logger or a fallback. */
+function makePlayerLogger(self: Internals, scope: string): Logger {
+	const configured = (self.options as unknown as { logger?: Logger } | undefined)?.logger;
+	const root = configured ?? new Logger({ prefix: 'nmplayer', level: (self.options as unknown as { logLevel?: string } | undefined)?.logLevel as Parameters<Logger['level']>[0] | undefined });
+	return root.child(scope) as Logger;
+}
+
+type _LoadTranslationsFn = (lang: string) => Promise<Record<string, string> | undefined>;
+
+function _getLoadTranslations(instance: unknown): _LoadTranslationsFn | undefined {
+	if (typeof instance !== 'object' || instance === null)
+		return undefined;
+	if (!('loadTranslations' in instance))
+		return undefined;
+	const fn: unknown = (instance as { loadTranslations: unknown }).loadTranslations;
+	return typeof fn === 'function' ? (fn as _LoadTranslationsFn) : undefined;
+}
+
+function _cascadeDisable(self: Internals, failedId: string, reason: string, findDependents: (id: string) => string[]): void {
+	const dependents = findDependents(failedId);
+	for (const depId of dependents) {
+		const entry = self._plugins.find(p => p.ctor.id === depId);
+		if (!entry)
+			continue;
+		if (!entry.instance.enabled())
+			continue; // already disabled
+		try {
+			entry.instance.disable(reason);
+		}
+		catch { /* defensive */ }
+	}
+}
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -94,6 +143,148 @@ function _findDependents(self: Internals, id: string): string[] {
 // ──────────────────────────────────────────────────────────────────────────
 
 export const pluginRegistrationMethods = {
+	_pluginLangLoadedSet(this: Internals): Set<string> | undefined {
+		return _pluginLangLoaded.get(this);
+	},
+
+	_markPluginLangLoaded(this: Internals, pluginId: string, lang: string): void {
+		let set = _pluginLangLoaded.get(this);
+		if (!set) {
+			set = new Set();
+			_pluginLangLoaded.set(this, set);
+		}
+		set.add(`${pluginId}::${lang}`);
+	},
+
+	/**
+	 * Register a single plugin: instantiate, initialize, merge static translations,
+	 * await `use()` (bounded by timeout), push onto the registered list, emit
+	 * `plugin:installed`. Failures emit `plugin:failed`, mark plugin disabled, and
+	 * do NOT block the rest of the pipeline.
+	 */
+	async _registerPlugin(this: Internals, ctor: PluginCtorWithId, opts: unknown, timeoutMs: number): Promise<void> {
+		const id = ctor.id;
+		if (this._plugins.some(p => p.ctor.id === id)) {
+			return;
+		}
+
+		type _InstantiableCtor = new () => Plugin;
+		const lifecycle = new LifecycleRegistry();
+		let instance: Plugin;
+		try {
+			instance = new (ctor as unknown as _InstantiableCtor)();
+			instance.initialize(this as unknown as IPlayer, opts, lifecycle);
+		}
+		catch (err) {
+			this.emit('plugin:failed', {
+				id,
+				error: err instanceof Error ? err : new Error(String(err)),
+			});
+			throw err;
+		}
+
+		// Walk the prototype chain so EVERY ancestor's `static translations`
+		// gets registered, not just the subclass's. Without this, declaring
+		// `static translations` on a subclass shadows the parent's static and
+		// the parent's bundle is silently dropped. Subclasses ship ONLY their
+		// own keys; the kit composes the chain.
+		//
+		// Each ancestor's bundle can be either eager (pre-resolved keys for
+		// every language) OR lazy (the `LAZY_TRANSLATIONS_MARKER` is stamped
+		// by `translationsFromGlob` when modules are function loaders). For
+		// lazy bundles we ONLY fetch the active language + its BCP-47 parent
+		// chain — Chinese never enters memory when the user wants Dutch.
+		{
+			const stack: Translations[] = [];
+			let cur: unknown = ctor;
+			while (cur && cur !== Function.prototype) {
+				if (Object.prototype.hasOwnProperty.call(cur, 'translations')) {
+					const withT = cur as { translations?: Translations };
+					if (withT.translations) stack.unshift(withT.translations);
+				}
+				cur = Object.getPrototypeOf(cur);
+			}
+			const currentLang = String(this.language());
+			const langChain = bcp47FallbackChain(currentLang);
+			for (const translationBundle of stack) {
+				const lazy = getLazyTranslationLoader(translationBundle);
+				if (lazy) {
+					for (const tag of langChain) {
+						const bundle = await lazy(tag);
+						if (!bundle)
+							continue;
+						this.addTranslations({ [tag]: bundle });
+						this._markPluginLangLoaded(id, tag);
+					}
+				}
+				else {
+					this.addTranslations(translationBundle);
+				}
+			}
+		}
+
+		let useFailed = false;
+		let useError: unknown;
+		try {
+			const result = instance.use();
+			if (result instanceof Promise) {
+				let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+				const timeout = new Promise<never>((_, reject) => {
+					timeoutHandle = setTimeout(
+						() => reject(stateError('core:plugin/init-timeout', `Plugin "${id}" use() exceeded ${timeoutMs}ms`, {
+							id,
+							timeoutMs,
+						})),
+						timeoutMs,
+					);
+				});
+				try {
+					await Promise.race([result, timeout]);
+				}
+				finally {
+					if (timeoutHandle)
+						clearTimeout(timeoutHandle);
+				}
+			}
+		}
+		catch (err) {
+			useFailed = true;
+			useError = err;
+		}
+
+		if (useFailed) {
+			const failError = useError instanceof Error ? useError : new Error(String(useError));
+
+			const pluginLogger = (instance as unknown as { logger?: { error: (...args: unknown[]) => void } }).logger
+				?? makePlayerLogger(this, id);
+			pluginLogger.error('plugin use() failed — plugin will not be registered', failError);
+
+			try { instance.dispose(); }
+			catch { /* defensive */ }
+			try { lifecycle.dispose(); }
+			catch { /* defensive */ }
+
+			const failPayload = { id, error: failError };
+
+			this.emit('plugin:failed', failPayload);
+			this.emit(`plugin:${id}:failed`, failPayload);
+			_cascadeDisable(this, id, `dep-failed:${id}`, depId => _findDependents(this, depId));
+			return;
+		}
+
+		this._plugins.push({
+			instance,
+			lifecycle,
+			ctor,
+		});
+		const installedPayload = {
+			id,
+			version: ctor.version,
+		};
+		this.emit('plugin:installed', installedPayload);
+		this.emit(`plugin:${id}:installed`, installedPayload);
+	},
+
 	// `opts?: P['opts']` is the load-bearing line for autocomplete: the plugin's
 	// options-generic `O` (the second `Plugin<P, O, E>` slot) flows back to the
 	// `opts` parameter, so consumers get full type-checking + completion on the
@@ -191,7 +382,7 @@ export const pluginRegistrationMethods = {
 		const timeoutMs = this.options.pluginInitTimeoutMs ?? 30_000;
 		// Fire-and-forget — consumer can `await player.ready()`-style by
 		// listening to `plugin:installed` / `plugin:failed`.
-		void registerPlugin(this, PluginClass, opts, timeoutMs);
+		void this._registerPlugin(PluginClass, opts, timeoutMs);
 		return this;
 	},
 

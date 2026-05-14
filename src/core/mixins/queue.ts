@@ -1,9 +1,6 @@
 import type { ActionOptions, BasePlaylistItem } from '../../types';
 
 import type { Internals } from '../state';
-import { emitBeforeMutation } from '../util/mutation-guard';
-import { disposeSidecarSubtitle } from '../util/sidecar';
-import { resolveAndEmitChapters } from '../util/tracks';
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -31,7 +28,7 @@ function _wireQueue(self: Internals): void {
 		// would emit stale cues against the new media). Renderers will
 		// receive a fresh `subtitleCue` event when the next selection
 		// happens (via `currentSubtitle` from a UI / preferences plugin).
-		disposeSidecarSubtitle(self);
+		self._disposeSidecarSubtitle();
 		self.emit('current', data);
 
 		// Ensure chapter data is populated for the new item and announce it.
@@ -39,7 +36,7 @@ function _wireQueue(self: Internals): void {
 		// moving the cursor, so this is a no-op for the initial load path.
 		// For cursor-only switches (player.current(i), next, previous) where
 		// load() was never called for that item, this is the only trigger.
-		void resolveAndEmitChapters(self, data.item?.id);
+		void self._resolveAndEmitChapters(data.item?.id);
 	});
 
 	self._backlogList.on('change', ({ items }) => self.emit('backlog', items));
@@ -124,7 +121,7 @@ export const queueMethods = {
 			return this._queueList.current();
 		}
 		_wireQueue(this);
-		if (!emitBeforeMutation(this, 'current', [target]))
+		if (!this._emitBeforeMutation( 'current', [target]))
 			return;
 
 		// Invalidate any in-flight load() so its cursor-move continuation does
@@ -177,7 +174,7 @@ export const queueMethods = {
 		if (zeroBasedIndex >= items.length) return;
 
 		_wireQueue(this);
-		if (!emitBeforeMutation(this, 'current', [zeroBasedIndex]))
+		if (!this._emitBeforeMutation( 'current', [zeroBasedIndex]))
 			return;
 
 		this._queueList.setCurrent(zeroBasedIndex);

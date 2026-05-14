@@ -1,6 +1,4 @@
 import type { Internals } from '../state';
-import { resolveBackend } from '../util/backend';
-import { emitBeforeMutation } from '../util/mutation-guard';
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -12,7 +10,7 @@ export const volumeMethods = {
 		if (v === undefined) {
 			return this._volumeState === 'muted' ? 0 : this._internalVolume;
 		}
-		if (!emitBeforeMutation(this, 'volume', [v]))
+		if (!this._emitBeforeMutation( 'volume', [v]))
 			return;
 		this._internalVolume = Math.max(0, Math.min(1, v));
 		if (this._volumeState !== 'muted') {
@@ -20,7 +18,7 @@ export const volumeMethods = {
 		}
 		this.emit('volume', { level: this._internalVolume });
 
-		resolveBackend(this)?.volume?.(this._internalVolume);
+		this._resolveBackend()?.volume?.(this._internalVolume);
 	},
 	mute(this: Internals): void {
 		if (this._volumeState === 'muted')
@@ -29,7 +27,7 @@ export const volumeMethods = {
 		this._volumeState = 'muted';
 		this.emit('mute', { muted: true });
 
-		resolveBackend(this)?.mute?.();
+		this._resolveBackend()?.mute?.();
 	},
 	unmute(this: Internals): void {
 		if (this._volumeState === 'unmuted')
@@ -38,7 +36,7 @@ export const volumeMethods = {
 		this._internalVolume = this._volumeBeforeMute;
 		this.emit('mute', { muted: false });
 
-		resolveBackend(this)?.unmute?.();
+		this._resolveBackend()?.unmute?.();
 	},
 	toggleMute(this: Internals): void {
 		if (this._volumeState === 'muted')

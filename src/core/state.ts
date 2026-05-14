@@ -215,6 +215,23 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
  * intersect it into `Internals`.
  */
 export interface MixinSurface {
+	// playerStateMethods — backend access + phase + guards
+	_transitionPhase(next: PlayerPhase): void;
+	_resolveBackend(): import('./mixins/player-state').BackendShape | undefined;
+	_peekBackend(): unknown;
+	_peekBackendTyped<S extends object>(): S | undefined;
+	_assertReady(): void;
+	_dispatchBefore<TData>(beforeEvent: string, data: TData): Promise<import('../dispatch').BeforeDispatchOutcome<TData>>;
+	// mediaTracksMethods — sidecar + chapter helpers
+	_disposeSidecarSubtitle(): void;
+	resolveItemTrackUrls<T extends BasePlaylistItem>(item: T): Promise<T>;
+	_resolveAndEmitChapters(itemId: string | number | undefined): Promise<void>;
+	// stateMutatorsMethods — mutation guard
+	_emitBeforeMutation(method: string, args: ReadonlyArray<unknown>): boolean;
+	// pluginRegistrationMethods — lang loaded tracking
+	_pluginLangLoadedSet(): Set<string> | undefined;
+	_markPluginLangLoaded(pluginId: string, lang: string): void;
+	_registerPlugin(ctor: import('../types').PluginCtorWithId, opts: unknown, timeoutMs: number): Promise<void>;
 	// transportMethods
 	play(opts?: import('../types').ActionOptions): Promise<void>;
 	pause(opts?: import('../types').ActionOptions): Promise<void>;

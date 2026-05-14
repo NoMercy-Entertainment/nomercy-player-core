@@ -12,8 +12,6 @@ import { DefaultTranslator } from '../../translator';
 
 import { stateError } from '../errors';
 import type { Internals } from '../state';
-import { transitionPhase } from '../util/phase';
-import { registerPlugin } from '../util/register-plugin';
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -89,7 +87,7 @@ function _runSetupPipeline(self: Internals): void {
 				const timeoutMs = self.options.pluginInitTimeoutMs ?? 30_000;
 				while (self._pluginQueue.length > 0) {
 					const entry = self._pluginQueue.shift()!;
-					await registerPlugin(self, entry.ctor, entry.opts, timeoutMs);
+					await self._registerPlugin(entry.ctor, entry.opts, timeoutMs);
 				}
 			});
 			await _runStage(self, 'pluginsRegistered', 'pluginsRegisteredError', () => {});
@@ -121,7 +119,7 @@ function _runSetupPipeline(self: Internals): void {
 
 			await _runStage(self, 'mediaReady', 'mediaReadyError', () => {});
 
-			transitionPhase(self, 'ready');
+			self._transitionPhase('ready');
 			self.emit('ready');
 			self._readyResolve?.();
 		}
@@ -575,7 +573,7 @@ export const lifecycleMethods = {
 		// Pre-pipeline ceremony: beforeSetup fires synchronously so consumers
 		// can attach last-mile listeners before the pipeline actually runs.
 		this.emit('beforeSetup');
-		transitionPhase(this, 'setup');
+		this._transitionPhase('setup');
 
 		// Kick off the async pipeline fire-and-forget. `ready()` is the public
 		// signal that the pipeline finished — internal `_readyResolve` /
@@ -606,7 +604,7 @@ export const lifecycleMethods = {
 	dispose(this: Internals): void {
 		if (this._phase === 'disposed' || this._phase === 'disposing')
 			return;
-		transitionPhase(this, 'disposing');
+		this._transitionPhase('disposing');
 		// Tear down policy subscriptions (visibility / network / wakeLock)
 		// BEFORE the disposed phase so handlers see a sensible final state.
 		for (const cleanup of this._policyCleanup) {
@@ -618,7 +616,7 @@ export const lifecycleMethods = {
 		this._policyCleanup = [];
 		this._readyReject?.(stateError('core:player/disposed', 'dispose() called before ready'));
 		this.emit('dispose');
-		transitionPhase(this, 'disposed');
+		this._transitionPhase('disposed');
 		this.off('all');
 	},
 

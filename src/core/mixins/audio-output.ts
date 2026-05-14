@@ -1,7 +1,6 @@
 import { BrowserPolicyError } from '../../errors';
 
 import type { Internals } from '../state';
-import { peekBackendTyped } from '../util/backend';
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -73,7 +72,7 @@ export const audioOutputMethods = {
 		if (deviceId === undefined) {
 			return this._currentAudioOutputId;
 		}
-		const backend = peekBackendTyped<_BackendWithMediaElement>(this);
+		const backend = this._peekBackendTyped<_BackendWithMediaElement>();
 		const el = backend?.mediaElement?.();
 		if (!el || typeof el.setSinkId !== 'function') {
 			throw new BrowserPolicyError({

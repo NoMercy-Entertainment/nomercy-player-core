@@ -4,7 +4,6 @@ import type { ITranslator } from '../../translator';
 import { getLazyTranslationLoader } from '../../translations-glob';
 
 import type { Internals } from '../state';
-import { markPluginLangLoaded, pluginLangLoadedSet } from '../util/register-plugin';
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -18,7 +17,7 @@ function _ensureTranslator(self: Internals): ITranslator {
 }
 
 function _hasPluginLangLoaded(self: Internals, pluginId: string, lang: string): boolean {
-	return pluginLangLoadedSet(self)?.has(`${pluginId}::${lang}`) ?? false;
+	return self._pluginLangLoadedSet()?.has(`${pluginId}::${lang}`) ?? false;
 }
 
 type _LoadTranslationsFn = (lang: string) => Promise<Record<string, string> | undefined>;
@@ -67,7 +66,7 @@ export const i18nMethods = {
 									continue;
 								try {
 									const bundle = await lazy(tag);
-									markPluginLangLoaded(this, pluginId, tag);
+									this._markPluginLangLoaded(pluginId, tag);
 									if (!bundle)
 										continue;
 									// Static bundles include the `plugin.<id>.` prefix already.
@@ -94,7 +93,7 @@ export const i18nMethods = {
 					continue;
 				try {
 					const bundle = await hook.call(instance, lang);
-					markPluginLangLoaded(this, pluginId, lang);
+					this._markPluginLangLoaded(pluginId, lang);
 					if (!bundle)
 						continue;
 					const namespaced: Record<string, string> = {};

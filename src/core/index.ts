@@ -49,20 +49,9 @@ export { loadingMethods } from './mixins/loading';
 export { containerClassEmitMethods } from './mixins/container-class-emit';
 export { preloadStrategyMethods } from './mixins/preload-strategy';
 
-export { transitionPhase } from './util/phase';
-export { resolveBackend, peekBackend, peekBackendTyped } from './util/backend';
-export type { BackendShape } from './util/backend';
-export { assertReady, dispatchBefore } from './util/guards';
-export { disposeSidecarSubtitle } from './util/sidecar';
-export {
-	hasTracksField,
-	resolveItemTrackUrls,
-	fetchChaptersVtt,
-	resolveAndEmitChapters,
-} from './util/tracks';
-export type { SidecarTrack, ItemWithTracks, ItemWithDefinedTracks } from './util/tracks';
-export { HOT_MUTATIONS, emitBeforeMutation } from './util/mutation-guard';
-export { registerPlugin, markPluginLangLoaded, pluginLangLoadedSet } from './util/register-plugin';
+export type { BackendShape } from './mixins/player-state';
+export type { SidecarTrack, ItemWithTracks, ItemWithDefinedTracks } from './mixins/media-tracks';
+export { HOT_MUTATIONS } from './mixins/state-mutators';
 
 
 // ──────────────────────────────────────────────────────────────────────────

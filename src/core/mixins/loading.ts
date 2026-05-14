@@ -3,10 +3,6 @@ import { authFetch } from '../../auth-fetch';
 import { MediaFormatError, StateError } from '../../errors';
 
 import type { Internals } from '../state';
-import { assertReady, dispatchBefore } from '../util/guards';
-import { transitionPhase } from '../util/phase';
-import { resolveBackend } from '../util/backend';
-import { resolveItemTrackUrls } from '../util/tracks';
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -25,15 +21,14 @@ export const loadingMethods = {
 		item: T,
 		opts?: LoadOptions,
 	): Promise<void> {
-		assertReady(this);
+		this._assertReady();
 
 		// Capture phase before any async work so the loading transition
 		// reflects the actual state at call time — not the state after
 		// awaited setup-pipeline steps have already moved to 'ready'.
 		const priorPhase = this._phase;
 
-		const beforeResult = await dispatchBefore<{ item: T; source?: string }>(
-			this,
+		const beforeResult = await this._dispatchBefore<{ item: T; source?: string }>(
 			'beforeLoad',
 			{
 				item,
@@ -66,7 +61,7 @@ export const loadingMethods = {
 			url = await transformer(url);
 		}
 
-		const resolvedItem = await resolveItemTrackUrls(this, item2);
+		const resolvedItem = await this.resolveItemTrackUrls(item2);
 		if (resolvedItem !== item2) {
 			this._queueList.replaceItem(resolvedItem);
 		}
@@ -79,7 +74,7 @@ export const loadingMethods = {
 		// _transitionPhase('ready') which maps to 'paused' on the container,
 		// giving a clean settled state once backend.load() completes.
 		if (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused' || priorPhase === 'starting') {
-			transitionPhase(this, 'loading');
+			this._transitionPhase('loading');
 		}
 
 		// Race-guard: bump a monotonic load epoch and capture it. When the
@@ -94,7 +89,7 @@ export const loadingMethods = {
 		const isLatest = (): boolean => this._loadEpoch === epoch;
 
 		try {
-			const backend = resolveBackend(this);
+			const backend = this._resolveBackend();
 			if (!backend || typeof backend.load !== 'function') {
 				throw new StateError({
 					code: 'core:player/backend-missing',
@@ -141,14 +136,14 @@ export const loadingMethods = {
 			if (!isLatest()) return;
 			// Restore phase to ready (or whatever state the backend resolved to).
 			if (this._phase === 'loading') {
-				transitionPhase(this, 'ready');
+				this._transitionPhase('ready');
 			}
 			this.emit('mediaReady');
 		}
 		catch (err) {
 			// Restore phase on failure.
 			if (this._phase === 'loading' && (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused')) {
-				transitionPhase(this, priorPhase);
+				this._transitionPhase(priorPhase);
 			}
 			throw err;
 		}
@@ -159,7 +154,7 @@ export const loadingMethods = {
 		url: string,
 		parser?: (raw: string) => T[],
 	): Promise<void> {
-		assertReady(this);
+		this._assertReady();
 
 		this.emit('playlistResolving', { url });
 

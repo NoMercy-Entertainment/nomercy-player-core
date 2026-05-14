@@ -1,8 +1,6 @@
 import type { ActionOptions, TimeState } from '../../types';
 
 import type { Internals } from '../state';
-import { resolveBackend } from '../util/backend';
-import { dispatchBefore } from '../util/guards';
 import { seekingTransition } from './transport';
 
 
@@ -25,7 +23,7 @@ export const timeMethods = {
 		const target = Math.max(0, t);
 		// Async setter — returns Promise<void> so callers can await delay() resolution.
 		return (async () => {
-			const result = await dispatchBefore<{ time: number; source?: string }>(this, 'beforeSeek', {
+			const result = await this._dispatchBefore<{ time: number; source?: string }>('beforeSeek', {
 				time: target,
 				source: opts.source,
 			});
@@ -44,7 +42,7 @@ export const timeMethods = {
 				});
 			});
 
-			resolveBackend(this)?.currentTime?.(this._internalCurrentTime);
+			this._resolveBackend()?.currentTime?.(this._internalCurrentTime);
 
 			this.emit('seeked', { time: this._internalCurrentTime });
 		})();
@@ -54,10 +52,10 @@ export const timeMethods = {
 		return this._internalDuration;
 	},
 	buffered(this: Internals): number {
-		return resolveBackend(this)?.buffered?.() ?? 0;
+		return this._resolveBackend()?.buffered?.() ?? 0;
 	},
 	bufferedRanges(this: Internals): TimeRanges {
-		return resolveBackend(this)?.bufferedRanges?.() ?? _emptyTimeRanges();
+		return this._resolveBackend()?.bufferedRanges?.() ?? _emptyTimeRanges();
 	},
 	seekable(this: Internals): TimeRanges {
 		return _emptyTimeRanges();
@@ -97,7 +95,7 @@ export const timeMethods = {
 		this._playbackRate = rate;
 		this.emit('backend:ratechange', { rate });
 
-		resolveBackend(this)?.playbackRate?.(rate);
+		this._resolveBackend()?.playbackRate?.(rate);
 	},
 	playbackRates(this: Internals): number[] {
 		return [0.5, 0.75, 1, 1.25, 1.5, 2];
