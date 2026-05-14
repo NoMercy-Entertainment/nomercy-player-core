@@ -455,6 +455,53 @@ describe('authFetch', () => {
 				code: 'core:network/gateway-timeout',
 			});
 		});
+
+		it('exponential backoff escalates across retries (500, 1000, 2000)', async () => {
+			mockFetchResponse(500);
+			mockFetchResponse(500);
+			mockFetchResponse(500);
+			mockFetchResponse(200, 'recovered');
+			const retryDelays: number[] = [];
+			const result = await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				retry: {
+					attempts: 3,
+					backoff: 'exponential',
+					baseMs: 500,
+				},
+				emit: (event, data) => {
+					if (event === 'fetch:retry') {
+						retryDelays.push((data as { delayMs: number }).delayMs);
+					}
+				},
+			});
+			expect(result).toBe('recovered');
+			expect(retryDelays).toEqual([500, 1000, 2000]);
+		});
+
+		it('linear backoff escalates across retries (500, 1000, 1500)', async () => {
+			mockFetchResponse(500);
+			mockFetchResponse(500);
+			mockFetchResponse(500);
+			mockFetchResponse(200, 'recovered');
+			const retryDelays: number[] = [];
+			const result = await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				retry: {
+					attempts: 3,
+					baseMs: 500,
+				},
+				emit: (event, data) => {
+					if (event === 'fetch:retry') {
+						retryDelays.push((data as { delayMs: number }).delayMs);
+					}
+				},
+			});
+			expect(result).toBe('recovered');
+			expect(retryDelays).toEqual([500, 1000, 1500]);
+		});
 	});
 
 	// ─────────────────────────────────────────────────────────────────────

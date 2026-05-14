@@ -200,7 +200,7 @@ async function prepareAttempt<T>(opts: AuthFetchOptions<T>): Promise<AttemptCtx<
 // Layer 2 — single fetch + classify + decode
 // ─────────────────────────────────────────────────────────────────────────
 
-async function attemptOnce<T>(ctx: AttemptCtx<T>): Promise<Outcome<T>> {
+async function attemptOnce<T>(ctx: AttemptCtx<T>, attempt: number): Promise<Outcome<T>> {
 	const request = await buildRequest(ctx.url, ctx);
 
 	let response: Response;
@@ -229,7 +229,7 @@ async function attemptOnce<T>(ctx: AttemptCtx<T>): Promise<Outcome<T>> {
 		return {
 			kind: 'retry',
 			reason: timedOut ? 'timeout' : 'network',
-			delayMs: computeBackoff(ctx.retry, 1),
+			delayMs: computeBackoff(ctx.retry, attempt),
 			consumesAttempt: true,
 		};
 	}
@@ -283,7 +283,7 @@ async function attemptOnce<T>(ctx: AttemptCtx<T>): Promise<Outcome<T>> {
 		return {
 			kind: 'retry',
 			reason: 'http-5xx',
-			delayMs: computeBackoff(ctx.retry, 1),
+			delayMs: computeBackoff(ctx.retry, attempt),
 			consumesAttempt: true,
 		};
 	}
@@ -343,7 +343,7 @@ export async function authFetch<T = string>(opts: AuthFetchOptions<T>): Promise<
 	let attempt = 0;
 
 	while (attempt < ctx.maxAttempts) {
-		const outcome = await attemptOnce<T>(ctx);
+		const outcome = await attemptOnce<T>(ctx, attempt + 1);
 
 		if (outcome.kind === 'value') {
 			ctx.complete(true, ctx.lastStatus);
