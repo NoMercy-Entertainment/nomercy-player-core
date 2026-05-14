@@ -8,14 +8,39 @@ import type { Internals } from '../state';
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: loading — `load(item, opts)` / `loadQueue(url, parser?)`.
 //
-// Spec §L: `load(item)` fires `beforeLoad` (cancellable), then delegates to
-// the active backend's `load(url)`. The library overrides `backend()` to
-// return its concrete `IAudioBackend` / `IVideoBackend`; the mixin pulls
-// the URL from the item, resolves auth.transformUrl, and emits the standard
-// post-load events.
+// `load(item)` fires `beforeLoad` (cancellable), resolves the URL through
+// the active auth transformer, then delegates to the backend's `load(url)`.
+// A monotonic epoch guards against load-races when the consumer fires
+// multiple load() calls in quick succession.
 // ──────────────────────────────────────────────────────────────────────────
 
 export const loadingMethods = {
+	/**
+	 * Load a single playlist item into the player. Dispatches `beforeLoad`
+	 * first — a listener may `preventDefault()`, in which case `loadPrevented`
+	 * fires and the method returns without touching the backend.
+	 *
+	 * URL resolution order: `item.url` → `auth.transformUrl` (if present) →
+	 * backend `load(url)`. The item's track URLs (subtitles, chapters, …) are
+	 * resolved via `resolveItemTrackUrls` before the backend receives the item,
+	 * and the queue is updated in-place when the resolved item differs from the
+	 * original.
+	 *
+	 * Phase transitions: the player enters `loading` while the backend is
+	 * mounting, then returns to `ready` on success (or restores the prior
+	 * phase on failure). The transition is skipped when `load()` is called
+	 * before the setup pipeline has completed, to avoid a `loading→paused`
+	 * flash during initial auto-load.
+	 *
+	 * `opts.startAt` — seek to this timestamp (seconds) once metadata is
+	 * available. `opts.fadeIn` — ramp volume from 0 to the current level over
+	 * this many seconds. Both are optional.
+	 *
+	 * Emits `mediaReady` after a successful load. On failure the error
+	 * propagates via the `error` event AND re-throws.
+	 *
+	 * @throws when `item.url` is missing or the backend is not wired.
+	 */
 	async load<T extends BasePlaylistItem & { url?: string }>(
 		this: Internals,
 		item: T,
@@ -43,8 +68,8 @@ export const loadingMethods = {
 			return;
 		}
 
-		// Resolve URL — `item.url` is the canonical field; `auth.transformUrl`
-		// rewrites it (e.g. for custom-scheme streams or pre-signed URLs).
+		// `item.url` is the canonical field; `auth.transformUrl` rewrites it
+		// (e.g. for custom-scheme streams or pre-signed URLs).
 		const item2 = beforeResult.data.item;
 		let url = (item2 as { url?: string }).url;
 		if (!url) {
@@ -60,24 +85,18 @@ export const loadingMethods = {
 			this._queueList.replaceItem(resolvedItem);
 		}
 
-		// Phase: ready/playing/paused/starting → loading while the backend
-		// mounts. idle/setup are excluded: when load() is called before the
-		// setup pipeline has finished (initial auto-load pattern), the player
-		// has never shown content, so flashing loading→paused is noise and
-		// causes a test-visible oscillation. The setup pipeline ends with
-		// _transitionPhase('ready') which maps to 'paused' on the container,
-		// giving a clean settled state once backend.load() completes.
+		// Skip the loading phase flash when the player has never shown content
+		// (idle/setup). setup() ends with _transitionPhase('ready'), giving a
+		// clean settled state once backend.load() completes.
 		if (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused' || priorPhase === 'starting') {
 			this._transitionPhase('loading');
 		}
 
 		// Race-guard: bump a monotonic load epoch and capture it. When the
-		// consumer fires p.load(A) and p.load(B) in quick succession, the
-		// older call's continuation otherwise lands AFTER the newer one and
-		// drags cursor / phase / opts back to A — bridges that listen to
-		// `current` then chase B again, producing a load-loop. Anything
-		// observably side-effectful AFTER the awaited backend.load only
-		// runs when our epoch is still the latest.
+		// consumer fires load(A) then load(B) in quick succession, the older
+		// continuation would otherwise overwrite cursor / phase / opts back to
+		// A once it resolves. Anything side-effectful after the awaited
+		// backend.load only runs when our epoch is still the latest.
 		const epoch = (this._loadEpoch ?? 0) + 1;
 		this._loadEpoch = epoch;
 		const isLatest = (): boolean => this._loadEpoch === epoch;
@@ -92,14 +111,12 @@ export const loadingMethods = {
 
 			// Move cursor to the loaded item so consumer-facing `current()` reflects it.
 			// Use setCurrent directly — calling this.current() here would re-trigger load().
-			// Guard: skip if the cursor is already at this item (e.g. current() mixin
-			// moved it before calling load()) to prevent a duplicate `current` event.
+			// Guard: skip when the cursor is already at this item to prevent a duplicate `current` event.
 			const alreadyCurrent = this._queueList.current()?.id === item2.id;
 			if (!alreadyCurrent) {
 				this._queueList.setCurrent(item2.id ?? item2);
 			}
 
-			// Honour LoadOptions.startAt by seeking once metadata is available.
 			if (typeof opts?.startAt === 'number' && opts.startAt > 0) {
 				const ret = this.currentTime(opts.startAt);
 				if (ret instanceof Promise)
@@ -107,30 +124,28 @@ export const loadingMethods = {
 				if (!isLatest()) return;
 			}
 
-			// Honour LoadOptions.fadeIn by ramping volume from 0→current over the configured seconds.
-			// Trivial fade — no easing curve. Plugins extend.
+			// Trivial linear fade — no easing curve. Plugins that need fancier
+			// transitions should hook `mediaReady` and drive volume themselves.
 			if (typeof opts?.fadeIn === 'number' && opts.fadeIn > 0) {
 				const rawVolume = this.volume();
 				const target = typeof rawVolume === 'number' ? rawVolume : 1;
 				this.volume(0);
 				const steps = 20;
 				const stepMs = (opts.fadeIn * 1000) / steps;
-				for (let i = 1; i <= steps; i++) {
+				for (let stepIndex = 1; stepIndex <= steps; stepIndex++) {
 					await new Promise(r => setTimeout(r, stepMs));
 					if (!isLatest()) return;
-					this.volume((target * i) / steps);
+					this.volume((target * stepIndex) / steps);
 				}
 			}
 
 			if (!isLatest()) return;
-			// Restore phase to ready (or whatever state the backend resolved to).
 			if (this._phase === 'loading') {
 				this._transitionPhase('ready');
 			}
 			this.emit('mediaReady');
 		}
 		catch (err) {
-			// Restore phase on failure.
 			if (this._phase === 'loading' && (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused')) {
 				this._transitionPhase(priorPhase);
 			}
@@ -138,6 +153,20 @@ export const loadingMethods = {
 		}
 	},
 
+	/**
+	 * Fetch a remote playlist URL and replace the current queue with the
+	 * parsed result.
+	 *
+	 * The request goes through the same auth pipeline as all other player
+	 * fetches — `_authConfig` (or `options.auth` as fallback) is forwarded to
+	 * `authFetch` automatically.
+	 *
+	 * `parser` is optional. When omitted the response body is parsed as JSON.
+	 * Supply a custom parser for M3U, XSPF, or other playlist formats.
+	 *
+	 * Emits `playlistResolving` before the fetch, `playlistReady` on success,
+	 * `playlistResolveError` and `error` on failure (and re-throws).
+	 */
 	async loadQueue<T extends BasePlaylistItem>(
 		this: Internals,
 		url: string,
@@ -147,7 +176,6 @@ export const loadingMethods = {
 
 		this.emit('playlistResolving', { url });
 
-		// Use authFetch under the hood so the consumer's auth pipeline is honored.
 		const config = this.options ?? {};
 		const ctrl = new AbortController();
 		try {
