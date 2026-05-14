@@ -8,6 +8,12 @@ import type { Internals } from '../state';
 // ──────────────────────────────────────────────────────────────────────────
 
 export const experimentalDescriptor = {
+	/**
+	 * Tier-4 runtime override surface. Returns an object whose `override` /
+	 * `restore` / `overrides` methods let consumers (and plugins) monkey-patch
+	 * player methods without replacing the prototype. See `PlayerExperimental`
+	 * for the full contract.
+	 */
 	get experimental(): PlayerExperimental {
 		const self = this as unknown as Internals;
 		const overrides = self._overrides;
@@ -36,6 +42,16 @@ export const experimentalDescriptor = {
 			originals.delete(method);
 		};
 		return {
+			/**
+			 * Temporarily replace a player method with a custom implementation.
+			 * The original (mixin-installed) method is captured on first call and
+			 * restored automatically when the returned disposer is invoked. Multiple
+			 * overrides of the same method overwrite each other — the last writer
+			 * wins. Calling the disposer removes the override and restores the
+			 * captured original without affecting any other overrides.
+			 *
+			 * Returns a zero-arg disposer. Call it to undo the override.
+			 */
 			override: <K extends string>(method: K, fn: (...args: unknown[]) => unknown): (() => void) => {
 				const originals = getOriginals();
 				if (!originals.has(method)) {
@@ -69,12 +85,17 @@ export const experimentalDescriptor = {
 					}
 				};
 			},
+			/**
+			 * Remove the active override for `method` and restore the original
+			 * implementation. No-op when the method has no active override.
+			 */
 			restore: (method: string): void => {
 				if (!overrides.has(method))
 					return;
 				overrides.delete(method);
 				restoreInstanceMethod(method);
 			},
+			/** Snapshot of all active overrides. Each entry names the method and which layer installed it. */
 			overrides: (): Array<{ method: string; by: string | 'consumer' }> => {
 				return Array.from(overrides.entries()).map(([method, { by }]) => ({
 					method,
