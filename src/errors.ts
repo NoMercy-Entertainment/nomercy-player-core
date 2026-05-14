@@ -243,6 +243,40 @@ export interface PlayerErrorEvent {
 	isDefaultPrevented(): boolean;
 }
 
+/**
+ * Build a `PlayerErrorEvent` payload around an existing `PlayerError`.
+ *
+ * Wraps the error in the cancellable-event shape that `'fatal'` / `'error'` /
+ * `'warning'` / `'info'` listeners expect: per-event state (`isHandled`,
+ * `isPropagationStopped`, `isDefaultPrevented`) lives in closure-bound flags,
+ * and the corresponding `markHandled` / `stopImmediatePropagation` /
+ * `preventDefault` mutators flip them. Listeners that don't call those
+ * methods get classic fire-and-forget behaviour.
+ */
+export function makePlayerErrorEvent(
+	error: PlayerError,
+	severity: Severity,
+	scope: ErrorScope,
+	timestamp: number = Date.now(),
+): PlayerErrorEvent {
+	let handled = false;
+	let propagationStopped = false;
+	let defaultPrevented = false;
+	return {
+		error,
+		severity,
+		scope,
+		timestamp,
+		markHandled: () => { handled = true; },
+		isHandled: () => handled,
+		stopImmediatePropagation: () => { propagationStopped = true; },
+		isPropagationStopped: () => propagationStopped,
+		preventDefault: () => { defaultPrevented = true; },
+		isDefaultPrevented: () => defaultPrevented,
+	};
+}
+
+
 // ──────────────────────────────────────────────────────────────────────────
 // Factory functions — kit-internal helpers for the common throw shape.
 // All apply `severity: 'error'`, `scope: { kind: 'core' }`, and prefix the

@@ -10,7 +10,7 @@ import { StreamRegistry } from '../../streams/registry';
 import { browserPlatform } from '../../platform';
 import { DefaultTranslator } from '../../translator';
 
-import { stateError } from '../../errors';
+import { makePlayerErrorEvent, stateError, StateError } from '../../errors';
 import type { Internals } from '../state';
 
 
@@ -110,15 +110,37 @@ export const lifecycleMethods = {
 	dispose(this: Internals): void {
 		if (this._phase === 'disposed' || this._phase === 'disposing')
 			return;
+		const wasReady = this._phase === 'ready';
 		this._transitionPhase('disposing');
 		for (const cleanup of this._policyCleanup) {
 			try {
 				cleanup();
 			}
-			catch { /* defensive — never let teardown errors escape */ }
+			catch (cause) {
+				// Defensive but observable — surface teardown bugs without
+				// blocking the rest of the queue. Listeners are still live
+				// (off('all') runs at the end of dispose), so handlers wired
+				// for diagnostics will see the warning.
+				const error = new StateError({
+					code: 'core:lifecycle/cleanup-failed',
+					severity: 'warning',
+					scope: { kind: 'core' },
+					message: 'dispose cleanup callback threw',
+					cause,
+				});
+				try {
+					this.emit('warning', makePlayerErrorEvent(error, 'warning', { kind: 'core' }));
+				}
+				catch { /* belt-and-braces — never let a warning handler abort dispose */ }
+			}
 		}
 		this._policyCleanup = [];
-		this._readyReject?.(stateError('core:player/disposed', 'dispose() called before ready'));
+		// Only reject the ready promise when setup never finished — rejecting
+		// a settled promise is a no-op but the lying message ("called before
+		// ready") would mislead anyone debugging from the rejection stack.
+		if (!wasReady) {
+			this._readyReject?.(stateError('core:player/disposed', 'dispose() called before ready'));
+		}
 		this.emit('dispose');
 		this._transitionPhase('disposed');
 		this.off('all');
@@ -823,19 +845,20 @@ async function _runStage(
 		}
 	}
 	catch (err) {
-		const error = err instanceof Error ? err : new Error(String(err));
-		const payload = {
-			error,
-			severity: 'error' as const,
-			scope: { kind: 'core' as const },
-			timestamp: Date.now(),
-			markHandled: () => {},
-			isHandled: () => false,
-			stopImmediatePropagation: () => {},
-			isPropagationStopped: () => false,
-			preventDefault: () => {},
-			isDefaultPrevented: () => false,
-		};
+		const raw = err instanceof Error ? err : new Error(String(err));
+		// Wrap non-PlayerError throws (e.g. plain Error from a stage callback)
+		// so listeners always receive a PlayerErrorEvent.error of the right
+		// shape (code, severity, scope, etc.).
+		const error = raw instanceof StateError
+			? raw
+			: new StateError({
+				code: `core:lifecycle/${stage}-failed`,
+				severity: 'error',
+				scope: { kind: 'core' },
+				message: raw.message,
+				cause: raw,
+			});
+		const payload = makePlayerErrorEvent(error, 'error', { kind: 'core' });
 		self.emit(errorEvent, payload);
 		self.emit('error', payload);
 		throw err;

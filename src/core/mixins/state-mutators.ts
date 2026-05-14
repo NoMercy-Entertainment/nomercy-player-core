@@ -1,4 +1,4 @@
-import { pluginError } from '../../errors';
+import { makePlayerErrorEvent, pluginError } from '../../errors';
 
 import type { PlayStateToken, RepeatStateToken, ShuffleStateToken, VolumeStateToken } from '../state';
 import type { Internals } from '../state';
@@ -140,30 +140,20 @@ export const stateMethods = {
 						continue;
 				}
 				const code = `plugin:${ctor.id}/${advisory.reason}`;
-				const errorPayload = {
-					error: pluginError(code, advisory.message, {
-						severity: advisory.severity,
-						pluginId: ctor.id,
-						context: {
-							method,
-							args,
-							phase: this._phase,
-						},
-					}),
+				const error = pluginError(code, advisory.message, {
 					severity: advisory.severity,
-					scope: {
-						kind: 'plugin',
-						id: ctor.id,
+					pluginId: ctor.id,
+					context: {
+						method,
+						args,
+						phase: this._phase,
 					},
-					timestamp: Date.now(),
-					markHandled: () => {},
-					isHandled: () => false,
-					stopImmediatePropagation: () => {},
-					isPropagationStopped: () => false,
-					preventDefault: () => {},
-					isDefaultPrevented: () => false,
-				};
-				this.emit(advisory.severity, errorPayload);
+				});
+				this.emit(advisory.severity, makePlayerErrorEvent(
+					error,
+					advisory.severity,
+					{ kind: 'plugin', id: ctor.id },
+				));
 			}
 		}
 
