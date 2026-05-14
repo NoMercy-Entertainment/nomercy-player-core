@@ -6,9 +6,8 @@ import type { Internals } from '../state';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: auth runtime — `auth` / `urlResolver` / `refreshAuth`.
-// Spec §H. Single source of truth shared by both libraries; the per-library
-// stubs that previously lived in `music/index.ts` and `video/index.ts` are
-// removed once this mixin is wired into `playerCoreMethods`.
+// Single source of truth for auth config, URL resolution, and token refresh.
+// Both the music and video players wire this mixin through `playerCoreMethods`.
 // ──────────────────────────────────────────────────────────────────────────
 
 export const authMethods = {
