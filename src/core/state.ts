@@ -10,6 +10,7 @@ import type {
 	PlaybackMetrics,
 	PlayerPhase,
 	PluginCtorWithId,
+	SubtitleStyle,
 	UrlResolver,
 } from '../types';
 import { AudioTrackState, CastState as _CastStateEnum, QualityState } from '../types';
@@ -202,7 +203,7 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	_sidecarSubtitle?: SidecarSubtitleContext;
 
 	/** Subtitle style patch cache. Seeded on first read; mutated by `subtitleStyle(patch)`. */
-	_subtitleStyle?: Record<string, unknown>;
+	_subtitleStyle?: SubtitleStyle;
 }
 
 /**

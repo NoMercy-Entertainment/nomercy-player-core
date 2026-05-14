@@ -1,4 +1,4 @@
-import type { ActionOptions, BasePlaylistItem, Chapter, SubtitleCue as SubtitleCuePayload, SubtitleTrack } from '../../types';
+import type { ActionOptions, AudioTrack, BasePlaylistItem, Chapter, QualityLevel, SubtitleCue as SubtitleCuePayload, SubtitleStyle, SubtitleTrack } from '../../types';
 import { CueTracker } from '../../cues/tracker';
 import { parseVttSubtitles, parseVtt } from '../../cues/parsers/vtt';
 import type { VTTSubtitlePayload } from '../../cues/parsers/vtt';
@@ -32,10 +32,17 @@ export interface ItemWithDefinedTracks extends BasePlaylistItem {
 	chapters?: Chapter[];
 }
 
+/** Narrows an item to one carrying a non-empty `tracks` array. Items with an
+ *  empty array or no field at all fall through to the no-tracks path. */
 function hasTracksField(item: BasePlaylistItem): item is ItemWithDefinedTracks {
 	return 'tracks' in item && Array.isArray((item as ItemWithTracks).tracks) && (item as ItemWithTracks).tracks!.length > 0;
 }
 
+/**
+ * Fetch a sidecar VTT chapter file and convert its cues into the kit's
+ * `Chapter[]` shape. Network or parse failures resolve to an empty list —
+ * chapters are an enhancement; a failed fetch should never prevent playback.
+ */
 async function fetchChaptersVtt(url: string): Promise<Chapter[]> {
 	try {
 		const r = await fetch(url);
@@ -63,15 +70,21 @@ interface _BackendWithSubtitleTracks {
 	subtitleTracks?: () => SubtitleTrack[];
 }
 interface _BackendWithAudioTrack { setAudioTrack?: (idx: number) => void }
-interface _BackendWithQualityLevels { qualityLevels?: (opts?: { includeUnsupported?: true }) => unknown }
+interface _BackendWithQualityLevels { qualityLevels?: (opts?: { includeUnsupported?: true }) => QualityLevel[] }
 interface _BackendWithSetQualityLevel { setQuality?: (idx: number | 'auto') => void }
-interface _BackendWithAudioTracks { audioTracks?: () => unknown }
+interface _BackendWithAudioTracks { audioTracks?: () => AudioTrack[] }
 
 
 // ──────────────────────────────────────────────────────────────────────────
 // Sidecar VTT helpers
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Find the sidecar subtitle track at a given (sidecar-list-relative) index on
+ * the active playlist item. Returns the minimal info `_startSidecarSubtitle`
+ * needs to fetch + parse the VTT; `undefined` when no item is active or the
+ * index is out of range.
+ */
 function _resolveSidecarSubtitle(
 	self: Internals,
 	sidecarIdx: number,
@@ -165,6 +178,11 @@ function _toSubtitleCue(p: VTTSubtitlePayload): SubtitleCuePayload {
 // ──────────────────────────────────────────────────────────────────────────
 
 export const mediaTracksMethods = {
+	/**
+	 * Tear down the active sidecar subtitle tracker (if any) and clear the
+	 * `_sidecarSubtitle` slot. Called on `currentSubtitle(null)` or when
+	 * switching tracks so the prior cue stream stops emitting.
+	 */
 	_disposeSidecarSubtitle(this: Internals): void {
 		const ctx = this._sidecarSubtitle;
 		if (!ctx) return;
@@ -173,6 +191,16 @@ export const mediaTracksMethods = {
 		this._sidecarSubtitle = undefined;
 	},
 
+	/**
+	 * Resolve every relative sidecar track URL on an item against the
+	 * configured `baseUrl` and `auth.transformUrl`. Items pass through
+	 * unchanged when they carry no tracks.
+	 *
+	 * Also populates `chapters` from a sidecar `tracks: [{ kind: 'chapters',
+	 * file }]` VTT when the item didn't ship inline chapters — handy for
+	 * playlists that store chapter data alongside subtitles instead of
+	 * inlining the markers.
+	 */
 	async resolveItemTrackUrls<T extends BasePlaylistItem>(this: Internals, item: T): Promise<T> {
 		if (!hasTracksField(item)) return item;
 
@@ -203,6 +231,13 @@ export const mediaTracksMethods = {
 		return withTracks;
 	},
 
+	/**
+	 * Resolve chapters for the given item (fetching sidecar VTT when needed),
+	 * write the resolved chapters back onto the queue entry, and emit
+	 * `chapters`. Guarded by a monotonic `_chapterEpoch` so a slow fetch
+	 * for the previous cursor change can't overwrite the active item's
+	 * chapters when it finally lands.
+	 */
 	async _resolveAndEmitChapters(this: Internals, itemId: string | number | undefined): Promise<void> {
 		const epoch = (this._chapterEpoch ?? 0) + 1;
 		this._chapterEpoch = epoch;
@@ -229,14 +264,20 @@ export const mediaTracksMethods = {
 		this.emit('chapters', { chapters });
 	},
 
-	subtitles(this: Internals): unknown {
-		// Subtitles are the union of:
-		//   1. tracks the backend exposes (HLS-managed in-manifest subtitles
-		//      via `b.subtitleTracks()`)
-		//   2. sidecar VTTs declared on the active playlist item under
-		//      `tracks: [{ kind: 'subtitles', ... }]`
-		// Consumers should not have to know which side a track came from —
-		// they get one flat list to render and a stable index per entry.
+	/**
+	 * The full subtitle track list — backend-managed tracks first, sidecar
+	 * VTT tracks appended after. Consumers render one flat list and use the
+	 * returned index with `currentSubtitle(idx)` regardless of origin.
+	 *
+	 * Backend-managed tracks come from HLS-in-manifest text tracks (via the
+	 * active backend's `subtitleTracks()`). Sidecar tracks come from the
+	 * active playlist item's `tracks: [{ kind: 'subtitles', ... }]`. Sidecar
+	 * entries with no `file` URL are dropped — they couldn't load anyway.
+	 *
+	 * Returns an empty list before a backend is mounted or when no item is
+	 * active.
+	 */
+	subtitles(this: Internals): ReadonlyArray<SubtitleTrack> {
 		const fromBackend: SubtitleTrack[] = (() => {
 			const backend = this._peekBackendTyped<_BackendWithSubtitleTracks>();
 			if (typeof backend?.subtitleTracks === 'function') {
@@ -248,25 +289,27 @@ export const mediaTracksMethods = {
 			return [];
 		})();
 
-		const fromItem: Array<{ id: string; language?: string; label?: string; kind: 'subtitles'; type?: string; url?: string; default: boolean }> = (() => {
+		const fromItem: SubtitleTrack[] = (() => {
 			const rawCur = this.current?.();
 			const cur: ItemWithDefinedTracks | undefined = rawCur && hasTracksField(rawCur) ? rawCur : undefined;
 			const tracks = cur?.tracks ?? [];
 			return tracks
-				.filter(sidecarTrack => sidecarTrack?.kind === 'subtitles')
-				.map((sidecarTrack, idx) => ({
+				.filter((sidecarTrack): sidecarTrack is SidecarTrack & { file: string } =>
+					sidecarTrack?.kind === 'subtitles' && typeof sidecarTrack.file === 'string' && sidecarTrack.file.length > 0,
+				)
+				.map((sidecarTrack, idx): SubtitleTrack => ({
 					id: sidecarTrack.id ?? `subtitle-sidecar-${idx}`,
 					language: sidecarTrack.language,
-					label: sidecarTrack.label,
-					kind: 'subtitles' as const,
+					label: sidecarTrack.label ?? sidecarTrack.language ?? `Subtitle ${idx + 1}`,
+					kind: 'subtitles',
 					type: sidecarTrack.type,
 					url: sidecarTrack.file,
 					default: false,
 				}));
 		})();
 
-		// HLS-managed first (their indexes are what `currentSubtitle(idx)` writes
-		// to `hls.subtitleTrack`); sidecar VTTs trail the list.
+		// Backend tracks first so their array positions match the indexes
+		// `currentSubtitle(idx)` writes to `hls.subtitleTrack`; sidecars trail.
 		return [...fromBackend, ...fromItem];
 	},
 
@@ -330,21 +373,19 @@ export const mediaTracksMethods = {
 	},
 
 	/**
-	 * Read or write the subtitle style. Mirrors the v1 player API so
-	 * settings menus and overlay plugins talk through one surface and
-	 * never have to maintain their own ad-hoc cache.
+	 * Read or write the subtitle style. Settings menus and overlay plugins
+	 * talk through this one surface so they never have to maintain their own
+	 * ad-hoc cache.
 	 *
 	 * Reading: `player.subtitleStyle()` → full current style.
-	 * Writing: `player.subtitleStyle({ fontSize: 120 })` merges the
-	 * patch onto the active style and emits `subtitleStyle` with the
-	 * merged result so subscribers (the overlay plugin, settings menu
-	 * subtext, etc.) can react.
+	 * Writing: `player.subtitleStyle({ fontSize: 120 })` merges the patch
+	 * onto the active style and emits `subtitleStyle` with the merged result
+	 * so subscribers (overlay renderer, settings menu subtext, etc.) react.
 	 */
-	subtitleStyle(this: Internals, patch?: Record<string, unknown>): Record<string, unknown> | void {
-		// Lazily seed defaults the first time this is read. Defaults match
-		// the v1 player's `defaultSubtitleStyles` so menus pre-populate
+	subtitleStyle(this: Internals, patch?: Partial<SubtitleStyle>): SubtitleStyle | void {
+		// Lazily seed defaults the first time this is read so menus pre-populate
 		// with sensible values without the consumer wiring an init step.
-		const seed = (): Record<string, unknown> => ({
+		const seed = (): SubtitleStyle => ({
 			fontSize: 100,
 			fontFamily: 'ReithSans, sans-serif',
 			textColor: 'white',
@@ -365,11 +406,17 @@ export const mediaTracksMethods = {
 		return undefined;
 	},
 
-	audioTracks(this: Internals): unknown {
+	/**
+	 * The active backend's audio tracks. Returns an empty list when no
+	 * backend is mounted or the backend doesn't expose multi-track audio
+	 * (audio-only, single-track sources). Use the returned indexes with
+	 * `currentAudioTrack(idx)`.
+	 */
+	audioTracks(this: Internals): ReadonlyArray<AudioTrack> {
 		const backend = this._peekBackendTyped<_BackendWithAudioTracks>();
 		if (typeof backend?.audioTracks === 'function') {
 			try {
-				return backend.audioTracks();
+				return backend.audioTracks() ?? [];
 			}
 			catch { return []; }
 		}
@@ -398,11 +445,20 @@ export const mediaTracksMethods = {
 		this.emit('audioTrack', { id: idx });
 	},
 
-	qualityLevels(this: Internals, opts?: { includeUnsupported?: true }): unknown {
+	/**
+	 * The active backend's quality levels. Returns an empty list for
+	 * single-rendition sources (no ABR) or when no backend is mounted.
+	 *
+	 * `opts.includeUnsupported: true` returns every level the manifest
+	 * declares, with each entry's `supported` flag set by the codec capability
+	 * probe. The default filters to supported levels only so consumers don't
+	 * have to.
+	 */
+	qualityLevels(this: Internals, opts?: { includeUnsupported?: true }): ReadonlyArray<QualityLevel> {
 		const backend = this._peekBackendTyped<_BackendWithQualityLevels>();
 		if (typeof backend?.qualityLevels === 'function') {
 			try {
-				return backend.qualityLevels(opts);
+				return backend.qualityLevels(opts) ?? [];
 			}
 			catch { return []; }
 		}
@@ -430,25 +486,31 @@ export const mediaTracksMethods = {
 		// No HLS variants on audio backend — no-op.
 	},
 
+	/**
+	 * Chapters for the active playlist item. Items carry inline `chapters` once
+	 * the kit resolves the sidecar VTT (during `load()` or on cursor change).
+	 * Returns `[]` until the async fetch settles — subscribe to the `chapters`
+	 * event for the ready signal.
+	 */
 	chapters(this: Internals): ReadonlyArray<Chapter> {
-		// Chapter list comes from the active playlist item. Items carry an
-		// inline `chapters: Chapter[]` field once the kit resolves the sidecar
-		// VTT (either during `load()` or on cursor change). Returns [] until
-		// the async fetch settles — subscribe to 'chapters' for the ready signal.
 		const rawCurrent = this.current?.();
 		const current: ItemWithDefinedTracks | undefined = rawCurrent && hasTracksField(rawCurrent) ? rawCurrent : undefined;
 		return current?.chapters ?? [];
 	},
 
+	/**
+	 * Seek to the start of the chapter at `idx`. Out-of-range indexes no-op.
+	 * Emits `chapter` with the resolved index and title after the seek is
+	 * dispatched. The underlying `currentTime` call is fire-and-forget — its
+	 * `seeked` event fires on the correct path regardless of any wired
+	 * `beforeSeek` handler.
+	 */
 	seekToChapter(this: Internals, idx: number, opts?: ActionOptions): void {
 		const list = this.chapters();
 		const chapter = list[idx];
 		if (!chapter)
-			return; // out-of-range → no-op
+			return;
 
-		// `currentTime` is async when a beforeSeek handler is wired. Fire-and-
-		// forget here — `seeked` is emitted inside `currentTime` after the
-		// phase round-trip, so consumers still see it on the correct path.
 		const ret = this.currentTime(chapter.start, opts);
 		if (ret instanceof Promise)
 			void ret;
@@ -459,6 +521,11 @@ export const mediaTracksMethods = {
 		});
 	},
 
+	/**
+	 * Seek to the chapter immediately after the current playback time. No-op
+	 * when the chapter list is empty or playback is already in/after the last
+	 * chapter.
+	 */
 	nextChapter(this: Internals, opts?: ActionOptions): void {
 		const list = this.chapters();
 		if (list.length === 0)
@@ -467,19 +534,23 @@ export const mediaTracksMethods = {
 		const t = this._internalCurrentTime;
 		const nextIdx = list.findIndex(c => c.start > t);
 		if (nextIdx < 0)
-			return; // already in/after the last chapter
+			return;
 
 		this.seekToChapter(nextIdx, opts);
 	},
 
+	/**
+	 * Seek to the previous chapter. UX rule: if more than 10 seconds into the
+	 * current chapter, jumps to that chapter's start instead of the previous
+	 * one (the common "restart this chapter" behaviour of media remotes).
+	 * No-op when the chapter list is empty or before the first chapter.
+	 */
 	previousChapter(this: Internals, opts?: ActionOptions): void {
 		const list = this.chapters();
 		if (list.length === 0)
 			return;
 
 		const t = this._internalCurrentTime;
-		// v1 UX: if more than 10s into the current chapter, jump to its start
-		// instead of the previous chapter. Otherwise, walk back one.
 		let currentIdx = -1;
 		for (let i = list.length - 1; i >= 0; i--) {
 			if (list[i]!.start <= t) { currentIdx = i; break; }
