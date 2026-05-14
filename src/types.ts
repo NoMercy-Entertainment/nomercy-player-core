@@ -1,5 +1,5 @@
 import type { CueParser } from './cues/parser-registry';
-import type { AddClasses, CreateElement } from './dom';
+import type { AddClasses, CreateElement } from './core/mixins/dom-mixin';
 import type { PlayerErrorEvent } from './errors';
 import type { ILogger } from './logger';
 import type { IPlatform } from './platform';

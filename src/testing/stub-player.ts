@@ -370,8 +370,8 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		type: K,
 		_id: string,
 		_unique?: boolean,
-	): import('../dom').CreateElement<HTMLElementTagNameMap[K]> {
-		return { el: document.createElement(type) } as unknown as import('../dom').CreateElement<HTMLElementTagNameMap[K]>;
+	): import('../core/mixins/dom-mixin').CreateElement<HTMLElementTagNameMap[K]> {
+		return { el: document.createElement(type) } as unknown as import('../core/mixins/dom-mixin').CreateElement<HTMLElementTagNameMap[K]>;
 	}
 
 	createButton(_id: string, _label: string, _onClick: (e: Event) => void): HTMLButtonElement {
@@ -390,8 +390,8 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		return undefined;
 	}
 
-	addClasses<T extends Element>(el: T, _names: string[]): import('../dom').AddClasses<T> {
-		return el as unknown as import('../dom').AddClasses<T>;
+	addClasses<T extends Element>(el: T, _names: string[]): import('../core/mixins/dom-mixin').AddClasses<T> {
+		return el as unknown as import('../core/mixins/dom-mixin').AddClasses<T>;
 	}
 
 	removeClasses<T extends Element>(el: T, _names: string[]): T {

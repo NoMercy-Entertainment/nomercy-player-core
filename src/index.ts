@@ -61,8 +61,8 @@ export {
 	createElement,
 	createSVG,
 	removeClasses,
-} from './dom';
-export type { AddClasses, AppendTo, CreateElement } from './dom';
+} from './core/mixins/dom-mixin';
+export type { AddClasses, AppendTo, CreateElement } from './core/mixins/dom-mixin';
 // Errors
 export {
 	AuthError,

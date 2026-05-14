@@ -11,7 +11,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { addClasses, createButton, createElement, createSVG, removeClasses } from '../dom';
+import { addClasses, createButton, createElement, createSVG, removeClasses } from '../core/mixins/dom-mixin';
 
 afterEach(() => {
 	document.body.innerHTML = '';
