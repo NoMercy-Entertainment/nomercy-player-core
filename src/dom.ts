@@ -1,3 +1,8 @@
+// ──────────────────────────────────────────────────────────────────────────
+// DOM construction helpers.
+// Exported from this module and re-exposed on the player via domMethods.
+// ──────────────────────────────────────────────────────────────────────────
+
 /** Chainable element-creation helper. Both players + plugin authors use these. */
 export interface CreateElement<T extends Element> {
 	get: () => T;
@@ -20,22 +25,6 @@ export interface AppendTo<T extends Element> {
 	addClasses: (names: string[]) => AddClasses<T>;
 }
 
-/**
- * Create or reuse an element by id with chainable post-creation helpers.
- *
- * If `unique` is true and an element with that id already exists in the
- * document, it's returned and reused (idempotent — useful for plugins that
- * may re-init without disposal). Otherwise a fresh element is created.
- *
- * Chained methods all return the same element wrapped in a different surface
- * so callers can fluently build up a tree:
- *
- * ```ts
- * createElement('div', 'my-overlay')
- *   .addClasses(['overlay', 'visible'])
- *   .appendTo(player.container);
- * ```
- */
 export function createElement<K extends keyof HTMLElementTagNameMap>(
 	type: K,
 	id: string,
@@ -101,6 +90,7 @@ export function createButton(id: string, label: string, onClick: (e: Event) => v
 	button.addEventListener('click', onClick);
 	return button;
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // Internals
