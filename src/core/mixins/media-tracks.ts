@@ -35,7 +35,9 @@ export interface ItemWithDefinedTracks extends BasePlaylistItem {
 /** Narrows an item to one carrying a non-empty `tracks` array. Items with an
  *  empty array or no field at all fall through to the no-tracks path. */
 function hasTracksField(item: BasePlaylistItem): item is ItemWithDefinedTracks {
-	return 'tracks' in item && Array.isArray((item as ItemWithTracks).tracks) && (item as ItemWithTracks).tracks!.length > 0;
+	return 'tracks' in item 
+		&& Array.isArray((item as ItemWithTracks).tracks) 
+		&& (item as ItemWithTracks).tracks!.length > 0;
 }
 
 /**
@@ -94,7 +96,12 @@ function _resolveSidecarSubtitle(
 	const list = (cur?.tracks ?? []).filter((sidecarTrack: SidecarTrack) => sidecarTrack.kind === 'subtitles');
 	const sidecarTrack = list[sidecarIdx];
 	if (!sidecarTrack) return undefined;
-	return { url: sidecarTrack.file, language: sidecarTrack.language, label: sidecarTrack.label, type: sidecarTrack.type };
+	return {
+		url: sidecarTrack.file,
+		language: sidecarTrack.language,
+		label: sidecarTrack.label,
+		type: sidecarTrack.type,
+	};
 }
 
 /**
@@ -114,13 +121,19 @@ async function _startSidecarSubtitle(
 	try {
 		const r = await fetch(track.url);
 		if (!r.ok) {
-			self.emit('subtitleCue', { cues: [], language: track.language });
+			self.emit('subtitleCue', {
+				cues: [],
+				language: track.language,
+			});
 			return;
 		}
 		raw = await r.text();
 	}
 	catch {
-		self.emit('subtitleCue', { cues: [], language: track.language });
+		self.emit('subtitleCue', {
+			cues: [],
+			language: track.language,
+		});
 		return;
 	}
 
@@ -139,7 +152,10 @@ async function _startSidecarSubtitle(
 
 	const emitChange = (): void => {
 		const cues: SubtitleCuePayload[] = [...ctx.active].map(cue => _toSubtitleCue(cue.payload));
-		self.emit('subtitleCue', { cues, language: ctx.language });
+		self.emit('subtitleCue', {
+			cues,
+			language: ctx.language,
+		});
 	};
 
 	tracker.on('enter', (cue) => {
@@ -344,7 +360,10 @@ export const mediaTracksMethods = {
 			this._currentSubtitleIdx = null;
 			b?.setSubtitleTrack?.(null);
 			this.emit('subtitle', { track: null });
-			this.emit('subtitleCue', { cues: [], language: undefined });
+			this.emit('subtitleCue', {
+				cues: [],
+				language: undefined,
+			});
 			return;
 		}
 
@@ -366,7 +385,10 @@ export const mediaTracksMethods = {
 		const sidecar = _resolveSidecarSubtitle(this, idx - backendCount);
 		this.emit('subtitle', { track: idx });
 		if (!sidecar?.url) {
-			this.emit('subtitleCue', { cues: [], language: undefined });
+			this.emit('subtitleCue', {
+				cues: [],
+				language: undefined,
+			});
 			return;
 		}
 		void _startSidecarSubtitle(this, sidecar);
