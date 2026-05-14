@@ -1,7 +1,6 @@
 import type { ActionOptions, TimeState } from '../../types';
 
 import type { Internals } from '../state';
-import { seekingTransition } from './transport';
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -34,7 +33,7 @@ export const timeMethods = {
 				});
 				return;
 			}
-			seekingTransition(this, () => {
+			this._seekingTransition(() => {
 				this._internalCurrentTime = Math.max(0, result.data.time);
 				this.emit('seek', {
 					time: this._internalCurrentTime,

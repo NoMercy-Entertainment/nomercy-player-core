@@ -1,4 +1,4 @@
-import { BrowserPolicyError } from '../../errors';
+import { browserPolicyError } from '../../errors';
 import { CastState as _CastStateEnum } from '../../types';
 
 import type { Internals } from '../state';
@@ -65,12 +65,7 @@ export const castMethods = {
 		switch (target) {
 			case 'cast': {
 				if (!_isCastAvailable()) {
-					throw new BrowserPolicyError({
-						code: 'core:policy/castUnavailable',
-						severity: 'error',
-						scope: { kind: 'core' },
-						message: 'Cast Web Sender SDK not loaded. Add `<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>` to enable Cast.',
-					});
+					throw browserPolicyError('core:policy/castUnavailable', 'Cast Web Sender SDK not loaded. Add `<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>` to enable Cast.');
 				}
 				setState(_CastStateEnum.CONNECTING);
 				try {
@@ -86,12 +81,7 @@ export const castMethods = {
 			}
 			case 'airplay': {
 				if (!_isAirPlayAvailable()) {
-					throw new BrowserPolicyError({
-						code: 'core:policy/airplayUnavailable',
-						severity: 'error',
-						scope: { kind: 'core' },
-						message: 'AirPlay is WebKit-only (Safari, iOS).',
-					});
+					throw browserPolicyError('core:policy/airplayUnavailable', 'AirPlay is WebKit-only (Safari, iOS).');
 				}
 				// AirPlay handoff requires the consumer to call
 				// `videoElement.webkitShowPlaybackTargetPicker()` directly
@@ -105,21 +95,11 @@ export const castMethods = {
 			}
 			case 'remote-playback': {
 				if (!_isRemotePlaybackAvailable()) {
-					throw new BrowserPolicyError({
-						code: 'core:policy/remotePlaybackUnavailable',
-						severity: 'error',
-						scope: { kind: 'core' },
-						message: 'RemotePlayback API not supported in this browser.',
-					});
+					throw browserPolicyError('core:policy/remotePlaybackUnavailable', 'RemotePlayback API not supported in this browser.');
 				}
 				const video = this.videoElement;
 				if (!video?.remote) {
-					throw new BrowserPolicyError({
-						code: 'core:policy/remotePlaybackUnavailable',
-						severity: 'error',
-						scope: { kind: 'core' },
-						message: 'No video element bound to player.',
-					});
+					throw browserPolicyError('core:policy/remotePlaybackUnavailable', 'No video element bound to player.');
 				}
 				setState(_CastStateEnum.CONNECTING);
 				try {
@@ -138,12 +118,7 @@ export const castMethods = {
 				return;
 			}
 			default:
-				throw new BrowserPolicyError({
-					code: 'core:policy/transferTargetUnknown',
-					severity: 'error',
-					scope: { kind: 'core' },
-					message: `Unknown transfer target: ${target}`,
-				});
+				throw browserPolicyError('core:policy/transferTargetUnknown', `Unknown transfer target: ${target}`);
 		}
 	},
 } as const;

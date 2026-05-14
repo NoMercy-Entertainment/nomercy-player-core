@@ -2,7 +2,7 @@ import { AudioTrackState, BufferState, NetworkState, QualityState, VisibilitySta
 import type { PlayerPhase } from '../../types';
 import { runDispatchBefore } from '../../dispatch';
 import type { BeforeDispatchOutcome } from '../../dispatch';
-import { stateError } from '../errors';
+import { stateError } from '../../errors';
 
 import type { Internals } from '../state';
 

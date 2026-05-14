@@ -233,6 +233,7 @@ export interface MixinSurface {
 	_markPluginLangLoaded(pluginId: string, lang: string): void;
 	_registerPlugin(ctor: import('../types').PluginCtorWithId, opts: unknown, timeoutMs: number): Promise<void>;
 	// transportMethods
+	_seekingTransition(doSeek: () => void): void;
 	play(opts?: import('../types').ActionOptions): Promise<void>;
 	pause(opts?: import('../types').ActionOptions): Promise<void>;
 	// volumeMethods

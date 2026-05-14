@@ -10,7 +10,7 @@ import { StreamRegistry } from '../../streams/registry';
 import { browserPlatform } from '../../platform';
 import { DefaultTranslator } from '../../translator';
 
-import { stateError } from '../errors';
+import { stateError } from '../../errors';
 import type { Internals } from '../state';
 
 

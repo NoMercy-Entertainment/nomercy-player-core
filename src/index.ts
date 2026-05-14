@@ -17,7 +17,7 @@ export {
 	KIT_VERSION,
 	lifecycleMethods,
 	playerCoreMethods,
-	pluginErrorFactory,
+	pluginError,
 	playerStateMethods,
 	pluginRegistrationMethods,
 	queueMethods,

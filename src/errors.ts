@@ -244,6 +244,81 @@ export interface PlayerErrorEvent {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// Factory functions — kit-internal helpers for the common throw shape.
+// All apply `severity: 'error'`, `scope: { kind: 'core' }`, and prefix the
+// human message with the code so logs are self-identifying.
+// ──────────────────────────────────────────────────────────────────────────
+
+export function stateError(code: string, message: string, context?: Record<string, unknown>): StateError {
+	return new StateError({
+		code,
+		severity: 'error',
+		scope: { kind: 'core' },
+		message: `${code}: ${message}`,
+		context,
+	});
+}
+
+export function resourceError(code: string, message: string, context?: Record<string, unknown>): ResourceError {
+	return new ResourceError({
+		code,
+		severity: 'error',
+		scope: { kind: 'core' },
+		message: `${code}: ${message}`,
+		context,
+	});
+}
+
+export function browserPolicyError(
+	code: string,
+	message: string,
+	opts?: {
+		suggestion?: string;
+		context?: Record<string, unknown>;
+	},
+): BrowserPolicyError {
+	return new BrowserPolicyError({
+		code,
+		severity: 'error',
+		scope: { kind: 'core' },
+		message: `${code}: ${message}`,
+		suggestion: opts?.suggestion,
+		context: opts?.context,
+	});
+}
+
+export function mediaFormatError(code: string, message: string, context?: Record<string, unknown>): MediaFormatError {
+	return new MediaFormatError({
+		code,
+		severity: 'error',
+		scope: { kind: 'core' },
+		message: `${code}: ${message}`,
+		context,
+	});
+}
+
+export function pluginError(
+	code: string,
+	message: string,
+	opts?: {
+		severity?: Severity;
+		pluginId?: string;
+		context?: Record<string, unknown>;
+	},
+): PluginError {
+	return new PluginError({
+		code,
+		severity: opts?.severity ?? 'error',
+		scope: opts?.pluginId
+			? { kind: 'plugin', id: opts.pluginId }
+			: { kind: 'core' },
+		message: `${code}: ${message}`,
+		context: opts?.context,
+	});
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────
 // Retry policy
 // ──────────────────────────────────────────────────────────────────────────
 

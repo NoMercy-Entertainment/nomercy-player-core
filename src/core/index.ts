@@ -6,7 +6,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 export { KIT_VERSION } from './kit-version';
-export { stateError, resourceError, pluginErrorFactory } from './errors';
+export { stateError, resourceError, pluginError, browserPolicyError, mediaFormatError } from '../errors';
 export { resolvePlayerConstructor } from './constructor';
 export type { PlayerCtorResolution } from './constructor';
 export {
@@ -29,7 +29,7 @@ export { baseUrlAudioContextMethods } from './mixins/base-url-audio-context';
 export { experimentalDescriptor } from './mixins/experimental';
 export { i18nMethods } from './mixins/i18n';
 export { cueParserMethods } from './mixins/cue-parser';
-export { transportMethods, seekingTransition } from './mixins/transport';
+export { transportMethods } from './mixins/transport';
 export { timeMethods } from './mixins/time';
 export { volumeMethods } from './mixins/volume';
 export { stateMethods } from './mixins/state-mutators';

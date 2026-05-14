@@ -1,6 +1,6 @@
 import type { BasePlaylistItem, LoadOptions } from '../../types';
 import { authFetch } from '../../auth-fetch';
-import { MediaFormatError, StateError } from '../../errors';
+import { mediaFormatError, stateError } from '../../errors';
 
 import type { Internals } from '../state';
 
@@ -48,13 +48,7 @@ export const loadingMethods = {
 		const item2 = beforeResult.data.item;
 		let url = (item2 as { url?: string }).url;
 		if (!url) {
-			throw new MediaFormatError({
-				code: 'core:media/missing-url',
-				severity: 'error',
-				scope: { kind: 'core' },
-				message: 'load(item) requires `item.url` to be present.',
-				context: { id: item2.id },
-			});
+			throw mediaFormatError('core:media/missing-url', 'load(item) requires `item.url` to be present.', { id: item2.id });
 		}
 		const transformer = this._authConfig?.transformUrl;
 		if (transformer) {
@@ -91,12 +85,7 @@ export const loadingMethods = {
 		try {
 			const backend = this._resolveBackend();
 			if (!backend || typeof backend.load !== 'function') {
-				throw new StateError({
-					code: 'core:player/backend-missing',
-					severity: 'error',
-					scope: { kind: 'core' },
-					message: 'No backend wired — backend() returned null/undefined.',
-				});
+				throw stateError('core:player/backend-missing', 'No backend wired — backend() returned null/undefined.');
 			}
 			await backend.load(url);
 			if (!isLatest()) return;

@@ -1,4 +1,4 @@
-import { BrowserPolicyError } from '../../errors';
+import { browserPolicyError } from '../../errors';
 
 import type { Internals } from '../state';
 
@@ -38,12 +38,7 @@ export const audioOutputMethods = {
 		type MediaDevicesWithPicker = MediaDevices & { selectAudioOutput?: () => Promise<MediaDeviceInfo> };
 		const md: MediaDevicesWithPicker | undefined = typeof navigator !== 'undefined' ? navigator.mediaDevices as MediaDevicesWithPicker : undefined;
 		if (!md?.selectAudioOutput) {
-			throw new BrowserPolicyError({
-				code: 'core:policy/audioOutputPickerUnsupported',
-				severity: 'error',
-				scope: { kind: 'core' },
-				message: 'Audio output picker not supported in this browser. Chrome ≥105 only.',
-			});
+			throw browserPolicyError('core:policy/audioOutputPickerUnsupported', 'Audio output picker not supported in this browser. Chrome ≥105 only.');
 		}
 		try {
 			return await md.selectAudioOutput();
@@ -75,12 +70,7 @@ export const audioOutputMethods = {
 		const backend = this._peekBackendTyped<_BackendWithMediaElement>();
 		const el = backend?.mediaElement?.();
 		if (!el || typeof el.setSinkId !== 'function') {
-			throw new BrowserPolicyError({
-				code: 'core:policy/setSinkIdUnsupported',
-				severity: 'error',
-				scope: { kind: 'core' },
-				message: 'setSinkId() is not supported in this browser or no media element is bound.',
-			});
+			throw browserPolicyError('core:policy/setSinkIdUnsupported', 'setSinkId() is not supported in this browser or no media element is bound.');
 		}
 		await el.setSinkId(deviceId);
 		this._currentAudioOutputId = deviceId;

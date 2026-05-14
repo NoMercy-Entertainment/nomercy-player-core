@@ -1,4 +1,4 @@
-import { resourceError, stateError } from './errors';
+import { resourceError, stateError } from '../errors';
 
 
 // ──────────────────────────────────────────────────────────────────────────

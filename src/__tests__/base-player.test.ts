@@ -16,7 +16,7 @@ import {
 	playerCoreMethods,
 	PlayerError,
 	Plugin,
-	pluginErrorFactory,
+	pluginError,
 	resolvePlayerConstructor,
 	ResourceError,
 	StateError,
@@ -225,9 +225,9 @@ describe('player-core mixins (kit)', () => {
 		});
 	});
 
-	describe('pluginErrorFactory', () => {
+	describe('pluginError', () => {
 		it('returns a PluginError carrying the spec fields', () => {
-			const err = pluginErrorFactory('core:plugin/missing-dep', 'foo requires bar', { id: 'foo' });
+			const err = pluginError('core:plugin/missing-dep', 'foo requires bar', { context: { id: 'foo' } });
 			expect(err.code).toBe('core:plugin/missing-dep');
 			expect(err.severity).toBe('error');
 			expect(err.scope).toEqual({ kind: 'core' });

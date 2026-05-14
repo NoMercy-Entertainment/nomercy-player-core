@@ -1,4 +1,4 @@
-import { PluginError } from '../../errors';
+import { pluginError } from '../../errors';
 
 import type { PlayStateToken, RepeatStateToken, ShuffleStateToken, VolumeStateToken } from '../state';
 import type { Internals } from '../state';
@@ -141,14 +141,9 @@ export const stateMethods = {
 				}
 				const code = `plugin:${ctor.id}/${advisory.reason}`;
 				const errorPayload = {
-					error: new PluginError({
-						code,
+					error: pluginError(code, advisory.message, {
 						severity: advisory.severity,
-						scope: {
-							kind: 'plugin',
-							id: ctor.id,
-						},
-						message: advisory.message,
+						pluginId: ctor.id,
 						context: {
 							method,
 							args,

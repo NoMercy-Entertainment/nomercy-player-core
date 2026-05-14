@@ -99,7 +99,7 @@ describe('static advisories — declarative phase-aware advisories', () => {
 
 		expect(warnings.length).toBe(1);
 		expect(warnings[0].error.code).toBe('plugin:advisor/cursor-mutation');
-		expect(warnings[0].error.message).toBe('Be careful');
+		expect(warnings[0].error.message).toBe('plugin:advisor/cursor-mutation: Be careful');
 		expect(warnings[0].error.severity).toBe('warning');
 	});
 

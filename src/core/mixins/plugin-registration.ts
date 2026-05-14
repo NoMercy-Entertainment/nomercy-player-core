@@ -5,7 +5,7 @@ import { Logger } from '../../logger';
 import { bcp47FallbackChain } from '../../translator';
 import { getLazyTranslationLoader } from '../../translations-glob';
 
-import { pluginErrorFactory, stateError } from '../errors';
+import { pluginError, stateError } from '../../errors';
 import type { Internals } from '../state';
 import { KIT_VERSION } from '../kit-version';
 
@@ -315,7 +315,7 @@ export const pluginRegistrationMethods = {
 		}
 
 		if (this._plugins.some(p => p.ctor.id === id) || this._pluginQueue.some(q => q.ctor.id === id)) {
-			throw pluginErrorFactory('core:plugin/duplicate-id', `Plugin "${id}" is already registered.`, { id });
+			throw pluginError('core:plugin/duplicate-id', `Plugin "${id}" is already registered.`, { context: { id } });
 		}
 
 		// Required-dependency presence + version check. Looks across registered
@@ -329,9 +329,11 @@ export const pluginRegistrationMethods = {
 			const present = this._plugins.some(p => p.ctor.id === reqId)
 				|| this._pluginQueue.some(q => q.ctor.id === reqId);
 			if (!present && !optional) {
-				throw pluginErrorFactory('core:plugin/missing-dep', `Plugin "${id}" requires "${reqId}" but it is not registered.`, {
-					id,
-					requires: reqId,
+				throw pluginError('core:plugin/missing-dep', `Plugin "${id}" requires "${reqId}" but it is not registered.`, {
+					context: {
+						id,
+						requires: reqId,
+					},
 				});
 			}
 			if (present && minVersion !== undefined) {
@@ -340,14 +342,16 @@ export const pluginRegistrationMethods = {
 				const queued = this._pluginQueue.find(q => q.ctor.id === reqId);
 				const installedVersion = (reg?.ctor.version ?? queued?.ctor.version ?? '0.0.0');
 				if (_compareSemver(installedVersion, minVersion) < 0) {
-					throw pluginErrorFactory(
+					throw pluginError(
 						'core:plugin/version-mismatch',
 						`Plugin "${id}" requires "${reqId}" >= ${minVersion} but ${installedVersion} is registered.`,
 						{
-							id,
-							requires: reqId,
-							requiredVersion: minVersion,
-							installedVersion,
+							context: {
+								id,
+								requires: reqId,
+								requiredVersion: minVersion,
+								installedVersion,
+							},
 						},
 					);
 				}
@@ -357,13 +361,15 @@ export const pluginRegistrationMethods = {
 		// Spec §23.6: minCoreVersion check. Kit declares its own version via
 		// the static `_kitVersion` constant exported below.
 		if (PluginClass.minCoreVersion && _compareSemver(KIT_VERSION, PluginClass.minCoreVersion) < 0) {
-			throw pluginErrorFactory(
+			throw pluginError(
 				'core:plugin/incompatible-core-version',
 				`Plugin "${id}" requires kit version >= ${PluginClass.minCoreVersion} but ${KIT_VERSION} is running.`,
 				{
-					id,
-					requiredCoreVersion: PluginClass.minCoreVersion,
-					kitVersion: KIT_VERSION,
+					context: {
+						id,
+						requiredCoreVersion: PluginClass.minCoreVersion,
+						kitVersion: KIT_VERSION,
+					},
 				},
 			);
 		}
@@ -408,12 +414,14 @@ export const pluginRegistrationMethods = {
 		const dependents = _findDependents(this, id);
 		if (dependents.length > 0) {
 			if (opts?.cascade === false) {
-				throw pluginErrorFactory(
+				throw pluginError(
 					'core:plugin/has-dependents',
 					`Cannot remove plugin "${id}" — ${dependents.length} plugin(s) depend on it: ${dependents.join(', ')}. Remove cascade:false or remove the dependents explicitly first.`,
 					{
-						id,
-						dependents,
+						context: {
+							id,
+							dependents,
+						},
 					},
 				);
 			}

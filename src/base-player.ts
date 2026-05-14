@@ -10,8 +10,8 @@
 export {
 	stateError,
 	resourceError,
-	pluginErrorFactory,
-} from './core/errors';
+	pluginError,
+} from './errors';
 
 export { KIT_VERSION } from './core/kit-version';
 

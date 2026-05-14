@@ -4,38 +4,36 @@ import type { Internals } from '../state';
 
 
 // ──────────────────────────────────────────────────────────────────────────
-// Seek helper — shared between forward/rewind/currentTime
-// ──────────────────────────────────────────────────────────────────────────
-
-/**
- * Wrap a synchronous seek action with a `seeking` phase round-trip. Per spec
- * §D, the player enters `seeking` while a seek is in flight and returns to
- * the prior phase (`playing` / `paused`) once resolved. With no real backend
- * the seek "resolves" immediately — when a backend lands, this helper grows
- * to await the backend's `seeked` callback.
- *
- * Phase transitions happen ONLY when the prior phase is `playing` or
- * `paused` — seeks during `setup`/`ready` (e.g. consumer pre-seeking before
- * play) skip the round-trip to avoid noisy `seeking` blips.
- */
-export function seekingTransition(self: Internals, doSeek: () => void): void {
-	const prior = self._phase;
-	const shouldTransition = prior === 'playing' || prior === 'paused' || prior === 'starting';
-	if (shouldTransition) {
-		self._transitionPhase('seeking');
-	}
-	doSeek();
-	if (shouldTransition) {
-		self._transitionPhase(prior);
-	}
-}
-
-
-// ──────────────────────────────────────────────────────────────────────────
 // Mixin: transport
 // ──────────────────────────────────────────────────────────────────────────
 
 export const transportMethods = {
+	/**
+	 * Wrap a synchronous seek action with a `seeking` phase round-trip. Per spec
+	 * §D, the player enters `seeking` while a seek is in flight and returns to
+	 * the prior phase (`playing` / `paused`) once resolved. With no real backend
+	 * the seek "resolves" immediately — when a backend lands, this helper grows
+	 * to await the backend's `seeked` callback.
+	 *
+	 * Phase transitions happen ONLY when the prior phase is `playing` or
+	 * `paused` — seeks during `setup`/`ready` (e.g. consumer pre-seeking before
+	 * play) skip the round-trip to avoid noisy `seeking` blips.
+	 */
+	_seekingTransition(this: Internals, doSeek: () => void): void {
+		const prior = this._phase;
+		const shouldTransition = prior === 'playing' || prior === 'paused' || prior === 'starting';
+
+		if (shouldTransition) {
+			this._transitionPhase('seeking');
+		}
+
+		doSeek();
+
+		if (shouldTransition) {
+			this._transitionPhase(prior);
+		}
+	},
+
 	async play(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
 		const result = await this._dispatchBefore<ActionOptions>('beforePlay', { ...opts });
@@ -156,7 +154,7 @@ export const transportMethods = {
 			});
 			return;
 		}
-		seekingTransition(this, () => {
+		this._seekingTransition(() => {
 			this._internalCurrentTime = Math.max(0, this._internalCurrentTime - seconds);
 			this.emit('seek', {
 				time: this._internalCurrentTime,
@@ -182,7 +180,7 @@ export const transportMethods = {
 			});
 			return;
 		}
-		seekingTransition(this, () => {
+		this._seekingTransition(() => {
 			this._internalCurrentTime = this._internalCurrentTime + seconds;
 			this.emit('seek', {
 				time: this._internalCurrentTime,
@@ -210,7 +208,7 @@ export const transportMethods = {
 			});
 			return;
 		}
-		seekingTransition(this, () => {
+		this._seekingTransition(() => {
 			this._internalCurrentTime = 0;
 			this.emit('seek', {
 				time: 0,
