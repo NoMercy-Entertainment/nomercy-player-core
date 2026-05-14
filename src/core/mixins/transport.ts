@@ -3,21 +3,69 @@ import type { ActionOptions } from '../../types';
 import type { Internals } from '../state';
 
 
+/**
+ * Shared seek scaffolding for `rewind` / `forward` / `restart`. Each of them
+ * does the same five-step dance — dispatch `beforeSeek`, bail on prevention,
+ * round-trip through the `seeking` phase, mutate `_internalCurrentTime`,
+ * forward to the backend, emit `seeked` — only the target time differs.
+ *
+ * `beforeSeekTime` is what the `beforeSeek` payload carries. Today
+ * `rewind`/`forward` send the *delta* (e.g. `-5` / `+5`); `restart` sends the
+ * absolute `0`. Defaults to `targetTime` so callers seeking to an absolute
+ * position don't have to spell the same number twice.
+ *
+ * Returns whether the seek actually happened (a `beforeSeek` listener can
+ * prevent it). Callers chasing with side effects (`restart` plays after)
+ * gate on `proceeded`.
+ */
+async function _dispatchSeek(
+	self: Internals,
+	targetTime: number,
+	opts: ActionOptions,
+	beforeSeekTime: number = targetTime,
+): Promise<{ proceeded: boolean }> {
+	const result = await self._dispatchBefore<{ time: number; source?: string }>('beforeSeek', {
+		time: beforeSeekTime,
+		source: opts.source,
+	});
+	if (result.prevented) {
+		self.emit('seekPrevented', {
+			reason: result.reason ?? 'listener-prevented',
+			cause: result.cause,
+		});
+		return { proceeded: false };
+	}
+	self._seekingTransition(() => {
+		self._internalCurrentTime = targetTime;
+		self.emit('seek', {
+			time: targetTime,
+			source: result.data.source,
+		});
+	});
+	self._resolveBackend()?.currentTime?.(targetTime);
+	self.emit('seeked', { time: targetTime });
+	return { proceeded: true };
+}
+
+
 // ──────────────────────────────────────────────────────────────────────────
-// Mixin: transport
+// Mixin: transport — play / pause / stop / seek / next / previous, the
+// cancellable `before*` dispatch surface, and seek-phase round-trips. Every
+// action runs `_assertReady` first and routes through a `beforeXxx` event so
+// plugins can preventDefault on intent before any state mutation lands.
 // ──────────────────────────────────────────────────────────────────────────
 
 export const transportMethods = {
 	/**
-	 * Wrap a synchronous seek action with a `seeking` phase round-trip. Per spec
-	 * §D, the player enters `seeking` while a seek is in flight and returns to
-	 * the prior phase (`playing` / `paused`) once resolved. With no real backend
-	 * the seek "resolves" immediately — when a backend lands, this helper grows
-	 * to await the backend's `seeked` callback.
+	 * Wrap a synchronous seek with a `seeking` phase round-trip: enter
+	 * `seeking` while the seek is in flight, return to the prior phase once
+	 * done. The round-trip is skipped when the prior phase isn't `playing` /
+	 * `paused` / `starting` — pre-play seeks during setup don't want to flash
+	 * `seeking` blips through the UI.
 	 *
-	 * Phase transitions happen ONLY when the prior phase is `playing` or
-	 * `paused` — seeks during `setup`/`ready` (e.g. consumer pre-seeking before
-	 * play) skip the round-trip to avoid noisy `seeking` blips.
+	 * With no real backend the seek "resolves" immediately. When a backend
+	 * lands that emits its own `seeked` callback, this helper can grow to
+	 * await it before transitioning back.
 	 */
 	_seekingTransition(this: Internals, doSeek: () => void): void {
 		const prior = this._phase;
@@ -34,6 +82,13 @@ export const transportMethods = {
 		}
 	},
 
+	/**
+	 * Start (or resume) playback. Dispatches `beforePlay` first — a listener
+	 * may `preventDefault()` to cancel, in which case `playPrevented` fires
+	 * with the reason and no state changes. Otherwise transitions to
+	 * `starting` (when prior phase was `ready` / `paused`), emits `play`, and
+	 * calls the backend's `play()`.
+	 */
 	async play(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
 		const result = await this._dispatchBefore<ActionOptions>('beforePlay', { ...opts });
@@ -53,6 +108,12 @@ export const transportMethods = {
 		await this._resolveBackend()?.play?.();
 	},
 
+	/**
+	 * Pause playback. Dispatches `beforePause`; a listener may
+	 * `preventDefault()` and the call emits `pausePrevented` instead.
+	 * Otherwise transitions to `paused` (when prior phase was `playing` /
+	 * `starting`), emits `pause`, and calls the backend's `pause()`.
+	 */
 	async pause(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
 		const result = await this._dispatchBefore<ActionOptions>('beforePause', { ...opts });
@@ -72,6 +133,12 @@ export const transportMethods = {
 		this._resolveBackend()?.pause?.();
 	},
 
+	/**
+	 * Stop playback and release the source. Dispatches `beforeStop`; a
+	 * listener may `preventDefault()` and the call emits `stopPrevented`
+	 * instead. Otherwise transitions to `stopped`, emits `stop`, and calls
+	 * the backend's `stop()`.
+	 */
 	async stop(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
 		const result = await this._dispatchBefore<ActionOptions>('beforeStop', { ...opts });
@@ -89,6 +156,11 @@ export const transportMethods = {
 		this._resolveBackend()?.stop?.();
 	},
 
+	/**
+	 * Flip between play and pause depending on current `_playState`. Routes
+	 * through the underlying `play()` / `pause()` so the `beforePlay` /
+	 * `beforePause` dispatch chains still fire.
+	 */
 	async togglePlayback(this: Internals, opts?: ActionOptions): Promise<void> {
 		this._assertReady();
 		if (this._playState === 'playing')
@@ -96,6 +168,13 @@ export const transportMethods = {
 		else await this.play(opts);
 	},
 
+	/**
+	 * Advance to the next queue item and start playback. Dispatches
+	 * `beforeNext`; preventable via `preventDefault()` (emits `nextPrevented`).
+	 * When there is no next item, emits `queue:exhausted` and returns without
+	 * loading anything. Otherwise emits `next`, then `load()`s the item and
+	 * fire-and-forgets a `play()`.
+	 */
 	async next(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
 		const result = await this._dispatchBefore<ActionOptions>('beforeNext', { ...opts });
@@ -119,6 +198,13 @@ export const transportMethods = {
 		void this.play({ source: result.data?.source });
 	},
 
+	/**
+	 * Go back to the previous queue item and start playback. Dispatches
+	 * `beforePrevious`; preventable via `preventDefault()` (emits
+	 * `previousPrevented`). Silently no-ops when no previous item exists
+	 * (no `queue:exhausted` symmetric event — going past the start is a
+	 * common gesture, not an error worth announcing).
+	 */
 	async previous(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
 		const result = await this._dispatchBefore<ActionOptions>('beforePrevious', { ...opts });
@@ -141,82 +227,39 @@ export const transportMethods = {
 		void this.play({ source: result.data?.source });
 	},
 
+	/**
+	 * Seek backwards by `seconds` (default 5). Dispatches `beforeSeek` with
+	 * the negative delta in `time`; preventable via `preventDefault()` (emits
+	 * `seekPrevented`). Clamps the result to 0 — rewinding past the start
+	 * lands at the start, not at a negative time.
+	 */
 	async rewind(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
-		const result = await this._dispatchBefore<{ time: number; source?: string }>('beforeSeek', {
-			time: -seconds,
-			source: opts.source,
-		});
-		if (result.prevented) {
-			this.emit('seekPrevented', {
-				reason: result.reason ?? 'listener-prevented',
-				cause: result.cause,
-			});
-			return;
-		}
-		this._seekingTransition(() => {
-			this._internalCurrentTime = Math.max(0, this._internalCurrentTime - seconds);
-			this.emit('seek', {
-				time: this._internalCurrentTime,
-				source: result.data.source,
-			});
-		});
-
-		this._resolveBackend()?.currentTime?.(this._internalCurrentTime);
-
-		this.emit('seeked', { time: this._internalCurrentTime });
+		const target = Math.max(0, this._internalCurrentTime - seconds);
+		await _dispatchSeek(this, target, opts, -seconds);
 	},
 
+	/**
+	 * Seek forwards by `seconds` (default 5). Dispatches `beforeSeek` with
+	 * the positive delta in `time`; preventable via `preventDefault()` (emits
+	 * `seekPrevented`). No upper clamp — backends that don't support seeking
+	 * past `duration` will snap to the end on their own.
+	 */
 	async forward(this: Internals, seconds = 5, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
-		const result = await this._dispatchBefore<{ time: number; source?: string }>('beforeSeek', {
-			time: seconds,
-			source: opts.source,
-		});
-		if (result.prevented) {
-			this.emit('seekPrevented', {
-				reason: result.reason ?? 'listener-prevented',
-				cause: result.cause,
-			});
-			return;
-		}
-		this._seekingTransition(() => {
-			this._internalCurrentTime = this._internalCurrentTime + seconds;
-			this.emit('seek', {
-				time: this._internalCurrentTime,
-				source: result.data.source,
-			});
-		});
-
-		this._resolveBackend()?.currentTime?.(this._internalCurrentTime);
-
-		this.emit('seeked', { time: this._internalCurrentTime });
+		const target = this._internalCurrentTime + seconds;
+		await _dispatchSeek(this, target, opts, seconds);
 	},
 
+	/**
+	 * Seek to time 0 and play. Dispatches `beforeSeek` with `time: 0`;
+	 * preventable via `preventDefault()` (emits `seekPrevented`). When the
+	 * seek is cancelled the subsequent `play()` is also skipped — restart
+	 * is an atomic intent, not a seek-then-play sequence.
+	 */
 	async restart(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
-		const seekResult = await this._dispatchBefore<{ time: number; source?: string }>('beforeSeek', {
-			time: 0,
-			source: opts.source,
-		});
-		if (seekResult.prevented) {
-			// If the seek-to-zero was cancelled, restart is also cancelled — emit
-			// a `seekPrevented` event and bail; do NOT play unconditionally.
-			this.emit('seekPrevented', {
-				reason: seekResult.reason ?? 'listener-prevented',
-				cause: seekResult.cause,
-			});
-			return;
-		}
-		this._seekingTransition(() => {
-			this._internalCurrentTime = 0;
-			this.emit('seek', {
-				time: 0,
-				source: seekResult.data.source,
-			});
-		});
-		// Spec §P4-V1: emit `seeked` after the seek-to-zero settles.
-		this.emit('seeked', { time: 0 });
-		await this.play(opts);
+		const { proceeded } = await _dispatchSeek(this, 0, opts);
+		if (proceeded) await this.play(opts);
 	},
 } as const;
