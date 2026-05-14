@@ -45,8 +45,7 @@ describe('authFetch', () => {
 			const result = await authFetch({
 				url: 'https://x/y',
 				signal: ctrl().signal,
-			})
-			;
+			});
 			expect(result).toBe('hello');
 		});
 
@@ -67,6 +66,55 @@ describe('authFetch', () => {
 				signal: ctrl().signal,
 				parser: raw => JSON.parse(raw),
 			})).rejects.toThrow(NetworkError);
+		});
+	});
+
+	// ─────────────────────────────────────────────────────────────────────
+	// responseType discriminant
+	// ─────────────────────────────────────────────────────────────────────
+
+	describe('responseType', () => {
+		it('responseType: json returns a parsed object', async () => {
+			mockFetchResponse(200, '{"key":"value"}');
+			const result = await authFetch<{ key: string }>({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				responseType: 'json',
+			});
+			expect(result).toEqual({ key: 'value' });
+		});
+
+		it('responseType: json on a non-JSON body throws core:network/parse-failed', async () => {
+			mockFetchResponse(200, 'not-json-at-all');
+			await expect(
+				authFetch<unknown>({
+					url: 'https://x/y',
+					signal: ctrl().signal,
+					responseType: 'json',
+				}),
+			).rejects.toMatchObject({ code: 'core:network/parse-failed' });
+		});
+
+		it('responseType: arrayBuffer returns an ArrayBuffer', async () => {
+			const buf = new Uint8Array([1, 2, 3]).buffer;
+			(fetchSpy as any).mockResolvedValueOnce(new Response(buf, { status: 200 }));
+			const result = await authFetch<ArrayBuffer>({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				responseType: 'arrayBuffer',
+			});
+			expect(result).toBeInstanceOf(ArrayBuffer);
+			expect(new Uint8Array(result).slice(0, 3)).toEqual(new Uint8Array([1, 2, 3]));
+		});
+
+		it('default (no responseType) returns text; parser still works', async () => {
+			mockFetchResponse(200, '{"n":42}');
+			const result = await authFetch<{ n: number }>({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				parser: raw => JSON.parse(raw) as { n: number },
+			});
+			expect(result).toEqual({ n: 42 });
 		});
 	});
 

@@ -16,6 +16,7 @@ import type {
 	UrlCategory,
 } from './types';
 
+import type { AuthFetchOptions } from './auth-fetch';
 import { authFetch } from './auth-fetch';
 import { mergeConfig } from './config-merge';
 import { runDispatchBefore } from './dispatch';
@@ -24,6 +25,22 @@ import { Logger } from './logger';
 import { nativeWebSocketAdapter } from './realtime';
 import { buildResolvedUrl } from './resolved-url';
 import { LocalStorageBackend } from './storage';
+
+/**
+ * Options accepted by `Plugin.fetch<T>(url, options)`.
+ * The discriminated `responseType` controls how the response body is decoded.
+ * `pluginId` and `scope` are injected internally — plugin authors never set them.
+ */
+export type FetchOptions<T> =
+	| { responseType?: 'text'; parser?: (raw: string) => T; timeoutMs?: number; retry?: RetryConfig; scope?: 'plugin' | 'player' | 'silent' }
+	| { responseType: 'json'; timeoutMs?: number; retry?: RetryConfig; scope?: 'plugin' | 'player' | 'silent' }
+	| { responseType: 'arrayBuffer'; timeoutMs?: number; retry?: RetryConfig; scope?: 'plugin' | 'player' | 'silent' };
+
+type InternalFetchOptions<T> = AuthFetchOptions<T> & {
+	pluginId: string;
+	scope: 'plugin' | 'player' | 'silent';
+};
+
 
 /**
  * Extract the event-map generic from an `IPlayer<E>` or `EventEmitter<E>` type.
@@ -649,7 +666,12 @@ export class Plugin<
 
 	/**
 	 * HTTP fetch using the player's configured `AuthConfig`. Auto-aborts on
-	 * `dispose()`. Optional parser turns response text into a typed result.
+	 * `dispose()`.
+	 *
+	 * `responseType` controls decoding:
+	 *  - `'text'` (default) — raw string; `parser` callback is applied when supplied.
+	 *  - `'json'`           — `response.json()`, typed via generic `T`.
+	 *  - `'arrayBuffer'`    — `response.arrayBuffer()`.
 	 *
 	 * Errors propagate as `AuthError` (401/403) or `NetworkError` (everything
 	 * else); both extend `PlayerError` so the standard error-event surface
@@ -657,12 +679,8 @@ export class Plugin<
 	 *
 	 * Event scoping (`opts.scope`):
 	 *  - `'plugin'` (default) — emits `plugin:<this.id>:fetch:start|retry|complete`.
-	 *    Other plugins / consumers don't see noise from this plugin's fetches.
-	 *  - `'player'` — additionally emits player-global `fetch:*` for unified
-	 *    telemetry pipes. Use when this fetch is part of the player's primary
-	 *    flow and observers should see it.
-	 *  - `'silent'` — emits nothing. Use for purely internal probes and optional
-	 *    plugins where failure is allowed without notifying anyone.
+	 *  - `'player'` — also emits player-global `fetch:*` for telemetry pipes.
+	 *  - `'silent'` — emits nothing.
 	 *
 	 * Auth pipeline (single source of truth shared with the player core):
 	 *  - `auth.transformUrl(url)` runs first
@@ -671,32 +689,24 @@ export class Plugin<
 	 *  - `auth.signRequest(request)` is the escape hatch for HMAC / sigv4 / etc.
 	 *  - On 401: `auth.refreshOnUnauthenticated()` runs once, then retry
 	 *  - On 403: propagates immediately, never refreshed, never retried
-	 *  - On 5xx / timeout / network: retry per `auth.retryAfterRefresh` and
-	 *    plugin's RetryConfig override
+	 *  - On 5xx / timeout / network: retry per RetryConfig
 	 */
-	protected fetch<T = string>(
-		url: string,
-		parser?: (raw: string) => T,
-		opts?: { scope?: 'plugin' | 'player' | 'silent' },
-	): Promise<T> {
+	protected fetch<T = string>(url: string, options?: FetchOptions<T>): Promise<T> {
 		const ctrl = this.lifecycle.abortable();
 		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
-		// Read live auth via auth() so token refreshes (`auth(partial)`/
-		// `refreshAuth`) propagate. Fall back to setup-time options.auth — matches
-		// the player core's own pattern (see loadQueue in base-player.ts).
 		const liveAuth = (this.player as unknown as { auth?: () => AuthConfig | undefined }).auth?.();
 		const auth = liveAuth ?? config.auth;
 		const pluginId = (this.constructor as typeof Plugin).id;
-		const scope = opts?.scope ?? 'plugin';
+		const scope = options?.scope ?? 'plugin';
 		return authFetch<T>({
+			...options,
 			url,
 			auth,
 			signal: ctrl.signal,
-			parser,
-			emit: (event: string, data: unknown) => this.player.emit(event, data),
 			pluginId,
 			scope,
-		});
+			emit: (event: string, data: unknown) => this.player.emit(event, data),
+		} as InternalFetchOptions<T>);
 	}
 
 	// ── Auth-URL resolution ──

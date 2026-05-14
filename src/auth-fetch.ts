@@ -13,13 +13,15 @@ import { AuthError, NetworkError } from './errors';
  *  - 5xx / timeout / network → retries per `RetryConfig` with backoff
  *  - Aborts cleanly when the caller's `AbortController` aborts
  *  - Emits `fetch:start` / `fetch:retry` / `fetch:complete` for observability
- *  - Optional parser transforms response text to a typed result
+ *  - `responseType` controls how the response body is decoded:
+ *      `'text'` (default) — raw string, optional `parser` callback
+ *      `'json'`           — `response.json()`, throws `core:network/parse-failed` on bad JSON
+ *      `'arrayBuffer'`    — `response.arrayBuffer()`
  */
-export interface AuthFetchOptions<T> {
+interface AuthFetchBase {
 	url: string;
 	auth?: AuthConfig;
 	signal: AbortSignal;
-	parser?: (raw: string) => T;
 	retry?: RetryConfig;
 	/**
 	 * Untyped emit — receives event names that may be plugin-scoped
@@ -35,13 +37,19 @@ export interface AuthFetchOptions<T> {
 	 *  - `'silent'` — emits nothing
 	 *
 	 * Default: `'player'` for kit-internal calls (no `pluginId`); plugins pass
-	 * their preferred scope via `Plugin.fetch(url, parser, { scope })`.
+	 * their preferred scope via `Plugin.fetch(url, { scope })`.
 	 */
 	scope?: 'plugin' | 'player' | 'silent';
 	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
 	body?: BodyInit;
 	timeoutMs?: number;
 }
+
+export type AuthFetchOptions<T> = AuthFetchBase & (
+	| { responseType?: 'text'; parser?: (raw: string) => T }
+	| { responseType: 'json' }
+	| { responseType: 'arrayBuffer' }
+);
 
 const DEFAULT_RETRY: RetryConfig = { attempts: 0 };
 
@@ -234,10 +242,35 @@ export async function authFetch<T = string>(opts: AuthFetchOptions<T>): Promise<
 
 		// Success path
 		dispatchComplete(dispatch, url, true, response.status, start, opts.pluginId);
-		const text = await response.text();
-		if (opts.parser) {
+
+		if (opts.responseType === 'arrayBuffer') {
+			return (await response.arrayBuffer()) as unknown as T;
+		}
+
+		if (opts.responseType === 'json') {
 			try {
-				return opts.parser(text);
+				return (await response.json()) as T;
+			}
+			catch (parseErr) {
+				throw new NetworkError({
+					code: 'core:network/parse-failed',
+					severity: 'error',
+					scope: { kind: 'network' },
+					message: 'response body is not valid JSON',
+					cause: parseErr,
+					context: {
+						url,
+						httpStatus: response.status,
+					},
+				});
+			}
+		}
+
+		const text = await response.text();
+		const textOpts = opts as AuthFetchBase & { parser?: (raw: string) => T };
+		if (textOpts.parser) {
+			try {
+				return textOpts.parser(text);
 			}
 			catch (parseErr) {
 				throw new NetworkError({
@@ -283,7 +316,7 @@ async function resolveHeader(value: AuthHeaderValue): Promise<string> {
 	return result instanceof Promise ? await result : result;
 }
 
-async function buildRequest<T>(url: string, opts: AuthFetchOptions<T>): Promise<Request> {
+async function buildRequest(url: string, opts: AuthFetchBase): Promise<Request> {
 	const headers = new Headers();
 
 	const effectiveBearer = opts.auth?.bearerToken ?? opts.auth?.accessToken;

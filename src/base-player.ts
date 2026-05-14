@@ -2842,6 +2842,21 @@ export const authMethods = {
 		this.emit('auth:refreshed', { tokenAcquiredAt: Date.now() });
 	},
 
+	/** Returns `true` when an auth config is present, `false` otherwise. Does not expose the token. */
+	hasAuth(this: Internals): boolean {
+		return this._authConfig !== undefined;
+	},
+
+	/**
+	 * Replace the active auth config wholesale, or pass `null` to clear it.
+	 * Emits `auth:refreshed` so listeners re-resolve. Prefer `auth(config)` for
+	 * partial updates; use `setAuth` when you need an explicit `null` clear.
+	 */
+	setAuth(this: Internals, config: AuthConfig | null): void {
+		this._authConfig = config ?? undefined;
+		this.emit('auth:refreshed', { tokenAcquiredAt: Date.now() });
+	},
+
 	/**
 	 * Resolve a URL through the configured `urlResolver` (custom-supplied
 	 * via `setup({ urlResolver })` / `urlResolver(fn)`) or fall back to

@@ -87,8 +87,8 @@ class TestPlugin extends Plugin<StubPlayer, Options> {
 		return this.report(payload);
 	}
 
-	publicFetch(url: string, parser?: any, opts?: any): Promise<any> {
-		return this.fetch(url, parser, opts);
+	publicFetch(url: string, options?: any): Promise<any> {
+		return this.fetch(url, options);
 	}
 
 	publicListen(target: EventTarget, event: string, handler: EventListener): void {
@@ -581,7 +581,7 @@ describe('Plugin base class', () => {
 
 		it('runs the parser when provided', async () => {
 			(fetchSpy as any).mockResolvedValueOnce(new Response('{"x":1}', { status: 200 }));
-			const result = await plugin.publicFetch('https://x', (raw: string) => JSON.parse(raw));
+			const result = await plugin.publicFetch('https://x', { parser: (raw: string) => JSON.parse(raw) });
 			expect(result).toEqual({ x: 1 });
 		});
 
@@ -597,7 +597,7 @@ describe('Plugin base class', () => {
 		it('scope: "player" emits on player-global channel', async () => {
 			const events: string[] = [];
 			player.on('fetch:start' as any, () => events.push('start'));
-			await plugin.publicFetch('https://x', undefined, { scope: 'player' });
+			await plugin.publicFetch('https://x', { scope: 'player' });
 			expect(events).toContain('start');
 		});
 
@@ -605,8 +605,59 @@ describe('Plugin base class', () => {
 			const events: string[] = [];
 			player.on('fetch:start' as any, () => events.push('player'));
 			player.on('plugin:test:fetch:start' as any, () => events.push('plugin'));
-			await plugin.publicFetch('https://x', undefined, { scope: 'silent' });
+			await plugin.publicFetch('https://x', { scope: 'silent' });
 			expect(events).toEqual([]);
+		});
+	});
+
+	// ─────────────────────────────────────────────────────────────────────
+	// Plugin.fetch identity injection
+	// ─────────────────────────────────────────────────────────────────────
+
+	describe('Plugin.fetch identity injection', () => {
+		let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+		beforeEach(() => {
+			fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('{}', { status: 200 })) as ReturnType<typeof vi.spyOn>;
+			(player as any).options = { auth: { bearerToken: 'tok' } };
+		});
+
+		afterEach(() => {
+			fetchSpy.mockRestore();
+		});
+
+		it('always forwards pluginId matching the static id', async () => {
+			const emitted: { event: string; data: any }[] = [];
+			(player as any).emit = (event: string, data: any) => {
+				emitted.push({ event, data });
+				(player as any).__originalEmit?.(event, data);
+			};
+			await plugin.publicFetch('https://x');
+			const startEvent = emitted.find(ev => ev.event.startsWith('plugin:test:fetch:'));
+			expect(startEvent).toBeDefined();
+			expect(emitted.some(ev => ev.event === 'plugin:test:fetch:start')).toBe(true);
+		});
+
+		it('always defaults scope to "plugin" regardless of options', async () => {
+			const emitted: string[] = [];
+			player.on('fetch:start' as any, () => emitted.push('player-global'));
+			player.on('plugin:test:fetch:start' as any, () => emitted.push('plugin-scoped'));
+			await plugin.publicFetch('https://x');
+			expect(emitted).toContain('plugin-scoped');
+			expect(emitted).not.toContain('player-global');
+		});
+
+		it('forwards responseType: json to authFetch', async () => {
+			(fetchSpy as any).mockResolvedValueOnce(new Response('{"z":9}', { status: 200 }));
+			const result = await plugin.publicFetch('https://x', { responseType: 'json' });
+			expect(result).toEqual({ z: 9 });
+		});
+
+		it('forwards responseType: arrayBuffer to authFetch', async () => {
+			const buf = new Uint8Array([10, 20]).buffer;
+			(fetchSpy as any).mockResolvedValueOnce(new Response(buf, { status: 200 }));
+			const result = await plugin.publicFetch('https://x', { responseType: 'arrayBuffer' });
+			expect(result).toBeInstanceOf(ArrayBuffer);
 		});
 	});
 

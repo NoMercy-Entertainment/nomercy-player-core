@@ -129,6 +129,7 @@ export { Plugin, PluginThrow } from './plugin';
 export type {
 	BeforeDispatchResult,
 	DispatchBeforeOptions,
+	FetchOptions,
 	PluginRecoveryAction,
 	PluginState,
 	ThrowPayload,

@@ -136,6 +136,10 @@ export interface QualityLevel {
 	/** Set when `qualityLevels({ includeUnsupported: true })` is called.
 	 *  `true` = browser can decode, `false` = MediaCapabilities reports unsupported. */
 	supported?: boolean;
+	/** `'hdr'` for streams tagged as HDR (HLS `VIDEO-RANGE` of `PQ` / `HLG`),
+	 *  `'sdr'` otherwise. Consumers can hide HDR levels when the active
+	 *  display does not advertise HDR support via `matchMedia('(dynamic-range: high)')`. */
+	dynamicRange?: 'sdr' | 'hdr';
 }
 
 /** Audio track metadata returned by `audioTracks()`. */
