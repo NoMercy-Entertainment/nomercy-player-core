@@ -6,6 +6,16 @@ import type { Internals } from '../state';
 // ──────────────────────────────────────────────────────────────────────────
 
 export const volumeMethods = {
+	/**
+	 * Read or write the playback volume.
+	 *
+	 * `volume()` — returns the effective level (0..1). Returns `0` when muted
+	 * regardless of the stored pre-mute value.
+	 *
+	 * `volume(level)` — clamps `level` to [0, 1], persists it, and routes the
+	 * new value to the active backend. Fires `beforeMutation` (cancellable) then
+	 * `volume`. No-op when the mutation is cancelled.
+	 */
 	volume(this: Internals, v?: number): number | void {
 		if (v === undefined) {
 			return this._volumeState === 'muted' ? 0 : this._internalVolume;
@@ -20,6 +30,11 @@ export const volumeMethods = {
 
 		this._resolveBackend()?.volume?.(this._internalVolume);
 	},
+	/**
+	 * Silence output without discarding the volume level. Persists the current
+	 * level so `unmute()` can restore it. Emits `mute` with `{ muted: true }`.
+	 * No-op when already muted.
+	 */
 	mute(this: Internals): void {
 		if (this._volumeState === 'muted')
 			return;
@@ -29,6 +44,11 @@ export const volumeMethods = {
 
 		this._resolveBackend()?.mute?.();
 	},
+	/**
+	 * Restore output after a mute. Reinstates the level saved by the last
+	 * `mute()` call and emits `mute` with `{ muted: false }`. No-op when
+	 * already unmuted.
+	 */
 	unmute(this: Internals): void {
 		if (this._volumeState === 'unmuted')
 			return;
@@ -38,14 +58,17 @@ export const volumeMethods = {
 
 		this._resolveBackend()?.unmute?.();
 	},
+	/** Toggle between muted and unmuted. Delegates to `mute()` or `unmute()`. */
 	toggleMute(this: Internals): void {
 		if (this._volumeState === 'muted')
 			this.unmute();
 		else this.mute();
 	},
+	/** Raise volume by `step` (default 0.05). Delegates to `volume()`. */
 	volumeUp(this: Internals, step = 0.05): void {
 		this.volume(this._internalVolume + step);
 	},
+	/** Lower volume by `step` (default 0.05). Delegates to `volume()`. */
 	volumeDown(this: Internals, step = 0.05): void {
 		this.volume(this._internalVolume - step);
 	},
