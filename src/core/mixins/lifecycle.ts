@@ -15,11 +15,33 @@ import type { Internals } from '../state';
 
 
 // ──────────────────────────────────────────────────────────────────────────
-// Mixin: lifecycle (setup, ready, dispose, setupState, phase, dispatching,
-// pushDispatch, popDispatch, platform)
+// Mixin: lifecycle — owns the player's birth, ready signal, and death.
+// `setup()` wires every cross-cutting concern (visibility / network / wakeLock
+// policies, metrics, progress emit, preload + transition orchestration) and
+// kicks off the async pipeline that fires `ready`. `dispose()` tears the same
+// wiring down via the cleanup queue each `_wire*` helper pushed onto it.
 // ──────────────────────────────────────────────────────────────────────────
 
 export const lifecycleMethods = {
+	/**
+	 * Configure the player and start the async setup pipeline.
+	 *
+	 * Synchronously: normalises options (debug / accessToken back-compat shims),
+	 * seeds internal state from config, wires every cross-cutting concern
+	 * (visibility, network, wake-lock, metrics, progress, preload+transition,
+	 * window expose), and emits `beforeSetup` followed by a `setup` phase
+	 * transition.
+	 *
+	 * Asynchronously: fires the setup pipeline (`setupStart` → `configResolved`
+	 * → `pluginsRegistering` → `pluginsRegistered` → `streamsReady` → `authReady`
+	 * → `playlistReady` → `mediaReady` → `ready`). Each stage emits its name on
+	 * success or a `<stage>Error` event on failure, then rejects the `ready()`
+	 * promise.
+	 *
+	 * Throws `core:lifecycle/already-setup` if called twice without `dispose()`
+	 * in between, or `core:player/disposed` if called after dispose. Returns
+	 * the player instance so callers can chain.
+	 */
 	setup(this: Internals, config: BasePlayerConfig): unknown {
 		_guardSetup(this);
 		this._setupCalled = true;
@@ -47,6 +69,14 @@ export const lifecycleMethods = {
 		return this;
 	},
 
+	/**
+	 * Returns a promise that resolves when the setup pipeline reaches the
+	 * `ready` stage, or rejects if any stage fails or `dispose()` is called
+	 * first. Memoised — repeated calls return the same promise.
+	 *
+	 * Already in `'ready'` phase? Resolves immediately. Already disposed?
+	 * Rejects immediately with `core:player/disposed`.
+	 */
 	ready(this: Internals): Promise<void> {
 		if (this._readyPromise)
 			return this._readyPromise;
@@ -65,17 +95,27 @@ export const lifecycleMethods = {
 		return this._readyPromise;
 	},
 
+	/**
+	 * Tear down the player. Idempotent — a second call is a no-op.
+	 *
+	 * Drains the policy cleanup queue (everything `setup()`'s `_wire*` helpers
+	 * registered: subscriptions, event listeners, intervals, RAF handles) BEFORE
+	 * emitting `dispose`, so handlers observing the transition see a sensible
+	 * final state. Phase moves `→ disposing → disposed`, the `ready()` promise
+	 * rejects if it hadn't resolved yet, and all listeners are removed.
+	 *
+	 * After this call the instance is dead — re-setup requires constructing a
+	 * new player.
+	 */
 	dispose(this: Internals): void {
 		if (this._phase === 'disposed' || this._phase === 'disposing')
 			return;
 		this._transitionPhase('disposing');
-		// Tear down policy subscriptions (visibility / network / wakeLock)
-		// BEFORE the disposed phase so handlers see a sensible final state.
 		for (const cleanup of this._policyCleanup) {
 			try {
 				cleanup();
 			}
-			catch { /* defensive */ }
+			catch { /* defensive — never let teardown errors escape */ }
 		}
 		this._policyCleanup = [];
 		this._readyReject?.(stateError('core:player/disposed', 'dispose() called before ready'));
@@ -84,6 +124,12 @@ export const lifecycleMethods = {
 		this.off('all');
 	},
 
+	/**
+	 * High-level setup status as a `SetupState` enum value. Coarser than `phase()`:
+	 * `'idle'` → `NOT_SETUP`, `'setup'` → `SETTING_UP`, `'disposing'`/`'disposed'`
+	 * → `DISPOSED`, anything else (loading / ready / playing / paused / etc.)
+	 * → `READY`. Useful for "is the player usable right now?" checks.
+	 */
 	setupState(this: Internals): SetupState {
 		switch (this._phase) {
 			case 'idle':
@@ -98,10 +144,17 @@ export const lifecycleMethods = {
 		}
 	},
 
+	/** Current fine-grained player phase (idle / setup / loading / ready / playing / paused / ...). */
 	phase(this: Internals): PlayerPhase {
 		return this._phase;
 	},
 
+	/**
+	 * Names of all events currently being dispatched, outermost first.
+	 * Populated by `pushDispatch` / `popDispatch` around event emission;
+	 * read by `beforeMutation` advisories that gate on which event chain
+	 * they're inside.
+	 */
 	dispatching(this: Internals): ReadonlyArray<string> {
 		return [...this._dispatchStack];
 	},
@@ -121,9 +174,10 @@ export const lifecycleMethods = {
 	},
 
 	/**
-	 * Resolved platform bundle. Defaults to `browserPlatform`; consumers swap
-	 * via `setup({ platform: capacitorPlatform })`. Lazy fallback during
-	 * pre-setup reads.
+	 * The platform bundle (visibility / network / wake-lock / fullscreen / etc.).
+	 * Defaults to `browserPlatform`; consumers swap via `setup({ platform: ... })`
+	 * for Capacitor / Tauri / Electron or to mock for tests. Returns the default
+	 * even before `setup()` has run so early reads don't need a null check.
 	 */
 	platform(this: Internals): IPlatform {
 		return this._platform ?? browserPlatform;
@@ -135,9 +189,8 @@ export const lifecycleMethods = {
 // Setup phase helpers — invoked in order by setup() above
 // ──────────────────────────────────────────────────────────────────────────
 
+/** Reject re-entry or post-dispose `setup()` calls with a typed StateError. */
 function _guardSetup(self: Internals): void {
-	// Spec §14: re-setup is `dispose → setup again`. Calling `setup()` twice
-	// is a programmer error.
 	if (self._setupCalled) {
 		throw stateError('core:lifecycle/already-setup', 'setup() called twice. Re-setup requires dispose() first.');
 	}
@@ -146,19 +199,19 @@ function _guardSetup(self: Internals): void {
 	}
 }
 
+/**
+ * Snapshot the config onto `self.options` and apply v1 → v2 back-compat shims:
+ *  - `debug: true` upgrades to `logLevel: 'debug'` (only when logLevel is unset).
+ *  - top-level `accessToken` folds into `auth.bearerToken` (only when bearerToken
+ *    is unset). Explicit auth always wins.
+ */
 function _normalizeOptions(self: Internals, config: BasePlayerConfig): void {
 	self.options = { ...config };
 
-	// Spec §G: deprecated `debug: true` → `logLevel = 'debug'` when no
-	// explicit logLevel set. Explicit value always wins.
 	if (self.options.debug === true && self.options.logLevel === undefined) {
 		self.options.logLevel = 'debug';
 	}
 
-	// Spec §G + spec §12: deprecated `accessToken` → `auth.bearerToken`
-	// shim. Lifts the v1 alias into the v2 auth pipeline. If `auth` is
-	// already supplied, accessToken does NOT override an existing
-	// bearerToken — explicit auth always wins.
 	if (self.options.accessToken !== undefined) {
 		const existing = self.options.auth ?? {};
 		if (existing.bearerToken === undefined) {
@@ -170,13 +223,12 @@ function _normalizeOptions(self: Internals, config: BasePlayerConfig): void {
 	}
 }
 
+/** Copy options that runtime methods read directly into their `self._*` slots. */
 function _seedFromOptions(self: Internals): void {
-	// Snapshot the auth config so runtime mutators (`auth(config)` / `auth(partial)`)
-	// have a live source of truth. Frozen on read via `auth()`.
+	// Authoritative auth copy — `auth(config)` and `auth(partial)` mutators
+	// write here, the auth-fetch pipeline reads here.
 	self._authConfig = self.options.auth ? { ...self.options.auth } : undefined;
 
-	// Capture the consumer-supplied URL resolver, if any. Falls back to
-	// the built-in default at call time when undefined.
 	self._urlResolver = self.options.urlResolver;
 
 	if (self.options.baseUrl)
@@ -197,12 +249,12 @@ function _initTranslator(self: Internals): void {
 	});
 }
 
+/**
+ * Register cue parsers in priority order. Built-ins (LRC, VTT-subtitle,
+ * sprite-VTT) go first so consumer-supplied parsers registered after them win
+ * resolution — the registry walks newest-first.
+ */
 function _registerCueParsers(self: Internals): void {
-	// Spec §G + §24.7: kit-default parsers (LRC, VTT-subtitle, sprite-VTT)
-	// register first. Resolution walks newest → oldest, so built-ins act as
-	// the LOW-priority fallback while consumer-supplied parsers (registered
-	// AFTER) win the resolution. Both go to the back of the list — order
-	// is "consumer pushed last, checked first."
 	for (const parser of builtInCueParsers) {
 		self._cueParsers.register(parser);
 	}
@@ -214,16 +266,15 @@ function _registerCueParsers(self: Internals): void {
 }
 
 function _resolvePlatform(self: Internals): void {
-	// Spec §G: resolve platform bundle. Default is browserPlatform but
-	// consumers can swap (Capacitor, Tauri, Electron) or partially override
-	// (`{ ...browserPlatform, wakeLock: customWakeLock }`).
 	self._platform = self.options.platform ?? browserPlatform;
 }
 
+/**
+ * Pause playback when the page goes hidden. Emits `visibility:visible` /
+ * `visibility:hidden` regardless of the pause action. Opt-in via
+ * `options.pauseWhenHidden` (default off).
+ */
 function _wireVisibilityPolicy(self: Internals): void {
-	// Spec §G — pauseWhenHidden: subscribe to the platform's visibility
-	// monitor; pause when the page goes hidden. Default is `false` for
-	// both libraries so we wire ONLY when explicitly enabled.
 	if (!self.options.pauseWhenHidden) return;
 
 	const platform = self._platform ?? browserPlatform;
@@ -241,11 +292,14 @@ function _wireVisibilityPolicy(self: Internals): void {
 	self._policyCleanup.push(unsubscribe);
 }
 
+/**
+ * React to network state changes per `options.onOffline`:
+ *  - `'pause'`              — calls `pause()` when offline.
+ *  - `'continue-buffered'`  — emits `network:offline` but doesn't touch transport (default).
+ *  - `'ignore'`             — no subscription, no emit.
+ * `network:online` fires on reconnect in all non-ignore modes.
+ */
 function _wireNetworkPolicy(self: Internals): void {
-	// Spec §G — onOffline: subscribe to the platform's network monitor and
-	// react per the configured policy. `'pause'` calls pause() on offline;
-	// `'continue-buffered'` (default) emits the network events but doesn't
-	// touch transport; `'ignore'` skips emission entirely.
 	const onOffline = self.options.onOffline ?? 'continue-buffered';
 	if (onOffline === 'ignore') return;
 
@@ -264,11 +318,16 @@ function _wireNetworkPolicy(self: Internals): void {
 	self._policyCleanup.push(unsubscribe);
 }
 
+/**
+ * Hold a screen wake lock so the device doesn't sleep during playback.
+ * `options.wakeLock`:
+ *  - `'never'`   — never acquire (default).
+ *  - `'always'`  — acquire at setup, release at dispose.
+ *  - `'auto'`    — follow phase transitions: acquire on `'playing'`/`'starting'`,
+ *                  release on `'paused'`/`'stopped'`/`'ended'`/`'disposed'`.
+ * All acquire/release calls swallow errors — wake-lock is best-effort.
+ */
 function _wireWakeLockPolicy(self: Internals): void {
-	//   `'never'`    — no acquire ever
-	//   `'always'`   — acquire at setup, release at dispose
-	//   `'auto'`     — track via phase events; acquire when entering
-	//                  `playing`/`starting`, release when exiting
 	const wakeLockPolicy = self.options.wakeLock ?? 'never';
 	const platform = self._platform ?? browserPlatform;
 
@@ -301,15 +360,23 @@ function _wireWakeLockPolicy(self: Internals): void {
 	}
 }
 
+/**
+ * Wire the playback-metrics pipeline. Three signals get populated as the
+ * player runs:
+ *  - `ttff`           — milliseconds from first `play()` to first `firstFrame`.
+ *                       Single-shot; only the first play→frame pair counts.
+ *  - `joinTime`       — milliseconds from setup() to first `firstFrame`.
+ *  - `rebufferRatio`  — cumulative stall time ÷ session duration. Stall starts
+ *                       on `backend:waiting`, ends on `backend:loaded` or `play`.
+ *
+ * On a non-zero `options.metricsIntervalMs` (default 10s), `playback:metrics`
+ * fires periodically carrying the current snapshot (with `sessionDurationMs`
+ * refreshed). All listeners and the interval timer are released on dispose
+ * via the cleanup queue.
+ */
 function _wireMetrics(self: Internals): void {
-	// Spec §T — periodic metrics emit + per-event instrumentation.
-	// `_metricsStartedAt` anchors session-duration; per-event hooks below
-	// populate TTFF / joinTime / rebufferRatio as the player runs.
 	self._metricsStartedAt = Date.now();
 
-	// TTFF instrumentation: capture `play()` timestamp, compute delta on
-	// first `firstFrame` event. Single-shot — only the FIRST play→frame
-	// pair counts; subsequent plays don't reset TTFF.
 	let ttffStartTs = 0;
 	let ttffRecorded = false;
 	const onPlay = (): void => {
@@ -320,7 +387,6 @@ function _wireMetrics(self: Internals): void {
 		if (!ttffRecorded && ttffStartTs > 0) {
 			self._metrics.ttff = Date.now() - ttffStartTs;
 			ttffRecorded = true;
-			// joinTime aggregates: ready→firstFrame total.
 			if (self._metricsStartedAt > 0) {
 				self._metrics.joinTime = Date.now() - self._metricsStartedAt;
 			}
@@ -329,9 +395,6 @@ function _wireMetrics(self: Internals): void {
 	self.on('play', onPlay);
 	self.on('firstFrame', onFirstFrame);
 
-	// Rebuffer instrumentation: `backend:waiting` starts a stall timer;
-	// `backend:loaded`/`play` ends it. Sum the stall durations and divide
-	// by session duration on each metrics-snapshot read.
 	let stallStartTs = 0;
 	let cumulativeStallMs = 0;
 	const onWaiting = (): void => {
@@ -363,8 +426,6 @@ function _wireMetrics(self: Internals): void {
 	const interval = self.options.metricsIntervalMs ?? 10_000;
 	if (interval > 0) {
 		self._metricsTimer = setInterval(() => {
-			// Refresh sessionDurationMs on every emit so listeners see
-			// current numbers without calling metrics() explicitly.
 			self._metrics.sessionDurationMs = Date.now() - self._metricsStartedAt;
 			self.emit('playback:metrics', self._metrics);
 		}, interval);
@@ -394,12 +455,14 @@ function _wireTimeAndDurationSync(self: Internals): void {
 	});
 }
 
+/**
+ * Re-emit `time` as a throttled `progress` event so consumers can persist
+ * watch position without subscribing to a per-frame stream. `time` fires every
+ * animation frame; `progress` fires at most every `options.progressIntervalMs`
+ * (default 5s, set to 0 to disable). The first `time` event after setup
+ * always fires `progress` because `_lastProgressEmit` starts at 0.
+ */
 function _wireProgressEmit(self: Internals): void {
-	// Spec §P4-V5: throttled progress event. `time` fires every animation
-	// frame — too noisy for server-side watch-position saves. We subscribe
-	// to the player's own `time` event and re-emit `progress` at most every
-	// `progressIntervalMs` (default 5000ms, 0 = disabled). `_lastProgressEmit`
-	// starts at 0 so the first `time` event always fires `progress`.
 	const progressInterval = self.options.progressIntervalMs ?? 5_000;
 	if (progressInterval <= 0) return;
 
@@ -417,10 +480,24 @@ function _wireProgressEmit(self: Internals): void {
 	});
 }
 
+/**
+ * Wire up next-item preloading and crossfade transitions.
+ *
+ * Two listeners get registered:
+ *  - `current` — bumps `_preloadEpoch`, cancels in-flight work, resets the
+ *                "already fired this cycle" flags so the next item starts fresh.
+ *  - `time`    — on every tick, asks the preload + transition strategies whether
+ *                their thresholds have been crossed; fires `_runPreload` /
+ *                `_runTransition` exactly once per cursor cycle.
+ *
+ * Strategy resolution order: explicit `options.preloadStrategy` /
+ * `transitionStrategy` win over per-library defaults. When no custom preload
+ * strategy is supplied, `options.preloadLeadSeconds` (default 10) drives a
+ * fresh `DefaultPreloadStrategy`.
+ *
+ * Crossfade only runs when `options.crossfadeEnabled` is true.
+ */
 function _wirePreloadAndTransition(self: Internals): void {
-	// Override strategies from config if supplied. Per-library players set
-	// their own defaults AFTER initPlayerCoreState; config injection always
-	// wins over library defaults when both are present.
 	if (self.options.preloadStrategy) {
 		self._preloadStrategy = self.options.preloadStrategy;
 	}
@@ -428,16 +505,11 @@ function _wirePreloadAndTransition(self: Internals): void {
 		self._transitionStrategy = self.options.transitionStrategy;
 	}
 
-	// Apply config-level lead times to the default strategy when no custom
-	// strategy has been injected. We rebuild the default strategy so the
-	// per-library player's preloadLeadSeconds takes effect here.
 	const configuredLeadSeconds = self.options.preloadLeadSeconds ?? 10;
 	if (!self.options.preloadStrategy) {
 		self._preloadStrategy = new DefaultPreloadStrategy(configuredLeadSeconds);
 	}
 
-	// Cursor-change guard: reset preload/transition flags whenever the active
-	// item changes so the next item gets a fresh cycle.
 	const onCurrentChange = (): void => {
 		self._preloadFired = false;
 		self._transitionFired = false;
@@ -455,19 +527,16 @@ function _wirePreloadAndTransition(self: Internals): void {
 		self.off('current', onCurrentChange);
 	});
 
-	// Time-driven orchestration: check preload + transition on every time tick.
 	const onTimeOrchestration = ({ time }: { time: number }): void => {
 		const duration = self._internalDuration;
 		const nextItem = self._queueList.peekNext() ?? null;
 		const context = { currentTime: time, duration, nextItem };
 
-		// Preload gate.
 		if (!self._preloadFired && self._preloadStrategy.shouldPreload(context) && nextItem !== null) {
 			self._preloadFired = true;
 			void _runPreload(self, nextItem, self._preloadStrategy);
 		}
 
-		// Transition gate.
 		const crossfadeEnabled = self.options.crossfadeEnabled ?? false;
 		if (crossfadeEnabled && !self._transitionFired && self._transitionStrategy.shouldTransition(context) && nextItem !== null) {
 			self._transitionFired = true;
@@ -483,6 +552,11 @@ function _wirePreloadAndTransition(self: Internals): void {
 	});
 }
 
+/**
+ * Stash the player on `window.player` when `options.expose: true`. Useful
+ * for browser-console debugging. Cleanup checks identity before deleting so a
+ * second player instance won't clobber the wrong handle.
+ */
 function _wireWindowExpose(self: Internals): void {
 	if (self.options.expose !== true || typeof window === 'undefined') return;
 
@@ -494,6 +568,7 @@ function _wireWindowExpose(self: Internals): void {
 	});
 }
 
+/** Seed the container element with the player's baseline classes. */
 function _initContainerClass(self: Internals): void {
 	if (self.container && typeof self.container.classList !== 'undefined') {
 		self.container.classList.add('nomercyplayer', 'paused');
@@ -505,6 +580,7 @@ function _initContainerClass(self: Internals): void {
 // Setup pipeline + transition helpers — async work fired by setup()
 // ──────────────────────────────────────────────────────────────────────────
 
+/** Lazily build the stream registry. Each call returns the same instance. */
 function _ensureStreamRegistry(self: Internals): StreamRegistry {
 	if (!self._streamRegistry) {
 		self._streamRegistry = new StreamRegistry();
@@ -513,14 +589,21 @@ function _ensureStreamRegistry(self: Internals): StreamRegistry {
 }
 
 /**
- * Drives the async setup pipeline. Each stage runs in order; failure short-
- * circuits the rest. Plugin queue is drained during `pluginsRegistering`,
- * with each plugin's `use()` bounded by `pluginInitTimeoutMs` (default 30s).
+ * Drive the async setup pipeline, fire-and-forget. Each stage runs in order;
+ * any failure short-circuits the rest and rejects the `ready()` promise.
  *
- * Pipeline event order (spec §14):
+ * Plugin queue is drained during `pluginsRegistering`, with each plugin's
+ * `use()` bounded by `options.pluginInitTimeoutMs` (default 30s). A plugin
+ * that adds another plugin during its own `use()` is processed in the same
+ * pass — the `shift()` loop catches new entries.
+ *
+ * Pipeline event order:
  *   setupStart → configResolved → pluginsRegistering → pluginsRegistered →
  *   streamsReady → authReady → playlistResolving? → playlistReady →
  *   mediaReady → ready
+ *
+ * The promise this fires is captured by `ready()` via `_readyResolve` /
+ * `_readyReject` wiring set up before this runs.
  */
 function _runSetupPipeline(self: Internals): void {
 	const pipeline = async (): Promise<void> => {
@@ -528,8 +611,6 @@ function _runSetupPipeline(self: Internals): void {
 			await _runStage(self, 'setupStart', 'setupStartError', () => {}, { container: self.container });
 			await _runStage(self, 'configResolved', 'configResolvedError', () => {}, { config: self.options });
 			await _runStage(self, 'pluginsRegistering', 'pluginsRegisteringError', async () => {
-				// Drain the queue. New plugins added during a `use()` (rare) get
-				// processed in the same pass — splicing the array catches them.
 				const timeoutMs = self.options.pluginInitTimeoutMs ?? 30_000;
 				while (self._pluginQueue.length > 0) {
 					const entry = self._pluginQueue.shift()!;
@@ -538,22 +619,21 @@ function _runSetupPipeline(self: Internals): void {
 			});
 			await _runStage(self, 'pluginsRegistered', 'pluginsRegisteredError', () => {});
 			await _runStage(self, 'streamsReady', 'streamsReadyError', () => {
-				// Spec §I: kit defaults (native + hls) auto-register here.
-				// Resolution order is most-recent-first; pushing native first so
-				// HLS (registered after) wins when a URL matches both.
+				// Native registered first so HLS (registered after) wins resolution
+				// when a URL matches both — the registry walks newest-first.
 				const reg = _ensureStreamRegistry(self);
 				reg.register(nativeFactory);
 				reg.register(hlsFactory);
 			});
 			await _runStage(self, 'authReady', 'authReadyError', () => {});
 
-			// Playlist stage — spec §14 says fire `playlistReady` with `length: 0`
-			// even when no playlist is configured. URL form (string) is reserved
-			// for §L impl; for now treat any non-string as inline.
+			// Playlist fires `playlistReady` with `length: 0` even when no
+			// playlist is configured, so consumers can rely on the event.
+			// String form (a playlist URL) is reserved for future fetch+parse;
+			// today any non-array also lands on length 0.
 			const playlist = self.options.playlist;
 			if (typeof playlist === 'string') {
 				self.emit('playlistResolving', { url: playlist });
-				// Fetch+parse lands with §L; emit ready with length 0 for now.
 				self.emit('playlistReady', { length: 0 });
 			}
 			else if (Array.isArray(playlist)) {
@@ -574,11 +654,22 @@ function _runSetupPipeline(self: Internals): void {
 		}
 	};
 
-	// Eager start, fire-and-forget. The promise itself is captured by `ready()`
-	// via `_readyResolve` / `_readyReject` wiring set up before the pipeline runs.
 	void pipeline();
 }
 
+/**
+ * Pre-fetch the next item's assets via HEAD requests so the browser cache
+ * is warm by the time playback advances. The strategy decides what to fetch
+ * (poster, manifest, first media segments, etc.).
+ *
+ * Race-guarded by `_preloadEpoch`: the orchestrator bumps the epoch on
+ * `current` events, and every per-asset fetch checks that its captured epoch
+ * still matches before emitting progress / complete. A stale fetch silently
+ * exits — its result would describe yesterday's item.
+ *
+ * Emits `preloadStart`, then one `preloadProgress` per asset, then either
+ * `preloadComplete` (all finished) or `preloadError` (any fetch threw).
+ */
 async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strategy: PreloadStrategy): Promise<void> {
 	const capturedEpoch = player._preloadEpoch;
 	const assets = strategy.assetsToPreload(nextItem);
@@ -625,6 +716,19 @@ async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strate
 	await Promise.all(assets.map(fetchAsset));
 }
 
+/**
+ * Drive a crossfade transition from `outgoing` to `incoming` using
+ * `requestAnimationFrame`. The strategy.tick() runs on every frame with a
+ * `fraction` from 0 to 1 covering the crossfade window
+ * (`crossfadeLeadSeconds + crossfadeTailSeconds`, both default 3).
+ *
+ * Same epoch race-guard as `_runPreload`: a cursor change mid-fade bumps
+ * `_preloadEpoch` and the RAF callback exits silently. Dispose checks too,
+ * so a teardown during a fade doesn't tick forever.
+ *
+ * Emits `transitionStart`, then `transitionProgress` per frame, then
+ * `transitionComplete` when fraction hits 1.
+ */
 function _runTransition(player: Internals, outgoing: BasePlaylistItem, incoming: BasePlaylistItem): void {
 	const backend = _resolveTransitionBackend(player);
 
