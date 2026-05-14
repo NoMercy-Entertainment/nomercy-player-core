@@ -9,12 +9,19 @@ import type { Internals } from '../state';
 // ──────────────────────────────────────────────────────────────────────────
 
 export const metricsMethods = {
+	/**
+	 * Snapshot of current playback metrics. Spreads the running counters tracked
+	 * by the backend (`ttfb`, `avgBitrate`, `droppedFrames`, ...) and appends a
+	 * live `sessionDurationMs` derived from when the current item started. The
+	 * same shape is emitted periodically as `playback:metrics`.
+	 */
 	metrics(this: Internals): PlaybackMetrics {
 		return {
 			...this._metrics,
 			sessionDurationMs: this._metricsStartedAt ? Date.now() - this._metricsStartedAt : 0,
 		};
 	},
+	/** Write a single named counter into the live metrics store. Backends call this to update their instrumented values; consumers may also use it for custom counters. */
 	recordMetric(this: Internals, name: string, value: number): void {
 		this._metrics[name] = value;
 	},
