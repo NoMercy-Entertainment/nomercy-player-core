@@ -6,17 +6,18 @@ import { AuthError, NetworkError } from './errors';
  * Auth-aware fetch shared by `Plugin.fetch()` and the player core's setup-time
  * playlist URL load.
  *
- * Behaviour:
- *  - Resolves auth (transformUrl, bearer, headers, credentials, signRequest)
- *  - 401 → calls `refreshOnUnauthenticated`, retries once with fresh auth
- *  - 403 → throws `AuthError(forbidden)` immediately, never refreshed, never retried
- *  - 5xx / timeout / network → retries per `RetryConfig` with backoff
- *  - Aborts cleanly when the caller's `AbortController` aborts
- *  - Emits `fetch:start` / `fetch:retry` / `fetch:complete` for observability
- *  - `responseType` controls how the response body is decoded:
- *      `'text'` (default) — raw string, optional `parser` callback
- *      `'json'`           — `response.json()`, throws `core:network/parse-failed` on bad JSON
- *      `'arrayBuffer'`    — `response.arrayBuffer()`
+ * Implementation lives in three layers further down:
+ *  - `prepareAttempt`  — builds a per-call context bag (closures, factories, budgets).
+ *  - `attemptOnce`     — one fetch + classify + decode pass, returns an `Outcome`.
+ *  - `authFetch`       — bounded retry orchestrator that consumes outcomes.
+ *
+ * Public entry point is `authFetch` near the bottom of the file.
+ */
+
+/**
+ * Common fields shared by every fetch call. The `responseType` discriminator
+ * lives on the `AuthFetchOptions` union below; this base is everything that's
+ * unaffected by how the response body is decoded.
  */
 interface AuthFetchBase {
 	url: string;
@@ -51,6 +52,14 @@ interface AuthFetchBase {
 	timeoutMs?: number;
 }
 
+/**
+ * Full options accepted by `authFetch`. `responseType` discriminates how the
+ * response body is decoded:
+ *  - `'text'` (default) — returns the raw response string. Optional `parser`
+ *    callback transforms it; a thrown parser surfaces as `core:network/parse-failed`.
+ *  - `'json'`           — `response.json()`. Invalid JSON throws `core:network/parse-failed`.
+ *  - `'arrayBuffer'`    — `response.arrayBuffer()` for binary payloads.
+ */
 export type AuthFetchOptions<T> = AuthFetchBase & (
 	| { responseType?: 'text'; parser?: (raw: string) => T }
 	| { responseType: 'json' }
@@ -62,6 +71,16 @@ export type AuthFetchOptions<T> = AuthFetchBase & (
 // Internal types
 // ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * Result of a single attempt. The orchestrator branches on `kind`:
+ *  - `'value'` — success; return the decoded body to the caller.
+ *  - `'throw'` — terminal error; abort the loop and rethrow.
+ *  - `'retry'` — recoverable; sleep `delayMs` and try again.
+ *
+ * Only `'retry'` outcomes carry a `consumesAttempt` flag: `true` for 5xx /
+ * network / timeout (normal retry, eats one attempt slot), `false` for the
+ * 401-refresh path (free retry, counted against `maxRefreshes` instead).
+ */
 type Outcome<T> =
 	| { kind: 'value'; value: T }
 	| { kind: 'throw'; error: NetworkError | AuthError }
@@ -72,6 +91,21 @@ type Outcome<T> =
 		consumesAttempt: boolean;
 	};
 
+/**
+ * Per-call context shared across the three layers. Built once by
+ * `prepareAttempt`, then read (and lightly written for budget tracking) by
+ * `attemptOnce` and the orchestrator.
+ *
+ * Mutable fields (`lastStatus`, `lastError`, `refreshesUsed`) track state that
+ * crosses attempt boundaries:
+ *  - `lastStatus` — most recent HTTP status, used in completion telemetry.
+ *  - `lastError`  — last 5xx / network error, surfaced if the retry budget runs
+ *                    out without a successful attempt.
+ *  - `refreshesUsed` — how many 401-refresh retries have fired; capped by `maxRefreshes`.
+ *
+ * Closure factories (`authErr`, `netErr`, `dispatch`, `complete`) capture `url`
+ * and other immutables so call sites stay short.
+ */
 interface AttemptCtx<T> {
 	url: string;
 	signal: AbortSignal;
@@ -90,7 +124,7 @@ interface AttemptCtx<T> {
 	netErr: (code: string, status: number | undefined, message: string, cause?: unknown, severity?: 'fatal' | 'error' | 'warning' | 'info') => NetworkError;
 
 	lastStatus: number | undefined;
-	lastError: unknown;
+	lastError: NetworkError | undefined;
 	refreshesUsed: number;
 
 	// Forwarded for buildRequest
@@ -106,6 +140,16 @@ interface AttemptCtx<T> {
 
 const DEFAULT_RETRY: RetryConfig = { attempts: 0 };
 
+/**
+ * Build the per-call context. Runs once at the start of every `authFetch`.
+ *
+ * Captures URL (post `auth.transformUrl`), event-scope routing, error/dispatch
+ * closures, and retry budgets. The returned context object is the only thing
+ * `attemptOnce` and the orchestrator need.
+ *
+ * Async because `auth.transformUrl` may return a Promise (consumer might
+ * resolve a signed URL via fetch / IndexedDB / native bridge).
+ */
 async function prepareAttempt<T>(opts: AuthFetchOptions<T>): Promise<AttemptCtx<T>> {
 	const url = await applyTransformUrl(opts.url, opts.auth);
 
@@ -200,6 +244,24 @@ async function prepareAttempt<T>(opts: AuthFetchOptions<T>): Promise<AttemptCtx<
 // Layer 2 — single fetch + classify + decode
 // ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * Perform one attempt against the server and classify the result into an
+ * `Outcome`. Knows nothing about retry orchestration — it just describes what
+ * happened. The orchestrator decides whether to loop again.
+ *
+ * `attempt` is the 1-indexed iteration number, used only to compute backoff
+ * for retry outcomes. 401-refresh paths use `delayMs: 0` regardless.
+ *
+ * Classification ladder:
+ *  - fetch threw + signal aborted     → `'throw'` with `core:network/aborted`
+ *  - fetch threw (timeout or network) → `'retry'` (stashes a terminal error on ctx)
+ *  - 401 with refresh budget          → invoke refresh, return `'retry'` (free)
+ *  - 401 without budget               → `'throw'` with `core:auth/unauthenticated`
+ *  - 403                              → `'throw'` with `core:auth/forbidden`
+ *  - other 4xx                        → `'throw'` with the matching network code
+ *  - 5xx                              → `'retry'` (stashes terminal for budget exhaustion)
+ *  - 2xx / 3xx                        → defer to `decodeBody`
+ */
 async function attemptOnce<T>(ctx: AttemptCtx<T>, attempt: number): Promise<Outcome<T>> {
 	const request = await buildRequest(ctx.url, ctx);
 
@@ -291,6 +353,14 @@ async function attemptOnce<T>(ctx: AttemptCtx<T>, attempt: number): Promise<Outc
 	return decodeBody<T>(response, ctx);
 }
 
+/**
+ * Decode a successful response body per `ctx.responseType`. Returns a `'value'`
+ * outcome on success, or a `'throw'` outcome wrapping the parse failure.
+ *
+ * `'text'` is the default; an optional `ctx.parser` post-processes the string
+ * (e.g. JSON.parse, custom format). Parser exceptions and malformed JSON both
+ * surface as `core:network/parse-failed` so consumers can catch the class.
+ */
 async function decodeBody<T>(response: Response, ctx: AttemptCtx<T>): Promise<Outcome<T>> {
 	if (ctx.responseType === 'arrayBuffer') {
 		const buffer = await response.arrayBuffer();
@@ -332,6 +402,28 @@ async function decodeBody<T>(response: Response, ctx: AttemptCtx<T>): Promise<Ou
 // Layer 3 — orchestrator, bounded loop
 // ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * Fetch a URL through the player's auth pipeline.
+ *
+ * Applies the consumer's `auth` config (URL transform, bearer token, per-call
+ * and static headers, credentials, signRequest hook), then drives a bounded
+ * retry loop over `attemptOnce`. The body is decoded per `opts.responseType`
+ * and returned typed as `T`.
+ *
+ * Retry behaviour, in one sentence per branch:
+ *  - 401 → invoke `auth.refreshOnUnauthenticated` once, retry without consuming an attempt slot.
+ *  - 403 → throw `core:auth/forbidden` immediately, never refresh, never retry.
+ *  - other 4xx → throw the matching `core:network/*` code, no retry.
+ *  - 5xx / network / timeout → retry per `RetryConfig`, with the last error
+ *    surfacing if the budget runs out.
+ *
+ * Observability is on by default: `fetch:start`, `fetch:retry`, `fetch:complete`
+ * fire on the player bus (or `plugin:<id>:fetch:*` when called from a Plugin).
+ * Pass `scope: 'silent'` to suppress.
+ *
+ * Throws `NetworkError` or `AuthError` only; both extend `PlayerError` and
+ * carry `code`, `httpStatus`, `url`, and `cause` for inspection.
+ */
 export async function authFetch<T = string>(opts: AuthFetchOptions<T>): Promise<T> {
 	const ctx = await prepareAttempt<T>(opts);
 
@@ -392,6 +484,19 @@ async function resolveHeader(value: AuthHeaderValue): Promise<string> {
 	return result instanceof Promise ? await result : result;
 }
 
+/**
+ * Construct the `Request` that gets handed to `fetch()`.
+ *
+ * Header layering (later wins on collision):
+ *  1. `Authorization: Bearer <token>` from `auth.bearerToken` / `auth.accessToken`.
+ *  2. Static `auth.headers` (resolved through `resolveHeader` so a function-valued
+ *     header gets invoked per request — useful for tenant ids, request signatures).
+ *  3. Per-request `opts.headers` (highest priority; lets a DRM POST override the
+ *     bearer with a license-server signature, etc.).
+ *
+ * After the Request is built, `auth.signRequest` (if supplied) gets the final
+ * say — it can mutate headers, swap the URL, or return a brand-new Request.
+ */
 async function buildRequest(url: string, opts: AuthFetchBase): Promise<Request> {
 	const headers = new Headers();
 
@@ -468,6 +573,15 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 	});
 }
 
+/**
+ * Compute the wait time before the next retry. `attempt` is the 1-indexed
+ * iteration number (1 = first retry after the initial fetch failed).
+ *
+ *  - Linear (default): `baseMs * attempt`, capped at `maxMs`.
+ *    Example with defaults (500ms / 30s): 500, 1000, 1500, 2000, ...
+ *  - Exponential:      `baseMs * 2^(attempt - 1)`, capped at `maxMs`.
+ *    Example with defaults: 500, 1000, 2000, 4000, 8000, ...
+ */
 function computeBackoff(retry: RetryConfig, attempt: number): number {
 	const base = retry.baseMs ?? 500;
 	const max = retry.maxMs ?? 30_000;
