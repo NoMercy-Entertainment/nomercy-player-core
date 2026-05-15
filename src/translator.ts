@@ -56,8 +56,8 @@ export interface DefaultTranslatorOptions {
 	translations?: Translations;
 
 	/**
-	 * Async loader invoked on `setLanguage(lang)` when no bundle is loaded.
-	 * Return `undefined` to skip and fall through to existing bundles.
+	 * Async loader invoked by `language(lang)` when a tag's bundle hasn't been
+	 * fetched yet. Return `undefined` to skip and fall through to existing bundles.
 	 */
 	loadTranslations?: (lang: string) => Promise<Record<string, string> | undefined>;
 
@@ -94,18 +94,19 @@ export function bcp47FallbackChain(tag: string): string[] {
 const VAR_RE = /\{(\w+)\}/g;
 
 /**
- * Default kit translator. Bundle table → key+vars lookup. Suitable for the
- * vast majority of media-app strings; swap the whole engine when richer
- * formatting is required.
+ * Default kit translator. Resolves a translation key by walking the BCP-47
+ * fallback chain (`pt-BR` → `pt` → `en`) over the in-memory bundle table,
+ * then substituting `{var}` placeholders from the `vars` map.
  *
  * Resolution order for `t(key)`:
- *  1. The active language's bundle
- *  2. `onMissingTranslation(key, lang)` callback
+ *  1. Each tag in the active language's BCP-47 chain (most specific first)
+ *  2. `onMissingTranslation(key, lang)` callback, if configured
  *  3. The key itself
  *
- * Async loading: `setLanguage(lang)` consults `loadTranslations(lang)` only
- * the first time a language is requested. Subsequent switches reuse the
- * already-merged bundle.
+ * Each language is loaded at most once: `language(lang)` consults
+ * `loadTranslations` the first time a tag is needed, then caches the result.
+ * Swap the whole engine via `setup({ translator })` when you need pluralisation,
+ * ICU MessageFormat, or any feature the built-in lookup doesn't cover.
  */
 export class DefaultTranslator implements ITranslator {
 	private currentLanguage: string;
@@ -133,8 +134,6 @@ export class DefaultTranslator implements ITranslator {
 	}
 
 	t(key: string, vars?: Record<string, string>): string {
-		// BCP-47 chain: walk active → parent → … → fallbackLanguage.
-		// `pt-BR` looks at `pt-BR`, then `pt`, then (if not already in chain) `en`.
 		const chain = bcp47FallbackChain(this.currentLanguage);
 		if (this.fallbackLanguage && !chain.includes(this.fallbackLanguage)) {
 			chain.push(this.fallbackLanguage);
@@ -162,8 +161,10 @@ export class DefaultTranslator implements ITranslator {
 	/**
 	 * Read or write the active language tag.
 	 *
-	 * `language()` — returns the current tag.
-	 * `language(lang)` — switches language, loading bundles as needed.
+	 * `language()` — returns the current BCP-47 tag.
+	 * `language(lang)` — switches to `lang`, loading bundles via the configured
+	 * loader if the tag hasn't been fetched yet. Resolves once all tags in the
+	 * BCP-47 chain are loaded.
 	 */
 	language(): string;
 	language(lang: string): Promise<void>;
@@ -177,9 +178,9 @@ export class DefaultTranslator implements ITranslator {
 	private async switchLanguage(lang: string): Promise<void> {
 		this.currentLanguage = lang;
 
-		// Walk the BCP-47 chain — load `pt-BR` first, then `pt`, so regional
-		// variants get both bundles in memory and the parent serves as
-		// natural fallback for keys the regional bundle doesn't override.
+		// Walk the full BCP-47 chain so regional variants (`pt-BR`) also have
+		// the parent bundle (`pt`) in memory as a natural fallback for keys
+		// the regional file doesn't override.
 		const chain = bcp47FallbackChain(lang);
 		for (const tag of chain) {
 			if (this.loaded.has(tag))
