@@ -40,14 +40,20 @@ export interface MutableCueList<T = unknown> extends CueList<T> {
 	subscribe(fn: (cues: ReadonlyArray<Cue<T>>) => void): () => void;
 }
 
+/**
+ * Build an immutable, time-indexed cue list from an array of raw cues.
+ *
+ * Input order does not matter — the list sorts by `start` on construction.
+ * Cues with equal `start` retain their relative input order.
+ *
+ * The returned object's `active(t)` uses binary search (O(log n)) and returns
+ * every cue whose interval contains `t`, including overlapping cues.
+ * `next(t)` and `prev(t)` locate the cue immediately after and before `t`.
+ */
 export function createCueList<T>(cues: ReadonlyArray<Cue<T>>): CueList<T> {
-	// Defensive copy + sort by start. Cues with same start retain input order.
 	const sorted = [...cues].sort((a, b) => a.start - b.start);
 
-	/**
-	 * Binary search: index of the first cue whose `start > time`. Returns
-	 * `sorted.length` if no such cue exists.
-	 */
+	// Returns the first index whose start > time (sorted.length when none exists).
 	const upperBound = (time: number): number => {
 		let lo = 0;
 		let hi = sorted.length;
@@ -67,11 +73,8 @@ export function createCueList<T>(cues: ReadonlyArray<Cue<T>>): CueList<T> {
 		cues: sorted,
 
 		active(time: number): Cue<T>[] {
-			// All cues with start <= time. Walk back from upperBound and collect
-			// those whose end >= time. Stop walking once start gets so small that
-			// no further cue could possibly overlap (an early-exit heuristic
-			// requires sorted-by-end which we don't maintain — so we walk all
-			// candidates with start <= time. For typical cue counts this is fine).
+			// No early exit: sorted-by-end is not maintained, so every candidate
+			// with start <= time must be checked for end >= time.
 			const result: Cue<T>[] = [];
 			const ub = upperBound(time);
 			for (let i = ub - 1; i >= 0; i--) {
@@ -81,7 +84,6 @@ export function createCueList<T>(cues: ReadonlyArray<Cue<T>>): CueList<T> {
 				if (cue.end >= time)
 					result.push(cue);
 			}
-			// Reverse so result is in start-time order
 			return result.reverse();
 		},
 
@@ -91,7 +93,6 @@ export function createCueList<T>(cues: ReadonlyArray<Cue<T>>): CueList<T> {
 		},
 
 		prev(time: number): Cue<T> | undefined {
-			// Last cue whose end < time. Walk back from upperBound looking for one.
 			const ub = upperBound(time);
 			for (let i = ub - 1; i >= 0; i--) {
 				const cue = sorted[i];
@@ -106,9 +107,15 @@ export function createCueList<T>(cues: ReadonlyArray<Cue<T>>): CueList<T> {
 }
 
 /**
- * Create a mutable cue list. Maintains a sorted buffer; `add/remove/clear`
- * keep it sorted and notify subscribers. `active/next/prev` reuse the same
- * binary-search logic as `createCueList` against the live buffer.
+ * Build a mutable, time-indexed cue list.
+ *
+ * Exposes the same query surface as `createCueList` (`active`, `next`, `prev`)
+ * against a live buffer that grows and shrinks at runtime. Use this for live
+ * captions or chapter lists that stream in after playback starts.
+ *
+ * Mutation methods (`add`, `remove`, `clear`) keep the buffer sorted and
+ * notify all `subscribe` listeners synchronously after each change.
+ * Subscriber errors are swallowed so a bad consumer cannot corrupt the list.
  */
 export function createMutableCueList<T>(initial?: ReadonlyArray<Cue<T>>): MutableCueList<T> {
 	const sorted: Cue<T>[] = initial ? [...initial].sort((a, b) => a.start - b.start) : [];
@@ -130,8 +137,7 @@ export function createMutableCueList<T>(initial?: ReadonlyArray<Cue<T>>): Mutabl
 	};
 
 	const insertSorted = (cue: Cue<T>): void => {
-		// First index whose start > cue.start; insert before it to keep stable
-		// ordering for equal starts (new cue lands AFTER existing equal-start cues).
+		// Insert AFTER any existing cue with the same start — stable ordering.
 		let lo = 0;
 		let hi = sorted.length;
 		while (lo < hi) {
