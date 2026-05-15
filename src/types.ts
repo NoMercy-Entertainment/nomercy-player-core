@@ -691,6 +691,55 @@ export type LogSink = (level: LogLevel, prefix: string, args: unknown[]) => void
  */
 export type TranslationLoader = (lang: string) => Promise<Record<string, string> | undefined>;
 
+/**
+ * Cast / Chromecast configuration for `transferTo('cast')`. All fields
+ * optional — leave unset to use the Cast Web Sender SDK's own defaults
+ * with the standard Google media receiver.
+ */
+export interface CastConfig {
+	/**
+	 * Auto-inject the Cast Web Sender SDK on first `transferTo('cast')`.
+	 * When `false` (the default), `transferTo('cast')` throws
+	 * `core:policy/castUnavailable` if the SDK script tag isn't already on
+	 * the page — the consumer must include the script manually.
+	 *
+	 * Set `true` for the on-demand path: the SDK only loads when the user
+	 * actually clicks Cast, no third-party network hit before then.
+	 */
+	autoLoad?: boolean;
+
+	/**
+	 * Cast receiver application ID. Defaults to the standard Google media
+	 * receiver. Set this to your custom receiver's app ID (registered in the
+	 * Google Cast Developer Console) to cast to a custom receiver app.
+	 */
+	receiverApplicationId?: string;
+
+	/**
+	 * Auto-join policy for existing Cast sessions on page load.
+	 *  - `'origin-scoped'` (default) — rejoin sessions started anywhere on the same origin.
+	 *  - `'tab-and-origin-scoped'` — rejoin only sessions started in the same tab.
+	 *  - `'page-scoped'` — never auto-rejoin; user must reconnect explicitly.
+	 */
+	autoJoinPolicy?: 'origin-scoped' | 'tab-and-origin-scoped' | 'page-scoped';
+
+	/** Resume the most recent saved session when the SDK initialises. Default `true`. */
+	resumeSavedSession?: boolean;
+
+	/**
+	 * Override the SDK script URL. Useful for self-hosted mirrors or testing.
+	 * Default: `https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1`.
+	 */
+	scriptUrl?: string;
+
+	/**
+	 * Timeout for SDK script load when `autoLoad: true`. Default `10000` ms.
+	 * Past this, throws `core:policy/castLoadTimeout` so the UI can fall back
+	 * to a non-Cast playback target.
+	 */
+	loadTimeoutMs?: number;
+}
+
 /** Configuration both players accept at setup. Each player extends this. */
 export interface BasePlayerConfig {
 	/** @deprecated — use `logLevel`. Maps to `'debug'` when true. */
@@ -801,6 +850,14 @@ export interface BasePlayerConfig {
 
 	/** Wake-lock policy. Video defaults `'auto'`; music defaults `'never'`. */
 	wakeLock?: 'auto' | 'always' | 'never';
+
+	/**
+	 * Cast / Chromecast configuration. Set `cast: { autoLoad: true }` for the
+	 * SDK to inject itself on first `transferTo('cast')`; set
+	 * `receiverApplicationId` to point at a custom receiver app. See
+	 * `CastConfig` for the full surface.
+	 */
+	cast?: CastConfig;
 
 	/** Clock source for timestamps used in distributed-sync plugins. Defaults to `Date.now`. */
 	clockSource?: () => number;
