@@ -461,7 +461,7 @@ export interface MixinSurface {
 	_peekBackend(): unknown;
 	_peekBackendTyped<S extends object>(): S | undefined;
 	_assertReady(): void;
-	_dispatchBefore<TData>(beforeEvent: string, data: TData): Promise<import('../dispatch').BeforeDispatchOutcome<TData>>;
+	_dispatchBefore<TData>(beforeEvent: string, data: TData): Promise<import('./dispatch').BeforeDispatchOutcome<TData>>;
 
 	// mediaTracksMethods (see mixins/media-tracks.ts) — sidecar + chapter helpers
 	_disposeSidecarSubtitle(): void;

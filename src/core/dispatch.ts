@@ -14,7 +14,7 @@
  * reports nested dispatches across both kit and plugin paths.
  */
 
-import type { BeforeEvent, PreventedReason } from './types';
+import type { BeforeEvent, PreventedReason } from '../types';
 
 /**
  * Returned by every `dispatchBefore` call.

@@ -51,9 +51,9 @@ export { CueTracker } from './cues/tracker';
 
 export type { CueTrackerOptions } from './cues/tracker';
 // Shared cancellable-event dispatcher (used by both kit transport mixins and Plugin.dispatchBefore)
-export { runDispatchBefore } from './dispatch';
+export { runDispatchBefore } from './core/dispatch';
 
-export type { BeforeDispatchOutcome, DispatchBeforeOpts, DispatchTarget } from './dispatch';
+export type { BeforeDispatchOutcome, DispatchBeforeOpts, DispatchTarget } from './core/dispatch';
 // DOM helpers
 export {
 	addClasses,
@@ -107,7 +107,7 @@ export { MediaList } from './adapters/media-list/default';
 export type { MediaListEvent } from './adapters/media-list/default';
 
 // Mixin + factory
-export { composeMixins } from './mixins';
+export { composeMixins } from './core/compose';
 // Platform bundle (wake-lock, network, visibility, capabilities, fullscreen, pip)
 export { browserPlatform } from './adapters/platform/browser';
 

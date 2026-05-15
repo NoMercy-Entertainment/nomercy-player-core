@@ -16,7 +16,7 @@ import type {
 	UrlCategory,
 } from '../types';
 
-import type { BeforeDispatchOutcome, DispatchTarget } from '../dispatch';
+import type { BeforeDispatchOutcome, DispatchTarget } from '../core/dispatch';
 import type { BeforeDispatchResult, DispatchBeforeOptions } from './dispatch';
 import type { FetchOptions } from './fetch';
 import type { PluginRecoveryAction, ThrowPayload } from './throw';
@@ -24,7 +24,7 @@ import type { PluginState } from './lifecycle';
 
 import { authFetch } from '../core/auth-fetch';
 import { mergeConfig } from '../core/config-merge';
-import { runDispatchBefore } from '../dispatch';
+import { runDispatchBefore } from '../core/dispatch';
 import { PlayerError } from '../errors';
 import { Logger } from '../adapters/logger/default';
 import { nativeWebSocketAdapter } from '../adapters/realtime/websocket';

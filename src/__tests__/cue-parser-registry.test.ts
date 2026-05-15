@@ -16,7 +16,7 @@ import {
 	resolvePlayerConstructor,
 } from '../base-player';
 import { EventEmitter } from '../adapters/event-bus/default';
-import { composeMixins } from '../mixins';
+import { composeMixins } from '../core/compose';
 
 const _instances = new Map<string, MockPlayer>();
 

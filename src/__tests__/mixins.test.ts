@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { composeMixins } from '../mixins';
+import { composeMixins } from '../core/compose';
 
 describe('composeMixins()', () => {
 	it('copies method properties onto the prototype', () => {
