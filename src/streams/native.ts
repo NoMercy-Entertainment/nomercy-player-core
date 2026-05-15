@@ -1,5 +1,6 @@
 import type {
 	StreamEvent,
+	StreamEventPayloadMap,
 	StreamFactory,
 	StreamFactoryOptions,
 	StreamSource,
@@ -13,7 +14,7 @@ const VIDEO_EXT_RE = /\.(?:mp4|webm|mov|m4v|ogv)(?:\?|$)/iu;
 
 class NativeStreamSource implements StreamSource {
 	readonly kind = 'native' as const;
-	private listeners = new Map<StreamEvent, Set<(data?: any) => void>>();
+	private listeners = new Map<StreamEvent, Set<(data: StreamEventPayloadMap[StreamEvent]) => void>>();
 	private element?: HTMLMediaElement;
 	private boundError?: () => void;
 	private _state: StreamSourceState = 'idle';
@@ -26,7 +27,8 @@ class NativeStreamSource implements StreamSource {
 
 		this.boundError = () => {
 			this._state = 'error';
-			this.emit('error', element.error);
+			if (element.error)
+				this.emit('error', element.error);
 		};
 		element.addEventListener('error', this.boundError);
 
@@ -36,7 +38,7 @@ class NativeStreamSource implements StreamSource {
 			const onLoad = () => {
 				cleanup();
 				this._state = 'ready';
-				this.emit('manifest-loaded');
+				this.emit('manifest-loaded', undefined);
 				resolve();
 			};
 			const onError = () => {
@@ -81,31 +83,31 @@ class NativeStreamSource implements StreamSource {
 		return this._state;
 	}
 
-	on(event: StreamEvent, fn: (data?: any) => void): void {
+	on<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void {
 		let set = this.listeners.get(event);
 		if (!set) {
 			set = new Set();
 			this.listeners.set(event, set);
 		}
-		set.add(fn);
+		(set as Set<(data: StreamEventPayloadMap[E]) => void>).add(fn);
 	}
 
-	off(event: StreamEvent, fn: (data?: any) => void): void {
+	off<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void {
 		const set = this.listeners.get(event);
 		if (!set)
 			return;
-		set.delete(fn);
+		(set as Set<(data: StreamEventPayloadMap[E]) => void>).delete(fn);
 		if (set.size === 0)
 			this.listeners.delete(event);
 	}
 
-	private emit(event: StreamEvent, data?: any): void {
+	private emit<E extends StreamEvent>(event: E, data: StreamEventPayloadMap[E]): void {
 		const set = this.listeners.get(event);
 		if (!set)
 			return;
 		for (const fn of [...set]) {
 			try {
-				fn(data);
+				(fn as (data: StreamEventPayloadMap[E]) => void)(data);
 			}
 			catch (err) { void err; }
 		}
