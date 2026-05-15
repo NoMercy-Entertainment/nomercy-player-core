@@ -1,17 +1,3 @@
-/**
- * Build a `ResolvedUrl` from a (possibly transformed) URL string.
- *
- * Handles three input shapes:
- *  - Absolute (`https://...`, `blob:...`, `data:...`) — parsed via `new URL`.
- *  - Relative with a `baseUrl` available — parsed via `new URL(url, baseUrl)`.
- *  - Relative with no base — falls back to a manual parse so plugins still
- *    get a usable `pathname`, `search`, `hash`, and `ext`. Marked
- *    `relative: true` so callers can decide what to do with it.
- *
- * Never throws. A genuinely malformed URL returns a best-effort form with
- * `relative: true` and `href === raw`.
- */
-
 import type { ResolvedUrl } from './types';
 
 const EXT_RE = /\.([a-z0-9]+)$/iu;
@@ -66,6 +52,32 @@ function fromManual(raw: string, transformed: string): ResolvedUrl {
 	};
 }
 
+/**
+ * Build a `ResolvedUrl` from a raw URL string and its (possibly transformed)
+ * form, optionally resolved against a base.
+ *
+ * Three input shapes are handled, tried in order:
+ *
+ * 1. **Absolute** — `transformed` is parseable by `new URL` alone
+ *    (e.g. `https://…`, `blob:…`, `data:…`). `relative` is `false`.
+ * 2. **Base-relative** — `transformed` is relative but `baseUrl` is supplied,
+ *    so `new URL(transformed, baseUrl)` succeeds. `relative` is `false`.
+ * 3. **Bare relative** — no base is available. The path, search, hash, and
+ *    extension are extracted with a manual string parse so plugins still get
+ *    usable fields. `relative` is `true` and `scheme`/`origin` are empty
+ *    strings. Callers should inspect `relative` before making decisions that
+ *    require an absolute URL.
+ *
+ * Never throws. A genuinely malformed input returns a best-effort result
+ * with `relative: true` and `href === transformed`.
+ *
+ * @param raw         The URL as it appeared before any transformation
+ *                    (e.g. before auth tokens were injected). Stored on the
+ *                    result as `raw` for logging and caching purposes.
+ * @param transformed The URL actually passed to the backend. May equal `raw`
+ *                    when no transformation is applied.
+ * @param baseUrl     Optional base for resolving relative `transformed` strings.
+ */
 export function buildResolvedUrl(raw: string, transformed: string, baseUrl?: string): ResolvedUrl {
 	// Try parsing the transformed form directly first.
 	try {
