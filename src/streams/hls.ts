@@ -11,24 +11,23 @@ import Hls from 'hls.js';
 import type { Loader, LoaderCallbacks, LoaderConfiguration, LoaderContext, LoaderResponse, LoaderStats, HlsConfig } from 'hls.js';
 import { MediaFormatError, StreamError } from '../errors';
 
-/**
- * HLS stream factory. Uses `hls.js` everywhere except where the media element
- * reports native HLS support (Safari, iOS) — there it sets `element.src`
- * directly to take advantage of platform-level integration.
- *
- * URL detection:
- *  - `.m3u8` extension
- *  - `application/vnd.apple.mpegurl` / `application/x-mpegURL` content-type
- *
- * Native is preferred when available (no decode overhead, OS controls work).
- * Otherwise `hls.js` handles parsing, ABR, and segment loading.
- */
 
 const HLS_EXT_RE = /\.m3u8(?:\?|$)/iu;
-// RFC 8216 + IANA: canonical is `application/vnd.apple.mpegurl`, legacy aliases
-// include `application/x-mpegurl` and `audio/mpegurl` (and `audio/x-mpegurl`).
+// RFC 8216 + IANA: canonical is `application/vnd.apple.mpegurl`, legacy aliases include `application/x-mpegurl` and `audio/mpegurl`.
 const HLS_MIME_RE = /^(?:application|audio)\/(?:vnd\.apple\.mpegurl|x-mpegurl|mpegurl)$/iu;
 
+/**
+ * `StreamSource` implementation for HLS streams.
+ *
+ * On browsers that report native HLS support (Safari, iOS WebKit) the URL is
+ * set directly on the media element — no extra library, full OS integration.
+ * Everywhere else `hls.js` handles manifest parsing, ABR, and segment loading.
+ *
+ * When a `StreamRegistry` is provided and has interceptors installed, every
+ * manifest and segment response is piped through `registry.runInterceptors()`
+ * before hls.js processes the bytes. Interceptors are NOT called on the native
+ * path because the browser fetches those resources directly.
+ */
 export class HlsStreamSource implements StreamSource {
 	readonly kind = 'hls' as const;
 
@@ -55,11 +54,6 @@ export class HlsStreamSource implements StreamSource {
 
 		const native = canPlayNativeHls(element);
 		if (native) {
-			// Native HLS path: the browser fetches manifests/segments directly.
-			// There is no fetch interception hook here, so registered stream
-			// interceptors do NOT run. Consumers needing interception must
-			// force the hls.js path by overriding canPlayNativeHls or by
-			// configuring the player to skip native.
 			element.src = this.url;
 			await this.waitForLoadedMetadata(element);
 			return;
@@ -79,16 +73,9 @@ export class HlsStreamSource implements StreamSource {
 
 		const registry = this.registry;
 		this.hls = new Hls({
-			// Sensible defaults; consumers override via Hls config later if needed
 			autoStartLoad: true,
 			enableWorker: true,
 			lowLatencyMode: false,
-			// Route every manifest + segment fetch through the registry's
-			// interceptor pipeline before yielding bytes to hls.js. The
-			// underlying transport stays whatever hls.js chose by default
-			// (FetchLoader where supported, XhrLoader as a fallback) — we just
-			// wrap its success callback to thread the response through the
-			// installed interceptors.
 			...(registry ? { loader: makeInterceptingLoader(registry) } : {}),
 		});
 
@@ -273,26 +260,28 @@ function canPlayNativeHls(element: HTMLMediaElement): boolean {
 	return probe === 'maybe' || probe === 'probably';
 }
 
-/**
- * Builds an hls.js Loader constructor that wraps the default loader and runs
- * every successful response through `registry.runInterceptors()` before
- * forwarding it back to hls.js. Errors / aborts / timeouts pass through
- * untouched. The wrapped loader is whichever loader hls.js's DefaultConfig
- * picked at construction time (FetchLoader where available, XhrLoader fallback).
- */
-/** Narrow view of hls.js's static DefaultConfig — only the loader field we use. */
+/** Narrow view of hls.js's static `DefaultConfig` — only the loader field we use. */
 interface HlsWithDefaultConfig {
 	DefaultConfig?: { loader?: new (config: HlsConfig) => Loader<LoaderContext> };
 }
 
+
+/**
+ * Build an hls.js `Loader` constructor that wraps the default loader (FetchLoader
+ * where available, XhrLoader fallback) and pipes every successful response through
+ * `registry.runInterceptors()` before forwarding it to hls.js. Errors, aborts,
+ * and timeouts pass through untouched.
+ *
+ * Returns `undefined` when `hls.js` does not expose `DefaultConfig.loader` (older
+ * builds); callers omit the `loader` override in that case.
+ */
 function makeInterceptingLoader(registry: StreamRegistry): (new (config: HlsConfig) => Loader<LoaderContext>) | undefined {
 	const Base = (Hls as unknown as HlsWithDefaultConfig).DefaultConfig?.loader;
 	if (!Base)
 		return undefined;
 
-	// TS doesn't narrow closure captures across deferred class bodies. The guard
-	// above guarantees Base is defined; BaseCtor carries that proof as a typed
-	// local so the constructor body compiles without `as any`.
+	// TS does not narrow closure captures across deferred class bodies.
+	// Capturing `Base` in a typed local lets the class constructor body compile.
 	const BaseCtor: new (config: HlsConfig) => Loader<LoaderContext> = Base;
 
 	return class InterceptingLoader {
@@ -338,16 +327,19 @@ function toResponse(response: { data?: string | ArrayBuffer | object; code?: num
 		status: response.code ?? 200,
 		headers: { 'x-source-url': url },
 	};
+
 	if (body == null)
 		return new Response(null, init);
 	if (typeof body === 'string')
 		return new Response(body, init);
 	if (body instanceof ArrayBuffer)
 		return new Response(body, init);
-	// Object-shaped manifests (post-parse) — re-stringify so interceptors get a
-	// real Response. Most interceptors operate on raw bytes anyway.
+
+	// hls.js may hand us an already-parsed manifest object — re-stringify so
+	// interceptors always receive a real Response with a readable body.
 	return new Response(JSON.stringify(body), init);
 }
+
 
 async function readBody(response: Response, original: string | ArrayBuffer | object | undefined): Promise<string | ArrayBuffer | object | undefined> {
 	if (original == null)
@@ -356,13 +348,31 @@ async function readBody(response: Response, original: string | ArrayBuffer | obj
 		return await response.text();
 	if (original instanceof ArrayBuffer)
 		return await response.arrayBuffer();
-	// Object-shaped: read text and re-parse if interceptor actually mutated it
+
 	try {
 		return JSON.parse(await response.text());
 	}
 	catch { return original; }
 }
 
+
+/**
+ * HLS stream factory — resolves `.m3u8` URLs to `HlsStreamSource` instances.
+ *
+ * URL detection:
+ * - `.m3u8` extension (with optional query string)
+ * - `application/vnd.apple.mpegurl`, `application/x-mpegurl`, or `audio/mpegurl`
+ *   content-type (RFC 8216 + common aliases)
+ *
+ * On browsers with native HLS support (Safari, iOS) the source sets `element.src`
+ * directly and skips hls.js entirely. On all other browsers hls.js handles ABR,
+ * manifest parsing, and segment loading. When a `StreamRegistry` is attached and
+ * has interceptors installed, fetches are routed through those interceptors before
+ * hls.js processes the bytes.
+ *
+ * This factory ships pre-registered at the second-highest priority (above native).
+ * Register a custom factory with the same `canPlay` signature to override it.
+ */
 export const hlsFactory: StreamFactory = {
 	id: 'hls',
 
