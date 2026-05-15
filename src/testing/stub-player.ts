@@ -16,29 +16,36 @@ import { EventEmitter } from '../events';
 import { buildResolvedUrl } from '../resolved-url';
 
 /**
- * Minimal `IPlayer` impl for plugin tests. Real enough to drive plugin
- * lifecycles + event subscriptions; not real enough to play media.
+ * Lightweight `IPlayer` test double for plugin and unit tests. It is real
+ * enough to drive plugin lifecycles and event subscriptions without needing a
+ * real browser, a media element, or a network stack.
  *
- * What it provides:
- *  - `EventEmitter` spine (so `on / off / once / hasListeners / emit` work)
- *  - `phase()` state machine — tests drive transitions via `setPhase()`
- *  - `dispatching()` stack — tests push/pop via `pushDispatch()` / `popDispatch()`
- *  - Translation surface that mutates an in-memory bundle table
- *  - Cue parser registry that records registrations
- *  - Stubbed `audioContext()` / `baseUrl()` accessors
- *  - `experimental.override` no-op surface
+ * **What it fills.** jsdom has no `<audio>` / `<video>` implementation and no
+ * `MediaSource` or `AudioContext`. A real player cannot be constructed in that
+ * environment. `StubPlayer` gives plugin tests a fully-typed, in-process
+ * `IPlayer` surface so they can exercise `use()` / `dispose()` / event wiring
+ * without touching the DOM at all.
  *
- * What it does NOT provide (and tests should not rely on):
- *  - Plugin registration — `addPlugin` is wired by `describePlugin` directly
- *    so the stub doesn't have to track plugin state. Tests calling
- *    `player.addPlugin` from inside a plugin's `use()` should mock that
- *    individually if needed.
- *  - Stream resolution
- *  - Backend lifecycle
- *  - Auth fetch (use `Plugin.fetch` overrides in tests instead)
+ * **Provided surface:**
+ *  - `EventEmitter` spine — `on / off / once / hasListeners / emit` are real
+ *  - `phase()` state machine — advance via `setPhase()` in test bodies
+ *  - `dispatching()` stack — driven via `pushDispatch()` / `popDispatch()`
+ *  - Full i18n surface backed by an in-memory bundle table
+ *  - Cue parser registry with real register/unregister/resolve logic
+ *  - Overloaded `baseUrl()` and `audioContext()` accessors
+ *  - `experimental.override` surface wired to an in-memory map
+ *  - `reset()` to clear all state between tests without creating a new instance
  *
- * Use this for **plugin** tests. For player-class tests, instantiate the
- * actual `NMMusicPlayer` / `NMVideoPlayer` and let `describePlayer` drive it.
+ * **What it does not provide** (tests must not rely on these):
+ *  - Plugin registration — `describePlugin` wires `addPlugin` itself so the
+ *    stub doesn't track plugin state. Mock it per-test if a plugin's `use()`
+ *    calls `player.addPlugin` internally.
+ *  - Stream resolution or backend lifecycle
+ *  - Auth-gated fetch (use `Plugin.fetch` overrides in tests instead)
+ *
+ * Use `StubPlayer` for plugin tests and kit unit tests. For player-class
+ * tests, instantiate the real `NMMusicPlayer` or `NMVideoPlayer` and let
+ * `runIPlayerContract` or `describePluginAgainst` drive it.
  */
 export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<BaseEventMap> {
 	readonly playerId: string;
@@ -68,8 +75,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 			this._translations = { ...opts.translations };
 	}
 
-	// ── Phase machine ──
-
 	phase(): PlayerPhase {
 		return this._phase;
 	}
@@ -89,9 +94,11 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		});
 	}
 
+	/**
+	 * Returns a snapshot of the current dispatch stack. Callers that hold the
+	 * reference won't observe the stack mutate after the current dispatch ends.
+	 */
 	dispatching(): ReadonlyArray<string> {
-		// Return a snapshot so callers that hold the reference don't observe
-		// the stack mutate after the current dispatch completes.
 		return [...this._dispatchStack];
 	}
 
@@ -105,8 +112,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		return this._dispatchStack.pop();
 	}
 
-	// ── Base URL ──
-
 	baseUrl(): string | undefined;
 	baseUrl(url: string): void;
 	baseUrl(url?: string): string | undefined | void {
@@ -114,8 +119,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 			return this._baseUrl;
 		this._baseUrl = url;
 	}
-
-	// ── AudioContext ──
 
 	audioContext(): AudioContext | undefined {
 		return this._audioContext;
@@ -125,8 +128,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	setAudioContext(ctx: AudioContext | undefined): void {
 		this._audioContext = ctx;
 	}
-
-	// ── URL resolution ──
 
 	private _urlResolver: UrlResolver | undefined;
 
@@ -154,8 +155,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 			return this._urlResolver;
 		this._urlResolver = resolver;
 	}
-
-	// ── i18n ──
 
 	t(key: string, vars?: Record<string, string>): string {
 		const bundle = this._translations[this._language];
@@ -209,8 +208,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		}
 	}
 
-	// ── Auth ──
-
 	private _authConfig: import('../types').AuthConfig | undefined;
 
 	auth(): Readonly<import('../types').AuthConfig> | undefined;
@@ -223,8 +220,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		}
 		this._authConfig = { ...(this._authConfig ?? {}), ...configOrPartial };
 	}
-
-	// ── Track / quality selections ──
 
 	private _currentSubtitleIdx: number | null = null;
 	private _currentAudioTrackIdx: number | null = null;
@@ -267,8 +262,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		if (_deviceId === undefined) return null;
 	}
 
-	// ── Shared state (playerStateMethods surface) ──
-
 	bufferState(): BufferState {
 		return BufferState.IDLE;
 	}
@@ -303,18 +296,11 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		this._audioTrackState = AudioTrackState.MANUAL;
 	}
 
-	// ── Time helpers ──
-
 	/**
-	 * Seek to a percentage (0–100) of duration. No-op in the stub — duration
-	 * is always 0 so the real impl would exit early anyway. Tests that need
-	 * a real seek should use `currentTime()` directly.
+	 * No-op in the stub — duration is always 0, so the real impl exits early
+	 * anyway. Tests that need a real seek should use `currentTime()` directly.
 	 */
-	seekByPercentage(_pct: number, _opts?: import('../types').ActionOptions): void {
-		// stub — no media in tests
-	}
-
-	// ── Cue parsers ──
+	seekByPercentage(_pct: number, _opts?: import('../types').ActionOptions): void {}
 
 	registerCueParser(parser: CueParser, prepend?: boolean): void {
 		const existing = this._registeredParsers.findIndex(p => p.id === parser.id);
@@ -340,8 +326,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		return this._registeredParsers;
 	}
 
-	// ── Experimental override surface ──
-
 	get experimental(): PlayerExperimental {
 		const overrides = this._overrides;
 		return {
@@ -364,8 +348,10 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		};
 	}
 
-	// ── DOM construction helpers (no-op stubs — tests don't need real DOM builders) ──
-
+	/**
+	 * Returns a real jsdom element so plugins that call `createElement` during
+	 * `use()` get a valid DOM node without needing a real browser environment.
+	 */
 	createElement<K extends keyof HTMLElementTagNameMap>(
 		type: K,
 		_id: string,
@@ -374,35 +360,43 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		return { el: document.createElement(type) } as unknown as import('../core/mixins/dom-mixin').CreateElement<HTMLElementTagNameMap[K]>;
 	}
 
+	/** Returns a real jsdom `<button>` — same rationale as `createElement`. */
 	createButton(_id: string, _label: string, _onClick: (e: Event) => void): HTMLButtonElement {
 		return document.createElement('button');
 	}
 
+	/** Returns a real jsdom `<svg>` — same rationale as `createElement`. */
 	createSVG(_id: string, _viewBox: string): SVGSVGElement {
 		return document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 	}
 
+	/**
+	 * Always returns `undefined`. The stub does not track plugin registrations;
+	 * `describePlugin` wires the plugin directly. Mock this per-test if a
+	 * plugin's `use()` calls `player.getPlugin()` internally.
+	 */
 	getPlugin<P extends object>(_PluginClass: PluginCtorWithId & (new () => P)): P | undefined {
 		return undefined;
 	}
 
+	/** Always returns `undefined` — see `getPlugin` for the rationale. */
 	getPluginById<P extends object = object>(_id: string): P | undefined {
 		return undefined;
 	}
 
+	/** Pass-through — returns the element unchanged with the fluent type. */
 	addClasses<T extends Element>(el: T, _names: string[]): import('../core/mixins/dom-mixin').AddClasses<T> {
 		return el as unknown as import('../core/mixins/dom-mixin').AddClasses<T>;
 	}
 
+	/** Pass-through — returns the element unchanged. */
 	removeClasses<T extends Element>(el: T, _names: string[]): T {
 		return el;
 	}
 
-	// ── Test-only helpers ──
-
 	/**
-	 * Reset the stub to a known starting state. Useful in `beforeEach`
-	 * blocks where the same player instance is reused across tests.
+	 * Reset the stub to a known starting state. Call in `beforeEach` when
+	 * reusing the same instance across tests to avoid cross-test pollution.
 	 */
 	reset(): void {
 		this.off('all');
