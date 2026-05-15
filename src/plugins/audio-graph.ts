@@ -5,19 +5,36 @@ import { Plugin } from '../plugin';
 
 /** Options for {@link AudioGraphPlugin}. */
 export interface AudioGraphOptions {
-	/** Initial latency hint passed to `new AudioContext({ latencyHint })`. Default `'playback'`. */
+	/**
+	 * Latency hint passed to `new AudioContext({ latencyHint })`.
+	 * Use `'playback'` (default) for music/video — the browser optimises buffer
+	 * sizes for lowest power rather than lowest latency.
+	 * Use `'interactive'` when round-trip latency matters (e.g. live instruments).
+	 */
 	latencyHint?: AudioContextLatencyCategory;
-	/** Default analyser FFT size used by `getAnalyserSource()` consumers. Default `2048`. */
+	/**
+	 * FFT size for the shared `AnalyserNode` returned by `analyserSource()`.
+	 * Higher values give finer frequency resolution at the cost of time resolution.
+	 * Default `2048` (1024 bins).
+	 */
 	fftSize?: 256 | 512 | 1024 | 2048 | 4096 | 8192 | 16384;
-	/** Default analyser smoothing 0..1. Default `0.8`. */
+	/**
+	 * Smoothing time constant 0..1 for the shared analyser.
+	 * Higher values make spectrum output lag behind transients.
+	 * Default `0.8`.
+	 */
 	smoothing?: number;
 }
 
 /** Events emitted by {@link AudioGraphPlugin}. */
 export interface AudioGraphEvents {
+	/** Fired once after the `AudioContext` is created and the baseline chain is wired. */
 	'context:ready': { sampleRate: number };
+	/** Fired when the `AudioContext` is closed — either on dispose or when the browser suspends it. */
 	'context:closed': void;
+	/** Fired every time `insertEffect` / `removeEffect` causes the full chain to be reconnected. */
 	'chain:rebuilt': void;
+	/** Fired when `AudioContext` is not available in the current environment. Plugin will not activate. */
 	'unsupported': { reason: string };
 }
 
@@ -31,14 +48,49 @@ function resolveAudioContextCtor(): (new (opts?: AudioContextOptions) => AudioCo
 }
 
 /**
- * Foundation plugin for the Web Audio signal chain. Strictly opt-in.
+ * Foundation plugin that owns the Web Audio signal chain. Every other audio
+ * plugin in the kit depends on this one being registered first.
  *
- * On `use()`:
- *  - lazily creates the player's `AudioContext`
- *  - wires the active backend's media element into a `MediaElementSourceNode`
- *    (when a backend is available)
- *  - connects source → destination as the baseline chain
- *  - exposes hooks for downstream audio-graph plugins
+ * **What it does**
+ *
+ * On `use()` it creates (or reuses) an `AudioContext`, wraps the backend's
+ * media element in a `MediaElementAudioSourceNode`, and connects the baseline
+ * chain: `source → destination`. Subsequent plugins extend the chain by calling
+ * `insertEffect()` or `pre()` / `post()`.
+ *
+ * **Chain topology**
+ *
+ * ```
+ * [media element / backend output]
+ *   └─ source node
+ *       ├─ (parallel tap) → shared AnalyserNode   (read by SpectrumPlugin)
+ *       ├─ preEffects[0..n]                        (e.g. EQ BiquadFilters)
+ *       └─ postEffects[0..n]                       (e.g. MixerPlugin gain/pan)
+ *           └─ AudioContext.destination
+ * ```
+ *
+ * **Events**
+ *
+ * - `context:ready` — `AudioContext` is live; includes `sampleRate`.
+ * - `context:closed` — context was closed on dispose.
+ * - `chain:rebuilt` — emitted every time the effect list changes; downstream
+ *   plugins that maintain internal serial connections (e.g. EQ filter chain)
+ *   listen to this event to re-link their own nodes.
+ * - `unsupported` — `AudioContext` is unavailable in this environment.
+ *
+ * **Browser autoplay policy**
+ *
+ * Browsers start `AudioContext` in `'suspended'` state. This plugin resumes
+ * it on the first `play` event — which always fires inside or immediately after
+ * a user gesture, satisfying the activation requirement.
+ *
+ * **Configuration**
+ *
+ * Pass `AudioGraphOptions` as the second argument to `addPlugin`:
+ *
+ * ```ts
+ * player.addPlugin(audioGraphPlugin, { latencyHint: 'playback', fftSize: 2048 });
+ * ```
  */
 export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plugin<P, AudioGraphOptions, AudioGraphEvents> {
 	static override readonly id: string = 'audio-graph';
@@ -55,7 +107,14 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	/** Manual route map — pairs created via `route()` so we can disconnect on dispose. */
 	private routes: Array<[AudioNode, AudioNode]> = [];
 
-	/** Creates the AudioContext, mounts the media element source, and wires the baseline chain. */
+	/**
+	 * Creates (or reuses) the `AudioContext`, mounts the media element source,
+	 * wires the baseline `source → destination` chain, and registers the
+	 * autoplay-policy resume handler.
+	 *
+	 * Throws `BrowserPolicyError` and emits `unsupported` when `AudioContext` is
+	 * not available (non-browser environments, locked contexts).
+	 */
 	override use(): void {
 		const Ctor = resolveAudioContextCtor();
 		if (!Ctor) {
@@ -107,12 +166,24 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.emit('context:ready', { sampleRate: ctx.sampleRate });
 	}
 
-	/** Disconnects all graph nodes, closes the AudioContext, and clears internal state. */
+	/**
+	 * Disconnects every graph node, closes the `AudioContext`, and clears all
+	 * internal state. Emits `context:closed` and removes the player-level
+	 * context reference so the next `use()` starts clean.
+	 */
 	override dispose(): void {
 		this.tearDownGraph();
 	}
 
-	/** Player-owned `AudioContext`. Lazily created on first call. */
+	/**
+	 * Returns the player's `AudioContext`.
+	 *
+	 * If `use()` has already run, the existing context is returned immediately.
+	 * If called before `use()` (unusual — prefer registering the plugin first),
+	 * a new context is created and registered on the player.
+	 *
+	 * Throws `BrowserPolicyError` in environments without `AudioContext`.
+	 */
 	context(): AudioContext {
 		if (this.ctx)
 			return this.ctx;
@@ -134,7 +205,13 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		return ctx;
 	}
 
-	/** The current head of the chain (the last node before destination). */
+	/**
+	 * Returns the last node in the effect chain — the node currently wired
+	 * directly to `AudioContext.destination`. Useful for downstream plugins that
+	 * want to tap or extend the tail of the chain without calling `insertEffect`.
+	 *
+	 * Throws `PluginError` if called before `use()` (no source node exists yet).
+	 */
 	outputNode(): AudioNode {
 		const last = this.postEffects[this.postEffects.length - 1]
 			?? this.preEffects[this.preEffects.length - 1]
@@ -153,7 +230,16 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		return last;
 	}
 
-	/** A shared `AnalyserNode` tap inserted at the head of the chain. */
+	/**
+	 * Returns the shared `AnalyserNode` tapped parallel to the chain source.
+	 *
+	 * The analyser is created once and reused — multiple consumers (e.g.
+	 * `SpectrumPlugin`, custom visualisers) all read from the same node.
+	 * FFT size and smoothing are set from `AudioGraphOptions` on first call.
+	 *
+	 * The analyser is wired in parallel (source → analyser) so it never
+	 * interrupts the main signal path to `destination`.
+	 */
 	analyserSource(): AnalyserNode {
 		if (this.analyser)
 			return this.analyser;
@@ -174,8 +260,16 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	}
 
 	/**
-	 * Insert an effect node into the chain. Returns the inserted node so the
-	 * caller can disconnect it later. Tracked so dispose tears them down.
+	 * Appends an effect node to the signal chain and triggers a full chain
+	 * rebuild so the new node is immediately wired between its neighbours and
+	 * `destination`.
+	 *
+	 * `position`:
+	 * - `'pre'` — inserted before any `'post'` effects (e.g. EQ filter banks).
+	 * - `'post'` — inserted after all `'pre'` effects (default; e.g. master gain).
+	 *
+	 * The plugin tracks every inserted node and disconnects them all on dispose.
+	 * Returns the same node for convenience so callers can store a reference.
 	 */
 	insertEffect(node: AudioNode, position: 'pre' | 'post' = 'post'): AudioNode {
 		if (position === 'pre') {
@@ -188,7 +282,13 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		return node;
 	}
 
-	/** Remove a previously inserted effect node. Idempotent. */
+	/**
+	 * Removes a previously inserted effect node from the chain.
+	 *
+	 * Disconnects the node and triggers a full chain rebuild so the gap is
+	 * closed. Safe to call with a node that was never inserted — no-op in that
+	 * case. Also safe to call during dispose.
+	 */
 	removeEffect(node: AudioNode): void {
 		const preIdx = this.preEffects.indexOf(node);
 		if (preIdx >= 0) {
@@ -205,17 +305,29 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.rebuildChain();
 	}
 
-	/** Convenience for `insertEffect(node, 'pre')`. */
+	/**
+	 * Shorthand for `insertEffect(node, 'pre')`.
+	 * Places the node before any `'post'` effects in the signal path.
+	 */
 	pre(node: AudioNode): AudioNode {
 		return this.insertEffect(node, 'pre');
 	}
 
-	/** Convenience for `insertEffect(node, 'post')`. */
+	/**
+	 * Shorthand for `insertEffect(node, 'post')`.
+	 * Places the node after all `'pre'` effects in the signal path.
+	 */
 	post(node: AudioNode): AudioNode {
 		return this.insertEffect(node, 'post');
 	}
 
-	/** Manual node connection for advanced graphs. Tracked for dispose. */
+	/**
+	 * Manually connects two nodes outside the managed effect chain.
+	 *
+	 * Use for advanced topologies — e.g. a side-chain compressor that taps the
+	 * source but delivers output to a separate destination. All connections
+	 * registered here are disconnected on dispose.
+	 */
 	route(from: AudioNode, to: AudioNode): void {
 		try {
 			from.connect(to);
@@ -224,7 +336,10 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.routes.push([from, to]);
 	}
 
-	/** Tear down a manual connection set up via `route()`. */
+	/**
+	 * Disconnects a manual node pair previously registered with `route()`.
+	 * Safe to call if the pair was never routed — no-op in that case.
+	 */
 	unroute(from: AudioNode, to: AudioNode): void {
 		const idx = this.routes.findIndex(([f, t]) => f === from && t === to);
 		if (idx >= 0)
