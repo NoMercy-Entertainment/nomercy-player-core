@@ -3,7 +3,7 @@ import { CueTracker } from '../../cues/tracker';
 import { parseVttSubtitles, parseVtt } from '../../cues/parsers/vtt';
 import type { VTTSubtitlePayload } from '../../cues/parsers/vtt';
 import type { Cue } from '../../cues/cue';
-import { buildResolvedUrl } from '../../resolved-url';
+import { buildResolvedUrl } from '../resolved-url';
 
 import type { Internals, SidecarSubtitleContext } from '../state';
 

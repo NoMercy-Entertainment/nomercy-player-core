@@ -1,5 +1,5 @@
 import type { AuthConfig } from './types';
-import { authFetch } from './auth-fetch';
+import { authFetch } from './core/auth-fetch';
 
 /**
  * Options for the built-in network translation loader. Wire it into

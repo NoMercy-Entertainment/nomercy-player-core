@@ -1,5 +1,5 @@
 import type { Severity } from '../errors';
-import type { AuthFetchOptions } from '../auth-fetch';
+import type { AuthFetchOptions } from '../core/auth-fetch';
 import type { LifecycleRegistry } from '../lifecycle';
 import type { ILogger } from '../logger';
 import type { IRealtimeChannel, RealtimeFactoryOptions } from '../realtime';
@@ -22,13 +22,13 @@ import type { FetchOptions } from './fetch';
 import type { PluginRecoveryAction, ThrowPayload } from './throw';
 import type { PluginState } from './lifecycle';
 
-import { authFetch } from '../auth-fetch';
-import { mergeConfig } from '../config-merge';
+import { authFetch } from '../core/auth-fetch';
+import { mergeConfig } from '../core/config-merge';
 import { runDispatchBefore } from '../dispatch';
 import { PlayerError } from '../errors';
 import { Logger } from '../logger';
 import { nativeWebSocketAdapter } from '../realtime';
-import { buildResolvedUrl } from '../resolved-url';
+import { buildResolvedUrl } from '../core/resolved-url';
 import { LocalStorageBackend } from '../storage';
 import { PluginThrow } from './throw';
 

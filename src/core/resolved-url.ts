@@ -1,4 +1,4 @@
-import type { ResolvedUrl } from './types';
+import type { ResolvedUrl } from '../types';
 
 const EXT_RE = /\.([a-z0-9]+)$/iu;
 

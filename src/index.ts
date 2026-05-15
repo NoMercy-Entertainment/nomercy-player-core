@@ -1,7 +1,7 @@
 // Auth-aware fetch (shared between Plugin.fetch and the player core's setup-time loads)
-export { authFetch, isAuthError, isNetworkError } from './auth-fetch';
-export type { AuthFetchOptions } from './auth-fetch';
-export { mergeConfig } from './config-merge';
+export { authFetch, isAuthError, isNetworkError } from './core/auth-fetch';
+export type { AuthFetchOptions } from './core/auth-fetch';
+export { mergeConfig } from './core/config-merge';
 // Player core — shared logic composed onto NMMusicPlayer + NMVideoPlayer
 // prototypes via `composeMixins`. Lives here so neither library can drift
 // from the spec; one fix lands once and applies everywhere.
@@ -166,7 +166,7 @@ export type { VisualizationFrame, VisualizationOptions } from './plugins/visuali
 export { nativeWebSocketAdapter } from './realtime';
 
 export type { IRealtimeChannel, RealtimeFactory, RealtimeFactoryOptions } from './realtime';
-export { buildResolvedUrl } from './resolved-url';
+export { buildResolvedUrl } from './core/resolved-url';
 export { IndexedDBBackend, LocalStorageBackend, MemoryStorageBackend } from './storage';
 export type { IStorage } from './storage';
 // Streams (re-exported here too for convenience; subpath imports also work)

@@ -1,5 +1,5 @@
 import type { BasePlaylistItem, LoadOptions } from '../../types';
-import { authFetch } from '../../auth-fetch';
+import { authFetch } from '../auth-fetch';
 import { mediaFormatError, stateError } from '../../errors';
 
 import type { Internals } from '../state';

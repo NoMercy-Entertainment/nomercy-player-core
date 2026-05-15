@@ -15,7 +15,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { authFetch } from '../auth-fetch';
+import { authFetch } from '../core/auth-fetch';
 import { AuthError, NetworkError } from '../errors';
 
 describe('authFetch', () => {

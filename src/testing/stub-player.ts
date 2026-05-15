@@ -17,7 +17,7 @@ import type {
 } from '../types';
 import { AudioTrackState, BufferState, NetworkState, QualityState, VisibilityState } from '../types';
 import { EventEmitter } from '../events';
-import { buildResolvedUrl } from '../resolved-url';
+import { buildResolvedUrl } from '../core/resolved-url';
 
 /**
  * Lightweight `IPlayer` test double for plugin and unit tests. It is real

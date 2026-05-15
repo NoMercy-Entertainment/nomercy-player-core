@@ -15,7 +15,7 @@
 
 import type { ResolvedUrl, UrlResolver } from '../types';
 import { describe, expect, it } from 'vitest';
-import { buildResolvedUrl } from '../resolved-url';
+import { buildResolvedUrl } from '../core/resolved-url';
 import { StubPlayer } from '../testing/stub-player';
 
 describe('buildResolvedUrl', () => {

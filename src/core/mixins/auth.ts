@@ -1,5 +1,5 @@
 import type { AuthConfig, ResolvedUrl, UrlCategory, UrlResolver, UrlResolverContext } from '../../types';
-import { buildResolvedUrl } from '../../resolved-url';
+import { buildResolvedUrl } from '../resolved-url';
 
 import type { Internals } from '../state';
 
