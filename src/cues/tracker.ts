@@ -1,13 +1,17 @@
 import type { BaseEventMap, IPlayer } from '../types';
 import type { Cue, CueList } from './cue';
 
-/** Minimal player surface `CueTracker.attach` subscribes to. */
+/**
+ * Minimal player surface required by `CueTracker.attach`. Keeps the tracker
+ * decoupled from the full `IPlayer` type so it works in test stubs.
+ */
 export interface CueTrackerTarget {
 	on: IPlayer<BaseEventMap>['on'];
 	off: IPlayer<BaseEventMap>['off'];
 	emit: IPlayer<BaseEventMap>['emit'];
 }
 
+/** Configuration for `CueTracker`. All fields are optional. */
 export interface CueTrackerOptions {
 	/** How close to a boundary still counts as "in" (seconds). Default 0. */
 	tolerance?: number;
@@ -57,6 +61,7 @@ export class CueTracker<T> {
 		this.historyMax = opts?.historyMax ?? 32;
 	}
 
+	/** Subscribe to a player's `time` and `seek` events to start dispatching. */
 	attach(player: CueTrackerTarget): void {
 		this.playerRef = player;
 
@@ -67,6 +72,10 @@ export class CueTracker<T> {
 		player.on('seek', this.boundOnSeek);
 	}
 
+	/**
+	 * Unsubscribe from the player and flush any still-active cues with `exit`
+	 * so downstream consumers can clean up their state.
+	 */
 	detach(): void {
 		if (!this.playerRef)
 			return;
@@ -75,7 +84,7 @@ export class CueTracker<T> {
 		if (this.boundOnSeek)
 			this.playerRef.off('seek', this.boundOnSeek);
 
-		// Emit exit for any still-active cues so consumers can clean up.
+		// Exit flush lets consumers clean up — mirrors what a seek discontinuity does.
 		for (const cue of this.active) this.emit('exit', cue);
 		this.active.clear();
 
@@ -84,6 +93,7 @@ export class CueTracker<T> {
 		this.boundOnSeek = undefined;
 	}
 
+	/** Subscribe to `'enter'` or `'exit'` cue events on this tracker instance. */
 	on(event: TrackerEvent, fn: Handler<T>): void {
 		let set = this.listeners.get(event);
 		if (!set) {
@@ -93,6 +103,7 @@ export class CueTracker<T> {
 		set.add(fn);
 	}
 
+	/** Remove a previously added `on` listener. */
 	off(event: TrackerEvent, fn: Handler<T>): void {
 		const set = this.listeners.get(event);
 		if (!set)
@@ -121,6 +132,7 @@ export class CueTracker<T> {
 		return this.historyBuffer.slice(-cap).reverse();
 	}
 
+	/** Detach, clear listeners, and empty history. */
 	dispose(): void {
 		this.detach();
 		this.listeners.clear();
@@ -150,7 +162,6 @@ export class CueTracker<T> {
 	}
 
 	private computeActive(time: number): Cue<T>[] {
-		// Apply tolerance: a cue is "in" if start - tol <= time <= end + tol
 		const adjusted = this.tolerance === 0 ? time : time;
 		const candidates = this.list.active(adjusted);
 		if (this.tolerance === 0)
@@ -168,13 +179,11 @@ export class CueTracker<T> {
 	private diffAndEmit(next: Cue<T>[]): void {
 		const nextSet = new Set(next);
 
-		// Exits: cues that were active but aren't in the new set
 		for (const cue of this.active) {
 			if (!nextSet.has(cue))
 				this.emit('exit', cue);
 		}
 
-		// Enters: cues newly in the active set
 		for (const cue of nextSet) {
 			if (!this.active.has(cue)) {
 				this.recordHistory(cue);
