@@ -6,19 +6,10 @@ import type {
 	StreamSourceState,
 } from './source';
 
-/**
- * Native protocol — direct media-element source.
- *
- * Handles formats the browser plays directly via `<audio src=...>` or
- * `<video src=...>`: mp3, flac, aac, m4a, wav, ogg, opus, mp4, webm, mov.
- * Anything else falls through to other factories (HLS, DASH, etc.).
- *
- * No transformations, no manifest parsing, no decoders — the browser handles
- * everything. The cheapest possible stream source.
- */
 
 const AUDIO_EXT_RE = /\.(?:mp3|flac|aac|m4a|wav|ogg|opus|weba)(?:\?|$)/iu;
 const VIDEO_EXT_RE = /\.(?:mp4|webm|mov|m4v|ogv)(?:\?|$)/iu;
+
 
 class NativeStreamSource implements StreamSource {
 	readonly kind = 'native' as const;
@@ -33,8 +24,6 @@ class NativeStreamSource implements StreamSource {
 		this.element = element;
 		this._state = 'loading';
 
-		// Forward the element's error event onto our stream surface so the
-		// player's stream-error handling sees the failure regardless of source.
 		this.boundError = () => {
 			this._state = 'error';
 			this.emit('error', element.error);
@@ -43,8 +32,6 @@ class NativeStreamSource implements StreamSource {
 
 		element.src = this.url;
 
-		// Wait for the element to actually start loading metadata so attach()
-		// callers can `await` and know the source is wired.
 		await new Promise<void>((resolve, reject) => {
 			const onLoad = () => {
 				cleanup();
@@ -70,15 +57,16 @@ class NativeStreamSource implements StreamSource {
 		if (this.element && this.boundError) {
 			this.element.removeEventListener('error', this.boundError);
 		}
+
 		if (this.element) {
 			this.element.removeAttribute('src');
-			// load() forces the element to release the source — without this,
-			// some browsers hold the network connection open until GC.
+			// Without load(), some browsers keep the network connection open until GC.
 			try {
 				this.element.load();
 			}
 			catch { /* defensive */ }
 		}
+
 		this.element = undefined;
 		this.boundError = undefined;
 		this._state = 'idle';
@@ -119,20 +107,34 @@ class NativeStreamSource implements StreamSource {
 			try {
 				fn(data);
 			}
-			catch (err) { /* swallow per stream-source contract */ void err; }
+			catch (err) { void err; }
 		}
 	}
 }
 
+
+/**
+ * Native stream factory — resolves URLs to direct media-element sources.
+ *
+ * Matches audio files (mp3, flac, aac, m4a, wav, ogg, opus, weba) and video
+ * files (mp4, webm, mov, m4v, ogv) by URL extension or MIME type prefix. Any
+ * URL this factory claims is handed straight to `element.src`; the browser
+ * handles decoding with no intermediate library.
+ *
+ * Detection is extension-first (no HEAD request needed) with a content-type
+ * fallback. HLS/DASH MIME types are excluded so those factories stay in charge.
+ *
+ * Register order: this factory ships pre-registered at the lowest priority.
+ * Any other factory that also claims a URL wins because the registry resolves
+ * newest-first.
+ */
 export const nativeFactory: StreamFactory = {
 	id: 'native',
 
 	canPlay(url: string, contentType?: string): boolean {
-		// Path-based detection first — works without a HEAD request
 		if (AUDIO_EXT_RE.test(url) || VIDEO_EXT_RE.test(url))
 			return true;
 
-		// Content-type-based fallback when the server told us
 		if (contentType) {
 			if (contentType.startsWith('audio/') && !contentType.includes('mpegurl'))
 				return true;
