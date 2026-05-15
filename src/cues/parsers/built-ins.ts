@@ -1,14 +1,14 @@
 /**
- * `CueParser`-shape wrappers around the built-in low-level parse functions
- * (`parseLrc`, `parseVttSubtitles`, `parseVttSprite`). These are the parsers
- * the kit auto-registers during `setup()` per spec §G / §24.7 — consumers
- * don't have to install them manually.
+ * Built-in `CueParser` instances for LRC, VTT subtitles, and sprite VTT.
  *
- * Resolution heuristic: `canParse` checks the URL extension first
- * (`.lrc`/`.vtt`), then the optional content-type (lyric MIME for LRC,
- * `text/vtt` for VTT). Sprite-VTT shares the `.vtt` extension so it ranks
- * BEHIND plain VTT in registration order — sprite is opt-in via either
- * naming convention (`*.sprite.vtt`) OR consumer's explicit register.
+ * The kit auto-registers these at low priority during setup so consumer-supplied
+ * parsers for the same URL patterns always take precedence.
+ *
+ * Resolution order: URL extension is checked first (`.lrc` / `.vtt`), then the
+ * optional `contentType`. Sprite VTT shares the `.vtt` extension and ranks
+ * behind plain VTT — it activates only when the URL contains `sprite.vtt` or
+ * `sprites.vtt`, or when the consumer explicitly registers `spriteVttParser`
+ * at higher priority.
  */
 
 import type { CueParser } from '../parser-registry';
@@ -23,6 +23,7 @@ const VTT_EXT_RE = /\.vtt(\?|$)/i;
 const VTT_MIME_RE = /^text\/vtt$/i;
 const SPRITE_VTT_HINT_RE = /sprite\.vtt(\?|$)|sprites?\.vtt(\?|$)/i;
 
+/** Built-in parser for `.lrc` files and `application/x-lrc` content-type. */
 export const lrcParser: CueParser<LrcPayload> = {
 	id: 'lrc',
 	canParse(url: string, contentType?: string): boolean {
@@ -37,6 +38,7 @@ export const lrcParser: CueParser<LrcPayload> = {
 	},
 };
 
+/** Built-in parser for WebVTT subtitle files. Does not match sprite-VTT URLs. */
 export const vttSubtitleParser: CueParser<VTTSubtitlePayload> = {
 	id: 'vtt',
 	canParse(url: string, contentType?: string): boolean {
@@ -55,6 +57,7 @@ export const vttSubtitleParser: CueParser<VTTSubtitlePayload> = {
 	},
 };
 
+/** Built-in parser for sprite WebVTT files (`*.sprite.vtt` / `*.sprites.vtt`). */
 export const spriteVttParser: CueParser<VTTSpritePayload> = {
 	id: 'sprite-vtt',
 	canParse(url: string): boolean {
@@ -69,8 +72,10 @@ export const spriteVttParser: CueParser<VTTSpritePayload> = {
 };
 
 /**
- * The full default-parser bundle. The kit registers these as low-priority
- * (prepend) entries during setup() so consumer-supplied parsers always win.
+ * Default parser bundle registered by the kit at startup. Consumers do not
+ * need to install these manually. Register a custom parser with the same `id`
+ * to replace any of them, or call `player.cueRegistry.unregister(id)` to
+ * remove one entirely.
  */
 export const builtInCueParsers: ReadonlyArray<CueParser> = [
 	lrcParser,
