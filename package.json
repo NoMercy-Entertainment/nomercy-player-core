@@ -31,48 +31,48 @@
 			"import": "./dist/index.js"
 		},
 		"./plugins/tab-leader": {
-			"types": "./dist/plugins/tab-leader.d.ts",
-			"import": "./dist/plugins/tab-leader.js"
+			"types": "./dist/plugins/tab-leader/index.d.ts",
+			"import": "./dist/plugins/tab-leader/index.js"
 		},
 		"./plugins/key-handler": {
-			"types": "./dist/plugins/key-handler.d.ts",
-			"import": "./dist/plugins/key-handler.js"
+			"types": "./dist/plugins/key-handler/index.d.ts",
+			"import": "./dist/plugins/key-handler/index.js"
 		},
 		"./plugins/media-session": {
-			"types": "./dist/plugins/media-session.d.ts",
-			"import": "./dist/plugins/media-session.js"
+			"types": "./dist/plugins/media-session/index.d.ts",
+			"import": "./dist/plugins/media-session/index.js"
 		},
 		"./plugins/message": {
-			"types": "./dist/plugins/message.d.ts",
-			"import": "./dist/plugins/message.js"
+			"types": "./dist/plugins/message/index.d.ts",
+			"import": "./dist/plugins/message/index.js"
 		},
 		"./plugins/embed": {
-			"types": "./dist/plugins/embed.d.ts",
-			"import": "./dist/plugins/embed.js"
+			"types": "./dist/plugins/embed/index.d.ts",
+			"import": "./dist/plugins/embed/index.js"
 		},
 		"./plugins/audio-graph": {
-			"types": "./dist/plugins/audio-graph.d.ts",
-			"import": "./dist/plugins/audio-graph.js"
+			"types": "./dist/plugins/audio-graph/index.d.ts",
+			"import": "./dist/plugins/audio-graph/index.js"
 		},
 		"./plugins/canvas": {
-			"types": "./dist/plugins/canvas.d.ts",
-			"import": "./dist/plugins/canvas.js"
+			"types": "./dist/plugins/canvas/index.d.ts",
+			"import": "./dist/plugins/canvas/index.js"
 		},
 		"./plugins/mixer": {
-			"types": "./dist/plugins/mixer.d.ts",
-			"import": "./dist/plugins/mixer.js"
+			"types": "./dist/plugins/mixer/index.d.ts",
+			"import": "./dist/plugins/mixer/index.js"
 		},
 		"./plugins/equalizer": {
 			"types": "./dist/plugins/equalizer/index.d.ts",
 			"import": "./dist/plugins/equalizer/index.js"
 		},
 		"./plugins/spectrum": {
-			"types": "./dist/plugins/spectrum.d.ts",
-			"import": "./dist/plugins/spectrum.js"
+			"types": "./dist/plugins/spectrum/index.d.ts",
+			"import": "./dist/plugins/spectrum/index.js"
 		},
 		"./plugins/visualization": {
-			"types": "./dist/plugins/visualization.d.ts",
-			"import": "./dist/plugins/visualization.js"
+			"types": "./dist/plugins/visualization/index.d.ts",
+			"import": "./dist/plugins/visualization/index.js"
 		},
 		"./streams/native": {
 			"types": "./dist/streams/native.d.ts",
