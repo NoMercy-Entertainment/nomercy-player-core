@@ -1,8 +1,9 @@
-import type { RetryConfig, Severity } from './errors';
-import type { LifecycleRegistry } from './lifecycle';
-import type { ILogger } from './logger';
-import type { IRealtimeChannel, RealtimeFactoryOptions } from './realtime';
-import type { IStorage } from './storage';
+import type { Severity } from '../errors';
+import type { AuthFetchOptions } from '../auth-fetch';
+import type { LifecycleRegistry } from '../lifecycle';
+import type { ILogger } from '../logger';
+import type { IRealtimeChannel, RealtimeFactoryOptions } from '../realtime';
+import type { IStorage } from '../storage';
 import type {
 	AuthConfig,
 	BaseEventMap,
@@ -13,43 +14,23 @@ import type {
 	ResolvedUrl,
 	Translations,
 	UrlCategory,
-} from './types';
+} from '../types';
 
-import type { AuthFetchOptions } from './auth-fetch';
-import type { BeforeDispatchOutcome, DispatchTarget } from './dispatch';
-import { authFetch } from './auth-fetch';
-import { mergeConfig } from './config-merge';
-import { runDispatchBefore } from './dispatch';
-import { PlayerError } from './errors';
-import { Logger } from './logger';
-import { nativeWebSocketAdapter } from './realtime';
-import { buildResolvedUrl } from './resolved-url';
-import { LocalStorageBackend } from './storage';
+import type { BeforeDispatchOutcome, DispatchTarget } from '../dispatch';
+import type { BeforeDispatchResult, DispatchBeforeOptions } from './dispatch';
+import type { FetchOptions } from './fetch';
+import type { PluginRecoveryAction, ThrowPayload } from './throw';
+import type { PluginState } from './lifecycle';
 
-/**
- * Options accepted by `Plugin.fetch<T>(url, options)`.
- * The discriminated `responseType` controls how the response body is decoded.
- * `pluginId` and `scope` are injected internally — plugin authors never set them.
- */
-type FetchHttp = {
-	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
-	body?: BodyInit;
-	headers?: Record<string, string>;
-	timeoutMs?: number;
-	retry?: RetryConfig;
-	scope?: 'plugin' | 'player' | 'silent';
-};
-
-export type FetchOptions<T> =
-	| (FetchHttp & { responseType?: 'text'; parser?: (raw: string) => T })
-	| (FetchHttp & { responseType: 'json' })
-	| (FetchHttp & { responseType: 'arrayBuffer' });
-
-type InternalFetchOptions<T> = AuthFetchOptions<T> & {
-	pluginId: string;
-	scope: 'plugin' | 'player' | 'silent';
-};
-
+import { authFetch } from '../auth-fetch';
+import { mergeConfig } from '../config-merge';
+import { runDispatchBefore } from '../dispatch';
+import { PlayerError } from '../errors';
+import { Logger } from '../logger';
+import { nativeWebSocketAdapter } from '../realtime';
+import { buildResolvedUrl } from '../resolved-url';
+import { LocalStorageBackend } from '../storage';
+import { PluginThrow } from './throw';
 
 /**
  * Extract the event-map generic from an `IPlayer<E>` or `EventEmitter<E>` type.
@@ -127,56 +108,10 @@ export type AnyPluginCtor = abstract new (...args: never[]) => Plugin<IPlayer<Ba
  */
 export type PluginEventMap<C extends AnyPluginCtor> = InstanceType<C>['__events__'];
 
-/**
- * Structured throw payload. The kit handles the rest:
- *  - stamps `scope: { kind: 'plugin', id: this.id }`
- *  - resolves numeric `id` from registry if available
- *  - emits the appropriate event (`error` / `warning` / `info`,
- *    plus `plugin:error` / `plugin:warning`)
- *  - applies retry policy (this throw + override below)
- *  - falls back to console if no handler called `markHandled()`
- */
-export interface ThrowPayload {
-	code: string;
-	severity?: Severity;
-	message?: string;
-	cause?: unknown;
-	context?: Record<string, unknown>;
-	suggestion?: string;
-	/** Override per-throw retry policy. `null` disables retries entirely. */
-	retry?: RetryConfig | null;
-	/** Numeric id if registered. Optional — string code always works. */
-	id?: number;
-}
-
-/**
- * Snapshot returned by `state()`. `runtime` is plugin-defined and intended for
- * debug overlays / save+restore tooling.
- */
-export interface PluginState<O = unknown> {
-	id: string;
-	version: string;
-	enabled: boolean;
-	opts: Readonly<O>;
-	runtime: Record<string, unknown>;
-}
-
-/**
- * Result returned by `Plugin.dispatchBefore(...)`. Alias for `BeforeDispatchOutcome`
- * so plugin authors share the single source-of-truth type from `dispatch.ts`.
- */
-export type BeforeDispatchResult<TData> = BeforeDispatchOutcome<TData>;
-
-/** Options for `Plugin.dispatchBefore(...)`. */
-export interface DispatchBeforeOptions {
-	/** Cap on `delay()` waits before timing out. Default = player's `beforeEventTimeoutMs`. */
-	timeoutMs?: number;
-}
-
-/**
- * Per-error recovery action. Configured per-plugin via `static onError`.
- */
-export type PluginRecoveryAction = 'retry-once' | 'fallback' | 'disable' | 'ignore';
+type InternalFetchOptions<T> = AuthFetchOptions<T> & {
+	pluginId: string;
+	scope: 'plugin' | 'player' | 'silent';
+};
 
 /**
  * Base plugin class. Subclass to write a plugin.
@@ -1006,13 +941,4 @@ export class Plugin<
 	}
 }
 
-/**
- * Internally raised by `this.throw(...)` so the kit can identify structured
- * plugin throws vs raw exceptions. Plugin authors should not construct these
- * directly.
- */
-export class PluginThrow extends Error {
-	constructor(public readonly payload: ThrowPayload, public readonly pluginId: string) {
-		super(payload.message ?? payload.code);
-	}
-}
+export { PluginThrow };
