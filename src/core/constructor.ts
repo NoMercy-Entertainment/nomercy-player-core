@@ -1,10 +1,17 @@
 import { resourceError, stateError } from '../errors';
 
 
-// ──────────────────────────────────────────────────────────────────────────
-// Three-form constructor resolution
-// ──────────────────────────────────────────────────────────────────────────
-
+/**
+ * Discriminated result from {@link resolvePlayerConstructor}.
+ *
+ * `existing` — a player with the requested identity is already registered.
+ * `C` is the concrete player class; callers narrow on `kind` before reading
+ * `instance`.
+ *
+ * `mount` — no registered player matched; the DOM element is present and ready
+ * to receive a new instance. Callers receive the raw `HTMLDivElement` so they
+ * can construct and register the player themselves.
+ */
 export type PlayerCtorResolution<C>
 	= | { kind: 'existing'; instance: C }
 		| { kind: 'mount'; id: string; div: HTMLDivElement };
@@ -13,6 +20,31 @@ function _isHTMLDivElement(el: Element): el is HTMLDivElement {
 	return el.tagName === 'DIV';
 }
 
+/**
+ * Three-form factory entry point shared by `NMMusicPlayer` and `NMVideoPlayer`.
+ *
+ * Callers pass whatever the user handed to the static constructor — a string
+ * id, a numeric index into the registry, or `undefined` — and get back a
+ * typed {@link PlayerCtorResolution} telling them whether to reuse an existing
+ * player or mount a fresh one on the located `<div>`.
+ *
+ * **`id === undefined`** — returns the first registered player. Throws
+ * `core:player/no-element` when the registry is empty (nothing has been
+ * mounted yet).
+ *
+ * **`id` is a number** — treats the value as a zero-based index into the
+ * registry's insertion order. Throws `core:player/not-found` when the index
+ * is out of range.
+ *
+ * **`id` is a string** — checks the registry for an existing player keyed by
+ * that string. If found, returns it as `existing`. If not found, calls
+ * `document.getElementById(id)` and requires a `<div>`: throws
+ * `core:player/element-missing` when no element exists, and
+ * `core:player/element-not-div` when the element is any other tag.
+ *
+ * SSR-safe: the `document.getElementById` call is guarded behind a
+ * `typeof document !== 'undefined'` check.
+ */
 export function resolvePlayerConstructor<C>(
 	id: string | number | undefined,
 	instances: Map<string, C>,
