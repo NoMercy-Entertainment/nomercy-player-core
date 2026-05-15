@@ -1,0 +1,99 @@
+/**
+ * Coarse lifecycle readiness state for the player instance. Returned by
+ * `player.setupState()`. Useful for guarding UI actions that require the
+ * player to have completed its setup sequence.
+ */
+export enum SetupState {
+	/** `setup()` has not been called yet. */
+	NOT_SETUP = 'not-setup',
+	/** `setup()` is in flight — config resolving, plugins registering. */
+	SETTING_UP = 'setup',
+	/** Setup completed — the player is ready to accept commands. */
+	READY = 'ready',
+	/** `dispose()` completed — the instance is permanently shut down. */
+	DISPOSED = 'disposed',
+}
+
+/**
+ * Buffer state derived from the active backend. Returned by
+ * `player.bufferState()`. Transitions from `idle` → `loading` → back to
+ * `idle` on normal playback; spikes to `seeking` on seek and `stalled` when
+ * the network can't keep up.
+ */
+export enum BufferState {
+	/** No active media or buffer is comfortably ahead. */
+	IDLE = 'idle',
+	/** Backend is fetching the initial segments. */
+	LOADING = 'loading',
+	/** A seek is in progress and the buffer is repositioning. */
+	SEEKING = 'seeking',
+	/** Playback stalled because the buffer ran dry. */
+	STALLED = 'stalled',
+}
+
+/**
+ * Network connectivity state. Returned by `player.networkState()`. Updated
+ * by the network monitor registered during setup; `ONLINE` when no monitor
+ * is configured.
+ */
+export enum NetworkState {
+	/** Network is reachable and delivering acceptable bandwidth. */
+	ONLINE = 'online',
+	/** No network connectivity detected. */
+	OFFLINE = 'offline',
+	/** Network is reachable but downlink is below the slow-connection threshold (1.5 Mbps). */
+	SLOW = 'slow',
+}
+
+/**
+ * Tab / document visibility state. Returned by `player.visibilityState()`.
+ * Updated by the `document.visibilitychange` listener; `VISIBLE` when no
+ * visibility monitor is configured.
+ */
+export enum VisibilityState {
+	/** The player's document tab is in the foreground. */
+	VISIBLE = 'visible',
+	/** The player's document tab is hidden or minimised. */
+	HIDDEN = 'hidden',
+}
+
+/**
+ * Quality / bitrate selection mode. Returned by `player.qualityState()`.
+ * Transitions from `AUTO` to `MANUAL` when the user or a plugin locks a
+ * specific level; back to `AUTO` when they restore adaptive switching.
+ */
+export enum QualityState {
+	/** Adaptive bitrate — the backend picks the best level automatically. */
+	AUTO = 'auto',
+	/** A specific quality level is locked by the consumer or a plugin. */
+	MANUAL = 'manual',
+}
+
+/**
+ * Audio track selection mode. Returned by `player.audioTrackState()`.
+ * Transitions from `DEFAULT` to `MANUAL` once the user or a plugin explicitly
+ * selects a track.
+ */
+export enum AudioTrackState {
+	/** The backend's default audio track is active (no explicit selection). */
+	DEFAULT = 'default',
+	/** A track was explicitly chosen — preference plugins persist this pick. */
+	MANUAL = 'manual',
+}
+
+/**
+ * Cast / handoff state for the active Cast session. Returned by
+ * `player.castState()` and carried on the `castState` event.
+ */
+export enum CastState {
+	/** Cast is not available in this browser (SDK absent or no devices found). */
+	UNAVAILABLE = 'unavailable',
+	/** At least one Cast device is reachable; the user has not started a session. */
+	AVAILABLE = 'available',
+	/** A Cast session is being established. */
+	CONNECTING = 'connecting',
+	/** A Cast session is active and playback is delegated to the receiver. */
+	CONNECTED = 'connected',
+	/** A session was active but has ended (user disconnected, receiver lost, etc.). */
+	DISCONNECTED = 'disconnected',
+}
