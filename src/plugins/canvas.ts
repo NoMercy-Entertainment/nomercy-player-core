@@ -4,39 +4,108 @@ import { Plugin } from '../plugin';
 
 /** Options for {@link CanvasPlugin}. */
 export interface CanvasOptions {
-	/** Where the canvas mounts. Default: the player's container element. */
+	/**
+	 * Where the canvas element is mounted. Accepts a CSS selector string or a
+	 * direct `HTMLElement` reference. Defaults to the player's container element.
+	 */
 	mount?: string | HTMLElement;
-	/** Canvas dimensions. Defaults to mount element's clientWidth/clientHeight. */
+
+	/**
+	 * Fixed canvas logical width in CSS pixels. When omitted the plugin reads
+	 * `clientWidth` from the mount element and tracks changes with a
+	 * `ResizeObserver`. Providing both `width` and `height` disables automatic
+	 * resize tracking entirely.
+	 */
 	width?: number;
+
+	/**
+	 * Fixed canvas logical height in CSS pixels. See `width` for the resize
+	 * tracking implications of setting this.
+	 */
 	height?: number;
-	/** Target FPS — kit caps the render loop. Default `60`. */
+
+	/**
+	 * Target frames per second for the RAF render loop. The kit caps rendering to
+	 * this value using frame-time differencing — actual FPS is limited by the
+	 * display refresh rate. Default `60`.
+	 */
 	fps?: number;
-	/** Canvas resolution multiplier. Default `devicePixelRatio`. */
+
+	/**
+	 * Canvas bitmap resolution multiplier. Pass `2` for Retina output on
+	 * displays where `devicePixelRatio === 2`. Defaults to `devicePixelRatio`
+	 * when available, otherwise `1`.
+	 */
 	pixelRatio?: number;
-	/** Stack visualizers on the same canvas (clear before each render) vs. composite (draw over). Default `'clear'`. */
+
+	/**
+	 * Controls what happens at the start of each frame before renderers are
+	 * called.
+	 *
+	 * - `'clear'` — the context is cleared with `clearRect` so each renderer
+	 *   starts from a blank canvas. Use this when renderers draw independently.
+	 * - `'composite'` — nothing is cleared; renderers accumulate on top of each
+	 *   other. Use this for layered effects where one renderer adds to another.
+	 *
+	 * Default `'clear'`.
+	 */
 	compositeMode?: 'clear' | 'composite';
 }
 
 /** Events emitted by {@link CanvasPlugin}. */
 export interface CanvasEvents {
+	/** Fired once after `use()` mounts the canvas and applies the initial size. */
 	mounted: { width: number; height: number };
+
+	/** Fired whenever the canvas is resized — either by the ResizeObserver or a manual `size(w, h)` call. */
 	resized: { width: number; height: number };
+
+	/**
+	 * Fired once per animation frame, after all registered renderers have run.
+	 * `deltaMs` is the milliseconds elapsed since the previous frame.
+	 * `time` is the `DOMHighResTimeStamp` from the browser's `requestAnimationFrame` callback.
+	 */
 	frame: { deltaMs: number; time: number };
 }
 
-/** Render callback signature — receives the 2D context and the frame timing. */
+/**
+ * Callback signature for functions registered with {@link CanvasPlugin.addRenderer}.
+ *
+ * @param ctx     The shared 2D rendering context for the plugin's canvas.
+ * @param deltaMs Milliseconds elapsed since the previous frame.
+ * @param time    `DOMHighResTimeStamp` from `requestAnimationFrame`.
+ */
 export type CanvasRenderFn = (ctx: CanvasRenderingContext2D, deltaMs: number, time: number) => void;
 
 /**
- * Canvas + RAF host plugin. Lives in core. **Strictly opt-in** — without
- * registering this plugin, no canvas is allocated, no RAF loop runs, and the
- * player pays zero rendering cost.
+ * Shared canvas and RAF loop host. Without this plugin no canvas is created and
+ * no animation frame is requested — the player pays zero rendering cost.
  *
- * Owns:
- *  - one `<canvas>` element mounted into the player container (or the configured mount)
- *  - dpi scaling + ResizeObserver wiring
- *  - the RAF loop, frame timing, deltaMs
- *  - a list of registered render callbacks called in registration order each frame
+ * **What it owns:**
+ * - A single `<canvas>` element mounted into the player container (or the
+ *   element you point `opts.mount` at).
+ * - DPI scaling via `opts.pixelRatio` and a `ResizeObserver` that keeps the
+ *   canvas in sync with its container.
+ * - The RAF loop, frame timing, and `deltaMs` calculation.
+ * - An ordered list of render callbacks. Every registered renderer runs each
+ *   frame in the order it was added.
+ *
+ * **Typical usage:**
+ * ```ts
+ * const canvas = player.getPlugin(CanvasPlugin);
+ * const unregister = canvas.addRenderer((ctx, deltaMs) => {
+ *   ctx.fillStyle = 'red';
+ *   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+ * });
+ * // Later:
+ * unregister();
+ * ```
+ *
+ * Visualizer plugins that depend on this plugin declare it in their `requires`
+ * list and call `player.getPlugin(CanvasPlugin)` inside their `use()`.
+ *
+ * Subclasses can override `createCanvas()` to return a custom canvas element
+ * (for example an `OffscreenCanvas` shim during testing).
  */
 export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plugin<P, CanvasOptions, CanvasEvents> {
 	static override readonly id: string = 'canvas';
@@ -50,7 +119,13 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 	private resizeObserver: ResizeObserver | null = null;
 	private rafRunning = false;
 
-	/** Mounts the canvas element, installs a ResizeObserver, and starts the RAF render loop. */
+	/**
+	 * Mounts the canvas into the configured element, installs a `ResizeObserver`
+	 * to track container size changes (unless `opts.width` and `opts.height` are
+	 * both set), and starts the RAF render loop.
+	 *
+	 * Emits `plugin:canvas:mounted` after the initial size is applied.
+	 */
 	override use(): void {
 		const surface = this.mount('surface');
 		surface.style.position = 'relative';
@@ -67,10 +142,14 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 		this.startRenderLoop();
 	}
 
-	/** Stops the RAF loop, disconnects the ResizeObserver, and drops all registered renderers. */
+	/**
+	 * Stops the RAF loop, disconnects the `ResizeObserver`, and drops all
+	 * registered renderers. After disposal, `canvas()` and `context()` throw.
+	 */
 	override dispose(): void {
 		this.renderers.length = 0;
 		this.rafRunning = false;
+
 		if (this.resizeObserver) {
 			try {
 				this.resizeObserver.disconnect();
@@ -78,12 +157,19 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 			catch { /* swallow */ }
 			this.resizeObserver = null;
 		}
+
 		this._canvas = null;
 		this._ctx = null;
 		this.surface = null;
 	}
 
-	/** Raw canvas element. Throws if accessed before `use()` has mounted it. */
+	/**
+	 * Returns the underlying `<canvas>` element.
+	 *
+	 * @throws {@link StateError} `plugin:canvas/not-mounted` when called before
+	 *   `use()` has mounted the element. Wait for `addPlugin(CanvasPlugin)` to
+	 *   resolve, or call from inside a dependent plugin's `use()`.
+	 */
 	canvas(): HTMLCanvasElement {
 		if (!this._canvas) {
 			throw new StateError({
@@ -100,10 +186,20 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 		return this._canvas;
 	}
 
-	/** 2D rendering context (cached). */
+	/**
+	 * Returns the cached `CanvasRenderingContext2D`.
+	 *
+	 * The context is created on first access and reused for all subsequent calls.
+	 *
+	 * @throws {@link StateError} when `canvas()` hasn't been mounted yet.
+	 * @throws {@link BrowserPolicyError} `core:policy/canvas2dUnsupported` when
+	 *   the environment does not support a 2D canvas context (e.g. some headless
+	 *   environments or a browser with hardware acceleration disabled).
+	 */
 	context(): CanvasRenderingContext2D {
 		if (this._ctx)
 			return this._ctx;
+
 		const canvasEl = this.canvas();
 		const ctx = canvasEl.getContext('2d');
 		if (!ctx) {
@@ -117,20 +213,37 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 				message: 'getContext("2d") returned null — environment does not support a 2D canvas context.',
 			});
 		}
+
 		this._ctx = ctx;
 		return ctx;
 	}
 
 	/**
-	 * Register a per-frame renderer. Returns an unregister fn.
-	 * Auto-removed on plugin dispose.
+	 * Register a per-frame renderer. The callback is invoked once per animation
+	 * frame, in registration order, after the canvas is optionally cleared
+	 * (controlled by `opts.compositeMode`).
+	 *
+	 * Returns an unregister function — call it to stop the renderer without
+	 * disposing the entire plugin. Renderers are also removed automatically when
+	 * the plugin disposes.
+	 *
+	 * ```ts
+	 * const stop = canvas.addRenderer((ctx, deltaMs) => {
+	 *   ctx.fillRect(0, 0, 10, 10);
+	 * });
+	 * // Remove when no longer needed:
+	 * stop();
+	 * ```
 	 */
 	addRenderer(fn: CanvasRenderFn): () => void {
 		this.renderers.push(fn);
 		return () => this.removeRenderer(fn);
 	}
 
-	/** Remove a previously registered renderer. */
+	/**
+	 * Remove a previously registered render callback. Silently no-ops when `fn`
+	 * is not in the current renderer list.
+	 */
 	removeRenderer(fn: CanvasRenderFn): void {
 		const idx = this.renderers.indexOf(fn);
 		if (idx >= 0)
@@ -138,10 +251,16 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 	}
 
 	/**
-	 * Read or write canvas dimensions.
+	 * Read or write the canvas logical size in CSS pixels.
 	 *
-	 * `size()` — returns `{ width, height }` of the current logical canvas size.
-	 * `size(width, height)` — manual size override. Bypasses the ResizeObserver path.
+	 * **Read** — `size()` returns `{ width, height }` reflecting the canvas
+	 * element's current `offsetWidth` / `offsetHeight`.
+	 *
+	 * **Write** — `size(width, height)` applies a manual size override. The
+	 * bitmap dimensions are scaled by `opts.pixelRatio` (defaults to
+	 * `devicePixelRatio`). Emits `plugin:canvas:resized`. Calling this bypasses
+	 * the `ResizeObserver` path for that frame but does not disconnect the
+	 * observer.
 	 */
 	size(): { width: number; height: number };
 	size(width: number, height: number): void;
@@ -152,32 +271,47 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 				height: this._canvas ? this._canvas.offsetHeight : 0,
 			};
 		}
+
 		const canvasEl = this._canvas;
 		if (!canvasEl)
 			return;
+
 		const h = height!;
 		const ratio = this.opts?.pixelRatio ?? (typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1);
 		canvasEl.width = Math.max(0, Math.floor(width * ratio));
 		canvasEl.height = Math.max(0, Math.floor(h * ratio));
 		canvasEl.style.width = `${width}px`;
 		canvasEl.style.height = `${h}px`;
+
 		this.emit('resized', {
 			width,
 			height: h,
 		});
 	}
 
-	/** Force a resize recalculation now (rarely needed — ResizeObserver handles it). */
+	/**
+	 * Force an immediate resize recalculation. Reads `clientWidth` / `clientHeight`
+	 * from the mount surface and calls `size(w, h)`.
+	 *
+	 * The `ResizeObserver` handles this automatically during normal operation.
+	 * Call this only when you need to react to a resize that happened outside
+	 * the observer's scope (e.g. after an explicit CSS transition).
+	 */
 	resize(): void {
 		const surface = this.surface;
 		if (!surface)
 			return;
+
 		const w = this.opts?.width ?? surface.clientWidth;
 		const h = this.opts?.height ?? surface.clientHeight;
 		this.size(w, h);
 	}
 
-	/** Override hook: provide a custom canvas element. */
+	/**
+	 * Override hook — return a custom `HTMLCanvasElement` to use instead of the
+	 * default `document.createElement('canvas')`. Useful for test environments
+	 * that provide a canvas shim.
+	 */
 	protected createCanvas(_mount: HTMLElement): HTMLCanvasElement {
 		return document.createElement('canvas');
 	}
@@ -187,9 +321,11 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 		const canvasEl = this._canvas;
 		if (!surface || !canvasEl)
 			return;
+
 		const w = this.opts?.width ?? surface.clientWidth ?? 0;
 		const h = this.opts?.height ?? surface.clientHeight ?? 0;
 		this.size(w, h);
+
 		this.emit('mounted', {
 			width: w,
 			height: h,
@@ -201,9 +337,11 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 			return;
 		if (typeof ResizeObserver === 'undefined')
 			return;
+
 		const surface = this.surface;
 		if (!surface)
 			return;
+
 		const ro = new ResizeObserver(() => { this.resize(); });
 		ro.observe(surface);
 		this.resizeObserver = ro;
@@ -212,16 +350,19 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 	private startRenderLoop(): void {
 		if (this.rafRunning)
 			return;
+
 		this.rafRunning = true;
 		this.frame((deltaMs, time) => {
 			if (!this.rafRunning)
 				return;
+
 			const compositeMode = this.opts?.compositeMode ?? 'clear';
 			const canvasEl = this._canvas;
 			if (canvasEl && compositeMode === 'clear') {
 				const ctx = this.context();
 				ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 			}
+
 			if (this.renderers.length > 0) {
 				const ctx = this.context();
 				for (const fn of this.renderers.slice()) {
@@ -235,6 +376,7 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 					}
 				}
 			}
+
 			this.emit('frame', {
 				deltaMs,
 				time,
