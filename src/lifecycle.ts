@@ -15,8 +15,6 @@ interface DisconnectableObserver { disconnect(): void }
  * cleanup whether or not the plugin remembers.
  *
  * Idempotent: calling `dispose()` twice is safe; the second call is a no-op.
- *
- * Thread-safety: not relevant; all DOM/WebAPI work is on the main thread.
  */
 export class LifecycleRegistry {
 	private readonly listeners: ListenerRecord[] = [];
@@ -29,10 +27,14 @@ export class LifecycleRegistry {
 	private disposed = false;
 
 	/**
-	 * Register an arbitrary cleanup callback. Used by Plugin.on() to remove
-	 * player-event listeners on dispose (since those are in-memory, not on an
-	 * EventTarget). Also available to consumers that need teardown logic
-	 * scoped to the same lifecycle.
+	 * Register an arbitrary cleanup callback. Used by `Plugin.on()` to remove
+	 * player-event listeners on dispose (those are in-memory, not on an
+	 * `EventTarget`). Also available to plugins that need teardown logic scoped
+	 * to this same lifecycle — e.g. removing a MutationObserver whose constructor
+	 * reference is lost.
+	 *
+	 * If called after `dispose()`, the callback runs immediately so the caller
+	 * does not need to guard against double-dispose.
 	 */
 	addCleanup(fn: () => void): void {
 		if (this.disposed) {
@@ -45,6 +47,13 @@ export class LifecycleRegistry {
 		this.cleanups.push(fn);
 	}
 
+	/**
+	 * Attach a DOM event listener and schedule its removal for `dispose()`. Drop-in
+	 * replacement for `target.addEventListener` — same signature, same behaviour,
+	 * automatic teardown.
+	 *
+	 * Silent no-op after `dispose()`.
+	 */
 	listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions | boolean): void {
 		if (this.disposed)
 			return;
@@ -57,6 +66,14 @@ export class LifecycleRegistry {
 		});
 	}
 
+	/**
+	 * Schedule a one-shot callback and auto-cancel it on `dispose()`. Wraps
+	 * `setTimeout` — errors inside `fn` are caught and logged so they cannot kill
+	 * the player.
+	 *
+	 * Returns the timer id (same shape as `setTimeout`). Returns `-1` after
+	 * `dispose()`.
+	 */
 	timeout(fn: () => void, ms: number): number {
 		if (this.disposed)
 			return -1;
@@ -75,6 +92,13 @@ export class LifecycleRegistry {
 		return id as unknown as number;
 	}
 
+	/**
+	 * Schedule a repeating callback and auto-cancel it on `dispose()`. Wraps
+	 * `setInterval` — errors inside `fn` are caught per tick so a single failure
+	 * does not stop the interval.
+	 *
+	 * Returns the interval id. Returns `-1` after `dispose()`.
+	 */
 	interval(fn: () => void, ms: number): number {
 		if (this.disposed)
 			return -1;
@@ -92,6 +116,15 @@ export class LifecycleRegistry {
 		return id as unknown as number;
 	}
 
+	/**
+	 * Register a `MutationObserver`, `ResizeObserver`, `IntersectionObserver`, or
+	 * any object with a `disconnect()` method and auto-disconnect it on `dispose()`.
+	 *
+	 * Returns the observer unchanged so callers can chain:
+	 * `this.lifecycle.observe(new ResizeObserver(cb)).observe(el)`.
+	 *
+	 * Silent no-op (still returns the observer) after `dispose()`.
+	 */
 	observe<O extends DisconnectableObserver>(observer: O): O {
 		if (this.disposed)
 			return observer;
@@ -99,6 +132,13 @@ export class LifecycleRegistry {
 		return observer;
 	}
 
+	/**
+	 * Create an `AbortController` whose signal is cancelled when `dispose()` runs.
+	 * Pass the returned controller's signal to `fetch`, `addEventListener`, or any
+	 * other abort-aware API — the signal fires automatically on teardown.
+	 *
+	 * If called after `dispose()`, returns a pre-aborted controller.
+	 */
 	abortable(): AbortController {
 		const ctrl = new AbortController();
 		if (this.disposed) {
@@ -110,8 +150,12 @@ export class LifecycleRegistry {
 	}
 
 	/**
-	 * Auto-cancelled requestAnimationFrame loop. Stops cleanly on dispose. A
-	 * single thrown frame is caught so it doesn't kill the loop or the player.
+	 * Start an auto-cancelled `requestAnimationFrame` loop. The callback receives
+	 * `(deltaMs, now)` on each frame. A single thrown frame is caught and logged
+	 * so it does not kill the loop or the player. The loop stops cleanly on
+	 * `dispose()`.
+	 *
+	 * Silent no-op in environments without `requestAnimationFrame` (Node, SSR).
 	 */
 	frame(fn: (deltaMs: number, time: number) => void): void {
 		if (this.disposed)
@@ -142,6 +186,14 @@ export class LifecycleRegistry {
 		this.rafs.add(initialId);
 	}
 
+	/**
+	 * Tear down everything the registry tracks. Removes all listeners, cancels all
+	 * timers and RAF loops, disconnects all observers, aborts all controllers, and
+	 * runs user-registered cleanup callbacks in reverse registration order (most
+	 * recently registered runs first, like a stack unwind).
+	 *
+	 * Safe to call multiple times — subsequent calls are no-ops.
+	 */
 	dispose(): void {
 		if (this.disposed)
 			return;
@@ -157,8 +209,7 @@ export class LifecycleRegistry {
 				target.removeEventListener(event, handler, options);
 			}
 			catch {
-				// removeEventListener is spec'd not to throw, but be defensive
-				// in case a custom EventTarget polyfill misbehaves.
+				// Defensive against custom EventTarget polyfills that misbehave.
 			}
 		}
 		this.listeners.length = 0;
@@ -190,23 +241,18 @@ export class LifecycleRegistry {
 				ctrl.abort();
 			}
 			catch {
-				// AbortController.abort is spec'd not to throw, but be defensive.
+				// Defensive — abort should not throw, but guard anyway.
 			}
 		}
 		this.aborts.length = 0;
 
-		// Run user-registered cleanups last, in reverse order — most recently
-		// registered teardowns run first, like a stack.
-		//
-		// Snapshot before iterating: we already set `disposed = true` at the top
-		// of dispose(), so any cleanup that calls `addCleanup()` re-entrantly
-		// short-circuits and runs immediately instead of mutating this array.
-		// We still snapshot defensively in case a future change relaxes that
-		// guarantee, and we type-guard each entry rather than relying on `!`.
-		const cleanups = this.cleanups.slice();
+		// Snapshot before iterating: `disposed = true` is already set, so any
+		// re-entrant `addCleanup()` call runs immediately rather than mutating
+		// this array mid-loop.
+		const snapshot = this.cleanups.slice();
 		this.cleanups.length = 0;
-		for (let i = cleanups.length - 1; i >= 0; i--) {
-			const fn = cleanups[i];
+		for (let index = snapshot.length - 1; index >= 0; index--) {
+			const fn = snapshot[index];
 			if (typeof fn !== 'function')
 				continue;
 			try {
@@ -218,6 +264,7 @@ export class LifecycleRegistry {
 		}
 	}
 
+	/** Whether `dispose()` has been called. Useful in plugin guards. */
 	isDisposed(): boolean {
 		return this.disposed;
 	}

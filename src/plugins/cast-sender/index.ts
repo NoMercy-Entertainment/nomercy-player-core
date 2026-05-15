@@ -551,7 +551,6 @@ export class CastSenderPlugin<
 		const ctrl = this.remoteController;
 		if (!remote || !ctrl)
 			return;
-		// playOrPause toggles — only call when remote state differs.
 		if (remote.isPaused === !wantPlaying) {
 			try {
 				ctrl.playOrPause();
