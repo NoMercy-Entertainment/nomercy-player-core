@@ -34,9 +34,19 @@ export interface VisualizationFrame {
 
 /** Options for {@link VisualizationPlugin} subclasses. */
 export interface VisualizationOptions {
-	/** Whether to clear the canvas before this visualizer renders. Default `false` — `canvasPlugin` handles clearing if its `compositeMode === 'clear'`. */
+	/**
+	 * Whether this visualizer clears the canvas before calling `render()`.
+	 * Default `false` — the canvas plugin handles clearing when its
+	 * `compositeMode` is `'clear'`, which is the recommended approach for
+	 * stacked / layered visualizers. Set to `true` only when this specific
+	 * visualizer needs an independent clear pass.
+	 */
 	clearBeforeRender?: boolean;
-	/** Render-loop pacing source. `'frame'` = canvas RAF (default). `'time'` = lazy poll on `getFrame()`. */
+	/**
+	 * Render-loop pacing. `'frame'` = driven by the canvas plugin's RAF loop
+	 * (default). `'time'` = lazy poll on explicit `getFrame()` calls.
+	 * Reserved for future use; currently only `'frame'` is active.
+	 */
 	tick?: 'frame' | 'time';
 }
 
@@ -104,7 +114,15 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 	protected _latestFrame: VisualizationFrame | undefined;
 	private _setupCalled = false;
 
-	/** Resolves canvas and spectrum dependencies, registers the render callback, and subscribes to spectrum frames. */
+	/**
+	 * Resolves the `CanvasPlugin` and `SpectrumPlugin` dependencies, registers
+	 * the render callback with the canvas RAF loop, and subscribes to `frame`
+	 * events from the spectrum plugin.
+	 *
+	 * When either dependency is missing or the spectrum plugin is in the
+	 * unsupported path (e.g. no `AudioContext`), emits `unsupported` and
+	 * returns early — the rest of the player keeps running.
+	 */
 	override use(): void {
 		const player = this.player as unknown as {
 			getPlugin?: <T>(c: new () => T) => T | undefined;
@@ -135,7 +153,11 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 		canvas.addRenderer(this._renderTickBound);
 	}
 
-	/** Unregisters the render callback from the canvas plugin and clears all internal references. */
+	/**
+	 * Unregisters the render callback from the canvas plugin's RAF loop and
+	 * clears all internal plugin references. The spectrum frame subscription
+	 * is cleaned up automatically by the lifecycle registry.
+	 */
 	override dispose(): void {
 		if (this._canvasPlugin && this._renderTickBound) {
 			try {
@@ -153,9 +175,10 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 	}
 
 	/**
-	 * Snapshot of the latest VisualizationFrame delivered to `render()`.
-	 * Returns `undefined` when no frame has been emitted yet (e.g. the spectrum
-	 * plugin hasn't ticked, or the visualization is in the unsupported path).
+	 * Returns the most recent `VisualizationFrame` passed to `render()`, or
+	 * `undefined` when no frame has arrived yet (spectrum hasn't ticked, or the
+	 * visualizer is in the unsupported path). Safe to call from outside the
+	 * render loop for snapshot reads.
 	 */
 	currentFrame(): VisualizationFrame | undefined {
 		return this._latestFrame;
@@ -245,9 +268,23 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 }
 
 /**
- * Trivial concrete subclass — strokes the time-domain waveform across the
- * full canvas width. Ships as a baseline / smoke-test visualizer; real
- * authors register their own subclasses.
+ * Baseline oscilloscope-style visualizer. Strokes the time-domain waveform
+ * as a continuous line across the full canvas width.
+ *
+ * Ships as a working reference and smoke-test for the visualization pipeline.
+ * Real authors extend {@link VisualizationPlugin} directly and implement their
+ * own `render(ctx, frame)` method.
+ *
+ * Requires `audioGraphPlugin`, `spectrumPlugin`, and `canvasPlugin` to be
+ * registered before this plugin.
+ *
+ * ```ts
+ * player
+ *   .addPlugin(audioGraphPlugin)
+ *   .addPlugin(spectrumPlugin)
+ *   .addPlugin(canvasPlugin)
+ *   .addPlugin(waveformVisualization);
+ * ```
  */
 export class WaveformVisualization<P extends IPlayer<BaseEventMap> = IPlayer> extends VisualizationPlugin<P> {
 	static override readonly id: string = 'fillz:waveform';
