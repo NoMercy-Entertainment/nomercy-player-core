@@ -44,7 +44,6 @@ export class CueParserRegistry {
 	 * list — built-ins use this to seed defaults that can be overridden.
 	 */
 	register(parser: CueParser, prepend?: boolean): void {
-		// Drop existing entry with the same id — re-register is always replace.
 		const existing = this.parsers.findIndex(p => p.id === parser.id);
 		if (existing >= 0)
 			this.parsers.splice(existing, 1);
@@ -54,6 +53,7 @@ export class CueParserRegistry {
 		else this.parsers.push(parser);
 	}
 
+	/** Remove the parser with `id`. No-op if not registered. */
 	unregister(id: string): void {
 		const idx = this.parsers.findIndex(p => p.id === id);
 		if (idx >= 0)
@@ -62,7 +62,7 @@ export class CueParserRegistry {
 
 	/**
 	 * Walk parsers in resolution order (most-recently-registered first) and
-	 * return the first one whose `canPlay` accepts the input. Returns
+	 * return the first one whose `canParse` accepts the input. Returns
 	 * `undefined` when nothing matches — caller decides whether absence is an
 	 * error or a no-op.
 	 */
@@ -77,6 +77,7 @@ export class CueParserRegistry {
 		return undefined;
 	}
 
+	/** Return the registered parser with `id`, or `undefined` if absent. */
 	findById(id: string): CueParser | undefined {
 		return this.parsers.find(p => p.id === id);
 	}
@@ -86,6 +87,7 @@ export class CueParserRegistry {
 		return this.parsers.map(p => p.id).reverse();
 	}
 
+	/** Clear all registered parsers. Called on player dispose. */
 	dispose(): void {
 		this.parsers.length = 0;
 	}
