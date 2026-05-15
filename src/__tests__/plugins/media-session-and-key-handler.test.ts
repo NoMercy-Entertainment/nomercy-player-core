@@ -139,6 +139,11 @@ describe('MediaSessionPlugin', () => {
 		}
 	});
 
+	/** Flush the microtask queue so async plugin internals settle. */
+	async function flushMicrotasks(): Promise<void> {
+		await new Promise<void>(resolve => setTimeout(resolve, 0));
+	}
+
 	it('registers, runs use() without throwing, and dispose() clears metadata', async () => {
 		const p = makePlayer('ms-1').setup({});
 		expect(() => p.addPlugin(MediaSessionPlugin)).not.toThrow();
@@ -149,6 +154,7 @@ describe('MediaSessionPlugin', () => {
 
 		// Push a current item so metadata gets set.
 		(p as any).emit('current', { item: { id: 1, title: 'Track A', artist: 'Band', album: 'LP' }, index: 0 });
+		await flushMicrotasks();
 		expect((navigator.mediaSession as any).metadata).toBeTruthy();
 		expect(((navigator.mediaSession as any).metadata as { title: string }).title).toBe('Track A');
 
@@ -164,6 +170,84 @@ describe('MediaSessionPlugin', () => {
 		// Action handlers were torn down (set to null).
 		expect(handlers.get('play')).toBeNull();
 		expect(handlers.get('pause')).toBeNull();
+	});
+
+	it('populates artwork from item.image field (VideoPlaylistItem shape)', async () => {
+		const p = makePlayer('ms-artwork-image').setup({});
+		p.addPlugin(MediaSessionPlugin);
+		await p.ready();
+
+		(p as any).emit('current', {
+			item: { id: 2, title: 'Movie', image: 'https://cdn.example.com/poster.jpg' },
+			index: 0,
+		});
+		await flushMicrotasks();
+
+		const meta = (navigator.mediaSession as any).metadata;
+		expect(meta).toBeTruthy();
+		expect(meta.artwork).toHaveLength(1);
+		expect(meta.artwork[0].src).toBe('https://cdn.example.com/poster.jpg');
+		expect(meta.artwork[0].sizes).toBe('512x512');
+		expect(meta.artwork[0].type).toBe('image/jpeg');
+	});
+
+	it('populates artwork from item.cover field (MusicPlaylistItem shape)', async () => {
+		const p = makePlayer('ms-artwork-cover').setup({});
+		p.addPlugin(MediaSessionPlugin);
+		await p.ready();
+
+		(p as any).emit('current', {
+			item: { id: 3, title: 'Song', cover: 'https://cdn.example.com/album.png' },
+			index: 0,
+		});
+		await flushMicrotasks();
+
+		const meta = (navigator.mediaSession as any).metadata;
+		expect(meta).toBeTruthy();
+		expect(meta.artwork).toHaveLength(1);
+		expect(meta.artwork[0].src).toBe('https://cdn.example.com/album.png');
+		expect(meta.artwork[0].type).toBe('image/png');
+	});
+
+	it('prefers item.image over item.poster over item.thumbnail over item.cover', async () => {
+		const p = makePlayer('ms-artwork-priority').setup({});
+		p.addPlugin(MediaSessionPlugin);
+		await p.ready();
+
+		(p as any).emit('current', {
+			item: {
+				id: 4,
+				title: 'Episode',
+				image: 'https://cdn.example.com/image.webp',
+				poster: 'https://cdn.example.com/poster.jpg',
+				thumbnail: 'https://cdn.example.com/thumb.jpg',
+				cover: 'https://cdn.example.com/cover.jpg',
+			},
+			index: 0,
+		});
+		await flushMicrotasks();
+
+		const meta = (navigator.mediaSession as any).metadata;
+		expect(meta.artwork[0].src).toBe('https://cdn.example.com/image.webp');
+		expect(meta.artwork[0].type).toBe('image/webp');
+	});
+
+	it('leaves artwork absent when item has no image field', async () => {
+		const p = makePlayer('ms-artwork-none').setup({});
+		p.addPlugin(MediaSessionPlugin);
+		await p.ready();
+
+		(p as any).emit('current', {
+			item: { id: 5, title: 'Track', artist: 'Artist' },
+			index: 0,
+		});
+		await flushMicrotasks();
+
+		const meta = (navigator.mediaSession as any).metadata;
+		expect(meta).toBeTruthy();
+		expect(meta.title).toBe('Track');
+		// No artwork supplied — the key should be absent or undefined.
+		expect(meta.artwork == null || meta.artwork === undefined).toBe(true);
 	});
 });
 

@@ -1,15 +1,29 @@
 import type { BaseEventMap, BasePlaylistItem, IPlayer } from '../../types';
 import { Plugin } from '../../plugin';
 
-/** Options for {@link MediaSessionPlugin}. */
-export interface MediaSessionOptions {
-	/**
-	 * Base URL prepended to artwork `cover` paths when constructing the
-	 * `MediaMetadata` artwork array. Leave unset when `cover` values are already
-	 * absolute URLs.
-	 */
-	artworkBaseUrl?: string;
+/** MIME type inferred from a URL's lowercase file extension. */
+const MIME_BY_EXT: Readonly<Record<string, string>> = {
+	jpg: 'image/jpeg',
+	jpeg: 'image/jpeg',
+	png: 'image/png',
+	webp: 'image/webp',
+	gif: 'image/gif',
+	avif: 'image/avif',
+	svg: 'image/svg+xml',
+} as const;
+
+/**
+ * Infer a `MediaImage` MIME type from the URL's extension.
+ * Returns `'image/jpeg'` when the extension is absent or unrecognised — the
+ * browser will follow `Content-Type` regardless, so this is advisory only.
+ */
+function mimeFromUrl(url: string): string {
+	const ext = url.split('?')[0]?.split('.').pop()?.toLowerCase() ?? '';
+	return MIME_BY_EXT[ext] ?? 'image/jpeg';
 }
+
+/** Options for {@link MediaSessionPlugin}. Currently empty — reserved for future options. */
+export interface MediaSessionOptions {}
 
 /** Metadata fields pushed to the OS `MediaSession` API. */
 export interface MediaSessionMetadata {
@@ -79,9 +93,9 @@ interface PlayerSurface {
  *   The plugin guards every call and silently no-ops in those environments.
  *
  * **Customising metadata extraction:**
- * Override `getMetadata(item)` to map your playlist item shape to
- * `MediaSessionMetadata`. The default implementation reads `.title`, `.artist`,
- * `.album`, and `.cover` from the item.
+ * Override `getMetadata(item)` to map your playlist item shape to text metadata
+ * (`title`, `artist`, `album`). Artwork is resolved automatically from the item's
+ * `image`, `poster`, `thumbnail`, or `cover` field via the player's `urlResolver`.
  *
  * **Swapping for a native bridge:**
  * To target a native shell (Capacitor, Electron, or a custom WebView bridge),
@@ -120,8 +134,7 @@ export class MediaSessionPlugin<
 				this.clearMetadata();
 				return;
 			}
-			const meta = this.getMetadata(data.item as I);
-			this.metadata(meta);
+			void this._pushMetadata(data.item as I);
 		}) as never);
 
 		this.on('play' as keyof BaseEventMap, (() => {
@@ -271,27 +284,73 @@ export class MediaSessionPlugin<
 	}
 
 	/**
-	 * Extract `MediaSessionMetadata` from a playlist item.
+	 * Resolve metadata from a playlist item and push it to the OS MediaSession.
+	 * Async because the image URL goes through `this.resolveUrl('poster')` so
+	 * custom resolvers (CDN signing, auth tokens) apply transparently.
 	 *
-	 * Override this in subclasses to map your custom playlist item type to the
-	 * metadata fields. The base implementation reads `.title`, `.artist`,
-	 * `.album`, and `.cover`. When `opts.artworkBaseUrl` is set, it is
-	 * prepended to relative `cover` paths.
+	 * Called by the `current` event handler. Not intended for direct use outside
+	 * the plugin; override `getMetadata` to customise the metadata shape instead.
+	 */
+	private async _pushMetadata(item: I): Promise<void> {
+		const base = this.getMetadata(item);
+		const rawUrl = this._pickImageUrl(item);
+
+		if (!rawUrl) {
+			this.metadata(base);
+			return;
+		}
+
+		const resolved = await this.resolveUrl(rawUrl, 'poster');
+		const src = resolved.href;
+
+		this.metadata({
+			...base,
+			artwork: [
+				{
+					src,
+					sizes: '512x512',
+					type: mimeFromUrl(src),
+				},
+			],
+		});
+	}
+
+	/**
+	 * Pick the first non-empty image URL from the item's known image fields.
+	 * Priority: `image` → `poster` → `thumbnail` → `cover`.
+	 *
+	 * `image` / `poster` / `thumbnail` match `VideoPlaylistItem`; `cover` matches
+	 * `MusicPlaylistItem`. This order mirrors the precedence documented on
+	 * `VideoPlaylistItem`.
+	 */
+	private _pickImageUrl(item: I): string | undefined {
+		const candidate = item as I & {
+			image?: string;
+			poster?: string;
+			thumbnail?: string;
+			cover?: string;
+		};
+		return candidate.image ?? candidate.poster ?? candidate.thumbnail ?? candidate.cover;
+	}
+
+	/**
+	 * Extract text metadata fields from a playlist item.
+	 *
+	 * Override in subclasses to map custom item shapes to the `MediaSessionMetadata`
+	 * text fields. The base implementation reads `.title`, `.artist`, and `.album`.
+	 * Artwork resolution is handled separately by `_pushMetadata` so overriding
+	 * this method does not need to touch the `artwork` array.
 	 */
 	protected getMetadata(item: I): MediaSessionMetadata {
-		const x = item as I & {
+		const candidate = item as I & {
 			title?: string;
 			artist?: string;
 			album?: string;
-			cover?: string;
 		};
-		const base = this.opts?.artworkBaseUrl ?? '';
-		const coverSrc = x.cover ? (base ? `${base}${x.cover}` : x.cover) : undefined;
 		return {
-			title: x.title,
-			artist: x.artist,
-			album: x.album,
-			artwork: coverSrc ? [{ src: coverSrc }] : undefined,
+			title: candidate.title,
+			artist: candidate.artist,
+			album: candidate.album,
 		};
 	}
 
