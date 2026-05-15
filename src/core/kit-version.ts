@@ -1,7 +1,10 @@
 /**
- * The kit's own version. Plugins declare `static readonly minCoreVersion` and
- * `addPlugin` rejects with `core:plugin/incompatible-core-version` when the
- * plugin's required minimum exceeds this. Bump alongside the kit's package.json
- * version on every release.
+ * Semver string for the currently running kit build.
+ *
+ * Plugin authors compare their `static readonly minCoreVersion` against this
+ * value at registration time — `addPlugin` throws
+ * `core:plugin/incompatible-core-version` when the plugin's required minimum
+ * exceeds it. Mirrors the kit's `package.json` version and is bumped together
+ * with it on every release.
  */
 export const KIT_VERSION = '0.1.0';
