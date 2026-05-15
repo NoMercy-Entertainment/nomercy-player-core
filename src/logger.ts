@@ -1,7 +1,7 @@
 import type { LogLevel, LogSink } from './types';
 
 export interface LoggerOptions {
-	/** @deprecated — use `level: 'debug'`. Kept for v1 compatibility. */
+	/** @deprecated Use `level: 'debug'` instead. */
 	debug?: boolean;
 	/** Verbosity threshold. Default `'info'`. */
 	level?: LogLevel;
@@ -9,21 +9,26 @@ export interface LoggerOptions {
 }
 
 /**
- * Pluggable logger contract. Default kit impl (`Logger`) is a multi-sink
- * console wrapper. Consumers using Pino, Winston, Bunyan, or telemetry-tapped
- * loggers ship a wrapper class implementing this interface and pass it via
- * `setup({ logger })`.
+ * Pluggable logger contract. The default kit implementation (`Logger`) is a
+ * multi-sink console wrapper. Consumers using Pino, Winston, Bunyan, or a
+ * telemetry-tapped logger ship a wrapper class that implements this interface
+ * and pass it via `setup({ logger })`.
  *
- * Plugin authors never construct one — they receive `this.logger` from the
- * kit, scoped to their plugin id. `child(suffix)` lets the kit derive scoped
- * sub-loggers without the consumer's adapter caring how scoping works on the
- * underlying engine.
+ * Plugin authors never construct one — they receive `this.logger` from the kit,
+ * already scoped to their plugin id. `child(suffix)` lets the kit derive
+ * narrower sub-loggers without the consumer's adapter needing to know how
+ * scoping works on the underlying engine.
  */
 export interface ILogger {
+	/** Emit a trace-level message (most verbose). */
 	trace(...args: unknown[]): void;
+	/** Emit a debug-level message. */
 	debug(...args: unknown[]): void;
+	/** Emit an info-level message. */
 	info(...args: unknown[]): void;
+	/** Emit a warning. */
 	warn(...args: unknown[]): void;
+	/** Emit an error. */
 	error(...args: unknown[]): void;
 
 	/**
@@ -36,15 +41,17 @@ export interface ILogger {
 	level(value: LogLevel): void;
 
 	/**
-	 * Pipe future log lines to a sink. Multiple sinks compose. Returns an
-	 * unsubscribe fn. Adapters wrapping engines without a multi-sink concept
-	 * may keep one sink active and noop additional registrations — document it.
+	 * Pipe future log lines to an additional sink. Multiple sinks compose in
+	 * registration order. Returns an unsubscribe function.
+	 *
+	 * Adapters wrapping engines without a multi-sink concept may keep only one
+	 * active sink and no-op additional registrations — document the behaviour.
 	 */
 	addSink(fn: LogSink): () => void;
 
 	/**
-	 * Derive a scoped sub-logger that prepends an additional prefix. Used by
-	 * the kit to scope plugin loggers to `[nmplayer][<plugin-id>]`.
+	 * Derive a scoped sub-logger that prepends an additional prefix segment.
+	 * Used by the kit to scope plugin loggers to `[nmplayer][<plugin-id>]`.
 	 */
 	child(suffix: string): ILogger;
 }
@@ -59,14 +66,14 @@ const LEVEL_RANK: Record<LogLevel, number> = {
 };
 
 /**
- * Lightweight scoped logger. The kit and plugins share a single instance per
- * player; verbosity is gated by the player's `logLevel` config.
+ * Lightweight scoped logger. The kit and every plugin share a single root
+ * instance per player; verbosity is gated by the player's `logLevel` config.
  *
- * Multiple sinks compose: register sinks via `addSink(fn)` to pipe logs to
- * console + Sentry + Datadog + custom telemetry simultaneously.
+ * Multiple sinks compose — register via `addSink(fn)` to pipe logs to console,
+ * Sentry, Datadog, or custom telemetry simultaneously.
  *
- * Level ranks `silent < error < warn < info < debug < trace`; each level emits
- * at its level and any lower rank.
+ * Level ranks from least to most verbose: `silent < error < warn < info < debug < trace`.
+ * Each level emits when the configured threshold is at or above that rank.
  */
 export class Logger implements ILogger {
 	private _level: LogLevel;
@@ -74,8 +81,7 @@ export class Logger implements ILogger {
 	private readonly sinks: LogSink[] = [];
 
 	constructor(opts?: LoggerOptions) {
-		// Resolve level: explicit `level` wins, then legacy `debug` boolean,
-		// then default to 'info'.
+		// Explicit `level` wins; fall back to legacy `debug` boolean, then default.
 		if (opts?.level) {
 			this._level = opts.level;
 		}
@@ -92,7 +98,7 @@ export class Logger implements ILogger {
 	 * Read or write the verbosity threshold.
 	 *
 	 * `level()` — returns the active `LogLevel`.
-	 * `level(value)` — switches the threshold at runtime.
+	 * `level(value)` — switches the threshold at runtime without restarting the player.
 	 */
 	level(): LogLevel;
 	level(value: LogLevel): void;
@@ -104,9 +110,11 @@ export class Logger implements ILogger {
 	}
 
 	/**
-	 * Pipe future log lines to a sink. The sink receives `(level, prefix, args)`
-	 * so it can route to console / Sentry / Datadog with full context. Multiple
-	 * sinks compose in registration order.
+	 * Pipe future log lines to an additional sink. The sink receives
+	 * `(level, prefix, args)` so it can route to console / Sentry / Datadog with
+	 * full context. Multiple sinks compose in registration order.
+	 *
+	 * Returns an unsubscribe function — call it to stop routing to this sink.
 	 */
 	addSink(fn: LogSink): () => void {
 		this.sinks.push(fn);
@@ -117,38 +125,44 @@ export class Logger implements ILogger {
 		};
 	}
 
+	/** Emit a trace-level message (most verbose). */
 	trace(...args: unknown[]): void {
 		this.dispatch('trace', args);
 	}
 
+	/** Emit a debug-level message. */
 	debug(...args: unknown[]): void {
 		this.dispatch('debug', args);
 	}
 
+	/** Emit an info-level message. */
 	info(...args: unknown[]): void {
 		this.dispatch('info', args);
 	}
 
+	/** Emit a warning. */
 	warn(...args: unknown[]): void {
 		this.dispatch('warn', args);
 	}
 
+	/** Emit an error. */
 	error(...args: unknown[]): void {
 		this.dispatch('error', args);
 	}
 
 	/**
-	 * Create a sub-logger that prepends an additional prefix. Useful for plugins
-	 * to get scoped logging without each plugin reaching into console directly.
+	 * Derive a scoped sub-logger that prepends an additional prefix segment.
 	 *
-	 * Example:
-	 *   const log = playerLogger.child('lyrics');
-	 *   log.debug('cue loaded');  // → "[nmplayer][lyrics] cue loaded"
+	 * ```ts
+	 * const log = playerLogger.child('lyrics');
+	 * log.debug('cue loaded');  // → "[nmplayer][lyrics] cue loaded"
+	 * ```
+	 *
+	 * Children share the parent's registered sinks so consumer-installed pipes
+	 * capture every plugin's output uniformly.
 	 */
 	child(suffix: string): Logger {
 		const child = Logger._withPrefix(`${this.prefix}[${suffix}]`, this._level);
-		// Children share their parent's sinks so consumer-installed pipes
-		// (Sentry, Datadog) capture every plugin's logs uniformly.
 		for (const sink of this.sinks) child.sinks.push(sink);
 		return child;
 	}
@@ -163,7 +177,8 @@ export class Logger implements ILogger {
 	private dispatch(lvl: LogLevel, args: unknown[]): void {
 		if (LEVEL_RANK[lvl] > LEVEL_RANK[this._level])
 			return;
-		// Default console sink — preserved if no other sinks are registered.
+
+		// When no sinks are registered, write directly to the console.
 		if (this.sinks.length === 0 && typeof console !== 'undefined') {
 			const fn = lvl === 'trace'
 				? console.trace
@@ -177,7 +192,7 @@ export class Logger implements ILogger {
 			if (fn)
 				fn.call(console, this.prefix, ...args);
 		}
-		// Always run user-registered sinks (gives consumer full control).
+
 		for (const sink of this.sinks) {
 			try {
 				sink(lvl, this.prefix, args);
