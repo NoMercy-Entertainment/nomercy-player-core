@@ -1,0 +1,57 @@
+import type { LogLevel, LogSink } from '../../types';
+
+export interface LoggerOptions {
+	/** @deprecated Use `level: 'debug'` instead. */
+	debug?: boolean;
+	/** Verbosity threshold. Default `'info'`. */
+	level?: LogLevel;
+	prefix?: string;
+}
+
+/**
+ * Pluggable logger contract. The default kit implementation (`Logger`) is a
+ * multi-sink console wrapper. Consumers using Pino, Winston, Bunyan, or a
+ * telemetry-tapped logger ship a wrapper class that implements this interface
+ * and pass it via `setup({ logger })`.
+ *
+ * Plugin authors never construct one — they receive `this.logger` from the kit,
+ * already scoped to their plugin id. `child(suffix)` lets the kit derive
+ * narrower sub-loggers without the consumer's adapter needing to know how
+ * scoping works on the underlying engine.
+ */
+export interface ILogger {
+	/** Emit a trace-level message (most verbose). */
+	trace(...args: unknown[]): void;
+	/** Emit a debug-level message. */
+	debug(...args: unknown[]): void;
+	/** Emit an info-level message. */
+	info(...args: unknown[]): void;
+	/** Emit a warning. */
+	warn(...args: unknown[]): void;
+	/** Emit an error. */
+	error(...args: unknown[]): void;
+
+	/**
+	 * Read or write the verbosity threshold.
+	 *
+	 * `level()` — returns the active `LogLevel`.
+	 * `level(value)` — switches the threshold at runtime.
+	 */
+	level(): LogLevel;
+	level(value: LogLevel): void;
+
+	/**
+	 * Pipe future log lines to an additional sink. Multiple sinks compose in
+	 * registration order. Returns an unsubscribe function.
+	 *
+	 * Adapters wrapping engines without a multi-sink concept may keep only one
+	 * active sink and no-op additional registrations — document the behaviour.
+	 */
+	addSink(fn: LogSink): () => void;
+
+	/**
+	 * Derive a scoped sub-logger that prepends an additional prefix segment.
+	 * Used by the kit to scope plugin loggers to `[nmplayer][<plugin-id>]`.
+	 */
+	child(suffix: string): ILogger;
+}
