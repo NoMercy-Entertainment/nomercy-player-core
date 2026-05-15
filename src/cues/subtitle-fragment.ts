@@ -1,21 +1,18 @@
-/**
- * Subtitle DOM fragment builder.
- *
- * Turns a `VTTSubtitlePayload.markup` string into a `DocumentFragment` with
- * real DOM nodes — `<i>`, `<b>`, `<u>` are honoured (with arbitrary
- * nesting); everything else is treated as plain text. Cue payloads can never
- * inject HTML because text content always goes through `createTextNode`.
- *
- * Port of v1's `subtitles.ts:buildSubtitleFragment` (see
- * `nomercy-video-player/src/player/subtitles.ts:172`). Lives kit-side so
- * every overlay / chrome / debug renderer produces an identical DOM tree
- * from the same parsed cue.
- *
- * Browser-only: `document` must exist. Server-side renderers should use
- * `payload.text` directly.
- */
 const TAG_RE = /(<\/?(i|b|u)>)/gi;
 
+/**
+ * Build a `DocumentFragment` from a `VTTSubtitlePayload.markup` string.
+ *
+ * Recognised inline tags — `<i>`, `<b>`, `<u>` with arbitrary nesting — are
+ * turned into real DOM elements. Everything else becomes a text node, so cue
+ * payloads cannot inject arbitrary HTML.
+ *
+ * All subtitle overlays and debug renderers should call this function so they
+ * produce an identical DOM tree from the same parsed cue.
+ *
+ * Browser-only: `document` must exist. Server-side consumers should use
+ * `payload.text` directly.
+ */
 export function buildSubtitleFragment(markup: string): DocumentFragment {
 	const fragment = document.createDocumentFragment();
 	if (!markup)
