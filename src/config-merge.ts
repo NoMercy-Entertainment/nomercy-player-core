@@ -3,14 +3,14 @@
  *
  * Rules (in priority order):
  *   - `undefined` user value → fall through to default.
- *   - `null` user value → overwrite default (explicit null = consumer chose null).
+ *   - `null` user value → overwrite default (explicit null means the consumer chose null).
  *   - Plain object (not Array, not class instance, not Map/Set/Date) → recurse.
  *   - Array → replace (user wins; `[]` is an intentional empty array).
  *   - Function / class instance / Map / Set / Date → pass through (user wins).
  *   - Primitive → user wins.
  *
- * The function is generic in `T`. Return type is `T` — no `& Partial<T>` drift.
- * Extra keys on `user` that are not in `defaults` are preserved in the result.
+ * Return type is `T` — no `& Partial<T>` drift. Extra keys on `user` that are
+ * not in `defaults` are preserved in the result.
  */
 export function mergeConfig<T>(defaults: T, user?: Partial<T> | undefined): T {
 	if (user === undefined || user === null) {
@@ -47,7 +47,7 @@ export function mergeConfig<T>(defaults: T, user?: Partial<T> | undefined): T {
 	return result as T;
 }
 
-
+/** Returns true only for `{}` / `Object.create(null)` style objects — not Arrays, Dates, Maps, or class instances. */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
 	if (value === null || typeof value !== 'object') {
 		return false;
