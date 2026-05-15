@@ -1,20 +1,57 @@
 import type { BaseEventMap, IPlayer } from '../types';
 import { Plugin } from '../plugin';
 
-/** Map of keyboard combo strings to player action callbacks. */
+/**
+ * Map of keyboard combo strings to player action callbacks.
+ *
+ * Keys are combo strings such as `'Space'`, `'ArrowLeft'`, `'shift+ArrowLeft'`,
+ * `'ctrl+k'`. Values receive the player instance so they can call any public
+ * method directly.
+ */
 export type KeyBindings<P> = Record<string, (player: P) => void>;
 
 /** Options for {@link KeyHandlerPlugin}. */
 export interface KeyHandlerOptions<P> {
-	/** Where to listen — defaults to `document`. */
+	/**
+	 * Where the `keydown` event listener is attached.
+	 *
+	 * - `'document'` — listens globally. Catches keys anywhere in the page,
+	 *   including when no player element is focused. Default.
+	 * - `'container'` — listens only on the player's container element. Keys
+	 *   only fire when the container or a child has focus.
+	 * - `HTMLElement` — listens on the supplied element directly.
+	 */
 	scope?: 'document' | 'container' | HTMLElement;
-	/** Per-key handlers added at registration. Combined with default group methods. */
+
+	/**
+	 * Extra bindings merged on top of the default group bindings. Each key is a
+	 * combo string; the value is a `(player) => void` callback. When the same
+	 * combo appears in both defaults and here, this map wins.
+	 */
 	bindings?: KeyBindings<P>;
-	/** false → drop default bindings entirely. true → merge defaults + opts.bindings. */
+
+	/**
+	 * Controls whether default bindings (Space, Arrow*, m) are kept.
+	 *
+	 * - `true` — defaults are installed, then `opts.bindings` is merged on top.
+	 *   This is the default behaviour.
+	 * - `false` — defaults are cleared before `opts.bindings` is applied. Use
+	 *   this to build a fully custom binding set from scratch.
+	 */
 	extend?: boolean;
-	/** Predicate that must return true for keys to fire. */
+
+	/**
+	 * Optional gate predicate. Called before any binding fires. Return `false`
+	 * to suppress all key handling for that event — useful for disabling
+	 * shortcuts during modals, chat overlays, or other UI states.
+	 */
 	when?: (e: KeyboardEvent) => boolean;
-	/** Cooldown between fires (ms). Default 300. */
+
+	/**
+	 * Minimum milliseconds between consecutive fires of the same (or any) key.
+	 * Prevents rapid-fire seeks or volume changes from a held key. Default `300`.
+	 * Set to `0` to disable throttling.
+	 */
 	cooldownMs?: number;
 }
 
@@ -31,13 +68,32 @@ interface PlayerSurface {
 }
 
 /**
- * Keyboard-binding router. Subclasses override the `addX()` group methods to
- * define their own default bindings.
+ * Keyboard-binding router. Attaches a single `keydown` listener to the
+ * configured scope and dispatches events to registered combo callbacks.
  *
- * Three extension layers:
- *   1. Setup options — `bindings`, `extend`, `scope`, `when`
- *   2. Runtime mutation — `bind`, `unbind`, `replace`, `enable`, `disable`
- *   3. Subclass + override `addX()` group methods
+ * **Default bindings** installed by the base class:
+ * | Combo | Action |
+ * |-------|--------|
+ * | `Space` | `player.togglePlayback()` |
+ * | `ArrowLeft` | `player.rewind(5)` |
+ * | `ArrowRight` | `player.forward(5)` |
+ * | `ArrowUp` | `player.volumeUp()` |
+ * | `ArrowDown` | `player.volumeDown()` |
+ * | `m` | `player.toggleMute()` |
+ *
+ * **Extension layers** (in order of evaluation):
+ * 1. `opts.bindings` merged at setup — runs once during `use()`.
+ * 2. `opts.extend: false` clears defaults before that merge.
+ * 3. Runtime mutation via `bind()`, `unbind()`, `replace()`.
+ * 4. Subclass overrides of the `addPlaybackKeys()`, `addNavigationKeys()`,
+ *    `addVolumeKeys()`, `addMediaKeys()` group methods.
+ *
+ * **Suppression:** keys silently no-op when the event target is an `<input>`,
+ * `<textarea>`, `<select>`, or any `contenteditable` element, and when
+ * `opts.when` returns `false`.
+ *
+ * Subclasses can override any `addX()` group to replace the defaults for that
+ * group without touching the others.
  */
 export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plugin<P, KeyHandlerOptions<P>> {
 	static override readonly id: string = 'key-handler';
@@ -95,7 +151,13 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		return parts.length ? `${parts.join('+')}+${k}` : k;
 	}
 
-	/** Registers default bindings, applies options bindings, and attaches the keydown listener. */
+	/**
+	 * Installs the default binding groups, applies `opts.bindings`, then attaches
+	 * the `keydown` listener to the resolved scope target.
+	 *
+	 * The listener is automatically removed when the plugin disposes — no manual
+	 * teardown is needed.
+	 */
 	override use(): void {
 		this.addDefaults();
 		this.applyOptions();
@@ -104,22 +166,44 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.listen(target, 'keydown', this.handleKeydown as EventListener);
 	}
 
-	/** Register a handler for a keyboard combo string (e.g. `'shift+ArrowLeft'`). */
+	/**
+	 * Register a handler for a keyboard combo string.
+	 *
+	 * ```ts
+	 * keyHandler.bind('shift+ArrowLeft', (player) => player.rewind(30));
+	 * keyHandler.bind('f', (player) => player.requestFullscreen?.());
+	 * ```
+	 *
+	 * Registering the same combo again replaces the previous handler. Combo
+	 * strings are normalised before storage — `'Shift+arrowleft'` and
+	 * `'shift+ArrowLeft'` resolve to the same entry.
+	 */
 	bind(combo: string, fn: (p: P) => void): void {
 		this._bindings.set(this.normalizeCombo(combo), () => fn(this.player));
 	}
 
-	/** Remove the handler for the given combo. No-ops when the combo isn't registered. */
+	/**
+	 * Remove the handler for the given combo string. No-ops when the combo is
+	 * not in the current binding map.
+	 */
 	unbind(combo: string): void {
 		this._bindings.delete(this.normalizeCombo(combo));
 	}
 
-	/** Replace an existing binding. Equivalent to calling `bind` when the combo already exists. */
+	/**
+	 * Replace an existing binding with a new handler. Equivalent to `bind()` —
+	 * provided as a semantic alias for callers that want to communicate intent
+	 * (swapping, not adding).
+	 */
 	replace(combo: string, fn: (p: P) => void): void {
 		this.bind(combo, fn);
 	}
 
-	/** Current key-binding map, re-shaped to the public `(player) => void` signature. */
+	/**
+	 * Returns a read-only snapshot of the active binding map. The returned
+	 * `Map` values are `(player) => void` wrappers — mutation of the snapshot
+	 * does not affect the live binding table.
+	 */
 	bindings(): ReadonlyMap<string, (p: P) => void> {
 		const out = new Map<string, (p: P) => void>();
 		for (const key of this._bindings.keys()) {
@@ -133,7 +217,13 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		return out;
 	}
 
-	/** Resolve the EventTarget the keydown listener attaches to. */
+	/**
+	 * Returns the `EventTarget` that the `keydown` listener is (or will be)
+	 * attached to, based on `opts.scope`.
+	 *
+	 * Falls back to `document` when no scope is set or the player has no
+	 * container. Returns a no-op `EventTarget` in non-DOM environments.
+	 */
 	scope(): EventTarget {
 		const opt = this.opts?.scope;
 		if (opt instanceof EventTarget)
@@ -145,15 +235,20 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		}
 		if (typeof document !== 'undefined')
 			return document;
-		// Fallback for non-DOM environments — return a noop EventTarget.
+
+		// Non-DOM environments (e.g. Node test runners) — return a no-op target.
 		return new EventTarget();
 	}
 
-	/** Apply user-supplied options.bindings. Called by `use()`. */
+	/**
+	 * Apply user-supplied `opts.bindings` after defaults. When `opts.extend` is
+	 * `false`, the default bindings are cleared first. Called by `use()`.
+	 */
 	protected applyOptions(): void {
 		const opts = this.opts ?? {};
 		if (opts.extend === false)
 			this._bindings.clear();
+
 		const userBindings = opts.bindings;
 		if (userBindings) {
 			for (const [key, fn] of Object.entries(userBindings)) {
@@ -162,7 +257,11 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		}
 	}
 
-	/** Hook for subclasses — calls all addX group methods. */
+	/**
+	 * Calls all `addX()` group methods in order. Override individual group
+	 * methods rather than this hook when you only want to change a subset of
+	 * defaults.
+	 */
 	protected addDefaults(): void {
 		this.addPlaybackKeys();
 		this.addNavigationKeys();
@@ -170,6 +269,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.addMediaKeys();
 	}
 
+	/** Installs `Space → togglePlayback`. Override to change the play/pause key. */
 	protected addPlaybackKeys(): void {
 		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
 		this.bind(' ', () => {
@@ -177,6 +277,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		});
 	}
 
+	/** Installs `ArrowLeft → rewind(5)` and `ArrowRight → forward(5)`. */
 	protected addNavigationKeys(): void {
 		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
 		this.bind('ArrowLeft', () => {
@@ -187,6 +288,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		});
 	}
 
+	/** Installs `ArrowUp → volumeUp()` and `ArrowDown → volumeDown()`. */
 	protected addVolumeKeys(): void {
 		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
 		this.bind('ArrowUp', () => {
@@ -197,6 +299,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		});
 	}
 
+	/** Installs `m → toggleMute()`. */
 	protected addMediaKeys(): void {
 		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
 		this.bind('m', () => {
@@ -204,7 +307,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		});
 	}
 
-	/** Default bindings convenience — same as `addDefaults()`. */
+	/** Alias for `addDefaults()`. */
 	protected defaultBindings(): void {
 		this.addDefaults();
 	}
@@ -221,18 +324,14 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		if (this.isTypingTarget(ev.target))
 			return;
 
-		// Optional `when` predicate — if it returns false, drop.
 		const when = this.opts?.when;
 		if (typeof when === 'function' && !when(ev))
 			return;
 
-		// Cooldown — skip if fired too recently.
 		const cooldown = this.opts?.cooldownMs ?? 300;
 		const now = Date.now();
-		if (cooldown > 0 && now - this.lastFireAt < cooldown) {
-			// Cooldowns are intentionally permissive — only fire if outside the window.
+		if (cooldown > 0 && now - this.lastFireAt < cooldown)
 			return;
-		}
 
 		const canonical = this.canonicalKey(ev.key, {
 			alt: ev.altKey,
@@ -242,6 +341,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		const handler = this._bindings.get(canonical);
 		if (!handler)
 			return;
+
 		this.lastFireAt = now;
 		handler(ev);
 	};
