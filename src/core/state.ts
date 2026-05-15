@@ -396,6 +396,12 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	/** Monotonic counter bumped on each `load()` call; stale continuations bail when epoch mismatches. */
 	_loadEpoch?: number;
 
+	/** Monotonic counter bumped on each `current()` write call. The autoplay
+	 *  continuation in `current()` checks this before calling `play()` so that
+	 *  a superseded navigation (rapid episode clicks) does not fire a spurious
+	 *  play() once its stale load silently resolves. */
+	_currentEpoch?: number;
+
 
 	// ── Preload + transition state ────────────────────────────────────────────
 

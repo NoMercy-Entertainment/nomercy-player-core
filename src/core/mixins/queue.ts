@@ -201,6 +201,14 @@ export const queueMethods = {
 		// let load(A) snap the cursor back to A on resolution.
 		this._loadEpoch = (this._loadEpoch ?? 0) + 1;
 
+		// Bump the current epoch independently of _loadEpoch. load() internally
+		// bumps _loadEpoch again (race-guard for its own continuation), so
+		// _loadEpoch at the call site is not a stable sentinel for the autoplay
+		// continuation below. _currentEpoch is only ever written here, making it
+		// a reliable "was a newer current() called?" check.
+		this._currentEpoch = (this._currentEpoch ?? 0) + 1;
+		const navigationEpoch = this._currentEpoch;
+
 		this._queueList.setCurrent(target);
 
 		const readyToLoad = this._phase === 'ready'
@@ -214,6 +222,7 @@ export const queueMethods = {
 		if (!item) return;
 
 		void this.load(item as BasePlaylistItem & { url?: string }, { source: opts?.source }).then(() => {
+			if (this._currentEpoch !== navigationEpoch) return;
 			if (opts?.autoplay) {
 				void this.play({ source: opts.source });
 			}
