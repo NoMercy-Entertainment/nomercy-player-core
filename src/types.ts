@@ -1027,7 +1027,7 @@ export interface BasePlayerConfig {
 	 */
 	baseUrl?: string;
 
-	/** Initial volume (0..1). Default `1`. */
+	/** Initial volume on the public 0-100 scale (matches v1). Default `100`. */
 	defaultVolume?: number;
 
 	/** @deprecated — use `auth.bearerToken`. Kept for migration compatibility. */
