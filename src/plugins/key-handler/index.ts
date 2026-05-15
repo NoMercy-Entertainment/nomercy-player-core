@@ -53,15 +53,29 @@ export interface KeyHandlerOptions<P> {
 	 * Set to `0` to disable throttling.
 	 */
 	cooldownMs?: number;
+
+	/**
+	 * When `true`, the W3C hardware media keys installed by `addMediaKeys()`
+	 * (`MediaPlay`, `MediaPause`, `MediaPlayPause`, `MediaStop`, `MediaRewind`,
+	 * `MediaFastForward`, `MediaTrackNext`, `MediaTrackPrevious`) are silently
+	 * ignored. Use this to prevent OS-level media key interception on shared
+	 * pages where another player or the OS should own those keys.
+	 *
+	 * Default: `false` (media keys are active).
+	 */
+	disableMediaControls?: boolean;
 }
 
 /** Loose surface for transport methods we read off the player. */
 interface PlayerSurface {
 	play?: () => unknown;
 	pause?: () => unknown;
+	stop?: () => unknown;
 	togglePlayback?: () => unknown;
 	rewind?: (seconds?: number) => unknown;
 	forward?: (seconds?: number) => unknown;
+	next?: () => unknown;
+	previous?: () => unknown;
 	volumeUp?: (step?: number) => unknown;
 	volumeDown?: (step?: number) => unknown;
 	toggleMute?: () => unknown;
@@ -80,6 +94,14 @@ interface PlayerSurface {
  * | `ArrowUp` | `player.volumeUp()` |
  * | `ArrowDown` | `player.volumeDown()` |
  * | `m` | `player.toggleMute()` |
+ * | `MediaPlay` | `player.play()` (gated on `opts.disableMediaControls`) |
+ * | `MediaPause` | `player.pause()` (gated) |
+ * | `MediaPlayPause` | `player.togglePlayback()` (gated) |
+ * | `MediaStop` | `player.stop()` or `player.pause()` (gated) |
+ * | `MediaRewind` | `player.rewind(5)` (gated) |
+ * | `MediaFastForward` | `player.forward(5)` (gated) |
+ * | `MediaTrackNext` | `player.next?.()` (gated) |
+ * | `MediaTrackPrevious` | `player.previous?.()` (gated) |
  *
  * **Extension layers** (in order of evaluation):
  * 1. `opts.bindings` merged at setup — runs once during `use()`.
@@ -269,7 +291,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.addMediaKeys();
 	}
 
-	/** Installs `Space → togglePlayback`. Override to change the play/pause key. */
+	/** Installs `Space → togglePlayback()`. Override to change the play/pause key. */
 	protected addPlaybackKeys(): void {
 		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
 		this.bind(' ', () => {
@@ -288,7 +310,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		});
 	}
 
-	/** Installs `ArrowUp → volumeUp()` and `ArrowDown → volumeDown()`. */
+	/** Installs `ArrowUp → volumeUp()`, `ArrowDown → volumeDown()`, `m → toggleMute()`. */
 	protected addVolumeKeys(): void {
 		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
 		this.bind('ArrowUp', () => {
@@ -297,13 +319,63 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.bind('ArrowDown', () => {
 			void surface().volumeDown?.();
 		});
-	}
-
-	/** Installs `m → toggleMute()`. */
-	protected addMediaKeys(): void {
-		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
 		this.bind('m', () => {
 			void surface().toggleMute?.();
+		});
+	}
+
+	/**
+	 * Installs the W3C hardware media keys that fire from physical media keys,
+	 * Bluetooth headphone controls, and most TV remotes. All eight bindings
+	 * silently no-op when `opts.disableMediaControls` is `true`.
+	 *
+	 * | Key | Action |
+	 * |---|---|
+	 * | `MediaPlay` | `player.play()` |
+	 * | `MediaPause` | `player.pause()` |
+	 * | `MediaPlayPause` | `player.togglePlayback()` |
+	 * | `MediaStop` | `player.stop()` (falls back to `pause()`) |
+	 * | `MediaRewind` | `player.rewind(5)` |
+	 * | `MediaFastForward` | `player.forward(5)` |
+	 * | `MediaTrackNext` | `player.next?.()` |
+	 * | `MediaTrackPrevious` | `player.previous?.()` |
+	 */
+	protected addMediaKeys(): void {
+		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
+		const allowed = (): boolean => !(this.opts?.disableMediaControls ?? false);
+
+		this.bind('MediaPlay', () => {
+			if (!allowed()) return;
+			void surface().play?.();
+		});
+		this.bind('MediaPause', () => {
+			if (!allowed()) return;
+			void surface().pause?.();
+		});
+		this.bind('MediaPlayPause', () => {
+			if (!allowed()) return;
+			void surface().togglePlayback?.();
+		});
+		this.bind('MediaStop', () => {
+			if (!allowed()) return;
+			const s = surface();
+			void (s.stop ?? s.pause)?.();
+		});
+		this.bind('MediaRewind', () => {
+			if (!allowed()) return;
+			void surface().rewind?.(5);
+		});
+		this.bind('MediaFastForward', () => {
+			if (!allowed()) return;
+			void surface().forward?.(5);
+		});
+		this.bind('MediaTrackNext', () => {
+			if (!allowed()) return;
+			void surface().next?.();
+		});
+		this.bind('MediaTrackPrevious', () => {
+			if (!allowed()) return;
+			void surface().previous?.();
 		});
 	}
 

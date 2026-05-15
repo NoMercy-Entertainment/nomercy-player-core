@@ -239,4 +239,35 @@ describe('KeyHandlerPlugin', () => {
 		expect(map.has('ArrowDown')).toBe(true);
 		expect(map.has('m')).toBe(true);
 	});
+
+	it('default bindings include W3C hardware media keys', async () => {
+		const p = makePlayer('kh-5').setup({});
+		p.addPlugin(KeyHandlerPlugin);
+		await p.ready();
+		const inst = p.getPluginById('key-handler');
+
+		const map = inst.bindings();
+		expect(map.has('MediaPlay')).toBe(true);
+		expect(map.has('MediaPause')).toBe(true);
+		expect(map.has('MediaPlayPause')).toBe(true);
+		expect(map.has('MediaStop')).toBe(true);
+		expect(map.has('MediaRewind')).toBe(true);
+		expect(map.has('MediaFastForward')).toBe(true);
+		expect(map.has('MediaTrackNext')).toBe(true);
+		expect(map.has('MediaTrackPrevious')).toBe(true);
+	});
+
+	it('disableMediaControls suppresses hardware media keys', async () => {
+		const toggleFn = vi.fn();
+		const p = makePlayer('kh-6').setup({});
+		p.addPlugin(KeyHandlerPlugin, { disableMediaControls: true });
+		await p.ready();
+
+		(p as any).togglePlayback = toggleFn;
+
+		const ev = new KeyboardEvent('keydown', { key: 'MediaPlayPause', bubbles: true, cancelable: true });
+		document.dispatchEvent(ev);
+
+		expect(toggleFn).not.toHaveBeenCalled();
+	});
 });
