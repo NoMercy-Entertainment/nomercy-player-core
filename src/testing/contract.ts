@@ -46,20 +46,38 @@ function getGlobals(): VitestGlobals {
 }
 
 /**
- * Cross-library `IPlayer` **behavior** contract suite. Both `NMMusicPlayer`
- * and `NMVideoPlayer` import this and run it against fresh real instances.
- * `StubPlayer` runs it too — if all three pass, plugin code typed against
- * `IPlayer` works against any of them.
+ * Shared `IPlayer` behavior contract suite. Run this against every concrete
+ * player implementation — `NMMusicPlayer`, `NMVideoPlayer`, and `StubPlayer`
+ * — to prove that plugin code typed against `IPlayer` works uniformly against
+ * all three.
  *
- * **Behavioral, not shape-only.** Every test invokes methods and asserts
- * actual behavior — return values, side effects, emitted events. A player
- * whose method bodies still throw `not implemented` will FAIL these tests.
- * That's the point: the suite represents the truth of the IPlayer contract,
- * and any drift from it surfaces as a real failure.
+ * **When to call this.** Each per-library package (`nomercy-music-player-v2`,
+ * `nomercy-video-player-v2`) calls `runIPlayerContract` in its own contract
+ * test file, passing a fresh real player from its `create` factory. The kit's
+ * own contract test does the same with `StubPlayer`. All three must pass.
  *
- * Library-specific behavior (transport, queue, fullscreen, crossfade, etc.)
- * lives in per-library tests — this file only covers what every IPlayer
- * implementation must support uniformly.
+ * **Behavioral, not shape-only.** Every test invokes a method and asserts
+ * the real effect — return value, side effect, emitted event. A player whose
+ * method bodies still throw "not implemented" will fail these tests. That
+ * failure is the point: the suite represents the truth of what `IPlayer`
+ * guarantees, and any drift surfaces immediately rather than at plugin
+ * runtime.
+ *
+ * **Scope.** Only what every `IPlayer` must support uniformly: identity,
+ * event bus, phase, `baseUrl`, `audioContext`, the experimental override
+ * surface, i18n, and the cue parser registry. Library-specific behavior
+ * (transport, queue, fullscreen, crossfade) lives in per-library tests.
+ *
+ * ```ts
+ * import { runIPlayerContract } from '@nomercy-entertainment/nomercy-player-core/testing';
+ * import { NMVideoPlayer } from '../index';
+ *
+ * runIPlayerContract({
+ *   label: 'NMVideoPlayer',
+ *   create: () => new NMVideoPlayer({ container: document.createElement('div') }),
+ *   teardown: (player) => player.dispose(),
+ * });
+ * ```
  */
 export function runIPlayerContract<P extends IPlayer<any>>(opts: {
 	create: () => P | Promise<P>;
