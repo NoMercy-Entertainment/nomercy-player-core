@@ -181,38 +181,88 @@ export class PlayerError extends Error {
 	}
 }
 
+/**
+ * Thrown when a network request fails — DNS failure, offline, CORS, TCP reset,
+ * or any non-HTTP transport error. Subclasses (`AuthError`) narrow further.
+ * Check `error.context.httpStatus` when an HTTP status is available.
+ */
 export class NetworkError extends PlayerError {
 	override readonly name: string = 'NetworkError';
 }
 
+/**
+ * Thrown on 401 (unauthenticated) or 403 (forbidden) HTTP responses. Extends
+ * `NetworkError` so generic `instanceof NetworkError` catches still work. The
+ * player's built-in retry policy runs `auth.refreshOnUnauthenticated()` on 401
+ * before raising this class; 403 propagates immediately with `attempts: 0`.
+ */
 export class AuthError extends NetworkError {
 	override readonly name: string = 'AuthError';
 }
 
+/**
+ * Thrown when the browser cannot decode the media — unsupported codec, corrupt
+ * container, or a format the current rendition cannot handle. Codes follow the
+ * pattern `core:media/<reason>` (e.g. `core:media/codec-unsupported`). The
+ * retry policy defaults to `attempts: 0`; ABR logic handles rendition fallback.
+ */
 export class MediaFormatError extends PlayerError {
 	override readonly name = 'MediaFormatError';
 }
 
+/**
+ * Thrown when a streaming pipeline fails — HLS fragment fetch, DASH segment
+ * parse, or MSE `appendBuffer` rejection. Scope is always
+ * `{ kind: 'stream', id: 'hls' | 'dash' | 'native' }`. Codes follow
+ * `core:stream/<reason>`.
+ */
 export class StreamError extends PlayerError {
 	override readonly name = 'StreamError';
 }
 
+/**
+ * Thrown when a DRM operation fails — `requestMediaKeySystemAccess` denied,
+ * license server returned an error, or key expiry. Scope is `{ kind: 'core' }`.
+ * Codes follow `core:drm/<reason>`.
+ */
 export class DrmError extends PlayerError {
 	override readonly name = 'DrmError';
 }
 
+/**
+ * Thrown when the browser's autoplay policy, permissions API, or a similar
+ * browser-enforced restriction blocks an action. The `suggestion` field carries
+ * a user-readable hint (e.g. "Tap anywhere to start playback.").
+ * Codes follow `core:policy/<reason>`. Use `browserPolicyError()` to construct.
+ */
 export class BrowserPolicyError extends PlayerError {
 	override readonly name = 'BrowserPolicyError';
 }
 
+/**
+ * Thrown when a method is called at the wrong lifecycle phase — e.g. `play()`
+ * during `'disposed'`, or `seek()` before `'ready'`. Codes follow
+ * `core:state/<reason>`. Use `stateError()` to construct.
+ */
 export class StateError extends PlayerError {
 	override readonly name = 'StateError';
 }
 
+/**
+ * Thrown when a plugin operation fails — registration errors, missing deps,
+ * version mismatches, or plugin-internal faults surfaced through `this.throw()`.
+ * Scope is `{ kind: 'plugin', id: '<plugin-id>' }` when the plugin id is known.
+ * Use `pluginError()` to construct.
+ */
 export class PluginError extends PlayerError {
 	override readonly name = 'PluginError';
 }
 
+/**
+ * Thrown when a required resource cannot be loaded — a Web Worker, a WASM
+ * module, a stylesheet, or a dynamically-imported chunk. Codes follow
+ * `core:resource/<reason>`. Use `resourceError()` to construct.
+ */
 export class ResourceError extends PlayerError {
 	override readonly name = 'ResourceError';
 }
@@ -283,6 +333,15 @@ export function makePlayerErrorEvent(
 // human message with the code so logs are self-identifying.
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Construct a `StateError` scoped to the core with `severity: 'error'`.
+ *
+ * Use when a method is called at the wrong lifecycle phase or with invalid
+ * internal state. The log message is auto-prefixed with `code` so grep-friendly
+ * without needing the full `PlayerErrorInit` shape.
+ *
+ * Code convention: `core:state/<reason>` — e.g. `core:state/queue-empty`.
+ */
 export function stateError(code: string, message: string, context?: Record<string, unknown>): StateError {
 	return new StateError({
 		code,
@@ -293,6 +352,14 @@ export function stateError(code: string, message: string, context?: Record<strin
 	});
 }
 
+/**
+ * Construct a `ResourceError` scoped to the core with `severity: 'error'`.
+ *
+ * Use when a required resource (Worker, WASM binary, stylesheet, dynamic import)
+ * cannot be loaded. The log message is auto-prefixed with `code`.
+ *
+ * Code convention: `core:resource/<reason>` — e.g. `core:resource/worker-init-failed`.
+ */
 export function resourceError(code: string, message: string, context?: Record<string, unknown>): ResourceError {
 	return new ResourceError({
 		code,
@@ -303,6 +370,15 @@ export function resourceError(code: string, message: string, context?: Record<st
 	});
 }
 
+/**
+ * Construct a `BrowserPolicyError` scoped to the core with `severity: 'error'`.
+ *
+ * Use when the browser's autoplay policy, Permissions API, or a similar
+ * browser-enforced restriction blocks an action. Pass `opts.suggestion` with a
+ * present-tense user-facing hint — the UI layer is expected to display it.
+ *
+ * Code convention: `core:policy/<reason>` — e.g. `core:policy/autoplay-blocked`.
+ */
 export function browserPolicyError(
 	code: string,
 	message: string,
@@ -321,6 +397,15 @@ export function browserPolicyError(
 	});
 }
 
+/**
+ * Construct a `MediaFormatError` scoped to the core with `severity: 'error'`.
+ *
+ * Use when the browser rejects a codec, container, or rendition. Pass diagnostic
+ * data in `context` — at minimum the URL and (where available) the MIME type and
+ * codec string.
+ *
+ * Code convention: `core:media/<reason>` — e.g. `core:media/codec-unsupported`.
+ */
 export function mediaFormatError(code: string, message: string, context?: Record<string, unknown>): MediaFormatError {
 	return new MediaFormatError({
 		code,
@@ -331,6 +416,17 @@ export function mediaFormatError(code: string, message: string, context?: Record
 	});
 }
 
+/**
+ * Construct a `PluginError` with an explicit `pluginId` scope.
+ *
+ * When `opts.pluginId` is supplied the scope becomes
+ * `{ kind: 'plugin', id: opts.pluginId }`; otherwise it falls back to
+ * `{ kind: 'core' }` for kit-internal plugin-system errors (e.g. missing dep,
+ * duplicate id). Severity defaults to `'error'` but can be lowered to `'warning'`
+ * or `'info'` for non-fatal advisory conditions.
+ *
+ * Code convention: `<pluginId>:<area>/<reason>` — e.g. `lyrics:parse/bad-lrc`.
+ */
 export function pluginError(
 	code: string,
 	message: string,
@@ -356,6 +452,14 @@ export function pluginError(
 // Retry policy
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Per-code retry behaviour. All fields except `attempts` are optional; omitting
+ * `backoff` means no delay between retries (immediate). `refreshFirst: true`
+ * runs the auth refresh flow before the first retry attempt — used for 401s.
+ *
+ * `attempts: 0` is the canonical "do not retry" value. The kit checks this before
+ * scheduling any delay, so `baseMs` / `maxMs` are irrelevant when `attempts` is 0.
+ */
 export interface RetryConfig {
 	attempts: number;
 	backoff?: 'linear' | 'exponential';
@@ -365,15 +469,26 @@ export interface RetryConfig {
 }
 
 /**
- * Map keyed by error code OR HTTP-range matcher. Resolution order, most
- * specific wins:
+ * Map from error-code matcher to `RetryConfig`. The player and `authFetch` walk
+ * this map on every error to find the most-specific matching rule. Resolution
+ * order, most specific wins:
+ *
  *   1. Exact code:        `'core:auth/forbidden'`
  *   2. Category prefix:   `'core:auth/'`
  *   3. HTTP range:        `'4xx'` | `'5xx'`
  *   4. Wildcard fallback: `'*'`
+ *
+ * Consumers pass a custom policy to `setup({ retryPolicy })` — it's merged over
+ * `DEFAULT_RETRY_POLICY` so only the overridden codes need to appear.
  */
 export type RetryPolicy = Record<string, RetryConfig>;
 
+/**
+ * Built-in retry defaults. Covers the common HTTP + media error codes out of the
+ * box. Consumers override individual entries via `setup({ retryPolicy })`.
+ * All defaults err on the side of fewer retries — noisy retries are worse than
+ * a fast failure for debugging.
+ */
 export const DEFAULT_RETRY_POLICY: RetryPolicy = {
 	'core:network/timeout': {
 		attempts: 5,
