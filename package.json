@@ -30,6 +30,118 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
 		},
+		"./adapters/auth": {
+			"types": "./dist/adapters/auth/index.d.ts",
+			"import": "./dist/adapters/auth/index.js"
+		},
+		"./adapters/class-manager": {
+			"types": "./dist/adapters/class-manager/index.d.ts",
+			"import": "./dist/adapters/class-manager/index.js"
+		},
+		"./adapters/clock": {
+			"types": "./dist/adapters/clock/index.d.ts",
+			"import": "./dist/adapters/clock/index.js"
+		},
+		"./adapters/cue-parser": {
+			"types": "./dist/adapters/cue-parser/index.d.ts",
+			"import": "./dist/adapters/cue-parser/index.js"
+		},
+		"./adapters/drm": {
+			"types": "./dist/adapters/drm/index.d.ts",
+			"import": "./dist/adapters/drm/index.js"
+		},
+		"./adapters/element-factory": {
+			"types": "./dist/adapters/element-factory/index.d.ts",
+			"import": "./dist/adapters/element-factory/index.js"
+		},
+		"./adapters/event-bus": {
+			"types": "./dist/adapters/event-bus/index.d.ts",
+			"import": "./dist/adapters/event-bus/index.js"
+		},
+		"./adapters/fetch": {
+			"types": "./dist/adapters/fetch/index.d.ts",
+			"import": "./dist/adapters/fetch/index.js"
+		},
+		"./adapters/id-generator": {
+			"types": "./dist/adapters/id-generator/index.d.ts",
+			"import": "./dist/adapters/id-generator/index.js"
+		},
+		"./adapters/language-matcher": {
+			"types": "./dist/adapters/language-matcher/index.d.ts",
+			"import": "./dist/adapters/language-matcher/index.js"
+		},
+		"./adapters/lifecycle-registry": {
+			"types": "./dist/adapters/lifecycle-registry/index.d.ts",
+			"import": "./dist/adapters/lifecycle-registry/index.js"
+		},
+		"./adapters/logger": {
+			"types": "./dist/adapters/logger/index.d.ts",
+			"import": "./dist/adapters/logger/index.js"
+		},
+		"./adapters/media-list": {
+			"types": "./dist/adapters/media-list/index.d.ts",
+			"import": "./dist/adapters/media-list/index.js"
+		},
+		"./adapters/platform": {
+			"types": "./dist/adapters/platform/index.d.ts",
+			"import": "./dist/adapters/platform/index.js"
+		},
+		"./adapters/platform/capabilities": {
+			"types": "./dist/adapters/platform/capabilities/index.d.ts",
+			"import": "./dist/adapters/platform/capabilities/index.js"
+		},
+		"./adapters/platform/fullscreen": {
+			"types": "./dist/adapters/platform/fullscreen/index.d.ts",
+			"import": "./dist/adapters/platform/fullscreen/index.js"
+		},
+		"./adapters/platform/network": {
+			"types": "./dist/adapters/platform/network/index.d.ts",
+			"import": "./dist/adapters/platform/network/index.js"
+		},
+		"./adapters/platform/pip": {
+			"types": "./dist/adapters/platform/pip/index.d.ts",
+			"import": "./dist/adapters/platform/pip/index.js"
+		},
+		"./adapters/platform/visibility": {
+			"types": "./dist/adapters/platform/visibility/index.d.ts",
+			"import": "./dist/adapters/platform/visibility/index.js"
+		},
+		"./adapters/platform/wake-lock": {
+			"types": "./dist/adapters/platform/wake-lock/index.d.ts",
+			"import": "./dist/adapters/platform/wake-lock/index.js"
+		},
+		"./adapters/preload": {
+			"types": "./dist/adapters/preload/index.d.ts",
+			"import": "./dist/adapters/preload/index.js"
+		},
+		"./adapters/realtime": {
+			"types": "./dist/adapters/realtime/index.d.ts",
+			"import": "./dist/adapters/realtime/index.js"
+		},
+		"./adapters/retry-policy": {
+			"types": "./dist/adapters/retry-policy/index.d.ts",
+			"import": "./dist/adapters/retry-policy/index.js"
+		},
+		"./adapters/storage": {
+			"types": "./dist/adapters/storage/index.d.ts",
+			"import": "./dist/adapters/storage/index.js"
+		},
+		"./adapters/stream": {
+			"types": "./dist/adapters/stream/index.d.ts",
+			"import": "./dist/adapters/stream/index.js"
+		},
+		"./adapters/subtitle-renderer": {
+			"types": "./dist/adapters/subtitle-renderer/index.d.ts",
+			"import": "./dist/adapters/subtitle-renderer/index.js"
+		},
+		"./adapters/translator": {
+			"types": "./dist/adapters/translator/index.d.ts",
+			"import": "./dist/adapters/translator/index.js"
+		},
+		"./adapters/url-resolver": {
+			"types": "./dist/adapters/url-resolver/index.d.ts",
+			"import": "./dist/adapters/url-resolver/index.js"
+		},
 		"./plugins/tab-leader": {
 			"types": "./dist/plugins/tab-leader/index.d.ts",
 			"import": "./dist/plugins/tab-leader/index.js"
