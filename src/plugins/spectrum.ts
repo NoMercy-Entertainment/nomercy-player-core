@@ -6,22 +6,72 @@ import { AudioGraphPlugin } from './audio-graph';
 
 /** Options for {@link SpectrumPlugin}. */
 export interface SpectrumOptions {
+	/**
+	 * FFT size for the `AnalyserNode`. Higher values give finer frequency
+	 * resolution (more bins) at the cost of time resolution. Default inherits
+	 * from `AudioGraphPlugin`'s shared analyser (usually `2048`).
+	 */
 	fftSize?: 512 | 1024 | 2048 | 4096;
+	/**
+	 * Smoothing time constant 0..1 for the `AnalyserNode`. Higher values make
+	 * spectrum output lag behind transients. Default inherits from the shared
+	 * analyser (usually `0.8`).
+	 */
 	smoothingTimeConstant?: number;
+	/**
+	 * Target frame rate for the analysis tick, in Hz. When omitted the plugin
+	 * ticks at the canvas plugin's RAF rate (usually 60 fps).
+	 * Currently unused — reserved for future pacing control.
+	 */
 	frameRate?: number;
 }
 
 /** Events emitted by {@link SpectrumPlugin}. */
 export interface SpectrumEvents {
+	/**
+	 * Fired once per RAF tick with fresh FFT and waveform data.
+	 * `frame` contains the full `VisualizationFrame` snapshot.
+	 * `energy` carries the pre-computed bass/mid/treble band energies (0..1)
+	 * as a convenience so listeners don't have to re-slice the FFT buffer.
+	 */
 	frame: { frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } };
 }
 
 type BeatProvider = () => { beat?: boolean; bpm?: number };
 
 /**
- * AnalyserNode-driven spectrum + waveform frame source. Strictly opt-in.
- * Requires AudioGraphPlugin. Emits `frame` events per RAF tick with frequency,
- * waveform, time, deltaMs, energy, and pre-computed band energies.
+ * FFT analyser that drives the visualization pipeline. Requires
+ * {@link AudioGraphPlugin} to be registered first.
+ *
+ * **What it does**
+ *
+ * On `use()` it acquires the shared `AnalyserNode` from `AudioGraphPlugin`,
+ * allocates typed `Uint8Array` buffers for frequency and waveform data, and
+ * starts a per-RAF tick. Each tick calls `getByteFrequencyData` and
+ * `getByteTimeDomainData`, computes coarse band energies (bass / mid / treble),
+ * polls any registered beat providers, and emits a `frame` event with the
+ * full `VisualizationFrame` payload.
+ *
+ * `VisualizationPlugin` subclasses consume these frames via the `frame` event.
+ * Advanced consumers can also call `analyser()` directly for raw `AnalyserNode`
+ * access, or `bandEnergy(loHz, hiHz)` for custom frequency ranges.
+ *
+ * **Events**
+ *
+ * - `frame` — fired every RAF tick; carries `VisualizationFrame` + band energies.
+ *
+ * **Usage**
+ *
+ * ```ts
+ * player
+ *   .addPlugin(audioGraphPlugin)
+ *   .addPlugin(spectrumPlugin, { fftSize: 2048 })
+ *   .addPlugin(canvasPlugin)
+ *   .addPlugin(MyVisualization);
+ *
+ * const spectrum = player.getPlugin(SpectrumPlugin);
+ * spectrum.registerBeatProvider(() => ({ beat: myDetector.beat, bpm: 128 }));
+ * ```
  */
 export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plugin<P, SpectrumOptions, SpectrumEvents> {
 	static override readonly id: string = 'spectrum';
@@ -75,7 +125,12 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		this.graph = null;
 	}
 
-	/** Direct AnalyserNode handle for advanced consumers. */
+	/**
+	 * Returns the live `AnalyserNode` for advanced consumers that need direct
+	 * access (e.g. custom buffer reads at non-standard intervals).
+	 *
+	 * Throws `PluginError` when called before `use()`.
+	 */
 	analyser(): AnalyserNode {
 		if (!this._analyser) {
 			throw new PluginError({
@@ -91,7 +146,14 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		return this._analyser;
 	}
 
-	/** Snapshot of the current visualization frame. Eager-populates on first read. */
+	/**
+	 * Returns the most recently computed `VisualizationFrame`.
+	 *
+	 * On the very first call before any RAF tick has fired, it calls `tick(0, 0)`
+	 * to eagerly populate the frame so callers never receive `undefined`.
+	 *
+	 * Throws `PluginError` when the analyser is unavailable (before `use()`).
+	 */
 	currentFrame(): VisualizationFrame {
 		if (this._currentFrame)
 			return this._currentFrame;
@@ -110,7 +172,14 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		return this._currentFrame;
 	}
 
-	/** Sum of magnitudes in the [loHz, hiHz] band, normalized 0..1. */
+	/**
+	 * Returns the average magnitude of FFT bins in the [loHz, hiHz] frequency
+	 * range, normalised to 0..1 (0 = silence, 1 = full scale).
+	 *
+	 * Useful for driving custom energy meters or beat detection without
+	 * subscribing to the full `frame` event. Returns `0` when the analyser is
+	 * unavailable or when `loHz > hiHz`.
+	 */
 	bandEnergy(loHz: number, hiHz: number): number {
 		const analyserNode = this._analyser;
 		if (!analyserNode)
@@ -140,13 +209,27 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		return (sum / span) / 255;
 	}
 
-	/** Register a beat / BPM provider. Polled per frame. */
+	/**
+	 * Registers a beat / BPM provider function. Polled once per frame tick.
+	 *
+	 * The provider returns `{ beat?: boolean; bpm?: number }`. When multiple
+	 * providers are registered, the first truthy `beat` and the last numeric
+	 * `bpm` seen wins. Beat and BPM values are forwarded into every `frame`
+	 * event and into the `VisualizationFrame` consumed by visualizers.
+	 */
 	registerBeatProvider(fn: BeatProvider): void {
 		this.beatProviders.push(fn);
 	}
 
-	/** Runtime FFT size change — re-allocates internal buffers. */
+	/**
+	 * Returns the current FFT size, or `undefined` before `use()` has run.
+	 */
 	fftSize(): 256 | 512 | 1024 | 2048 | 4096 | undefined;
+	/**
+	 * Changes the FFT size at runtime and re-allocates internal frequency and
+	 * waveform buffers to match the new bin count. The change takes effect on
+	 * the next frame tick.
+	 */
 	fftSize(size: 256 | 512 | 1024 | 2048 | 4096): void;
 	fftSize(size?: 256 | 512 | 1024 | 2048 | 4096): 256 | 512 | 1024 | 2048 | 4096 | undefined | void {
 		if (size === undefined) {
