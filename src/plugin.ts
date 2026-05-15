@@ -335,6 +335,14 @@ export class Plugin<
 
 	private _enabled: boolean = true;
 
+	/**
+	 * Called by the player immediately after instantiating the plugin class.
+	 * Wires the player reference, merged options, and lifecycle registry into the
+	 * instance. Sets up the scoped logger and storage before `use()` runs.
+	 *
+	 * Plugin authors never call this method directly — the player calls it during
+	 * `registerPlugin()` / `use()`. Override `use()` for setup logic.
+	 */
 	initialize(player: P, opts: O, lifecycle: LifecycleRegistry): void {
 		this.player = player;
 		this.opts = opts;
@@ -357,6 +365,17 @@ export class Plugin<
 	 */
 	use(): void | Promise<void> {}
 
+	/**
+	 * Tear down any resources the plugin allocated that the lifecycle registry
+	 * cannot track automatically — e.g. third-party library instances, custom
+	 * WebGL contexts, non-standard observers.
+	 *
+	 * The kit calls `dispose()` when the player itself is disposed, or when the
+	 * plugin is explicitly removed via `player.removePlugin(PluginClass)`. Standard
+	 * listeners, timers, RAF loops, and abort controllers registered through the
+	 * lifecycle helpers are already cleaned up before `dispose()` runs — don't
+	 * re-clean them here.
+	 */
 	dispose(): void {}
 
 	// ── Plugin Standard required surface ──
@@ -376,7 +395,6 @@ export class Plugin<
 		this._enabled = true;
 		const id = (this.constructor as typeof Plugin).id;
 		this.player.emit('plugin:enabled', { id });
-		// Spec §1.5: per-plugin namespaced channel mirrors the global one.
 		this.player.emit(`plugin:${id}:enabled`, { id });
 	}
 
@@ -431,12 +449,10 @@ export class Plugin<
 		}
 		this.opts = mergeConfig(this.opts, partial);
 		const id = (this.constructor as typeof Plugin).id;
-		// Global channel for any consumer wiring once across all plugins.
 		this.player.emit('plugin:opts:changed', {
 			id,
 			opts: this.opts,
 		});
-		// Per-plugin namespaced channel — matches the spec §1.5 contract.
 		this.player.emit(`plugin:${id}:opts:changed`, {
 			id,
 			opts: this.opts,
@@ -790,18 +806,6 @@ export class Plugin<
 	// ── DOM mount points ──
 
 	/**
-	 * Claim a `<div>` mount point on the player container. Idempotent per
-	 * plugin instance — same `name` returns the same node. Auto-removed on
-	 * `dispose()`.
-	 *
-	 * Mount nodes are namespaced per plugin: a plugin with `id = 'message'`
-	 * claiming `'toast'` gets a node with class `nmplayer-message-toast`.
-	 * Conflict-free across plugins.
-	 *
-	 * Plugins needing non-`<div>` elements should construct their own DOM and
-	 * append it under the player container directly.
-	 */
-	/**
 	 * Append a stylesheet to `document.head` exactly once per `id`. Re-entrant:
 	 * a second call with the same `id` is a no-op.
 	 *
@@ -833,6 +837,18 @@ export class Plugin<
 		document.head.appendChild(link);
 	}
 
+	/**
+	 * Claim a `<div>` mount point on the player container. Idempotent per
+	 * plugin instance — same `name` returns the same node. Auto-removed on
+	 * `dispose()`.
+	 *
+	 * Mount nodes are namespaced per plugin: a plugin with `id = 'message'`
+	 * claiming `'toast'` gets a node with class `nmplayer-message-toast`.
+	 * Conflict-free across plugins.
+	 *
+	 * Plugins needing non-`<div>` elements should construct their own DOM and
+	 * append it under the player container directly.
+	 */
 	protected mount(name: string): HTMLDivElement {
 		const id = (this.constructor as typeof Plugin).id;
 		const className = `nmplayer-${id}-${name}`;
@@ -904,14 +920,28 @@ export class Plugin<
 
 	// ── Lifecycle helpers (all auto-cleaned on dispose) ──
 
+	/**
+	 * Register a DOM event listener that is automatically removed on plugin
+	 * dispose. Prefer this over `target.addEventListener` directly so the
+	 * lifecycle registry tracks the cleanup.
+	 */
 	protected listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions): void {
 		this.lifecycle.listen(target, event, handler, options);
 	}
 
+	/**
+	 * Schedule a one-shot callback. Cancelled automatically on `dispose()`.
+	 * Returns the numeric handle in case early cancellation is needed, but most
+	 * callers can discard the return value.
+	 */
 	protected timeout(fn: () => void, ms: number): number {
 		return this.lifecycle.timeout(fn, ms);
 	}
 
+	/**
+	 * Schedule a repeating callback. Cancelled automatically on `dispose()`.
+	 * Returns the numeric handle in case early cancellation is needed.
+	 */
 	protected interval(fn: () => void, ms: number): number {
 		return this.lifecycle.interval(fn, ms);
 	}
@@ -925,6 +955,12 @@ export class Plugin<
 		this.lifecycle.frame(fn);
 	}
 
+	/**
+	 * Create an `AbortController` that is automatically aborted on plugin
+	 * dispose. Pass `controller.signal` to `fetch()` calls or any Web API that
+	 * accepts a signal. The `fetch()` helper does this automatically; use
+	 * `abortable()` directly only when integrating third-party APIs.
+	 */
 	protected abortable(): AbortController {
 		return this.lifecycle.abortable();
 	}
