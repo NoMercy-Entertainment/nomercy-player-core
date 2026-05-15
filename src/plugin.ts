@@ -913,18 +913,18 @@ export class Plugin<
 
 	/**
 	 * Schedule a one-shot callback. Cancelled automatically on `dispose()`.
-	 * Returns the timer handle in case early cancellation is needed, but most
+	 * Returns the numeric handle in case early cancellation is needed, but most
 	 * callers can discard the return value.
 	 */
-	protected timeout(fn: () => void, ms: number): ReturnType<typeof setTimeout> {
+	protected timeout(fn: () => void, ms: number): number {
 		return this.lifecycle.timeout(fn, ms);
 	}
 
 	/**
 	 * Schedule a repeating callback. Cancelled automatically on `dispose()`.
-	 * Returns the interval handle in case early cancellation is needed.
+	 * Returns the numeric handle in case early cancellation is needed.
 	 */
-	protected interval(fn: () => void, ms: number): ReturnType<typeof setInterval> {
+	protected interval(fn: () => void, ms: number): number {
 		return this.lifecycle.interval(fn, ms);
 	}
 

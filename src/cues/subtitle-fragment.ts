@@ -41,8 +41,8 @@ export function buildSubtitleFragment(markup: string): DocumentFragment {
 			// Pop back to the matching open tag; unmatched closers are ignored
 			// gracefully — a malformed cue still renders, just without that pair.
 			for (let i = stack.length - 1; i > 0; i--) {
-				const top = stack[i] as HTMLElement;
-				if (top.tagName && top.tagName.toLowerCase() === tagName) {
+				const top = stack[i];
+				if (top instanceof HTMLElement && top.tagName.toLowerCase() === tagName) {
 					stack.splice(i, 1);
 					break;
 				}

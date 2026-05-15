@@ -18,8 +18,8 @@ interface DisconnectableObserver { disconnect(): void }
  */
 export class LifecycleRegistry {
 	private readonly listeners: ListenerRecord[] = [];
-	private readonly timeouts = new Set<ReturnType<typeof setTimeout>>();
-	private readonly intervals = new Set<ReturnType<typeof setInterval>>();
+	private readonly timeouts = new Set<number>();
+	private readonly intervals = new Set<number>();
 	private readonly observers: DisconnectableObserver[] = [];
 	private readonly aborts: AbortController[] = [];
 	private readonly rafs = new Set<number>();
@@ -78,7 +78,7 @@ export class LifecycleRegistry {
 		if (this.disposed)
 			return -1;
 		const id = setTimeout(() => {
-			this.timeouts.delete(id);
+			this.timeouts.delete(Number(id));
 			if (this.disposed)
 				return;
 			try {
@@ -88,8 +88,8 @@ export class LifecycleRegistry {
 				this.logHandlerError('timeout', err);
 			}
 		}, ms);
-		this.timeouts.add(id);
-		return id as unknown as number;
+		this.timeouts.add(Number(id));
+		return Number(id);
 	}
 
 	/**
@@ -112,8 +112,8 @@ export class LifecycleRegistry {
 				this.logHandlerError('interval', err);
 			}
 		}, ms);
-		this.intervals.add(id);
-		return id as unknown as number;
+		this.intervals.add(Number(id));
+		return Number(id);
 	}
 
 	/**

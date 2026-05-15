@@ -1,6 +1,10 @@
 import type { CueParser } from '../cues/parser-registry';
+import type { CreateElement, AddClasses } from '../core/mixins/dom-mixin';
 import type {
+	ActionOptions,
+	AuthConfig,
 	BaseEventMap,
+	Chapter,
 	IPlayer,
 	PlayerExperimental,
 	PlayerPhase,
@@ -208,15 +212,15 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		}
 	}
 
-	private _authConfig: import('../types').AuthConfig | undefined;
+	private _authConfig: AuthConfig | undefined;
 
-	auth(): Readonly<import('../types').AuthConfig> | undefined;
-	auth(config: import('../types').AuthConfig): void;
-	auth(partial: Partial<import('../types').AuthConfig>): void;
-	auth(configOrPartial?: import('../types').AuthConfig | Partial<import('../types').AuthConfig>): Readonly<import('../types').AuthConfig> | undefined | void {
+	auth(): Readonly<AuthConfig> | undefined;
+	auth(config: AuthConfig): void;
+	auth(partial: Partial<AuthConfig>): void;
+	auth(configOrPartial?: AuthConfig | Partial<AuthConfig>): Readonly<AuthConfig> | undefined | void {
 		if (configOrPartial === undefined) {
 			if (!this._authConfig) return undefined;
-			return Object.freeze({ ...this._authConfig }) as Readonly<import('../types').AuthConfig>;
+			return Object.freeze({ ...this._authConfig }) as Readonly<AuthConfig>;
 		}
 		this._authConfig = { ...(this._authConfig ?? {}), ...configOrPartial };
 	}
@@ -246,13 +250,13 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		this._currentQualityIdx = idx;
 	}
 
-	chapters(): ReadonlyArray<import('../types').Chapter> {
+	chapters(): ReadonlyArray<Chapter> {
 		return [];
 	}
 
-	currentChapter(): import('../types').Chapter | null;
+	currentChapter(): Chapter | null;
 	currentChapter(idx: number): void;
-	currentChapter(_idx?: number): import('../types').Chapter | null | void {
+	currentChapter(_idx?: number): Chapter | null | void {
 		if (_idx === undefined) return null;
 	}
 
@@ -300,7 +304,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	 * No-op in the stub — duration is always 0, so the real impl exits early
 	 * anyway. Tests that need a real seek should use `currentTime()` directly.
 	 */
-	seekByPercentage(_pct: number, _opts?: import('../types').ActionOptions): void {}
+	seekByPercentage(_pct: number, _opts?: ActionOptions): void {}
 
 	registerCueParser(parser: CueParser, prepend?: boolean): void {
 		const existing = this._registeredParsers.findIndex(p => p.id === parser.id);
@@ -356,8 +360,8 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		type: K,
 		_id: string,
 		_unique?: boolean,
-	): import('../core/mixins/dom-mixin').CreateElement<HTMLElementTagNameMap[K]> {
-		return { el: document.createElement(type) } as unknown as import('../core/mixins/dom-mixin').CreateElement<HTMLElementTagNameMap[K]>;
+	): CreateElement<HTMLElementTagNameMap[K]> {
+		return { el: document.createElement(type) } as unknown as CreateElement<HTMLElementTagNameMap[K]>;
 	}
 
 	/** Returns a real jsdom `<button>` — same rationale as `createElement`. */
@@ -385,8 +389,8 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	}
 
 	/** Pass-through — returns the element unchanged with the fluent type. */
-	addClasses<T extends Element>(el: T, _names: string[]): import('../core/mixins/dom-mixin').AddClasses<T> {
-		return el as unknown as import('../core/mixins/dom-mixin').AddClasses<T>;
+	addClasses<T extends Element>(el: T, _names: string[]): AddClasses<T> {
+		return el as unknown as AddClasses<T>;
 	}
 
 	/** Pass-through — returns the element unchanged. */

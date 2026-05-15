@@ -149,7 +149,7 @@ interface PlayerSurface<TItem> {
 	play?: (opts?: { source?: string; silent?: boolean }) => unknown;
 	pause?: (opts?: { source?: string; silent?: boolean }) => unknown;
 	stop?: (opts?: { source?: string; silent?: boolean }) => unknown;
-	currentTime?: (t?: number, opts?: { source?: string; silent?: boolean }) => number | unknown | Promise<void>;
+	currentTime?: (t?: number, opts?: { source?: string; silent?: boolean }) => number | Promise<void>;
 	current?: () => TItem | undefined;
 	emit?: (event: string, payload: unknown) => void;
 }

@@ -8,23 +8,38 @@ import type { Internals } from '../state';
 // Private helpers — only used by deviceMethods
 // ──────────────────────────────────────────────────────────────────────────
 
+type DetectedDevice = {
+	isTv: boolean;
+	isMobile: boolean;
+	isDesktop: boolean;
+	os: 'android' | 'ios' | 'macos' | 'windows' | 'linux' | 'unknown';
+};
+
+let _cachedDevice: DetectedDevice | undefined;
+
 /**
  * UA-based device classification. Order matters: TV detection runs FIRST so
  * "Smart-TV running Android" is classified as TV, not Mobile. Mobile second.
  * Desktop is the catch-all.
  *
+ * Result is cached after the first call — UA does not change at runtime.
  * Detection is best-effort — UA strings lie. Consumers needing better signals
  * should swap `platform.capabilities` with a probe-based bridge.
  */
-function _detectDevice(): { isTv: boolean; isMobile: boolean; isDesktop: boolean; os: 'android' | 'ios' | 'macos' | 'windows' | 'linux' | 'unknown' } {
+function _detectDevice(): DetectedDevice {
+	if (_cachedDevice !== undefined)
+		return _cachedDevice;
+
 	if (typeof navigator === 'undefined') {
-		return {
+		_cachedDevice = {
 			isTv: false,
 			isMobile: false,
 			isDesktop: true,
 			os: 'unknown',
 		};
+		return _cachedDevice;
 	}
+
 	const ua = navigator.userAgent || '';
 	const tvHints = /\b(SmartTV|GoogleTV|AppleTV|HbbTV|NetCast|WebOS|Tizen|VIDAA|BRAVIA|AFTS|AFTM|AFTB|AFTT|AFTN|FireTV|Crkey|PlayStation|Xbox)\b/i;
 	const isTv = tvHints.test(ua);
@@ -32,7 +47,7 @@ function _detectDevice(): { isTv: boolean; isMobile: boolean; isDesktop: boolean
 	const isMobile = !isTv && mobileHints.test(ua);
 	const isDesktop = !isTv && !isMobile;
 
-	let os: 'android' | 'ios' | 'macos' | 'windows' | 'linux' | 'unknown' = 'unknown';
+	let os: DetectedDevice['os'] = 'unknown';
 	if (/Android/i.test(ua))
 		os = 'android';
 	else if (/iPhone|iPad|iPod/i.test(ua))
@@ -44,12 +59,13 @@ function _detectDevice(): { isTv: boolean; isMobile: boolean; isDesktop: boolean
 	else if (/Linux/i.test(ua))
 		os = 'linux';
 
-	return {
+	_cachedDevice = {
 		isTv,
 		isMobile,
 		isDesktop,
 		os,
 	};
+	return _cachedDevice;
 }
 
 
