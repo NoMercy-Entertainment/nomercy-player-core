@@ -110,19 +110,22 @@ function _namespacedStorage(backend: IStorage, prefix: string): IStorage {
 /**
  * Constructor signature matching any Plugin subclass. `never[]` is the
  * variance-correct "accepts every constructor" form (every concrete arg type
- * extends `never`). The concrete `Plugin<IPlayer<unknown>, unknown,
- * Record<string, unknown>>` bound is the loosest typed shape that still
- * matches arbitrary Plugin subclasses.
+ * extends `never`). `Record<string, any>` for the `E` position matches concrete
+ * event-map interfaces (e.g. `FooEvents`) which lack an index signature and
+ * therefore don't satisfy the stricter `Record<string, unknown>`.
  */
-export type AnyPluginCtor = abstract new (...args: never[]) => Plugin<IPlayer<BaseEventMap>, unknown, Record<string, unknown>>;
+export type AnyPluginCtor = abstract new (...args: never[]) => Plugin<IPlayer<BaseEventMap>, unknown, Record<string, any>>;
 
 /**
  * Extract the event-map generic from a Plugin class type. Used by `on(Class, ...)`
  * to type the listener payload from the target plugin's `E` generic.
+ *
+ * Uses the instance-accessor pattern (same as `PlayerEventMap` / `__eventMap__`):
+ * `InstanceType<C>` resolves the concrete subclass instance, then `['__events__']`
+ * reads its phantom-typed property — TS evaluates this against the concrete `E`
+ * the subclass supplies, bypassing the conditional-`infer` widening problem.
  */
-export type PluginEventMap<C> = C extends abstract new (...args: never[]) => Plugin<infer _P, infer _O, infer E>
-	? E
-	: never;
+export type PluginEventMap<C extends AnyPluginCtor> = InstanceType<C>['__events__'];
 
 /**
  * Structured throw payload. The kit handles the rest:
@@ -316,6 +319,8 @@ export class Plugin<
 
 	declare player: P;
 	declare opts: O;
+	/** Phantom — type-only carrier for plugin event inference via `PluginEventMap<C>`. */
+	declare readonly __events__: E;
 	protected lifecycle!: LifecycleRegistry;
 
 	/** Auto-provided scoped logger. Output is prefixed `[nmplayer][<id>]`. */
