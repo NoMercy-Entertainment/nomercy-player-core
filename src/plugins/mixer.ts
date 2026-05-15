@@ -5,23 +5,40 @@ import { AudioGraphPlugin } from './audio-graph';
 
 /** Options for {@link MixerPlugin}. */
 export interface MixerOptions {
-	/** Initial gain in dB. Default `0` (unity). */
+	/** Initial gain in dB. `0` = unity gain (default). Positive boosts, negative attenuates. */
 	gain?: number;
-	/** Initial stereo pan, -1 (full left) to 1 (full right). Default `0` (centre). */
+	/**
+	 * Initial stereo pan position. `-1` = full left, `0` = centre (default),
+	 * `1` = full right. Values outside ±1 are clamped.
+	 */
 	pan?: number;
-	/** Persist gain/pan under this storage key (auto-save on change, restore on `use()`). */
+	/**
+	 * Storage key for automatic persistence. When set, gain, pan, and mute
+	 * state are saved on every change and restored on `use()`.
+	 * Uses the plugin's `this.storage` facade — never raw `localStorage`.
+	 */
 	persistKey?: string;
-	/** Symmetric clamp for `setGain` in dB. Default `24`. */
+	/**
+	 * Symmetric dB ceiling for `gain()`. Calls with values outside ±`maxGainDb`
+	 * are silently clamped. Default `24` dB.
+	 */
 	maxGainDb?: number;
-	/** Smoothing time constant for `gain.setTargetAtTime`. Default `0.02` s. */
+	/**
+	 * Time constant (seconds) for `AudioParam.setTargetAtTime` gain ramps.
+	 * Smaller = snappier; larger = silkier. Default `0.02` s.
+	 */
 	smoothingTimeConstantSeconds?: number;
 }
 
 /** Events emitted by {@link MixerPlugin}. */
 export interface MixerEvents {
+	/** Fired after `gain()` is set. Carries the clamped dB value. */
 	'gain:changed': { gain: number };
+	/** Fired after `pan()` is set. Carries the clamped ±1 value. */
 	'pan:changed': { pan: number };
+	/** Fired when mute state changes. */
 	'mute:changed': { muted: boolean };
+	/** Fired after state is successfully written to storage. */
 	'saved': void;
 }
 
@@ -32,7 +49,35 @@ interface PersistedMixerState {
 }
 
 /**
- * Audio-graph mixer stage — pre-gain + stereo pan. Strictly opt-in.
+ * Audio-graph mixer stage providing master gain and stereo pan control.
+ * Requires {@link AudioGraphPlugin} to be registered first.
+ *
+ * **Audio chain position**
+ *
+ * Inserts a `GainNode` followed by a `StereoPannerNode` as the last
+ * `'post'` effects, immediately before `AudioContext.destination`:
+ *
+ * ```
+ * source → [EQ filters] → gainNode → pannerNode → destination
+ * ```
+ *
+ * **Events**
+ *
+ * - `gain:changed` — gain changed (clamped dB value).
+ * - `pan:changed` — pan changed (clamped ±1 value).
+ * - `mute:changed` — mute state toggled.
+ * - `saved` — state written to storage.
+ *
+ * **Usage**
+ *
+ * ```ts
+ * player.addPlugin(audioGraphPlugin).addPlugin(mixerPlugin);
+ *
+ * const mixer = player.getPlugin(MixerPlugin);
+ * mixer.gain(6);    // +6 dB boost
+ * mixer.pan(-0.5);  // slight left
+ * mixer.muted(true);
+ * ```
  */
 export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plugin<P, MixerOptions, MixerEvents> {
 	static override readonly id: string = 'mixer';
@@ -107,14 +152,13 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 		this.graph = null;
 	}
 
-	/**
-	 * Read or write gain in dB.
-	 *
-	 * `gain()` — returns the current gain in dB.
-	 * `gain(dB)` — sets gain. `0` = unity, negative attenuates, positive boosts.
-	 * Smooth ramp via `setTargetAtTime`.
-	 */
+	/** Returns the current gain in dB. */
 	gain(): number;
+	/**
+	 * Sets the master gain in dB. `0` = unity, negative attenuates, positive
+	 * boosts. Values outside ±`maxGainDb` are clamped. Applies a smooth ramp
+	 * via `setTargetAtTime`. Emits `gain:changed` and persists when enabled.
+	 */
 	gain(dB: number): void;
 	gain(dB?: number): number | void {
 		if (dB === undefined) {
@@ -132,13 +176,13 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 		this.autoSave();
 	}
 
-	/**
-	 * Read or write stereo pan.
-	 *
-	 * `pan()` — returns the current pan value (-1..1).
-	 * `pan(value)` — sets pan. `-1` full left, `0` centre, `1` full right.
-	 */
+	/** Returns the current stereo pan value (-1..1). */
 	pan(): number;
+	/**
+	 * Sets the stereo pan. `-1` = full left, `0` = centre, `1` = full right.
+	 * Values outside ±1 are clamped. Applies immediately via `setTargetAtTime`.
+	 * Emits `pan:changed` and persists when enabled.
+	 */
 	pan(value: number): void;
 	pan(value?: number): number | void {
 		if (value === undefined) {
@@ -153,14 +197,14 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 		this.autoSave();
 	}
 
-	/**
-	 * Read or write mute state.
-	 *
-	 * `muted()` — returns `true` when muted.
-	 * `muted(value)` — mutes when `true`, unmutes when `false`.
-	 * Gain → 0 when muted; restores configured gain when unmuted.
-	 */
+	/** Returns `true` when the mixer is currently muted. */
 	muted(): boolean;
+	/**
+	 * Sets mute state. When `true`, the `GainNode` is ramped to `0` immediately.
+	 * When `false`, it is restored to the configured gain value.
+	 * No-op when the new state matches the current state.
+	 * Emits `mute:changed` and persists when enabled.
+	 */
 	muted(value: boolean): void;
 	muted(value?: boolean): boolean | void {
 		if (value === undefined) {
@@ -178,7 +222,12 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 		this.autoSave();
 	}
 
-	/** Explicitly persist current gain, pan, and mute state to storage (requires `persistKey`). */
+	/**
+	 * Explicitly writes gain, pan, and mute state to storage.
+	 * No-op when `persistKey` is not set. Use when you want manual control over
+	 * when state is committed rather than relying on auto-save.
+	 * Emits `saved` on success.
+	 */
 	save(): void {
 		const persistKey = this.opts?.persistKey;
 		if (!persistKey)
@@ -198,12 +247,19 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 		this.emit('saved');
 	}
 
-	/** Override hook — raw `GainNode` ref. */
+	/**
+	 * Override hook: produce the `GainNode` used for master gain and mute.
+	 * Default creates a plain `GainNode` via the supplied context.
+	 * Subclasses may return a pre-configured node (e.g. from a custom graph).
+	 */
 	protected getGainNode(ctx: AudioContext): GainNode {
 		return ctx.createGain();
 	}
 
-	/** Override hook — raw `StereoPannerNode` ref. */
+	/**
+	 * Override hook: produce the `StereoPannerNode` used for stereo pan.
+	 * Default creates a plain `StereoPannerNode` via the supplied context.
+	 */
 	protected getPannerNode(ctx: AudioContext): StereoPannerNode {
 		return ctx.createStereoPanner();
 	}
