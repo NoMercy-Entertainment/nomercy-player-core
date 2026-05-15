@@ -1,45 +1,6 @@
 /**
- * Vite plugin shipped by the kit. Rewrites the clean form
- *
- * ```ts
- * static translations = translationsFromGlob('./i18n/*.ts');
- * ```
- *
- * into the form Vite's static analyser can process at build time:
- *
- * ```ts
- * static translations = translationsFromGlob(
- *   import.meta.glob('./i18n/*.ts'),
- * );
- * ```
- *
- * Note: NO `{ eager: true }`. The glob produces a `Record<path, () => Promise<module>>`
- * of lazy loaders. The runtime helper detects this and stamps a marker on
- * the result so the kit's plugin registration only fetches the bundle for
- * the active language (and its BCP-47 parents). Chinese never gets loaded
- * when the user wants Dutch.
- *
- * Why a transform plugin? `import.meta.glob` requires a string literal at
- * the call site — Vite scans the source tree for that exact pattern. A
- * helper that takes a path string can't lift it through a normal call. So
- * this plugin lifts it for us, AOT, leaving consumers with the clean API.
- *
- * Wire it into your `vite.config.ts` / `vitest.config.ts`:
- *
- * ```ts
- * import { defineConfig } from 'vitest/config';
- * import { nomercyTranslationsPlugin } from '@nomercy-entertainment/nomercy-player-core/vite-plugin';
- *
- * export default defineConfig({
- *   plugins: [nomercyTranslationsPlugin()],
- *   …
- * });
- * ```
- *
- * The plugin only touches files that actually call `translationsFromGlob`
- * with a literal string — every other file passes through untouched.
+ * Options for `nomercyTranslationsPlugin()`.
  */
-
 export interface NomercyTranslationsPluginOptions {
 	/**
 	 * File patterns to scan. Defaults to TS / TSX / JS / JSX / MJS / CJS.
@@ -55,7 +16,7 @@ export interface NomercyTranslationsPluginOptions {
 }
 
 /**
- * Source-shape this plugin rewrites:
+ * Source shapes this plugin rewrites:
  *
  *   translationsFromGlob('./i18n/*.ts')
  *   translationsFromGlob("./i18n/*.ts")
@@ -74,6 +35,37 @@ function buildPattern(helperName: string): RegExp {
 	);
 }
 
+/**
+ * Vite plugin that rewrites the clean `translationsFromGlob` call form into
+ * the form Vite's static analyser requires at build time.
+ *
+ * **Why this exists.** `import.meta.glob` must appear as a string literal at
+ * the call site — Vite scans source files for that exact pattern. A helper
+ * that accepts a path string cannot lift the literal through a normal function
+ * call. This plugin does the lifting ahead-of-time so consumers write the
+ * clean form and Vite sees the expanded form.
+ *
+ * **Lazy by design.** The rewrite omits `{ eager: true }`. The glob produces
+ * `Record<path, () => Promise<module>>` lazy loaders. The runtime helper
+ * detects this and only fetches the bundle for the active language and its
+ * BCP-47 parents — Chinese never loads when the user wants Dutch.
+ *
+ * **Wire it in** `vite.config.ts` and `vitest.config.ts`:
+ *
+ * ```ts
+ * import { defineConfig } from 'vitest/config';
+ * import { nomercyTranslationsPlugin } from '@nomercy-entertainment/nomercy-player-core/vite-plugin';
+ *
+ * export default defineConfig({
+ *   plugins: [nomercyTranslationsPlugin()],
+ * });
+ * ```
+ *
+ * The plugin only touches files that call `translationsFromGlob` with a
+ * literal string — every other file passes through untouched.
+ *
+ * @param opts  Optional overrides for the file filter and helper name.
+ */
 export function nomercyTranslationsPlugin(opts: NomercyTranslationsPluginOptions = {}): {
 	name: string;
 	enforce: 'pre';
@@ -85,8 +77,8 @@ export function nomercyTranslationsPlugin(opts: NomercyTranslationsPluginOptions
 
 	return {
 		name: 'nomercy:translations-from-glob',
-		// `'pre'` so the rewrite runs BEFORE Vite's import.meta.glob analyser
-		// — otherwise the analyser sees the clean form and skips the file.
+		// `'pre'` so the rewrite runs before Vite's import.meta.glob analyser —
+		// otherwise the analyser sees the clean form and skips the file.
 		enforce: 'pre' as const,
 
 		transform(code: string, id: string) {
@@ -97,8 +89,8 @@ export function nomercyTranslationsPlugin(opts: NomercyTranslationsPluginOptions
 
 			pattern.lastIndex = 0;
 			const next = code.replace(pattern, (_, quote: string, glob: string) => {
-				// NO `eager: true` — let the runtime helper stamp lazy markers
-				// so only the active language's bundle is fetched.
+				// No `eager: true` — the runtime helper stamps lazy markers so only
+				// the active language bundle is fetched.
 				return `${helperName}(import.meta.glob(${quote}${glob}${quote}))`;
 			});
 
