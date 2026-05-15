@@ -9,7 +9,6 @@ import type {
 	BasePlayerConfig,
 	IPlayer,
 	PluginAdvisory,
-	PreventedReason,
 	RequireSpec,
 	ResolvedUrl,
 	Translations,
@@ -17,6 +16,7 @@ import type {
 } from './types';
 
 import type { AuthFetchOptions } from './auth-fetch';
+import type { BeforeDispatchOutcome, DispatchTarget } from './dispatch';
 import { authFetch } from './auth-fetch';
 import { mergeConfig } from './config-merge';
 import { runDispatchBefore } from './dispatch';
@@ -159,19 +159,10 @@ export interface PluginState<O = unknown> {
 }
 
 /**
- * Result returned by `Plugin.dispatchBefore(...)`. Tells the emitter whether
- * to proceed with its default action and surfaces the (possibly mutated) data.
+ * Result returned by `Plugin.dispatchBefore(...)`. Alias for `BeforeDispatchOutcome`
+ * so plugin authors share the single source-of-truth type from `dispatch.ts`.
  */
-export interface BeforeDispatchResult<TData> {
-	/** The payload data — possibly mutated by listeners during dispatch. */
-	data: TData;
-	/** True if any listener called `preventDefault()` or a `delay()` promise rejected/timed out. */
-	prevented: boolean;
-	/** Reason for prevention, when `prevented === true`. */
-	reason?: PreventedReason;
-	/** Underlying cause (rejected promise's error, etc.) when applicable. */
-	cause?: unknown;
-}
+export type BeforeDispatchResult<TData> = BeforeDispatchOutcome<TData>;
 
 /** Options for `Plugin.dispatchBefore(...)`. */
 export interface DispatchBeforeOptions {
@@ -214,7 +205,7 @@ export type PluginRecoveryAction = 'retry-once' | 'fallback' | 'disable' | 'igno
  * raw `Error` (use `this.throw`). The lint pack enforces all of these.
  */
 export class Plugin<
-	P extends IPlayer<any> = IPlayer,
+	P extends IPlayer<any> & DispatchTarget = IPlayer & DispatchTarget,
 	O = unknown,
 	E extends Record<string, any> = Record<string, never>,
 > {
@@ -613,17 +604,8 @@ export class Plugin<
 		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
 		const timeoutMs = opts?.timeoutMs ?? config.beforeEventTimeoutMs ?? 10_000;
 
-		const target = this.player as unknown as {
-			listenersOf?: (event: string) => ReadonlyArray<(data: unknown) => void>;
-			pushDispatch?: (name: string) => void;
-			popDispatch?: () => string | undefined;
-		};
-
-		// Delegate to the shared dispatcher so plugin-emitted before-events
-		// observe the IDENTICAL contract as core's `_dispatchBefore`.
-		const outcome = await runDispatchBefore<TData>(target, namespaced, data, { timeoutMs });
-		// Re-shape the outcome to satisfy this plugin's typed return.
-		return outcome as BeforeDispatchResult<TData>;
+		// P extends DispatchTarget so this.player satisfies runDispatchBefore's parameter directly.
+		return runDispatchBefore<TData>(this.player, namespaced, data, { timeoutMs });
 	}
 
 	// ── Structured error escalation ──
@@ -931,18 +913,18 @@ export class Plugin<
 
 	/**
 	 * Schedule a one-shot callback. Cancelled automatically on `dispose()`.
-	 * Returns the numeric handle in case early cancellation is needed, but most
+	 * Returns the timer handle in case early cancellation is needed, but most
 	 * callers can discard the return value.
 	 */
-	protected timeout(fn: () => void, ms: number): number {
+	protected timeout(fn: () => void, ms: number): ReturnType<typeof setTimeout> {
 		return this.lifecycle.timeout(fn, ms);
 	}
 
 	/**
 	 * Schedule a repeating callback. Cancelled automatically on `dispose()`.
-	 * Returns the numeric handle in case early cancellation is needed.
+	 * Returns the interval handle in case early cancellation is needed.
 	 */
-	protected interval(fn: () => void, ms: number): number {
+	protected interval(fn: () => void, ms: number): ReturnType<typeof setInterval> {
 		return this.lifecycle.interval(fn, ms);
 	}
 

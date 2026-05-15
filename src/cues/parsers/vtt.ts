@@ -52,8 +52,7 @@ export interface VTTSpritePayload {
  *    the raw text, stripped for `parseVttSubtitles` output
  *
  * Does NOT support (intentionally — out of scope for the cue-list use cases):
- *  - Cue settings (line:0, position:50%) — we capture them into `text` raw if
- *    consumers want them, but `parseVttSubtitles` discards them
+ *  - `position:` and `vertical:` cue settings
  *  - Karaoke timestamps inside cue payloads
  *  - Right-to-left text shaping (the renderer's problem, not the parser's)
  */

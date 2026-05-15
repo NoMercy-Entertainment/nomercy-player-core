@@ -162,17 +162,17 @@ export class CueTracker<T> {
 	}
 
 	private computeActive(time: number): Cue<T>[] {
-		const adjusted = this.tolerance === 0 ? time : time;
-		const candidates = this.list.active(adjusted);
+		const candidates = this.list.active(time);
 		if (this.tolerance === 0)
 			return candidates;
 
-		// With tolerance, also pick up cues whose start is within tol of `time`
-		// but whose start is technically > time. Walk the next-cue if it's close.
-		const next = this.list.next(time);
-		if (next && next.start - time <= this.tolerance) {
-			return [...candidates, next];
-		}
+		// Tolerance > 0: also include the next cue whose start falls within the
+		// tolerance window. Lets lyrics / subtitle consumers pre-warm rendering
+		// before the cue technically starts.
+		const upcoming = this.list.next(time);
+		if (upcoming && upcoming.start - time <= this.tolerance)
+			return [...candidates, upcoming];
+
 		return candidates;
 	}
 

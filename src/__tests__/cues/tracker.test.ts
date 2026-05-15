@@ -178,6 +178,42 @@ describe('CueTracker', () => {
 		});
 	});
 
+	describe('tolerance — upcoming cue pre-warm', () => {
+		it('does not fire enter for a cue outside the tolerance window', () => {
+			const tracker = new CueTracker(makeList(), { tolerance: 1 });
+			tracker.attach(player);
+			const enter = vi.fn();
+			tracker.on('enter', enter);
+			// B starts at t=10; at t=8 the gap is 2s, beyond tolerance of 1s.
+			player.emit('time', { time: 8 });
+			expect(enter).not.toHaveBeenCalled();
+			tracker.dispose();
+		});
+
+		it('fires enter for a cue within the tolerance window', () => {
+			const tracker = new CueTracker(makeList(), { tolerance: 1 });
+			tracker.attach(player);
+			const enter = vi.fn();
+			tracker.on('enter', enter);
+			// B starts at t=10; at t=9.2 the gap is 0.8s, within tolerance of 1s.
+			player.emit('time', { time: 9.2 });
+			expect(enter).toHaveBeenCalledTimes(1);
+			expect(enter.mock.calls[0]![0].payload.text).toBe('B');
+			tracker.dispose();
+		});
+
+		it('zero tolerance (default) never pre-fires', () => {
+			const tracker = new CueTracker(makeList());
+			tracker.attach(player);
+			const enter = vi.fn();
+			tracker.on('enter', enter);
+			// 0.5s before B — should not fire without tolerance.
+			player.emit('time', { time: 9.5 });
+			expect(enter).not.toHaveBeenCalled();
+			tracker.dispose();
+		});
+	});
+
 	describe('suspend() / resume()', () => {
 		it('suspend prevents enter/exit dispatch on time', () => {
 			const tracker = new CueTracker(makeList());
