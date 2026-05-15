@@ -91,7 +91,7 @@ export function translationsFromGlob(
 	return buildEager(entries as Array<[string, GlobModule]>);
 }
 
-/** Eager path — every module is already imported. Same shape as before. */
+/** Eager path — every module is already imported; extract and merge bundles directly. */
 function buildEager(entries: Array<[string, GlobModule]>): Translations {
 	const out: Translations = {};
 	for (const [path, mod] of entries) {
@@ -112,8 +112,8 @@ function buildEager(entries: Array<[string, GlobModule]>): Translations {
 /**
  * Lazy path — modules are `() => Promise<bundle>` loaders. Returns an
  * empty `Translations` object stamped with the lazy marker so the kit's
- * plugin registration / setLanguage paths route through the loader instead
- * of pulling every language eagerly.
+ * plugin registration and language-switch paths invoke the loader on demand
+ * rather than pulling every language into memory up front.
  */
 function buildLazy(entries: Array<[string, GlobLazyLoader | GlobModule]>): Translations {
 	// Map tag → loader so lookup is O(1) at runtime.
@@ -122,9 +122,8 @@ function buildLazy(entries: Array<[string, GlobLazyLoader | GlobModule]>): Trans
 		const tag = pathToTag(path);
 		if (!tag)
 			continue;
-		// Vite's non-eager glob hands us functions. Eager ones in the same
-		// map (consumer mixed forms) get wrapped so the lazy loader can
-		// uniformly await them.
+		// Eager entries in a mixed map are wrapped so the lazy loader can
+		// await them uniformly — avoids a branch at lookup time.
 		if (typeof mod === 'function')
 			tagToLoader.set(tag, mod as GlobLazyLoader);
 		else tagToLoader.set(tag, () => Promise.resolve(mod as GlobModule));
