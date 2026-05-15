@@ -1,6 +1,7 @@
 import type { StreamRegistry } from './registry';
 import type {
 	StreamEvent,
+	StreamEventPayloadMap,
 	StreamFactory,
 	StreamFactoryOptions,
 	StreamLevel,
@@ -8,7 +9,16 @@ import type {
 	StreamSourceState,
 } from './source';
 import Hls from 'hls.js';
-import type { Loader, LoaderCallbacks, LoaderConfiguration, LoaderContext, LoaderResponse, LoaderStats, HlsConfig } from 'hls.js';
+import type {
+	ErrorData,
+	HlsConfig,
+	Loader,
+	LoaderCallbacks,
+	LoaderConfiguration,
+	LoaderContext,
+	LoaderResponse,
+	LoaderStats,
+} from 'hls.js';
 import { MediaFormatError, StreamError } from '../errors';
 
 
@@ -33,7 +43,7 @@ export class HlsStreamSource implements StreamSource {
 
 	private hls?: Hls;
 	private element?: HTMLMediaElement;
-	private listeners = new Map<StreamEvent, Set<(data?: any) => void>>();
+	private listeners = new Map<StreamEvent, Set<(data: StreamEventPayloadMap[StreamEvent]) => void>>();
 	private boundElementError?: () => void;
 	private _state: StreamSourceState = 'idle';
 	private currentLevelIdx = -1;
@@ -49,7 +59,10 @@ export class HlsStreamSource implements StreamSource {
 		this.element = element;
 		this._state = 'loading';
 
-		this.boundElementError = () => this.emit('error', element.error);
+		this.boundElementError = () => {
+			if (element.error)
+				this.emit('error', element.error);
+		};
 		element.addEventListener('error', this.boundElementError);
 
 		const native = canPlayNativeHls(element);
@@ -80,7 +93,7 @@ export class HlsStreamSource implements StreamSource {
 		});
 
 		this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
-			this._state = 'ready'; this.emit('manifest-loaded');
+			this._state = 'ready'; this.emit('manifest-loaded', undefined);
 		});
 		this.hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
 			if (typeof data?.level === 'number')
@@ -101,8 +114,8 @@ export class HlsStreamSource implements StreamSource {
 				cleanup();
 				resolve();
 			};
-			const onErr = (_: any, data: any) => {
-				if (data?.fatal) {
+			const onErr = (_: string, data: ErrorData) => {
+				if (data.fatal) {
 					cleanup();
 					reject(new StreamError({
 						code: 'core:stream/hls-attach-failed',
@@ -111,7 +124,7 @@ export class HlsStreamSource implements StreamSource {
 							kind: 'stream',
 							id: 'hls',
 						},
-						message: `hls.js attach error: ${data?.details ?? 'unknown'}`,
+						message: `hls.js attach error: ${data.details ?? 'unknown'}`,
 						cause: data,
 					}));
 				}
@@ -196,31 +209,31 @@ export class HlsStreamSource implements StreamSource {
 		};
 	}
 
-	on(event: StreamEvent, fn: (data?: any) => void): void {
+	on<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void {
 		let set = this.listeners.get(event);
 		if (!set) {
 			set = new Set();
 			this.listeners.set(event, set);
 		}
-		set.add(fn);
+		(set as Set<(data: StreamEventPayloadMap[E]) => void>).add(fn);
 	}
 
-	off(event: StreamEvent, fn: (data?: any) => void): void {
+	off<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void {
 		const set = this.listeners.get(event);
 		if (!set)
 			return;
-		set.delete(fn);
+		(set as Set<(data: StreamEventPayloadMap[E]) => void>).delete(fn);
 		if (set.size === 0)
 			this.listeners.delete(event);
 	}
 
-	private emit(event: StreamEvent, data?: any): void {
+	private emit<E extends StreamEvent>(event: E, data: StreamEventPayloadMap[E]): void {
 		const set = this.listeners.get(event);
 		if (!set)
 			return;
 		for (const fn of [...set]) {
 			try {
-				fn(data);
+				(fn as (data: StreamEventPayloadMap[E]) => void)(data);
 			}
 			catch (err) { void err; /* swallow per contract */ }
 		}

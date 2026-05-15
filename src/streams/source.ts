@@ -1,3 +1,9 @@
+import type {
+	ErrorData,
+	FragLoadedData,
+	LevelSwitchedData,
+} from 'hls.js';
+
 import type { StreamRegistry } from './registry';
 
 
@@ -18,6 +24,49 @@ export type StreamEvent
 		| 'fragment-loaded'
 		| 'encrypted'
 		| 'error';
+
+
+/** Payload for `level-considered` — ABR evaluated but did not switch. */
+export interface StreamLevelConsideredPayload {
+	/** Index of the candidate level. */
+	level: number;
+	/** Reason the switch was not made. */
+	reason: string;
+}
+
+/** Payload for `encrypted` — an encrypted segment was encountered. */
+export interface StreamEncryptedPayload {
+	/** Key URI from the manifest. */
+	keyUri: string;
+	/** Key format identifier (e.g. `'identity'`, `'com.apple.streamingkeydelivery'`). */
+	keyFormat?: string;
+}
+
+/**
+ * `error` payload from the native browser path (`HTMLMediaElement.error`),
+ * or from hls.js (`ErrorData`).
+ */
+export type StreamErrorPayload = MediaError | ErrorData;
+
+/**
+ * Typed payload map for every `StreamEvent`. Consumers receive the narrowed
+ * type automatically from `StreamSource.on(event, fn)` — no inline annotations
+ * or casts needed at the call site.
+ */
+export interface StreamEventPayloadMap {
+	/** Manifest or metadata parsed; quality levels are now available. */
+	'manifest-loaded': undefined;
+	/** ABR or explicit call switched to a new quality rendition. */
+	'level-switched': LevelSwitchedData;
+	/** ABR evaluated a candidate level but did not switch (informational). */
+	'level-considered': StreamLevelConsideredPayload;
+	/** A media segment finished downloading. */
+	'fragment-loaded': FragLoadedData;
+	/** An encrypted segment was encountered; DRM key exchange is pending. */
+	'encrypted': StreamEncryptedPayload;
+	/** A fatal or non-fatal error occurred. */
+	'error': StreamErrorPayload;
+}
 
 
 /** One quality rendition from an adaptive playlist, or a description of a fixed-bitrate source. */
@@ -87,8 +136,8 @@ export interface StreamSource {
 	 */
 	setLevelStrategy?(fn: (levels: StreamLevel[], ctx: { bandwidth: number; bufferedSeconds: number }) => number): void;
 
-	on(event: StreamEvent, fn: (data?: any) => void): void;
-	off(event: StreamEvent, fn: (data?: any) => void): void;
+	on<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void;
+	off<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void;
 }
 
 
