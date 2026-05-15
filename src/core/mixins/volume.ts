@@ -9,26 +9,31 @@ export const volumeMethods = {
 	/**
 	 * Read or write the playback volume.
 	 *
-	 * `volume()` — returns the effective level (0..1). Returns `0` when muted
+	 * `volume()` — returns the effective level (0..100). Returns `0` when muted
 	 * regardless of the stored pre-mute value.
 	 *
-	 * `volume(level)` — clamps `level` to [0, 1], persists it, and routes the
-	 * new value to the active backend. Fires `beforeMutation` (cancellable) then
-	 * `volume`. No-op when the mutation is cancelled.
+	 * `volume(level)` — clamps `level` to [0, 100], persists it, and routes the
+	 * new value to the active backend (divided by 100 to meet the HTML5 0-1
+	 * spec). Fires `beforeMutation` (cancellable) then `volume`. No-op when the
+	 * mutation is cancelled.
 	 */
 	volume(this: Internals, v?: number): number | void {
 		if (v === undefined) {
 			return this._volumeState === 'muted' ? 0 : this._internalVolume;
 		}
-		if (!this._emitBeforeMutation( 'volume', [v]))
+
+		if (!this._emitBeforeMutation('volume', [v]))
 			return;
-		this._internalVolume = Math.max(0, Math.min(1, v));
+
+		this._internalVolume = Math.max(0, Math.min(100, v));
+
 		if (this._volumeState !== 'muted') {
 			this._volumeBeforeMute = this._internalVolume;
 		}
+
 		this.emit('volume', { level: this._internalVolume });
 
-		this._resolveBackend()?.volume?.(this._internalVolume);
+		this._resolveBackend()?.volume?.(this._internalVolume / 100);
 	},
 	/**
 	 * Silence output without discarding the volume level. Persists the current
@@ -38,6 +43,7 @@ export const volumeMethods = {
 	mute(this: Internals): void {
 		if (this._volumeState === 'muted')
 			return;
+
 		this._volumeBeforeMute = this._internalVolume;
 		this._volumeState = 'muted';
 		this.emit('mute', { muted: true });
@@ -52,6 +58,7 @@ export const volumeMethods = {
 	unmute(this: Internals): void {
 		if (this._volumeState === 'unmuted')
 			return;
+
 		this._volumeState = 'unmuted';
 		this._internalVolume = this._volumeBeforeMute;
 		this.emit('mute', { muted: false });
@@ -64,12 +71,12 @@ export const volumeMethods = {
 			this.unmute();
 		else this.mute();
 	},
-	/** Raise volume by `step` (default 0.05). Delegates to `volume()`. */
-	volumeUp(this: Internals, step = 0.05): void {
+	/** Raise volume by `step` percentage points (default 5). Delegates to `volume()`. */
+	volumeUp(this: Internals, step = 5): void {
 		this.volume(this._internalVolume + step);
 	},
-	/** Lower volume by `step` (default 0.05). Delegates to `volume()`. */
-	volumeDown(this: Internals, step = 0.05): void {
+	/** Lower volume by `step` percentage points (default 5). Delegates to `volume()`. */
+	volumeDown(this: Internals, step = 5): void {
 		this.volume(this._internalVolume - step);
 	},
 } as const;

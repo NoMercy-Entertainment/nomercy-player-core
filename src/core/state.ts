@@ -26,10 +26,17 @@ import type { StreamRegistry } from '../streams/registry';
 
 
 // ──────────────────────────────────────────────────────────────────────────
-// Sidecar subtitle context — declared here so PlayerCoreState can reference
-// it before the mediaTracksMethods block that implements the full feature.
+// Sidecar subtitle context
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Runtime state for one active sidecar VTT subtitle track.
+ *
+ * Lives on `PlayerCoreState._sidecarSubtitle`. The `mediaTracksMethods` mixin
+ * is the sole writer; the subtitle renderer reads `active` on each cue event.
+ * Torn down and replaced whenever the track selection changes or the queue
+ * moves to a new item.
+ */
 export interface SidecarSubtitleContext {
 	tracker: CueTracker<VTTSubtitlePayload>;
 	active: Set<Cue<VTTSubtitlePayload>>;
@@ -41,49 +48,232 @@ export interface SidecarSubtitleContext {
 // State token unions
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Coarse playback lifecycle token. Written by `transportMethods` / `lifecycleMethods`.
+ * Read by the consumer (via `playState()`) and by container-class emit logic.
+ *
+ * - `'idle'` — player constructed, `setup()` not yet called.
+ * - `'loading'` — item is being fetched / initialised by the backend.
+ * - `'playing'` — backend is actively advancing the clock.
+ * - `'paused'` — playback is suspended; position held.
+ * - `'stopped'` — playback stopped; position may be reset.
+ * - `'error'` — unrecoverable failure; consumer should surface a message.
+ */
 export type PlayStateToken = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
+
+/**
+ * Mute state token. Written by `volumeMethods.mute` / `volumeMethods.unmute`.
+ * Read by `volume()` (returns 0 when `'muted'`) and the container-class emitter.
+ */
 export type VolumeStateToken = 'unmuted' | 'muted';
+
+/**
+ * Repeat mode token. Written by `stateMutatorsMethods.repeat()`.
+ * Read by `queueMethods.next()` / `queueMethods.previous()` to decide
+ * whether to wrap or stop at the end of the queue.
+ *
+ * - `'off'` — no repeat.
+ * - `'all'` — loop the whole queue.
+ * - `'one'` — loop only the current item.
+ */
 export type RepeatStateToken = 'off' | 'all' | 'one';
+
+/**
+ * Shuffle mode token. Written by `stateMutatorsMethods.shuffle()`.
+ * Read by `queueMethods` when picking the next item.
+ */
 export type ShuffleStateToken = 'off' | 'on';
 
 
 // ──────────────────────────────────────────────────────────────────────────
-// Internal "this" shape used by mixin methods. Loosely typed on purpose —
-// composeMixins copies these onto the player prototype, where they pick up
-// the player's full type via call-site inference.
+// PlayerCoreState — the shared internal field surface
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Every internal field shared by `NMMusicPlayer`, `NMVideoPlayer`, and the
+ * kit's mixin layer. This is NOT the public player API — it is the internal
+ * "this" shape that mixins write against.
+ *
+ * Fields use the `_field` convention so that TypeScript surfaces them as
+ * internal and linters can flag direct access outside the kit. The underscore
+ * is structural, not cosmetic — do not rename.
+ *
+ * Generics let per-library subclasses narrow `T` (their playlist item type),
+ * `C` (their config), and `E` (their event map) while still accepting kit
+ * mixins that operate on the base forms.
+ */
 export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, C extends BasePlayerConfig = BasePlayerConfig, E extends BaseEventMap = BaseEventMap> extends EventEmitter<E> {
+
+	// ── Identity ─────────────────────────────────────────────────────────────
+
+	/** CSS class name stamped onto the container element during `setup()`. Per-library players set this. */
 	className: string;
+
+	/** Unique DOM id for the player instance. Derived from config or auto-generated. Read by plugins that need a stable selector. */
 	playerId: string;
+
+	/** Root `HTMLElement` passed into the constructor. Plugins mount their own DOM inside this element. */
 	container: HTMLElement;
+
+	/** Full resolved config object. Written once in the constructor; plugins read via `player.options`. */
 	options: C;
 
+
+	// ── Lifecycle ────────────────────────────────────────────────────────────
+
+	/**
+	 * Current lifecycle phase. Written only by `_transitionPhase()` inside
+	 * `playerStateMethods`. Consumers read via `player.phase()`. Drives
+	 * guard checks (e.g. `_assertReady`) and container-class updates.
+	 */
 	_phase: PlayerPhase;
+
+	/**
+	 * Re-entrancy guard for the `before*` dispatch pipeline. Each in-flight
+	 * `_dispatchBefore` call pushes its event name; the inner-most async
+	 * continuation pops it. Kit code checks this to detect nested dispatches
+	 * that would otherwise produce undefined ordering.
+	 */
 	_dispatchStack: string[];
+
+	/** `true` once `setup()` has been called. Guards against double-initialisation. */
 	_setupCalled: boolean;
+
+	/**
+	 * Promise that resolves when `setup()` completes. Callers that need to
+	 * await player readiness hold a reference to this. `_readyResolve` and
+	 * `_readyReject` are stored so the setup flow can settle it from a
+	 * different async context.
+	 */
 	_readyPromise?: Promise<void>;
 	_readyResolve?: () => void;
 	_readyReject?: (err: unknown) => void;
+
+
+	// ── Networking / media base ──────────────────────────────────────────────
+
+	/**
+	 * Optional base URL prepended to relative media paths. Written by
+	 * `baseUrlAudioContextMethods.baseUrl(url)`. Undefined when no prefix is
+	 * configured.
+	 */
 	_baseUrl: string | undefined;
+
+	/**
+	 * Shared `AudioContext` for the Web Audio graph. Written by
+	 * {@link setPlayerAudioContext} (called by `AudioGraphPlugin`). Kit plugins
+	 * that want to insert nodes (EQ, spectrum) read this and bail when it is
+	 * `undefined` — they depend on the audio-graph plugin being present.
+	 */
 	_audioContext: AudioContext | undefined;
+
+
+	// ── i18n ─────────────────────────────────────────────────────────────────
+
+	/**
+	 * Active translator instance. Written by `i18nMethods` during `setup()` and
+	 * whenever `language()` triggers a bundle load. `undefined` until the first
+	 * translation bundle resolves; kit code that calls `this.t(...)` guards on
+	 * this before forwarding.
+	 */
 	_translator: ITranslator | undefined;
+
+
+	// ── Cue / subtitle infrastructure ────────────────────────────────────────
+
+	/**
+	 * Registry of cue-format parsers available to this player instance.
+	 * Pre-seeded with VTT in `initPlayerCoreState`; consumers or plugins can
+	 * register additional formats via `player.registerCueParser()`.
+	 */
 	_cueParsers: CueParserRegistry;
+
+
+	// ── Experimental override map ─────────────────────────────────────────────
+
+	/**
+	 * Method override table written by `experimental.override()`. Maps method
+	 * name → `{ fn, by }` where `by` is the plugin id that installed the
+	 * override, for debugging. Declared on the state interface (rather than the
+	 * `experimentalMethods` mixin object) so `getOriginals` can locate it on
+	 * the instance without a cast.
+	 */
 	_overrides: Map<string, { fn: (...args: any[]) => any; by: string }>;
 
+
+	// ── Playback state tokens ─────────────────────────────────────────────────
+
+	/** Coarse play-state label. Written by transport / lifecycle methods; read by `playState()` and the container-class emitter. */
 	_playState: PlayStateToken;
+
+	/** Mute state. Written by `volumeMethods`; read by `volume()` (returns 0 when muted) and the container-class emitter. */
 	_volumeState: VolumeStateToken;
+
+	/** Repeat mode. Written by `stateMutatorsMethods.repeat()`; read by queue advancement logic. */
 	_repeatState: RepeatStateToken;
+
+	/** Shuffle mode. Written by `stateMutatorsMethods.shuffle()`; read by queue advancement logic. */
 	_shuffleState: ShuffleStateToken;
+
+	/** Stored on the 0-100 scale to match the public volume() API. */
 	_internalVolume: number;
+
+	/** Stored on the 0-100 scale to match the public volume() API. */
 	_volumeBeforeMute: number;
+
+	/**
+	 * Last-known current-time position in seconds. Written by `timeMethods`
+	 * on each `time` event from the backend, and by seek operations before the
+	 * backend confirms. Read by `currentTime()`.
+	 */
 	_internalCurrentTime: number;
+
+	/**
+	 * Last-known total duration in seconds. Written by the backend when it
+	 * resolves the media duration; `0` until then. Read by `duration()`.
+	 */
 	_internalDuration: number;
+
+	/**
+	 * Current playback rate multiplier (1 = normal). Written by
+	 * `stateMutatorsMethods.playbackRate()`; forwarded to the backend at write
+	 * time. Read by `playbackRate()`.
+	 */
 	_playbackRate: number;
 
+
+	// ── Queue ─────────────────────────────────────────────────────────────────
+
+	/**
+	 * The live play queue. Written by `queueMethods.queue()` and queue
+	 * mutators; read by `current()`, `next()`, `previous()`, and every
+	 * consumer that calls `player.queue()`. The `MediaList` wrapper provides
+	 * cursor tracking and shuffle-safe iteration.
+	 */
 	_queueList: MediaList<T>;
+
+	/**
+	 * Items removed from the queue by auto-advance or manual removes.
+	 * Held so `previous()` can reach back past the queue head. Cleared when
+	 * the queue is replaced.
+	 */
 	_backlogList: MediaList<T>;
+
+	/**
+	 * `true` once the queue event listeners (item-change, end-of-list) have
+	 * been attached to `_queueList`. Guards against double-wiring when
+	 * `setup()` or `queue()` is called multiple times.
+	 */
 	_queueWired: boolean;
+
+
+	// ── Plugins ───────────────────────────────────────────────────────────────
+
+	/**
+	 * Live plugin registry. Each entry holds the plugin instance, its
+	 * `LifecycleRegistry` (for disposal), and the constructor (for `getPlugin`
+	 * type-safe lookup). Written by `pluginRegistrationMethods._registerPlugin`.
+	 */
 	_plugins: Array<{ instance: Plugin; lifecycle: LifecycleRegistry; ctor: PluginCtorWithId }>;
 
 	/**
@@ -95,11 +285,17 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_pluginQueue: Array<{ ctor: PluginCtorWithId; opts?: unknown }>;
 
+
+	// ── Auth + URL resolution ─────────────────────────────────────────────────
+
 	/** Live `AuthConfig` — readable via `auth()`, mutable via `auth(config)` / `auth(partial)`. */
 	_authConfig: AuthConfig | undefined;
 
 	/** Live URL resolver — readable via `urlResolver()`, mutable via `urlResolver(fn)`. */
 	_urlResolver: UrlResolver | undefined;
+
+
+	// ── Track selection ───────────────────────────────────────────────────────
 
 	/** Currently-selected subtitle index, or null when off. Written by `currentSubtitle(idx)`. */
 	_currentSubtitleIdx: number | null;
@@ -119,17 +315,26 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	/** Audio track selection mode. Written by `audioTrackState(idx)`. Defaults to `AudioTrackState.DEFAULT`. */
 	_audioTrackState: AudioTrackState;
 
+
+	// ── Platform ──────────────────────────────────────────────────────────────
+
 	/**
 	 * Resolved platform bundle. Populated in setup() from `options.platform`
 	 * (default `browserPlatform`). Plugins read via `player.platform()`.
 	 */
 	_platform: IPlatform | undefined;
 
+
+	// ── Policy hooks ──────────────────────────────────────────────────────────
+
 	/**
 	 * Cleanup callbacks for visibility/network/wakeLock subscriptions wired
 	 * during setup(). All run on dispose() so policy hooks never leak.
 	 */
 	_policyCleanup: Array<() => void>;
+
+
+	// ── Streaming ─────────────────────────────────────────────────────────────
 
 	/**
 	 * Per-player stream factory registry. Lazy — first touch (either via the
@@ -138,11 +343,17 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_streamRegistry: StreamRegistry | undefined;
 
+
+	// ── Bandwidth / ABR ──────────────────────────────────────────────────────
+
 	/** Last-known bandwidth estimate (bps). Updated by the active stream source. */
 	_bandwidthEstimate: number;
 
 	/** Override estimator function. When set, ABR queries this instead of stream defaults. */
 	_bandwidthEstimator: (() => number) | undefined;
+
+
+	// ── Metrics ───────────────────────────────────────────────────────────────
 
 	/** Live mutable metrics map. Snapshotted via `metrics()`, written via `recordMetric()`. */
 	_metrics: PlaybackMetrics;
@@ -161,6 +372,9 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_lastProgressEmit: number;
 
+
+	// ── Experimental ─────────────────────────────────────────────────────────
+
 	/**
 	 * Backing map for `experimental.override`. Stored on the instance so
 	 * the `getOriginals` helper in `experimentalDescriptor` can find it
@@ -170,11 +384,18 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_overrideOriginals?: Map<string, ((...args: unknown[]) => unknown) | undefined>;
 
+
+	// ── Cast / handoff ────────────────────────────────────────────────────────
+
 	/** Active cast/handoff state. Written by `transferTo()`; read by `castState()`. */
 	_castState?: _CastStateEnum;
 
+
+	// ── Load epoch ────────────────────────────────────────────────────────────
+
 	/** Monotonic counter bumped on each `load()` call; stale continuations bail when epoch mismatches. */
 	_loadEpoch?: number;
+
 
 	// ── Preload + transition state ────────────────────────────────────────────
 
@@ -196,15 +417,29 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	/** Monotonically increasing epoch. Bumped whenever the cursor changes. Stale RAF callbacks bail when epoch differs. */
 	_preloadEpoch: number;
 
-	/** Monotonic counter bumped on each `_resolveAndEmitChapters` call. */
+
+	// ── Chapter ───────────────────────────────────────────────────────────────
+
+	/** Monotonic counter bumped on each `_resolveAndEmitChapters` call. Stale chapter fetches bail when epoch differs. */
 	_chapterEpoch?: number;
+
+
+	// ── Sidecar subtitle ─────────────────────────────────────────────────────
 
 	/** Active sidecar VTT subtitle context. One per player. Torn down on track change or item change. */
 	_sidecarSubtitle?: SidecarSubtitleContext;
 
+
+	// ── Subtitle style ────────────────────────────────────────────────────────
+
 	/** Subtitle style patch cache. Seeded on first read; mutated by `subtitleStyle(patch)`. */
 	_subtitleStyle?: SubtitleStyle;
 }
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// MixinSurface — cross-mixin method declarations
+// ──────────────────────────────────────────────────────────────────────────
 
 /**
  * Cross-mixin method surface. Every method that one mixin calls on `this`
@@ -214,78 +449,114 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
  * The methods are composed onto the prototype at runtime via `composeMixins`;
  * TypeScript cannot infer this, so we declare the surface explicitly and
  * intersect it into `Internals`.
+ *
+ * Section headers below mirror the mixin file that owns each cluster. For
+ * full docstrings see the corresponding mixin file.
  */
 export interface MixinSurface {
-	// playerStateMethods — backend access + phase + guards
+
+	// playerStateMethods (see mixins/player-state.ts) — backend access + phase + guards
 	_transitionPhase(next: PlayerPhase): void;
 	_resolveBackend(): import('./mixins/player-state').BackendShape | undefined;
 	_peekBackend(): unknown;
 	_peekBackendTyped<S extends object>(): S | undefined;
 	_assertReady(): void;
 	_dispatchBefore<TData>(beforeEvent: string, data: TData): Promise<import('../dispatch').BeforeDispatchOutcome<TData>>;
-	// mediaTracksMethods — sidecar + chapter helpers
+
+	// mediaTracksMethods (see mixins/media-tracks.ts) — sidecar + chapter helpers
 	_disposeSidecarSubtitle(): void;
 	resolveItemTrackUrls<T extends BasePlaylistItem>(item: T): Promise<T>;
 	_resolveAndEmitChapters(itemId: string | number | undefined): Promise<void>;
-	// stateMutatorsMethods — mutation guard
+
+	// stateMutatorsMethods (see mixins/state-mutators.ts) — mutation guard
 	_emitBeforeMutation(method: string, args: ReadonlyArray<unknown>): boolean;
-	// pluginRegistrationMethods — lang loaded tracking
+
+	// pluginRegistrationMethods (see mixins/plugin-registration.ts) — lang loaded tracking
 	_pluginLangLoadedSet(): Set<string> | undefined;
 	_markPluginLangLoaded(pluginId: string, lang: string): void;
 	_registerPlugin(ctor: import('../types').PluginCtorWithId, opts: unknown, timeoutMs: number): Promise<void>;
-	// transportMethods
+
+	// transportMethods (see mixins/transport.ts)
 	_seekingTransition(doSeek: () => void): void;
 	play(opts?: import('../types').ActionOptions): Promise<void>;
 	pause(opts?: import('../types').ActionOptions): Promise<void>;
-	// volumeMethods
+
+	// volumeMethods (see mixins/volume.ts)
 	mute(): void;
 	unmute(): void;
 	volume(v?: number): number | void;
-	// timeMethods
+
+	// timeMethods (see mixins/time.ts)
 	duration(): number;
 	buffered(): number;
 	seekByPercentage(pct: number, opts?: import('../types').ActionOptions): void;
-	// queueMethods
+
+	// queueMethods (see mixins/queue.ts)
 	queue(items?: BasePlaylistItem[], opts?: import('../types').ActionOptions): ReadonlyArray<BasePlaylistItem> | void;
 	queueLength(): number;
 	currentIndex(): number;
 	seekToIndex(position: number, opts?: import('../types').ActionOptions): void;
 	next(opts?: import('../types').ActionOptions): Promise<void>;
-	// loadingMethods — per-library mixin composes this; kit transport methods call it cross-mixin.
+
+	// loadingMethods — per-library mixin; kit transport methods call it cross-mixin
 	load(item: BasePlaylistItem, opts?: import('../types').ActionOptions): Promise<void>;
-	// mediaTracksMethods
+
+	// mediaTracksMethods (see mixins/media-tracks.ts)
 	chapters(): ReadonlyArray<import('../types').Chapter>;
 	seekToChapter(idx: number, opts?: import('../types').ActionOptions): void;
 	current(target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: import('../types').ActionOptions): BasePlaylistItem | undefined | void;
 	currentTime(): number;
 	currentTime(t: number, opts?: import('../types').ActionOptions): Promise<void>;
-	// pluginRegistrationMethods
+
+	// pluginRegistrationMethods (see mixins/plugin-registration.ts)
 	removePluginById(id: string, opts?: { cascade?: boolean }): void;
-	// i18nMethods
+
+	// i18nMethods (see mixins/i18n.ts)
 	addTranslations(bundle: import('../types').Translations): void;
 	removeTranslations(prefix: string, lang?: string): void;
-	// playerCoreMethods — runtime resolution of the configured platform bundle.
+
+	// playerCoreMethods (see mixins/player-core.ts) — runtime platform resolution
 	platform(): IPlatform;
-	// i18nMethods — language() lives in i18nMethods mixin, called cross-mixin.
+
+	// i18nMethods — language() lives in i18nMethods mixin, called cross-mixin
 	language(lang?: string): string | Promise<void>;
+
 	// Per-library backend accessor. Optional — kit mixins probe its presence defensively.
 	backend?(): unknown;
+
 	// Per-library video element. Optional — only NMVideoPlayer carries it; kit reads defensively.
 	videoElement?: HTMLMediaElement & { webkitShowPlaybackTargetPicker?: () => void; remote?: { prompt: () => Promise<void> }; setSinkId?: (id: string) => Promise<void>; sinkId?: string };
-	// dispatch helpers exposed by lifecycleMethods.
+
+	// dispatch helpers exposed by lifecycleMethods
 	listenersOf?(event: string): ReadonlyArray<(data: unknown) => void>;
 	pushDispatch?(name: string): void;
 	popDispatch?(): string | undefined;
 }
 
+/**
+ * Full internal "this" type used inside every kit mixin. The intersection of
+ * `PlayerCoreState` (fields) and `MixinSurface` (cross-mixin methods) gives
+ * TypeScript enough information to type-check `this.play()`, `this._phase`,
+ * etc. inside a mixin body without any casts.
+ */
 export type Internals = PlayerCoreState<BasePlaylistItem, BasePlayerConfig, BaseEventMap> & MixinSurface;
 
 
 // ──────────────────────────────────────────────────────────────────────────
-// State init — call this from the player constructor before resolving the
-// three-form id. Populates every `_foo` field with its canonical default.
+// State initialiser
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Seeds every internal slot on `player` to its canonical starting value.
+ *
+ * Called from the player constructor before `setup()` runs, so mixins and
+ * plugins always see a fully-initialised state object — no `undefined` field
+ * surprises on first access. The `className` seed comes from `opts` because
+ * it differs between `NMMusicPlayer` and `NMVideoPlayer`.
+ *
+ * The function accepts `object` and casts internally so callers don't need
+ * to import `Internals` — it is a kit-private type.
+ */
 export function initPlayerCoreState(player: object, opts: { className: string }): void {
 	const target = player as Internals;
 	target.className = opts.className;
@@ -301,8 +572,8 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._volumeState = 'unmuted';
 	target._repeatState = 'off';
 	target._shuffleState = 'off';
-	target._internalVolume = 1;
-	target._volumeBeforeMute = 1;
+	target._internalVolume = 100;
+	target._volumeBeforeMute = 100;
 	target._internalCurrentTime = 0;
 	target._internalDuration = 0;
 	target._playbackRate = 1;
@@ -357,9 +628,11 @@ export function setPlayerAudioContext(player: object, ctx: AudioContext | undefi
 }
 
 
-// A no-op transition strategy used as the initial default in initPlayerCoreState.
-// Per-library players overwrite this immediately after setup() with their own default
-// (CrossfadeTransitionStrategy for music, GaplessTransitionStrategy for video).
+/**
+ * No-op transition strategy used as the initial `_transitionStrategy` default.
+ * Per-library players overwrite this in their constructor after `initPlayerCoreState`
+ * runs (music uses `CrossfadeTransitionStrategy`, video uses `GaplessTransitionStrategy`).
+ */
 const _NOOP_TRANSITION: TransitionStrategy = {
 	shouldTransition: () => false,
 	tick: () => {},

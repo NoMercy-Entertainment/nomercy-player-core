@@ -554,42 +554,42 @@ describe('player-core mixins (kit)', () => {
 	// ── Volume ──
 
 	describe('volume', () => {
-		it('default volume is 1', () => {
-			expect(setupPlayer().volume()).toBe(1);
+		it('default volume is 100', () => {
+			expect(setupPlayer().volume()).toBe(100);
 		});
 
 		it('honours config.defaultVolume', () => {
 			const div = document.createElement('div');
 			div.id = 'vp';
 			document.body.appendChild(div);
-			const p = new MockPlayer('vp').setup({ defaultVolume: 0.4 } as any);
-			expect(p.volume()).toBe(0.4);
+			const p = new MockPlayer('vp').setup({ defaultVolume: 40 } as any);
+			expect(p.volume()).toBe(40);
 		});
 
-		it('clamps writes to [0, 1]', () => {
+		it('clamps writes to [0, 100]', () => {
 			const p = setupPlayer();
-			p.volume(2);
-			expect(p.volume()).toBe(1);
+			p.volume(200);
+			expect(p.volume()).toBe(100);
 			p.volume(-1);
 			expect(p.volume()).toBe(0);
 		});
 
 		it('mute() returns 0; unmute() restores prior level', () => {
 			const p = setupPlayer();
-			p.volume(0.6);
+			p.volume(60);
 			p.mute();
 			expect(p.volume()).toBe(0);
 			p.unmute();
-			expect(p.volume()).toBe(0.6);
+			expect(p.volume()).toBe(60);
 		});
 
 		it('volumeUp / volumeDown clamp at the bounds', () => {
 			const p = setupPlayer();
-			p.volume(0.95);
-			p.volumeUp(0.2);
-			expect(p.volume()).toBe(1);
-			p.volume(0.05);
-			p.volumeDown(0.2);
+			p.volume(95);
+			p.volumeUp(20);
+			expect(p.volume()).toBe(100);
+			p.volume(5);
+			p.volumeDown(20);
 			expect(p.volume()).toBe(0);
 		});
 	});

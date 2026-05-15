@@ -413,11 +413,11 @@ describe('Tier 1 plugin features', () => {
 		it('override replaces method; restore returns original', async () => {
 			const p = makePlayer('g-override-1').setup({});
 			await p.ready();
-			expect(p.volume()).toBe(1);
-			const unbind = p.experimental.override('volume', () => 0.42);
-			expect(p.volume()).toBe(0.42);
+			expect(p.volume()).toBe(100);
+			const unbind = p.experimental.override('volume', () => 42);
+			expect(p.volume()).toBe(42);
 			unbind();
-			expect(p.volume()).toBe(1);
+			expect(p.volume()).toBe(100);
 		});
 
 		it('override records caller in overrides()', async () => {
@@ -434,7 +434,7 @@ describe('Tier 1 plugin features', () => {
 			await p.ready();
 			p.experimental.override('volume', () => 0);
 			p.experimental.restore('volume');
-			expect(p.volume()).toBe(1);
+			expect(p.volume()).toBe(100);
 		});
 	});
 

@@ -258,7 +258,7 @@ function _seedFromOptions(self: Internals): void {
 		self._baseUrl = self.options.baseUrl;
 
 	if (typeof self.options.defaultVolume === 'number') {
-		self._internalVolume = Math.max(0, Math.min(1, self.options.defaultVolume));
+		self._internalVolume = Math.max(0, Math.min(100, self.options.defaultVolume));
 		self._volumeBeforeMute = self._internalVolume;
 	}
 }
