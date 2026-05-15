@@ -1,33 +1,44 @@
 import { BrowserPolicyError } from './errors';
 
 /**
- * Pluggable storage backend. Async-tolerant — methods may return values
- * directly OR Promises. Plugin code uses `await` regardless, so synchronous
- * backends (localStorage) and asynchronous ones (IndexedDB, remote API) share
- * one interface.
+ * Pluggable storage backend. Methods may return values directly or Promises so
+ * that synchronous backends (localStorage) and asynchronous ones (IndexedDB,
+ * remote API) share one interface. Plugin code always uses `await` regardless.
  *
  * Default: `LocalStorageBackend`. Swap via `setup({ storage })`.
  *
  * Kit-shipped backends:
- *  - `LocalStorageBackend` — default, sync, falls back to memory when blocked
+ *  - `LocalStorageBackend` — default, sync, silently falls back to memory when blocked
  *  - `MemoryStorageBackend` — testing / SSR
- *  - `IndexedDBBackend` — opt-in subpath import for large values
+ *  - `IndexedDBBackend` — opt-in for large values where the localStorage cap is too small
  *
- * Consumer-supplied: any class implementing this interface, including
- * API-backed remote storage for cross-device persistence.
+ * Consumer-supplied: any class implementing this interface works, including an
+ * API-backed remote store for cross-device persistence.
  */
 export interface IStorage {
+	/** Retrieve a raw string value, or `null` when the key is absent. */
 	get(key: string): string | null | Promise<string | null>;
+
+	/** Store a raw string value under `key`. */
 	set(key: string, value: string): void | Promise<void>;
+
+	/** Delete the entry for `key`. No-op when the key is absent. */
 	remove(key: string): void | Promise<void>;
+
+	/**
+	 * Retrieve and JSON-parse the value stored under `key`. Returns `null` when
+	 * the key is absent or the stored value is not valid JSON.
+	 */
 	getJSON<T>(key: string): T | null | Promise<T | null>;
+
+	/** JSON-serialize `value` and store it under `key`. */
 	setJSON<T>(key: string, value: T): void | Promise<void>;
 }
 
 /**
  * Default localStorage-backed implementation. Defensive against environments
- * (Safari Private Mode historically, server-side rendering) where
- * `localStorage` exists but throws on access — degrades silently to in-memory
+ * where `localStorage` exists but throws on access (Safari Private Mode
+ * historically; server-side rendering) — degrades silently to in-memory
  * storage rather than crashing the player.
  *
  * Synchronous internally; satisfies the async-tolerant `IStorage` contract by
@@ -53,6 +64,7 @@ export class LocalStorageBackend implements IStorage {
 		}
 	}
 
+	/** Retrieve a raw string value, or `null` when the key is absent. */
 	get(key: string): string | null {
 		if (this.useFallback)
 			return this.fallback.get(key) ?? null;
@@ -64,6 +76,7 @@ export class LocalStorageBackend implements IStorage {
 		}
 	}
 
+	/** Store a raw string value under `key`. Writes to the in-memory fallback on localStorage failure. */
 	set(key: string, value: string): void {
 		if (this.useFallback) {
 			this.fallback.set(key, value);
@@ -77,6 +90,7 @@ export class LocalStorageBackend implements IStorage {
 		}
 	}
 
+	/** Delete the entry for `key`. No-op when the key is absent. */
 	remove(key: string): void {
 		if (this.useFallback) {
 			this.fallback.delete(key);
@@ -90,6 +104,10 @@ export class LocalStorageBackend implements IStorage {
 		}
 	}
 
+	/**
+	 * Retrieve and JSON-parse the value stored under `key`. Returns `null` when
+	 * the key is absent or the stored value is not valid JSON.
+	 */
 	getJSON<T>(key: string): T | null {
 		const raw = this.get(key);
 		if (raw === null)
@@ -102,34 +120,43 @@ export class LocalStorageBackend implements IStorage {
 		}
 	}
 
+	/** JSON-serialize `value` and store it under `key`. Silent on circular references. */
 	setJSON<T>(key: string, value: T): void {
 		try {
 			this.set(key, JSON.stringify(value));
 		}
 		catch {
-			// JSON.stringify can throw on circular references; swallow.
+			// JSON.stringify throws on circular references — swallow, matching the other backends.
 		}
 	}
 }
 
 /**
- * In-memory backend. Useful for tests and SSR. Non-persistent across reloads.
+ * In-memory backend. Values are lost on page reload. Use in tests and SSR
+ * environments where localStorage and IndexedDB are unavailable.
  */
 export class MemoryStorageBackend implements IStorage {
 	private data = new Map<string, string>();
 
+	/** Retrieve a raw string value, or `null` when the key is absent. */
 	get(key: string): string | null {
 		return this.data.get(key) ?? null;
 	}
 
+	/** Store a raw string value under `key`. */
 	set(key: string, value: string): void {
 		this.data.set(key, value);
 	}
 
+	/** Delete the entry for `key`. No-op when the key is absent. */
 	remove(key: string): void {
 		this.data.delete(key);
 	}
 
+	/**
+	 * Retrieve and JSON-parse the value stored under `key`. Returns `null` when
+	 * the key is absent or the stored value is not valid JSON.
+	 */
 	getJSON<T>(key: string): T | null {
 		const raw = this.data.get(key);
 		if (raw === undefined)
@@ -142,22 +169,22 @@ export class MemoryStorageBackend implements IStorage {
 		}
 	}
 
+	/** JSON-serialize `value` and store it under `key`. Silent on circular references. */
 	setJSON<T>(key: string, value: T): void {
 		try {
 			this.data.set(key, JSON.stringify(value));
 		}
-		catch { /* circular */ }
+		catch { /* circular reference — swallow, mirroring the other backends */ }
 	}
 }
 
 /**
- * IndexedDB-backed implementation. Opt-in — import via subpath. Fully async.
- * Suitable for large values (cached metadata, decoded buffers, offline caches)
- * where the 5-10MB localStorage cap is too small.
+ * IndexedDB-backed implementation. Fully async. Suitable for large values
+ * (cached metadata, offline data) where the localStorage cap is too small.
  *
- * Construction is cheap and lazy — the database is opened on first method
- * call so that test envs without `indexedDB` (Node, SSR, happy-dom) don't
- * crash when the class is merely instantiated. Methods reject with a
+ * Construction is cheap and lazy — the database opens on first method call so
+ * that environments without `indexedDB` (Node, SSR, happy-dom) do not crash
+ * when the class is merely instantiated. Methods reject with a
  * `BrowserPolicyError` (`core:policy/indexedDBUnsupported`) when the global
  * is missing.
  */
@@ -205,7 +232,7 @@ export class IndexedDBBackend implements IStorage {
 			req.onerror = () => reject(req.error ?? new Error('indexedDB open failed'));
 			req.onblocked = () => reject(new Error('indexedDB open blocked'));
 		});
-		// Reset cache on failure so next call retries.
+		// Reset cache on failure so the next call retries the open.
 		this.dbPromise.catch(() => {
 			this.dbPromise = null;
 		});
@@ -224,6 +251,7 @@ export class IndexedDBBackend implements IStorage {
 		});
 	}
 
+	/** Retrieve a raw string value, or `null` when the key is absent. */
 	async get(key: string): Promise<string | null> {
 		const value = await this.withStore<unknown>('readonly', store => store.get(key));
 		if (value === undefined || value === null)
@@ -231,14 +259,20 @@ export class IndexedDBBackend implements IStorage {
 		return typeof value === 'string' ? value : String(value);
 	}
 
+	/** Store a raw string value under `key`. */
 	async set(key: string, value: string): Promise<void> {
 		await this.withStore<IDBValidKey>('readwrite', store => store.put(value, key));
 	}
 
+	/** Delete the entry for `key`. No-op when the key is absent. */
 	async remove(key: string): Promise<void> {
 		await this.withStore<undefined>('readwrite', store => store.delete(key));
 	}
 
+	/**
+	 * Retrieve and JSON-parse the value stored under `key`. Returns `null` when
+	 * the key is absent or the stored value is not valid JSON.
+	 */
 	async getJSON<T>(key: string): Promise<T | null> {
 		const raw = await this.get(key);
 		if (raw === null)
@@ -251,6 +285,7 @@ export class IndexedDBBackend implements IStorage {
 		}
 	}
 
+	/** JSON-serialize `value` and store it under `key`. Silent on circular references. */
 	async setJSON<T>(key: string, value: T): Promise<void> {
 		let serialized: string;
 		try {
