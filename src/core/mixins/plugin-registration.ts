@@ -325,7 +325,7 @@ export const pluginRegistrationMethods = {
 	 * autocomplete and type-checking on the inline literal — no `satisfies`
 	 * needed at the call site.
 	 */
-	addPlugin<P extends Plugin>(this: Internals, PluginClass: PluginCtorWithId & (new () => P), opts?: P['opts']): unknown {
+	addPlugin<P extends Plugin<any, any, any>>(this: Internals, PluginClass: PluginCtorWithId & (new () => P), opts?: P['opts']): unknown {
 		const id = PluginClass.id;
 
 		if (this._phase === 'disposed' || this._phase === 'disposing') {
@@ -455,7 +455,7 @@ export const pluginRegistrationMethods = {
 	 * default is cascade because removing a dependency without its dependents
 	 * leaves them in a broken state.
 	 */
-	removePlugin<P extends Plugin>(this: Internals, PluginClass: PluginCtorWithId & (new () => P), opts?: { cascade?: boolean }): void {
+	removePlugin<P extends Plugin<any, any, any>>(this: Internals, PluginClass: PluginCtorWithId & (new () => P), opts?: { cascade?: boolean }): void {
 		this.removePluginById(PluginClass.id, opts);
 	},
 
