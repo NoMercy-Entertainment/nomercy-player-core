@@ -1,9 +1,9 @@
-// ──────────────────────────────────────────────────────────────────────────
-// Core layer public surface.
-//
-// Consumers: `NMMusicPlayer` and `NMVideoPlayer` import from here (or from
-// `../../base-player` which re-exports everything below).
-// ──────────────────────────────────────────────────────────────────────────
+/**
+ * Public surface of the kit's core layer. `NMMusicPlayer` and `NMVideoPlayer`
+ * import from here (or from `../../base-player` which re-exports everything
+ * below) to pick up all shared primitives: version, errors, constructor
+ * resolution, state initialisation, and the full mixin set.
+ */
 
 export { KIT_VERSION } from './kit-version';
 export { stateError, resourceError, pluginError, browserPolicyError, mediaFormatError } from '../errors';
@@ -54,12 +54,6 @@ export type { SidecarTrack, ItemWithTracks, ItemWithDefinedTracks } from './mixi
 export { HOT_MUTATIONS } from './mixins/state-mutators';
 
 
-// ──────────────────────────────────────────────────────────────────────────
-// Convenience aggregator — every shared mixin in one tuple. Player libraries
-// call `composeMixins(MyPlayer.prototype, ...playerCoreMethods)` to wire all
-// shared behaviour onto their prototype.
-// ──────────────────────────────────────────────────────────────────────────
-
 import { lifecycleMethods } from './mixins/lifecycle';
 import { baseUrlAudioContextMethods } from './mixins/base-url-audio-context';
 import { experimentalDescriptor } from './mixins/experimental';
@@ -85,6 +79,15 @@ import { loadingMethods } from './mixins/loading';
 import { containerClassEmitMethods } from './mixins/container-class-emit';
 import { preloadStrategyMethods } from './mixins/preload-strategy';
 
+/**
+ * Every shared mixin collected into a single `as const` tuple.
+ *
+ * Player libraries call `composeMixins(MyPlayer.prototype, ...playerCoreMethods)`
+ * to wire all shared behaviour onto their prototype in one shot. Adding a new
+ * kit mixin means appending it here and to the parallel export above — the
+ * `as const` preserves element-level types so `composeMixins` can assert that
+ * each entry is a valid mixin object.
+ */
 export const playerCoreMethods = [
 	lifecycleMethods,
 	baseUrlAudioContextMethods,
