@@ -18,7 +18,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LifecycleRegistry } from '../lifecycle';
+import { LifecycleRegistry } from '../lifecycle-registry';
 
 describe('LifecycleRegistry', () => {
 	let registry: LifecycleRegistry;

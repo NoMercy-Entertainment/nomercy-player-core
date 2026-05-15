@@ -1,7 +1,7 @@
 import type { Plugin } from '../plugin';
 import type { IPlayer } from '../types';
 import { StateError } from '../errors';
-import { LifecycleRegistry } from '../lifecycle';
+import { LifecycleRegistry } from '../lifecycle-registry';
 import { assertNoListenerLeak } from './leak-harness';
 import { StubPlayer } from './stub-player';
 

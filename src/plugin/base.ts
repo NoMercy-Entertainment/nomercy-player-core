@@ -1,6 +1,6 @@
 import type { Severity } from '../errors';
 import type { AuthFetchOptions } from '../core/auth-fetch';
-import type { LifecycleRegistry } from '../lifecycle';
+import type { LifecycleRegistry } from '../lifecycle-registry';
 import type { ILogger } from '../logger';
 import type { IRealtimeChannel, RealtimeFactoryOptions } from '../realtime';
 import type { IStorage } from '../storage';

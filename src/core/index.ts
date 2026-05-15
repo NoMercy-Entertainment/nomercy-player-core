@@ -47,7 +47,7 @@ export { metricsMethods } from './mixins/metrics';
 export { domMethods } from './mixins/dom-mixin';
 export { loadingMethods } from './mixins/loading';
 export { containerClassEmitMethods } from './mixins/container-class-emit';
-export { preloadStrategyMethods } from './mixins/preload-strategy';
+export { preloadStrategyMethods } from './mixins/preload-strategy-mixin';
 
 export type { BackendShape } from './mixins/player-state';
 export type { SidecarTrack, ItemWithTracks, ItemWithDefinedTracks } from './mixins/media-tracks';
@@ -77,7 +77,7 @@ import { metricsMethods } from './mixins/metrics';
 import { domMethods } from './mixins/dom-mixin';
 import { loadingMethods } from './mixins/loading';
 import { containerClassEmitMethods } from './mixins/container-class-emit';
-import { preloadStrategyMethods } from './mixins/preload-strategy';
+import { preloadStrategyMethods } from './mixins/preload-strategy-mixin';
 
 /**
  * Every shared mixin collected into a single `as const` tuple.

@@ -97,7 +97,7 @@ export { EventEmitter } from './events';
 
 // i18n — default English bundle (audit I7)
 export { defaultTranslations, enTranslations } from './i18n/en';
-export { LifecycleRegistry } from './lifecycle';
+export { LifecycleRegistry } from './lifecycle-registry';
 
 export { Logger } from './logger';
 export type { ILogger, LoggerOptions } from './logger';

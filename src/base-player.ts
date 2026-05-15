@@ -52,6 +52,6 @@ export { abrMethods } from './core/mixins/abr';
 export { metricsMethods } from './core/mixins/metrics';
 export { domMethods } from './core/mixins/dom-mixin';
 export { loadingMethods } from './core/mixins/loading';
-export { preloadStrategyMethods } from './core/mixins/preload-strategy';
+export { preloadStrategyMethods } from './core/mixins/preload-strategy-mixin';
 
 export { playerCoreMethods } from './core/index';

@@ -24,7 +24,7 @@
 import type { PluginAdvisory } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayerError } from '../errors';
-import { LifecycleRegistry } from '../lifecycle';
+import { LifecycleRegistry } from '../lifecycle-registry';
 import { Plugin } from '../plugin';
 import { StubPlayer } from '../testing/stub-player';
 

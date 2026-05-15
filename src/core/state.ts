@@ -18,7 +18,7 @@ import { CueParserRegistry } from '../cues/parser-registry';
 import { CueTracker } from '../cues/tracker';
 import type { Cue } from '../cues/cue';
 import type { VTTSubtitlePayload } from '../cues/parsers/vtt';
-import { LifecycleRegistry } from '../lifecycle';
+import { LifecycleRegistry } from '../lifecycle-registry';
 import { MediaList } from '../medialist';
 import { DefaultPreloadStrategy } from '../preload-strategy';
 import type { PreloadStrategy, TransitionStrategy } from '../preload-strategy';
