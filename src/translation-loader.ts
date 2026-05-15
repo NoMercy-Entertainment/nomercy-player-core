@@ -2,11 +2,8 @@ import type { AuthConfig } from './types';
 import { authFetch } from './auth-fetch';
 
 /**
- * Built-in network translation loader. Fetches a JSON bundle per language
- * via `authFetch` (so consumer auth, retries, transformUrl, abort and event
- * scoping all apply uniformly).
- *
- * Wire it into `setup({ loadTranslations })`:
+ * Options for the built-in network translation loader. Wire it into
+ * `setup({ loadTranslations })`:
  *
  * ```ts
  * setup({
@@ -18,16 +15,16 @@ import { authFetch } from './auth-fetch';
  * });
  * ```
  *
- * The `{lang}` placeholder is replaced per-call with the requested tag —
- * the BCP-47 fallback chain in `DefaultTranslator.setLanguage()` calls the
- * loader once for each tag (`pt-BR`, then `pt`), so the URL pattern only
- * needs to handle the exact tag form (e.g. `i18n/pt-BR.json`,
- * `i18n/pt.json`).
+ * The `{lang}` placeholder in `url` is replaced per-call with the
+ * BCP-47 tag being fetched. `DefaultTranslator` calls the loader once per
+ * tag in the fallback chain (`pt-BR` then `pt`), so the URL template only
+ * needs to handle the exact tag form — e.g. `i18n/pt-BR.json`,
+ * `i18n/pt.json`.
  *
  * Network failures (404 for a regional variant the CDN doesn't ship,
- * timeout, etc.) resolve to `undefined`, which `setLanguage` treats as
- * "no bundle available" and continues to the next tag in the chain. This
- * matches the kit-wide rule: missing i18n must never break playback.
+ * timeout, parse error) resolve to `undefined`. The translator treats
+ * `undefined` as "no bundle for this tag" and continues to the next tag
+ * in the chain. Missing i18n must never break playback.
  */
 export interface NetworkTranslationLoaderOptions {
 	/**
@@ -40,9 +37,9 @@ export interface NetworkTranslationLoaderOptions {
 	auth?: AuthConfig;
 
 	/**
-	 * Custom parser. Defaults to `JSON.parse` returning the parsed object
-	 * cast to `Record<string, string>`. Override to validate / strip / merge
-	 * a wrapped envelope before the kit merges the result.
+	 * Custom parser applied to the raw response text before the kit merges
+	 * the result. Defaults to `JSON.parse`. Override to validate, strip
+	 * envelope wrappers, or coerce non-flat shapes your CDN returns.
 	 */
 	parser?: (raw: string) => Record<string, string>;
 
@@ -57,9 +54,10 @@ export interface NetworkTranslationLoaderOptions {
 export type NetworkTranslationLoader = (lang: string) => Promise<Record<string, string> | undefined>;
 
 /**
- * Create a `loadTranslations` function bound to a URL pattern. Returns
- * `undefined` on any network / parse failure so the BCP-47 chain falls
- * through naturally to the parent / fallback language.
+ * Build a `loadTranslations` callback bound to the given URL pattern and
+ * optional auth config. The returned function fetches one JSON bundle per
+ * language tag and returns `undefined` on any network or parse failure so
+ * the BCP-47 chain continues to the parent tag without interruption.
  */
 export function createNetworkTranslationLoader(opts: NetworkTranslationLoaderOptions): NetworkTranslationLoader {
 	const parser = opts.parser ?? ((raw: string): Record<string, string> => {
@@ -79,11 +77,9 @@ export function createNetworkTranslationLoader(opts: NetworkTranslationLoaderOpt
 				parser,
 				signal,
 				scope: 'silent',
-				emit: () => { /* silent loader — no event emission */ },
+				emit: () => { },
 				pluginId: 'translator',
 			});
-			// Defensive: any non-object response (e.g. server returns a string
-			// or an array) shouldn't crash the merge.
 			if (!result || typeof result !== 'object' || Array.isArray(result))
 				return undefined;
 			return result;
