@@ -1,1 +1,1 @@
-export type { DecodeCapability, DecodeProfile, ICapabilitiesProbe } from '../../../platform';
+export type { ICapabilitiesProbe, DecodeProfile, DecodeCapability } from '../browser';

@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseVtt, parseVttSprite, parseVttSubtitles } from '../../cues/parsers/vtt';
+import { parseVtt, parseVttSprite, parseVttSubtitles } from '../../adapters/cue-parser/vtt';
 
 describe('parseVtt() — raw VTT', () => {
 	describe('magic header validation (W3C WebVTT 1.0 §4)', () => {

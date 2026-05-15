@@ -1,4 +1,4 @@
-import type { CueParser } from '../../cues/parser-registry';
+import type { CueParser } from '../../adapters/cue-parser/ICueParser';
 
 import type { Internals } from '../state';
 

@@ -1,5 +1,5 @@
-import type { StreamFactory } from '../../streams/source';
-import { StreamRegistry } from '../../streams/registry';
+import type { StreamFactory } from '../../adapters/stream/IStreamSource';
+import { StreamRegistry } from '../../adapters/stream/registry';
 
 import type { Internals } from '../state';
 

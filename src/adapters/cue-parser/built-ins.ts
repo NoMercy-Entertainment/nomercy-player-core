@@ -11,7 +11,7 @@
  * at higher priority.
  */
 
-import type { CueParser } from '../parser-registry';
+import type { CueParser } from './ICueParser';
 import type { LrcPayload } from './lrc';
 import type { VTTSpritePayload, VTTSubtitlePayload } from './vtt';
 import { parseLrc } from './lrc';

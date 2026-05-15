@@ -10,4 +10,6 @@ export type {
 	StreamSource,
 	StreamSourceState,
 } from './IStreamSource';
-export { StreamRegistry } from '../../streams/registry';
+export { StreamRegistry } from './registry';
+export { hlsFactory } from './hls';
+export { nativeFactory } from './native';

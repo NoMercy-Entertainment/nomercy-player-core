@@ -4,7 +4,7 @@
  * so visibility / network / wake-lock state changes are deterministic.
  */
 
-import type { IPlatform } from '../platform';
+import type { IPlatform } from '../adapters/platform/browser';
 import type { BaseEventMap } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {

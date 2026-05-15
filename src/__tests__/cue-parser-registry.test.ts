@@ -7,7 +7,7 @@
  * registered via `setup({ cueParsers })` win the resolution.
  */
 
-import type { CueParser } from '../cues/parser-registry';
+import type { CueParser } from '../adapters/cue-parser/ICueParser';
 import type { BaseEventMap } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -15,7 +15,7 @@ import {
 	playerCoreMethods,
 	resolvePlayerConstructor,
 } from '../base-player';
-import { EventEmitter } from '../events';
+import { EventEmitter } from '../adapters/event-bus/default';
 import { composeMixins } from '../mixins';
 
 const _instances = new Map<string, MockPlayer>();

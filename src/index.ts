@@ -40,13 +40,13 @@ export type {
 // Cues
 export { createCueList, createMutableCueList } from './cues/cue';
 export type { Cue, CueList, MutableCueList } from './cues/cue';
-export { CueParserRegistry } from './cues/parser-registry';
-export type { CueParser } from './cues/parser-registry';
-export { buildSubtitleFragment } from './cues/subtitle-fragment';
-export { parseLrc } from './cues/parsers/lrc';
-export type { LrcPayload } from './cues/parsers/lrc';
-export { parseVtt, parseVttSprite, parseVttSubtitles } from './cues/parsers/vtt';
-export type { VTTSpritePayload, VTTSubtitlePayload } from './cues/parsers/vtt';
+export { CueParserRegistry } from './adapters/cue-parser/registry';
+export type { CueParser } from './adapters/cue-parser/ICueParser';
+export { buildSubtitleFragment } from './adapters/subtitle-renderer/dom';
+export { parseLrc } from './adapters/cue-parser/lrc';
+export type { LrcPayload } from './adapters/cue-parser/lrc';
+export { parseVtt, parseVttSprite, parseVttSubtitles } from './adapters/cue-parser/vtt';
+export type { VTTSpritePayload, VTTSubtitlePayload } from './adapters/cue-parser/vtt';
 export { CueTracker } from './cues/tracker';
 
 export type { CueTrackerOptions } from './cues/tracker';
@@ -93,23 +93,23 @@ export type {
 	Severity,
 } from './errors';
 // Primitives
-export { EventEmitter } from './events';
+export { EventEmitter } from './adapters/event-bus/default';
 
 // i18n — default English bundle (audit I7)
 export { defaultTranslations, enTranslations } from './i18n/en';
-export { LifecycleRegistry } from './lifecycle-registry';
+export { LifecycleRegistry } from './adapters/lifecycle-registry/default';
 
-export { Logger } from './logger';
-export type { ILogger, LoggerOptions } from './logger';
+export { Logger } from './adapters/logger/default';
+export type { ILogger, LoggerOptions } from './adapters/logger/ILogger';
 
 // Media list (cursor-aware list — both libs' queue surface delegates here)
-export { MediaList } from './medialist';
-export type { MediaListEvent } from './medialist';
+export { MediaList } from './adapters/media-list/default';
+export type { MediaListEvent } from './adapters/media-list/default';
 
 // Mixin + factory
 export { composeMixins } from './mixins';
 // Platform bundle (wake-lock, network, visibility, capabilities, fullscreen, pip)
-export { browserPlatform } from './platform';
+export { browserPlatform } from './adapters/platform/browser';
 
 export type {
 	DecodeCapability,
@@ -122,7 +122,7 @@ export type {
 	IVisibilityMonitor,
 	IWakeLock,
 	NetworkType,
-} from './platform';
+} from './adapters/platform/browser';
 // Plugin runtime
 export { Plugin, PluginThrow } from './plugin';
 
@@ -163,14 +163,14 @@ export { VisualizationPlugin } from './plugins/visualization';
 export type { VisualizationFrame, VisualizationOptions } from './plugins/visualization';
 
 // Realtime channel abstraction (WebSocket / SignalR / Socket.IO via factory)
-export { nativeWebSocketAdapter } from './realtime';
+export { nativeWebSocketAdapter } from './adapters/realtime/websocket';
 
-export type { IRealtimeChannel, RealtimeFactory, RealtimeFactoryOptions } from './realtime';
+export type { IRealtimeChannel, RealtimeFactory, RealtimeFactoryOptions } from './adapters/realtime/IRealtimeChannel';
 export { buildResolvedUrl } from './core/resolved-url';
-export { IndexedDBBackend, LocalStorageBackend, MemoryStorageBackend } from './storage';
-export type { IStorage } from './storage';
+export { IndexedDBBackend, LocalStorageBackend, MemoryStorageBackend } from './adapters/storage';
+export type { IStorage } from './adapters/storage';
 // Streams (re-exported here too for convenience; subpath imports also work)
-export { StreamRegistry } from './streams/registry';
+export { StreamRegistry } from './adapters/stream/registry';
 export type {
 	StreamCapabilities,
 	StreamEvent,
@@ -180,14 +180,14 @@ export type {
 	StreamLevel,
 	StreamSource,
 	StreamSourceState,
-} from './streams/source';
-export { createNetworkTranslationLoader } from './translation-loader';
-export type { NetworkTranslationLoader, NetworkTranslationLoaderOptions } from './translation-loader';
-export { translationsFromGlob } from './translations-glob';
-export type { GlobModule } from './translations-glob';
+} from './adapters/stream/IStreamSource';
+export { createNetworkTranslationLoader } from './adapters/translator/loaders/translation-loader';
+export type { NetworkTranslationLoader, NetworkTranslationLoaderOptions } from './adapters/translator/loaders/translation-loader';
+export { translationsFromGlob } from './adapters/translator/loaders/translations-glob';
+export type { GlobModule } from './adapters/translator/loaders/translations-glob';
 // Translator (i18n engine — swap for i18next / FormatJS / custom)
-export { bcp47FallbackChain, DefaultTranslator } from './translator';
-export type { DefaultTranslatorOptions, ITranslator } from './translator';
+export { bcp47FallbackChain, DefaultTranslator } from './adapters/translator/translator';
+export type { DefaultTranslatorOptions, ITranslator } from './adapters/translator/translator';
 // Core types
 export type {
 	ActionOptions,
@@ -244,7 +244,7 @@ export {
 	CrossfadeTransitionStrategy,
 	DefaultPreloadStrategy,
 	GaplessTransitionStrategy,
-} from './preload-strategy';
+} from './adapters/preload/default';
 export type {
 	PreloadAsset,
 	PreloadContext,
@@ -252,5 +252,5 @@ export type {
 	TransitionBackend,
 	TransitionContext,
 	TransitionStrategy,
-} from './preload-strategy';
+} from './adapters/preload/default';
 export { preloadStrategyMethods } from './base-player';

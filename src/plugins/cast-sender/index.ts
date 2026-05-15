@@ -1,7 +1,7 @@
 import type { BasePlaylistItem, IPlayer, Translations } from '../../types';
 import { BrowserPolicyError } from '../../errors';
 import { Plugin } from '../../plugin';
-import { translationsFromGlob } from '../../translations-glob';
+import { translationsFromGlob } from '../../adapters/translator/loaders/translations-glob';
 
 /**
  * Cast sender — Chromecast Web Sender SDK bridge for player ↔ receiver.

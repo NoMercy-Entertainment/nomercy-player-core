@@ -1,14 +1,14 @@
 import type { BasePlaylistItem, BasePlayerConfig, PlayerPhase } from '../../types';
 import { SetupState } from '../../types';
-import type { IPlatform } from '../../platform';
-import type { PreloadAsset, PreloadStrategy, TransitionBackend } from '../../preload-strategy';
-import { DefaultPreloadStrategy } from '../../preload-strategy';
-import { builtInCueParsers } from '../../cues/parsers/built-ins';
-import { hlsFactory } from '../../streams/hls';
-import { nativeFactory } from '../../streams/native';
-import { StreamRegistry } from '../../streams/registry';
-import { browserPlatform } from '../../platform';
-import { DefaultTranslator } from '../../translator';
+import type { IPlatform } from '../../adapters/platform/browser';
+import type { PreloadAsset, PreloadStrategy, TransitionBackend } from '../../adapters/preload/default';
+import { DefaultPreloadStrategy } from '../../adapters/preload/default';
+import { builtInCueParsers } from '../../adapters/cue-parser/built-ins';
+import { hlsFactory } from '../../adapters/stream/hls';
+import { nativeFactory } from '../../adapters/stream/native';
+import { StreamRegistry } from '../../adapters/stream/registry';
+import { browserPlatform } from '../../adapters/platform/browser';
+import { DefaultTranslator } from '../../adapters/translator/translator';
 
 import { makePlayerErrorEvent, stateError, StateError } from '../../errors';
 import type { Internals } from '../state';

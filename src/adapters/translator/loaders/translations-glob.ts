@@ -1,5 +1,6 @@
-import type { Translations } from './types';
-import { StateError } from './errors';
+import type { Translations } from '../../../types';
+
+import { StateError } from '../../../errors';
 
 /**
  * Internal marker stamped on the object returned by `translationsFromGlob`

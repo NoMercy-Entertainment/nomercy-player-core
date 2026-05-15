@@ -1,4 +1,4 @@
-import type { CueParser } from '../cues/parser-registry';
+import type { CueParser } from '../adapters/cue-parser/ICueParser';
 import type { AddClasses, CreateElement } from '../core/mixins/dom-mixin';
 
 import type { AuthConfig } from './config';

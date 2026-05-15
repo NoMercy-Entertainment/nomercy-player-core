@@ -1,9 +1,9 @@
 import type { Severity } from '../errors';
 import type { AuthFetchOptions } from '../core/auth-fetch';
-import type { LifecycleRegistry } from '../lifecycle-registry';
-import type { ILogger } from '../logger';
-import type { IRealtimeChannel, RealtimeFactoryOptions } from '../realtime';
-import type { IStorage } from '../storage';
+import type { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
+import type { ILogger } from '../adapters/logger/ILogger';
+import type { IRealtimeChannel, RealtimeFactoryOptions } from '../adapters/realtime/IRealtimeChannel';
+import type { IStorage } from '../adapters/storage/IStorage';
 import type {
 	AuthConfig,
 	BaseEventMap,
@@ -26,10 +26,10 @@ import { authFetch } from '../core/auth-fetch';
 import { mergeConfig } from '../core/config-merge';
 import { runDispatchBefore } from '../dispatch';
 import { PlayerError } from '../errors';
-import { Logger } from '../logger';
-import { nativeWebSocketAdapter } from '../realtime';
+import { Logger } from '../adapters/logger/default';
+import { nativeWebSocketAdapter } from '../adapters/realtime/websocket';
 import { buildResolvedUrl } from '../core/resolved-url';
-import { LocalStorageBackend } from '../storage';
+import { LocalStorageBackend } from '../adapters/storage/local-storage';
 import { PluginThrow } from './throw';
 
 /**

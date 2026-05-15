@@ -3,8 +3,9 @@ import type {
 	StreamFactoryOptions,
 	StreamInterceptor,
 	StreamSource,
-} from './source';
-import { StreamError } from '../errors';
+} from './IStreamSource';
+
+import { StreamError } from '../../errors';
 
 
 /**

@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { buildSubtitleFragment } from '../../cues/subtitle-fragment';
+import { buildSubtitleFragment } from '../../adapters/subtitle-renderer/dom';
 
 // happy-dom is wired via vitest.config.ts; `document` is global in the suite.
 

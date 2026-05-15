@@ -14,7 +14,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventEmitter } from '../events';
+import { EventEmitter } from '../adapters/event-bus/default';
 
 interface TestEvents {
 	greet: { who: string };

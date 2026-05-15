@@ -5,4 +5,4 @@ export type { INetworkMonitor, NetworkType } from './network';
 export type { IPipController } from './pip';
 export type { IVisibilityMonitor } from './visibility';
 export type { IWakeLock } from './wake-lock';
-export { browserPlatform } from '../../platform';
+export { browserPlatform } from './browser';

@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { getLazyTranslationLoader, translationsFromGlob } from '../translations-glob';
+import { getLazyTranslationLoader, translationsFromGlob } from '../adapters/translator/loaders/translations-glob';
 
 describe('translationsFromGlob — eager path', () => {
 	it('maps filename to BCP-47 language tag', () => {

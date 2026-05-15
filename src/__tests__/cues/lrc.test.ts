@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseLrc } from '../../cues/parsers/lrc';
+import { parseLrc } from '../../adapters/cue-parser/lrc';
 
 describe('parseLrc()', () => {
 	describe('empty / malformed input', () => {

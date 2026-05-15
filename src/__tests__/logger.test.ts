@@ -11,9 +11,9 @@
  *  - Sink misbehavior — throwing sinks don't kill dispatch
  */
 
-import type { ILogger } from '../logger';
+import type { ILogger } from '../adapters/logger/ILogger';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Logger } from '../logger';
+import { Logger } from '../adapters/logger/default';
 
 describe('Logger', () => {
 	let consoleSpies: {

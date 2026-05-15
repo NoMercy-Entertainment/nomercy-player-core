@@ -1,5 +1,5 @@
 import type { DeviceCapabilities } from '../../types';
-import { browserPlatform } from '../../platform';
+import { browserPlatform } from '../../adapters/platform/browser';
 
 import type { Internals } from '../state';
 

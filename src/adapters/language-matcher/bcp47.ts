@@ -1,1 +1,1 @@
-export { bcp47FallbackChain } from '../../translator';
+export { bcp47FallbackChain } from '../translator/translator';

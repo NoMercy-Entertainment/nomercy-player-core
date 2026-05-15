@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { DefaultTranslator } from '../translator';
+import { DefaultTranslator } from '../adapters/translator/translator';
 
 describe('DefaultTranslator', () => {
 	describe('construction', () => {

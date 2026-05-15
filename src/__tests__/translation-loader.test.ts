@@ -12,8 +12,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createNetworkTranslationLoader } from '../translation-loader';
-import { DefaultTranslator } from '../translator';
+import { createNetworkTranslationLoader } from '../adapters/translator/loaders/translation-loader';
+import { DefaultTranslator } from '../adapters/translator/translator';
 
 describe('createNetworkTranslationLoader', () => {
 	const originalFetch = globalThis.fetch;

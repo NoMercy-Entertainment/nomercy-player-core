@@ -1,4 +1,4 @@
-import type { StreamFactory, StreamFactoryOptions, StreamInterceptor, StreamSource } from '../../streams/source';
+import type { StreamFactory, StreamFactoryOptions, StreamInterceptor, StreamSource } from './IStreamSource';
 
 /**
  * Per-player catalogue of stream factories and content interceptors.

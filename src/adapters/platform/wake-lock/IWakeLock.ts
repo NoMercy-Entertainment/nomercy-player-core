@@ -1,1 +1,1 @@
-export type { IWakeLock } from '../../../platform';
+export type { IWakeLock } from '../browser';

@@ -19,7 +19,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowserPolicyError } from '../errors';
-import { IndexedDBBackend, LocalStorageBackend, MemoryStorageBackend } from '../storage';
+import { IndexedDBBackend, LocalStorageBackend, MemoryStorageBackend } from '../adapters/storage';
 
 describe('LocalStorageBackend', () => {
 	let backend: LocalStorageBackend;

@@ -1,7 +1,7 @@
 import type { Translations } from '../../types';
-import { bcp47FallbackChain, DefaultTranslator } from '../../translator';
-import type { ITranslator } from '../../translator';
-import { getLazyTranslationLoader } from '../../translations-glob';
+import { bcp47FallbackChain, DefaultTranslator } from '../../adapters/translator/translator';
+import type { ITranslator } from '../../adapters/translator/translator';
+import { getLazyTranslationLoader } from '../../adapters/translator/loaders/translations-glob';
 
 import type { Internals } from '../state';
 

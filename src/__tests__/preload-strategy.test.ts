@@ -25,7 +25,7 @@ import {
 	resolvePlayerConstructor,
 } from '../index';
 import type { Plugin } from '../plugin';
-import type { PreloadStrategy, TransitionStrategy } from '../preload-strategy';
+import type { PreloadStrategy, TransitionStrategy } from '../adapters/preload/default';
 
 // ── MockPlayer (same shape as base-player.test.ts) ───────────────────────────
 

@@ -3,9 +3,9 @@
  */
 
 import type { CueList } from '../../cues/cue';
-import type { CueParser } from '../../cues/parser-registry';
+import type { CueParser } from '../../adapters/cue-parser/ICueParser';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CueParserRegistry } from '../../cues/parser-registry';
+import { CueParserRegistry } from '../../adapters/cue-parser/registry';
 
 function makeParser(id: string, canParseResult: boolean = true): CueParser {
 	return {

@@ -1,1 +1,1 @@
-export type { INetworkMonitor, NetworkType } from '../../../platform';
+export type { INetworkMonitor, NetworkType } from '../browser';

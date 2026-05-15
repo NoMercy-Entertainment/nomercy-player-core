@@ -5,7 +5,7 @@ import type {
 	StreamFactoryOptions,
 	StreamSource,
 	StreamSourceState,
-} from './source';
+} from './IStreamSource';
 
 
 const AUDIO_EXT_RE = /\.(?:mp3|flac|aac|m4a|wav|ogg|opus|weba)(?:\?|$)/iu;

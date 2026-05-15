@@ -1,9 +1,9 @@
-import type { CueParser } from '../cues/parser-registry';
-import type { ILogger } from '../logger';
-import type { IPlatform } from '../platform';
-import type { RealtimeFactory } from '../realtime';
-import type { IStorage } from '../storage';
-import type { ITranslator } from '../translator';
+import type { CueParser } from '../adapters/cue-parser/ICueParser';
+import type { ILogger } from '../adapters/logger/ILogger';
+import type { IPlatform } from '../adapters/platform/browser';
+import type { RealtimeFactory } from '../adapters/realtime/IRealtimeChannel';
+import type { IStorage } from '../adapters/storage/IStorage';
+import type { ITranslator } from '../adapters/translator/translator';
 
 import type { LogLevel } from './log';
 import type { TranslationLoader, Translations } from './translations';
@@ -350,14 +350,14 @@ export interface BasePlayerConfig {
 	 * The strategy is stateless — a single instance is reused across items.
 	 * Call `strategy.cancel()` before navigating away if you hold a reference.
 	 */
-	preloadStrategy?: import('../preload-strategy').PreloadStrategy;
+	preloadStrategy?: import('../adapters/preload/default').PreloadStrategy;
 
 	/**
 	 * Custom transition strategy. When supplied, replaces the per-library default
 	 * (`CrossfadeTransitionStrategy` for music, `GaplessTransitionStrategy` for
 	 * video). Inject this to implement custom fades, cuts, or creative transitions.
 	 */
-	transitionStrategy?: import('../preload-strategy').TransitionStrategy;
+	transitionStrategy?: import('../adapters/preload/default').TransitionStrategy;
 
 	/**
 	 * Attach the player instance to `window.player` for console debugging.

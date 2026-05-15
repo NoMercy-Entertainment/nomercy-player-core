@@ -1,4 +1,4 @@
-import type { CueParser } from '../../cues/parser-registry';
+import type { CueParser } from './ICueParser';
 
 /**
  * Ordered registry of cue parsers. Resolution is most-recently-registered

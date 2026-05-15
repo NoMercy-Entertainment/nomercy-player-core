@@ -1,7 +1,7 @@
 import type { ActionOptions, AudioTrack, BasePlaylistItem, Chapter, QualityLevel, SubtitleCue as SubtitleCuePayload, SubtitleStyle, SubtitleTrack } from '../../types';
 import { CueTracker } from '../../cues/tracker';
-import { parseVttSubtitles, parseVtt } from '../../cues/parsers/vtt';
-import type { VTTSubtitlePayload } from '../../cues/parsers/vtt';
+import { parseVttSubtitles, parseVtt } from '../../adapters/cue-parser/vtt';
+import type { VTTSubtitlePayload } from '../../adapters/cue-parser/vtt';
 import type { Cue } from '../../cues/cue';
 import { buildResolvedUrl } from '../resolved-url';
 

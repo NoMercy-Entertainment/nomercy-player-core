@@ -1,5 +1,5 @@
 import type { PlayerPhase } from '../../types';
-import { EventEmitter } from '../../events';
+import { EventEmitter } from '../../adapters/event-bus/default';
 
 import type { Internals } from '../state';
 

@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { hlsFactory } from '../../streams/hls';
+import { hlsFactory } from '../../adapters/stream/hls';
 
 describe('hlsFactory', () => {
 	describe('id', () => {

@@ -1,4 +1,4 @@
-import type { CueParser } from '../cues/parser-registry';
+import type { CueParser } from '../adapters/cue-parser/ICueParser';
 import type { CreateElement, AddClasses } from '../core/mixins/dom-mixin';
 import type {
 	ActionOptions,
@@ -16,7 +16,7 @@ import type {
 	UrlResolverContext,
 } from '../types';
 import { AudioTrackState, BufferState, NetworkState, QualityState, VisibilityState } from '../types';
-import { EventEmitter } from '../events';
+import { EventEmitter } from '../adapters/event-bus/default';
 import { buildResolvedUrl } from '../core/resolved-url';
 
 /**

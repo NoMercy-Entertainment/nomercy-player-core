@@ -18,7 +18,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MediaList } from '../medialist';
+import { MediaList } from '../adapters/media-list/default';
 
 interface Item {
 	id: string | number;

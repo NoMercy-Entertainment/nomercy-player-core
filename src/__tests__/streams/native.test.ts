@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { nativeFactory } from '../../streams/native';
+import { nativeFactory } from '../../adapters/stream/native';
 
 describe('nativeFactory', () => {
 	describe('id', () => {

@@ -28,5 +28,5 @@ export { BrowserPolicyError, browserPolicyError } from './policy';
 
 export { PluginError, pluginError } from './plugin';
 
-export type { RetryConfig, RetryPolicy } from './retry-policy';
-export { DEFAULT_RETRY_POLICY } from './retry-policy';
+export type { RetryConfig, RetryPolicy } from '../adapters/retry-policy/default';
+export { DEFAULT_RETRY_POLICY } from '../adapters/retry-policy/default';

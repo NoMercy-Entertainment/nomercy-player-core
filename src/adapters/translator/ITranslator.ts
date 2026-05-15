@@ -1,1 +1,1 @@
-export type { DefaultTranslatorOptions, ITranslator } from '../../translator';
+export type { ITranslator, DefaultTranslatorOptions } from './translator';

@@ -1,4 +1,4 @@
-import { BrowserPolicyError } from './errors';
+import { BrowserPolicyError } from '../../errors';
 
 /**
  * Platform abstraction. Bundles every primitive the kit hardcodes against

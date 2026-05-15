@@ -1,9 +1,9 @@
 import type { IPlayer, PluginCtorWithId, Translations } from '../../types';
 import type { Plugin } from '../../plugin';
-import { LifecycleRegistry } from '../../lifecycle-registry';
-import { Logger } from '../../logger';
-import { bcp47FallbackChain } from '../../translator';
-import { getLazyTranslationLoader } from '../../translations-glob';
+import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
+import { Logger } from '../../adapters/logger/default';
+import { bcp47FallbackChain } from '../../adapters/translator/translator';
+import { getLazyTranslationLoader } from '../../adapters/translator/loaders/translations-glob';
 
 import { pluginError, stateError } from '../../errors';
 import type { Internals } from '../state';

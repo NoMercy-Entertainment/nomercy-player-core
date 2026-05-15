@@ -1,7 +1,7 @@
-import { EventEmitter } from '../events';
-import type { IPlatform } from '../platform';
+import { EventEmitter } from '../adapters/event-bus/default';
+import type { IPlatform } from '../adapters/platform/browser';
 import type { Plugin } from '../plugin';
-import type { ITranslator } from '../translator';
+import type { ITranslator } from '../adapters/translator/translator';
 import type {
 	AuthConfig,
 	BaseEventMap,
@@ -14,15 +14,15 @@ import type {
 	UrlResolver,
 } from '../types';
 import { AudioTrackState, CastState as _CastStateEnum, QualityState } from '../types';
-import { CueParserRegistry } from '../cues/parser-registry';
+import { CueParserRegistry } from '../adapters/cue-parser/registry';
 import { CueTracker } from '../cues/tracker';
 import type { Cue } from '../cues/cue';
-import type { VTTSubtitlePayload } from '../cues/parsers/vtt';
-import { LifecycleRegistry } from '../lifecycle-registry';
-import { MediaList } from '../medialist';
-import { DefaultPreloadStrategy } from '../preload-strategy';
-import type { PreloadStrategy, TransitionStrategy } from '../preload-strategy';
-import type { StreamRegistry } from '../streams/registry';
+import type { VTTSubtitlePayload } from '../adapters/cue-parser/vtt';
+import { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
+import { MediaList } from '../adapters/media-list/default';
+import { DefaultPreloadStrategy } from '../adapters/preload/default';
+import type { PreloadStrategy, TransitionStrategy } from '../adapters/preload/default';
+import type { StreamRegistry } from '../adapters/stream/registry';
 
 
 // ──────────────────────────────────────────────────────────────────────────

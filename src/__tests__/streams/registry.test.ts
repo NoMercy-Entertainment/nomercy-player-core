@@ -11,9 +11,9 @@
  *  - dispose
  */
 
-import type { StreamFactory, StreamSource } from '../../streams/source';
+import type { StreamFactory, StreamSource } from '../../adapters/stream/IStreamSource';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { StreamRegistry } from '../../streams/registry';
+import { StreamRegistry } from '../../adapters/stream/registry';
 
 function makeFactory(id: string, canPlayResult: boolean = true): StreamFactory {
 	return {

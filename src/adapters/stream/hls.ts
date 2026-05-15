@@ -7,7 +7,7 @@ import type {
 	StreamLevel,
 	StreamSource,
 	StreamSourceState,
-} from './source';
+} from './IStreamSource';
 import Hls from 'hls.js';
 import type {
 	ErrorData,
@@ -19,7 +19,7 @@ import type {
 	LoaderResponse,
 	LoaderStats,
 } from 'hls.js';
-import { MediaFormatError, StreamError } from '../errors';
+import { MediaFormatError, StreamError } from '../../errors';
 
 
 const HLS_EXT_RE = /\.m3u8(?:\?|$)/iu;

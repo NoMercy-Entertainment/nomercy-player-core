@@ -1,4 +1,4 @@
-import type { PreloadStrategy, TransitionStrategy } from '../../preload-strategy';
+import type { PreloadStrategy, TransitionStrategy } from '../../adapters/preload/default';
 
 import type { Internals } from '../state';
 

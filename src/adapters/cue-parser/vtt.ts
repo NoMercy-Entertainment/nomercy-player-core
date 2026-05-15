@@ -1,5 +1,5 @@
-import type { Cue, CueList } from '../cue';
-import { createCueList } from '../cue';
+import type { Cue, CueList } from '../../cues/cue';
+import { createCueList } from '../../cues/cue';
 
 export interface VTTSubtitlePayload {
 	/** Cue text with all inline tags stripped. Use for plain-text consumers

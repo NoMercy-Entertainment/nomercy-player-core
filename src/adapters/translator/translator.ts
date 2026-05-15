@@ -1,4 +1,4 @@
-import type { Translations } from './types';
+import type { Translations } from '../../types';
 
 /**
  * Pluggable translation engine. Default impl is a simple key+`{vars}` lookup

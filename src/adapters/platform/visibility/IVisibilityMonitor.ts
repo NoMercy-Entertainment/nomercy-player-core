@@ -1,1 +1,1 @@
-export type { IVisibilityMonitor } from '../../../platform';
+export type { IVisibilityMonitor } from '../browser';

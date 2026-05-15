@@ -1,5 +1,5 @@
-import type { Cue, CueList } from '../cue';
-import { createCueList } from '../cue';
+import type { Cue, CueList } from '../../cues/cue';
+import { createCueList } from '../../cues/cue';
 
 /** A single word entry in an enhanced LRC cue, with its start timestamp. */
 export interface LrcWordCue {

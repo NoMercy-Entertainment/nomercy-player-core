@@ -12,9 +12,9 @@
  *  - Listener throw doesn't break dispatch
  */
 
-import type { IRealtimeChannel } from '../realtime';
+import type { IRealtimeChannel } from '../adapters/realtime/IRealtimeChannel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { nativeWebSocketAdapter } from '../realtime';
+import { nativeWebSocketAdapter } from '../adapters/realtime/websocket';
 
 // Module-level capture of constructed instances so tests can introspect them.
 const constructedSockets: MockWebSocket[] = [];

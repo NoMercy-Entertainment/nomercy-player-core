@@ -19,7 +19,7 @@
  *    across both media types without importing per-library backend types.
  */
 
-import type { BasePlaylistItem } from './types';
+import type { BasePlaylistItem } from '../../types';
 
 // ─── Shared context snapshots ────────────────────────────────────────────────
 

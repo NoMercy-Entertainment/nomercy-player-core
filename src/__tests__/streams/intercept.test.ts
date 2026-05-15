@@ -8,10 +8,10 @@
  * composes correctly.
  */
 
-import type { StreamFactory, StreamFactoryOptions, StreamSource } from '../../streams/source';
+import type { StreamFactory, StreamFactoryOptions, StreamSource } from '../../adapters/stream/IStreamSource';
 import { describe, expect, it, vi } from 'vitest';
-import { hlsFactory, HlsStreamSource } from '../../streams/hls';
-import { StreamRegistry } from '../../streams/registry';
+import { hlsFactory, HlsStreamSource } from '../../adapters/stream/hls';
+import { StreamRegistry } from '../../adapters/stream/registry';
 
 describe('streams/intercept wiring', () => {
 	describe('intercept() unsubscribe', () => {
