@@ -27,6 +27,7 @@ export interface VTTSubtitlePayload {
 	size?: number;
 }
 
+/** Parsed sprite-sheet crop from a VTT sprite cue (`#xywh=x,y,w,h`). */
 export interface VTTSpritePayload {
 	url: string;
 	x: number;
@@ -61,9 +62,8 @@ const TIMESTAMP_LINE_RE = /^((?:\d{1,3}:)?\d{2}:\d{2}(?:\.\d{1,3})?)\s+-->\s+((?
 const TAG_STRIP_RE = /<[^>]+>/g;
 /** Strip everything except the inline tags renderers know how to draw safely:
  *  `<i>`, `<b>`, `<u>` (with closing variants). `<c.foo>`, `<v Speaker>`,
- *  `<ruby>`, `<rt>`, `<lang ...>`, and inline timestamp tags are removed.
- *  Mirrors v1's `subtitles.ts:buildSubtitleFragment` pre-clean so consumers
- *  using `buildSubtitleFragment` produce identical DOM. */
+ *  `<ruby>`, `<rt>`, `<lang ...>`, and inline timestamp tags are removed so
+ *  consumers using `buildSubtitleFragment` produce an identical DOM tree. */
 const UNRECOGNISED_TAG_RE = /<\/?(?:c(?:\.[^>]*)?|v(?:\s[^>]*)?|ruby|rt|lang(?:\.[^>]*)?)>/gi;
 const TIMESTAMP_TAG_RE = /<\d{2}:\d{2}:\d{2}\.\d{3}>/g;
 const SPRITE_FRAGMENT_RE = /^([^#]+)#xywh=(-?\d+),(-?\d+),(\d+),(\d+)$/;
@@ -177,7 +177,6 @@ function parseRaw(text: string): RawCue[] {
 	// Strip UTF-8 BOM if present (W3C WebVTT 1.0 §4 — many editors save with BOM).
 	const stripped = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
 
-	// Normalize line endings, then split into blocks separated by blank lines
 	const normalized = stripped.replace(/\r\n|\r/g, '\n');
 	const blocks = normalized.split(/\n{2,}/);
 
@@ -191,10 +190,10 @@ function parseRaw(text: string): RawCue[] {
 	if (!first)
 		return [];
 	if (first === 'WEBVTT') {
-		// Bare magic is fine.
+		// ok
 	}
 	else if (first.startsWith('WEBVTT ') || first.startsWith('WEBVTT\t') || first.startsWith('WEBVTT\n')) {
-		// "WEBVTT - description" / "WEBVTT\theader" / "WEBVTT\nmore" — valid header form.
+		// "WEBVTT - description" / tab / newline variants — valid header forms.
 	}
 	else {
 		return [];
@@ -207,7 +206,6 @@ function parseRaw(text: string): RawCue[] {
 		if (!block)
 			continue;
 
-		// Skip NOTE / STYLE / REGION blocks
 		if (block.startsWith('NOTE') || block.startsWith('STYLE') || block.startsWith('REGION'))
 			continue;
 
@@ -231,9 +229,7 @@ function parseRaw(text: string): RawCue[] {
 		if (Number.isNaN(start) || Number.isNaN(end))
 			continue;
 
-		// W3C WebVTT 1.0 §5.5 — cue settings follow the end timestamp on the
-		// same line, separated by whitespace: `align:start line:50% size:75%`.
-		// `tsMatch[3]` is the trailing whitespace + tokens, or undefined.
+		// W3C WebVTT 1.0 §5.5 — cue settings on the same timing line (`align:start line:50%`).
 		const settings = parseCueSettings(tsMatch[3]);
 
 		const body = lines.slice(tsLineIdx + 1).join('\n')
@@ -251,14 +247,13 @@ function parseRaw(text: string): RawCue[] {
 
 /**
  * Parse the cue-settings string that follows the end timestamp on a WebVTT
- * timing line (W3C WebVTT 1.0 §5.5). Recognises only the settings v1's
- * `computeSubtitlePosition` consumes — `align`, `line`, `size`. Vertical
- * writing-mode (`vertical:rl|lr`) and `position:` are intentionally dropped
- * because the v1 player ignores them.
+ * timing line (W3C WebVTT 1.0 §5.5). Recognises `align`, `line`, and `size`.
+ * `vertical:` and `position:` are intentionally dropped — out of scope for the
+ * cue-list use cases.
  *
- * Numeric settings tolerate either `50` or `50%`; the trailing `%` is
- * optional in legacy files. Unrecognised values are dropped silently so a
- * malformed cue still renders centred at the safe-area baseline.
+ * Numeric settings tolerate either `50` or `50%`; the trailing `%` is optional
+ * in legacy files. Unrecognised values are dropped silently so a malformed cue
+ * still renders centred at the safe-area baseline.
  */
 function parseCueSettings(raw: string | undefined): CueSettings {
 	const out: CueSettings = {};
