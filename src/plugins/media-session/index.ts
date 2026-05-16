@@ -160,6 +160,19 @@ export class MediaSessionPlugin<
 		this.addPlaybackActions();
 		this.addNavigationActions();
 		this.addSeekActions();
+
+		// Seed metadata from the player's existing current item. When the
+		// consumer wires the plugin AFTER queue() + current() have already
+		// fired (the common pattern: registry.applyToPlayer + queue + current
+		// runs synchronously in one tick, but addPlugin's `use()` resolves on
+		// a microtask), the initial `current` event lands before this listener
+		// is attached. Without this seed the OS lock screen / Now Playing
+		// widget stays empty until the user manually triggers a track change.
+		const currentItemReader = (this.player as unknown as { current?: () => I | undefined }).current;
+		if (typeof currentItemReader === 'function') {
+			const existing = currentItemReader.call(this.player);
+			if (existing) void this._pushMetadata(existing);
+		}
 	}
 
 	/**
