@@ -2,6 +2,11 @@
 
 Covers all three packages: `nomercy-player-core`, `nomercy-video-player` (v2), and `nomercy-music-player` (v2).
 
+This guide covers kit-level changes: subpath imports, the five-layer architecture, and the 38 named adapter ports. For consumer-facing breaking changes (renamed methods, event payload shapes, playlist item fields), see the per-package migration guides:
+
+- **Video player:** [`packages/nomercy-video-player-v2/MIGRATION.md`](../nomercy-video-player-v2/MIGRATION.md)
+- **Music player:** [`packages/nomercy-music-player-v2/MIGRATION.md`](../nomercy-music-player-v2/MIGRATION.md)
+
 ---
 
 ## TL;DR
