@@ -13,7 +13,7 @@
 		"Stoney Eagle <stoney@nomercy.tv>"
 	],
 	"license": "Apache-2.0",
-	"homepage": "https://nomercy.tv/player",
+	"homepage": "https://docs.nomercy.tv/player/",
 	"bugs": {
 		"url": "https://github.com/NoMercy-Entertainment/nomercy-player-kit/issues"
 	},
@@ -194,12 +194,12 @@
 			"import": "./dist/plugins/visualization/index.js"
 		},
 		"./streams/native": {
-			"types": "./dist/streams/native.d.ts",
-			"import": "./dist/streams/native.js"
+			"types": "./dist/adapters/stream/native.d.ts",
+			"import": "./dist/adapters/stream/native.js"
 		},
 		"./streams/hls": {
-			"types": "./dist/streams/hls.d.ts",
-			"import": "./dist/streams/hls.js"
+			"types": "./dist/adapters/stream/hls.d.ts",
+			"import": "./dist/adapters/stream/hls.js"
 		},
 		"./cues/parsers/vtt": {
 			"types": "./dist/cues/parsers/vtt.d.ts",
@@ -224,8 +224,16 @@
 	"types": "./dist/index.d.ts",
 	"files": [
 		"dist",
-		"src"
+		"CHANGELOG.md",
+		"MIGRATION.md",
+		"CODE_OF_CONDUCT.md",
+		"CONTRIBUTING.md",
+		"SECURITY.md"
 	],
+	"publishConfig": {
+		"access": "public",
+		"tag": "beta"
+	},
 	"scripts": {
 		"build": "tsc -p tsconfig.build.json",
 		"dev": "tsc -p tsconfig.build.json --watch",

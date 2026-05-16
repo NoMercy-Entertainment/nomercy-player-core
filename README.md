@@ -1,9 +1,8 @@
-[![npm](https://img.shields.io/npm/v/@nomercy-entertainment/nomercy-player-core)](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-player-core)
+[![npm](https://img.shields.io/npm/v/@nomercy-entertainment/nomercy-player-core/beta?label=beta)](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-player-core)
 [![license](https://img.shields.io/npm/l/@nomercy-entertainment/nomercy-player-core)](./LICENSE)
-[![types](https://img.shields.io/npm/types/@nomercy-entertainment/nomercy-player-core)](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-player-core)
 [![bundlephobia](https://img.shields.io/bundlephobia/minzip/@nomercy-entertainment/nomercy-player-core)](https://bundlephobia.com/package/@nomercy-entertainment/nomercy-player-core)
 
-Live demo: https://nomercy.tv/player
+Full documentation: https://docs.nomercy.tv/player/
 
 # nomercy-player-core
 

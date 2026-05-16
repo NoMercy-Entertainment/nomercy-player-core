@@ -1,8 +1,8 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
-## [2.0.0] — 2026-05-16
+## [2.0.0-beta.0] — 2026-05-16
 
-Initial public release of the shared player core extracted from the monolithic v1 players.
+First public pre-release of the shared player core extracted from the monolithic v1 players.
 
 ### Added
 
