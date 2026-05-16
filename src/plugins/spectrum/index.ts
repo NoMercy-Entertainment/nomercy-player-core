@@ -35,6 +35,14 @@ export interface SpectrumEvents {
 	 * as a convenience so listeners don't have to re-slice the FFT buffer.
 	 */
 	frame: { frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } };
+
+	/**
+	 * Fired whenever `options(partial)` is called on this plugin. Payload is the
+	 * full merged options object after the update. Mirrors the base-class
+	 * `plugin:spectrum:opts:changed` player event but typed for plugin-to-plugin
+	 * listeners using `on(SpectrumPlugin, 'opts:changed', fn)`.
+	 */
+	'opts:changed': SpectrumOptions;
 }
 
 type BeatProvider = () => { beat?: boolean; bpm?: number };
@@ -113,6 +121,13 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		this._analyser = analyserNode;
 
 		this.allocateBuffers();
+
+		this.on(SpectrumPlugin, 'opts:changed', (opts) => {
+			if (opts.fftSize !== undefined)
+				this.fftSize(opts.fftSize);
+			if (opts.smoothingTimeConstant !== undefined)
+				this.smoothingTimeConstant(opts.smoothingTimeConstant);
+		});
 
 		this.frame((deltaMs, time) => this.tick(deltaMs, time));
 	}
@@ -240,6 +255,25 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 			return;
 		analyserNode.fftSize = size;
 		this.allocateBuffers();
+	}
+
+	/**
+	 * Returns the current smoothing time constant, or `undefined` before `use()`.
+	 */
+	smoothingTimeConstant(): number | undefined;
+	/**
+	 * Changes the smoothing time constant at runtime (0 = no smoothing, 1 = maximum
+	 * lag). The change takes effect on the next frame tick.
+	 */
+	smoothingTimeConstant(value: number): void;
+	smoothingTimeConstant(value?: number): number | undefined | void {
+		if (value === undefined) {
+			return this._analyser?.smoothingTimeConstant;
+		}
+		const analyserNode = this._analyser;
+		if (!analyserNode)
+			return;
+		analyserNode.smoothingTimeConstant = value;
 	}
 
 	private allocateBuffers(): void {
