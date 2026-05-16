@@ -7,4 +7,4 @@
  * exceeds it. Mirrors the kit's `package.json` version and is bumped together
  * with it on every release.
  */
-export const KIT_VERSION = '2.0.0-beta.0';
+export const KIT_VERSION = '2.0.0-beta.1';

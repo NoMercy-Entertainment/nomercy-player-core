@@ -38,7 +38,10 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare dispose: () => void;
 	declare addPlugin: (PluginClass: any) => this;
 	declare removePlugin: (PluginClass: any) => void;
-	declare t: (key: string, vars?: Record<string, string>) => string;
+	declare t: {
+		(key: string, vars?: Record<string, string>): string;
+		(PluginClass: import('../types').PluginCtorWithId, key: string, vars?: Record<string, string>): string;
+	};
 	declare language: (lang: string) => Promise<void>;
 
 	constructor(id?: string | number) {

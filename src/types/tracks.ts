@@ -86,6 +86,43 @@ export interface SubtitleTrack {
 }
 
 /**
+ * Selection object returned by `player.currentSubtitle()`. Carries both the
+ * zero-based index (usable in `currentSubtitle(idx)`) and the full track
+ * metadata so callers don't need a separate `player.subtitles()[idx]` lookup.
+ * `null` when subtitles are off.
+ */
+export interface CurrentSubtitleSelection {
+	/** Zero-based index into the `subtitles()` list. */
+	index: number;
+	/** Full subtitle track metadata at this index. */
+	track: SubtitleTrack;
+}
+
+/**
+ * Selection object returned by `player.currentAudioTrack()`. Carries both the
+ * zero-based index and the full track metadata.
+ * `null` when no explicit selection has been made.
+ */
+export interface CurrentAudioTrackSelection {
+	/** Zero-based index into the `audioTracks()` list. */
+	index: number;
+	/** Full audio track metadata at this index. */
+	track: AudioTrack;
+}
+
+/**
+ * Selection object returned by `player.currentQuality()`. Carries both the
+ * level index and the full quality-level metadata.
+ * `'auto'` when adaptive bitrate selection is active.
+ */
+export interface CurrentQualitySelection {
+	/** Zero-based index into the `qualityLevels()` list. */
+	index: number;
+	/** Full quality-level metadata at this index. */
+	track: QualityLevel;
+}
+
+/**
  * User-controlled subtitle styling. Written via `player.subtitleStyle({...})`,
  * persisted by preference plugins, and applied by overlay renderers.
  * Consumers write partial updates — any field omitted keeps its current value.

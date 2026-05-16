@@ -1,5 +1,35 @@
 # Migration Guide — v1 to v2
 
+## beta.0 → beta.1 breaking change
+
+### `currentSubtitle()`, `currentAudioTrack()`, `currentQuality()` return shape changed
+
+These three getters previously returned a bare number (or `null` / `'auto'`).
+They now return a selection object so callers don't need to index into the track
+list separately.
+
+```ts
+// beta.0
+const idx = player.currentSubtitle(); // number | null
+
+// beta.1
+const sel = player.currentSubtitle(); // CurrentSubtitleSelection | null
+const idx = sel?.index;               // number | undefined
+const track = sel?.track;             // SubtitleTrack | undefined
+```
+
+The **setter** overloads are unchanged:
+
+```ts
+player.currentSubtitle(2);    // still takes a number
+player.currentSubtitle(null); // still takes null to turn subtitles off
+```
+
+Same pattern for `currentAudioTrack()` → `CurrentAudioTrackSelection | null` and
+`currentQuality()` → `CurrentQualitySelection | 'auto'`.
+
+---
+
 Covers all three packages: `nomercy-player-core`, `nomercy-video-player` (v2), and `nomercy-music-player` (v2).
 
 This guide covers kit-level changes: subpath imports, the five-layer architecture, and the 38 named adapter ports. For consumer-facing breaking changes (renamed methods, event payload shapes, playlist item fields), see the per-package migration guides:

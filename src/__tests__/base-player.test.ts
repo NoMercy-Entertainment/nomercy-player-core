@@ -47,7 +47,10 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare baseUrl: { (): string | undefined; (url: string): void };
 	declare audioContext: () => AudioContext | undefined;
 	declare experimental: any;
-	declare t: (key: string, vars?: Record<string, string>) => string;
+	declare t: {
+		(key: string, vars?: Record<string, string>): string;
+		(PluginClass: import('../types').PluginCtorWithId, key: string, vars?: Record<string, string>): string;
+	};
 	declare language: { (): string; (lang: string): Promise<void> };
 	declare addTranslations: (bundle: any) => void;
 	declare translation: (lang: string, key: string, value: string) => void;

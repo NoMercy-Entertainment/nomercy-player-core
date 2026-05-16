@@ -27,6 +27,6 @@ export {
 	SetupState,
 	VisibilityState,
 } from './state';
-export type { AudioTrack, CanPlayResult, QualityLevel, SubtitleStyle, SubtitleTrack } from './tracks';
+export type { AudioTrack, CanPlayResult, CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection, QualityLevel, SubtitleStyle, SubtitleTrack } from './tracks';
 export type { TranslationLoader, Translations } from './translations';
 export type { ResolvedUrl, UrlCategory, UrlResolver, UrlResolverContext } from './url';

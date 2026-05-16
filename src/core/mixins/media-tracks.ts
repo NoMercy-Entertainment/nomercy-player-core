@@ -1,4 +1,4 @@
-import type { ActionOptions, AudioTrack, BasePlaylistItem, Chapter, QualityLevel, SubtitleCue as SubtitleCuePayload, SubtitleStyle, SubtitleTrack } from '../../types';
+import type { ActionOptions, AudioTrack, BasePlaylistItem, Chapter, CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection, QualityLevel, SubtitleCue as SubtitleCuePayload, SubtitleStyle, SubtitleTrack } from '../../types';
 import { CueTracker } from '../../cues/tracker';
 import { parseVttSubtitles, parseVtt } from '../../adapters/cue-parser/vtt';
 import type { VTTSubtitlePayload } from '../../adapters/cue-parser/vtt';
@@ -332,16 +332,21 @@ export const mediaTracksMethods = {
 	/**
 	 * Read or write the active subtitle track.
 	 *
-	 * `currentSubtitle()` — returns the index of the currently-selected
+	 * `currentSubtitle()` — returns `{ index, track }` for the currently-selected
 	 * subtitle track, or `null` when subtitles are off.
 	 *
 	 * `currentSubtitle(idx)` — select subtitle track at `idx`. Pass `null`
 	 * (or a negative number) to disable subtitles. Fires the `subtitle` event
 	 * with `{ track: idx | null }`.
 	 */
-	currentSubtitle(this: Internals, idx?: number | null): number | null | void {
+	currentSubtitle(this: Internals, idx?: number | null): CurrentSubtitleSelection | null | void {
 		if (idx === undefined) {
-			return this._currentSubtitleIdx;
+			const storedIdx = this._currentSubtitleIdx;
+			if (storedIdx === null) return null;
+			const trackList = mediaTracksMethods.subtitles.call(this);
+			const track = trackList[storedIdx];
+			if (!track) return null;
+			return { index: storedIdx, track };
 		}
 
 		// Tear down any in-flight sidecar tracker first; switching tracks
@@ -448,15 +453,20 @@ export const mediaTracksMethods = {
 	/**
 	 * Read or write the active audio track.
 	 *
-	 * `currentAudioTrack()` — returns the index of the currently-selected
+	 * `currentAudioTrack()` — returns `{ index, track }` for the currently-selected
 	 * audio track, or `null` when no explicit selection has been made.
 	 *
 	 * `currentAudioTrack(idx)` — select the audio track at `idx`. Fires the
 	 * `audioTrack` event with `{ id: idx }`.
 	 */
-	currentAudioTrack(this: Internals, idx?: number): number | null | void {
+	currentAudioTrack(this: Internals, idx?: number): CurrentAudioTrackSelection | null | void {
 		if (idx === undefined) {
-			return this._currentAudioTrackIdx;
+			const storedIdx = this._currentAudioTrackIdx;
+			if (storedIdx === null) return null;
+			const trackList = mediaTracksMethods.audioTracks.call(this);
+			const track = trackList[storedIdx];
+			if (!track) return null;
+			return { index: storedIdx, track };
 		}
 		this._currentAudioTrackIdx = idx;
 		const backend = this._peekBackendTyped<_BackendWithAudioTrack>();
@@ -490,15 +500,20 @@ export const mediaTracksMethods = {
 	/**
 	 * Read or write the active quality level.
 	 *
-	 * `currentQuality()` — returns the currently-selected quality index, or
-	 * `'auto'` when adaptive bitrate selection is active.
+	 * `currentQuality()` — returns `{ index, track }` for the currently-selected
+	 * quality level, or `'auto'` when adaptive bitrate selection is active.
 	 *
 	 * `currentQuality(idx)` — lock to a specific quality level. Pass
 	 * `'auto'` to restore adaptive selection.
 	 */
-	currentQuality(this: Internals, idx?: number | 'auto'): number | 'auto' | void {
+	currentQuality(this: Internals, idx?: number | 'auto'): CurrentQualitySelection | 'auto' | void {
 		if (idx === undefined) {
-			return this._currentQualityIdx;
+			const storedIdx = this._currentQualityIdx;
+			if (storedIdx === 'auto') return 'auto';
+			const levelList = mediaTracksMethods.qualityLevels.call(this);
+			const track = levelList[storedIdx];
+			if (!track) return 'auto';
+			return { index: storedIdx, track };
 		}
 		this._currentQualityIdx = idx;
 		const backend = this._peekBackendTyped<_BackendWithSetQualityLevel>();

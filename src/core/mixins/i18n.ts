@@ -1,4 +1,4 @@
-import type { Translations } from '../../types';
+import type { PluginCtorWithId, Translations } from '../../types';
 import { bcp47FallbackChain, DefaultTranslator } from '../../adapters/translator/translator';
 import type { ITranslator } from '../../adapters/translator/translator';
 import { getLazyTranslationLoader } from '../../adapters/translator/loaders/translations-glob';
@@ -39,12 +39,28 @@ function _getLoadTranslations(instance: unknown): _LoadTranslationsFn | undefine
 
 export const i18nMethods = {
 	/**
-	 * Translate a key using the active language. Variables in the key template
-	 * are interpolated from `vars` when provided. Returns the key itself when
-	 * no translation is registered for it.
+	 * Translate a key using the active language.
+	 *
+	 * `t(key, vars?)` — bare-key form. `key` is looked up verbatim; `{var}`
+	 * placeholders in the template are replaced from `vars` when provided.
+	 * Returns `key` itself when no translation is registered for it.
+	 *
+	 * `t(PluginClass, key, vars?)` — class-typed form. Prepends `plugin.<id>.`
+	 * to `key` automatically so plugins never hand-roll the namespace prefix.
+	 * `PluginClass.id` is the canonical id read from the static field.
+	 *
+	 * Both forms delegate to `_ensureTranslator(this).t(...)` and share the
+	 * same fallback behaviour (return the fully-qualified key on miss).
 	 */
-	t(this: Internals, key: string, vars?: Record<string, string>): string {
-		return _ensureTranslator(this).t(key, vars);
+	t(this: Internals, keyOrClass: string | PluginCtorWithId, keyOrVars?: string | Record<string, string>, vars?: Record<string, string>): string {
+		if (typeof keyOrClass === 'string') {
+			return _ensureTranslator(this).t(keyOrClass, keyOrVars as Record<string, string> | undefined);
+		}
+
+		const pluginId = keyOrClass.id;
+		const key = keyOrVars as string;
+		const namespacedKey = `plugin.${pluginId}.${key}`;
+		return _ensureTranslator(this).t(namespacedKey, vars);
 	},
 
 	/**

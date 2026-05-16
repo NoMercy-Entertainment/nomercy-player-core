@@ -296,6 +296,25 @@ function browserVisibilityMonitor(): IVisibilityMonitor {
 	};
 }
 
+/**
+ * Standard codec MIME type strings swept by `supportedCodecs()`. Covers the
+ * full matrix a modern browser is expected to support across H.264, H.265,
+ * VP8, VP9, AV1 (video) and AAC, Opus, Vorbis, FLAC (audio).
+ */
+const _CODEC_PROBE_SET: readonly string[] = [
+	'video/mp4; codecs="avc1.42E01E"',
+	'video/mp4; codecs="avc1.4D401F"',
+	'video/mp4; codecs="avc1.640028"',
+	'video/mp4; codecs="hev1.1.6.L93.90"',
+	'video/webm; codecs="vp8"',
+	'video/webm; codecs="vp9"',
+	'video/webm; codecs="av01.0.05M.08"',
+	'audio/mp4; codecs="mp4a.40.2"',
+	'audio/webm; codecs="opus"',
+	'audio/webm; codecs="vorbis"',
+	'audio/flac',
+];
+
 function browserCapabilitiesProbe(): ICapabilitiesProbe {
 	return {
 		async canDecode(profile) {
@@ -335,6 +354,13 @@ function browserCapabilitiesProbe(): ICapabilitiesProbe {
 					powerEfficient: false,
 				};
 			}
+		},
+
+		supportedCodecs(): readonly string[] {
+			if (typeof MediaSource === 'undefined' || typeof MediaSource.isTypeSupported !== 'function') {
+				return [];
+			}
+			return _CODEC_PROBE_SET.filter(mimeType => MediaSource.isTypeSupported(mimeType));
 		},
 	};
 }

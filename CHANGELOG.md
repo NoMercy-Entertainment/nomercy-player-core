@@ -1,5 +1,31 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-beta.1] — 2026-05-16
+
+### Breaking
+
+- `currentSubtitle()`, `currentAudioTrack()`, and `currentQuality()` no longer
+  return a bare index number. The getter forms now return `CurrentSubtitleSelection |
+  null`, `CurrentAudioTrackSelection | null`, and `CurrentQualitySelection | 'auto'`
+  respectively. Read `.index` for the number and `.track` for the full metadata.
+  Setter overloads (`currentSubtitle(idx)` etc.) are unchanged.
+
+### Added
+
+- `player.t(PluginClass, key, vars?)` — class-typed overload. Prepends
+  `plugin.<id>.` automatically so plugin code never hand-rolls the namespace.
+- `CurrentSubtitleSelection`, `CurrentAudioTrackSelection`, `CurrentQualitySelection`
+  interfaces exported from the main entry.
+- `ICapabilitiesProbe.supportedCodecs()` implemented in `browserPlatform` via a
+  `MediaSource.isTypeSupported` sweep (H.264 baseline/main/high, H.265, VP8, VP9,
+  AV1, AAC, Opus, Vorbis, FLAC).
+
+### Fixed
+
+- `KIT_VERSION` bumped to `2.0.0-beta.1` to reflect the breaking change above.
+
+---
+
 ## [2.0.0-beta.0] — 2026-05-16
 
 First public pre-release of the shared player core extracted from the monolithic v1 players.
