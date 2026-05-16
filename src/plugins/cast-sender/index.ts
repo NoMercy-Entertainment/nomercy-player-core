@@ -1,7 +1,9 @@
 import type { BasePlaylistItem, IPlayer, Translations } from '../../types';
 import { BrowserPolicyError } from '../../errors';
 import { Plugin } from '../../plugin';
-import { translationsFromGlob } from '../../adapters/translator/loaders/translations-glob';
+
+import enBundle from './i18n/en';
+import nlBundle from './i18n/nl';
 
 /**
  * Cast sender — Chromecast Web Sender SDK bridge for player ↔ receiver.
@@ -165,14 +167,10 @@ export class CastSenderPlugin<
 	static override readonly id: string = 'cast-sender';
 	static override readonly version: string = '2.0.0';
 	static override readonly description: string = 'Chromecast sender — Web Sender SDK bridge';
-	/**
-	 * Auto-discovered translations. Drop a new `i18n/<tag>.ts` next to this
-	 * file (default-exporting a flat key→string map) and the build picks it
-	 * up — no manual registration. Each plugin in the chain ships ONLY its
-	 * own keys; the kit's plugin registration walks the prototype chain so
-	 * subclass bundles never shadow the parent.
-	 */
-	static override readonly translations: Translations = translationsFromGlob('./i18n/*.ts');
+	static override readonly translations: Translations = {
+		en: enBundle,
+		nl: nlBundle,
+	};
 
 	private connected: boolean = false;
 	private remotePlayer: RemotePlayerLike | null = null;
