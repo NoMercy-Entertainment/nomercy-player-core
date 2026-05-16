@@ -73,6 +73,7 @@ export {
 	makeCode,
 	MediaFormatError,
 	NetworkError,
+	NotImplementedError,
 	parseCode,
 	PlayerError,
 	PluginError,

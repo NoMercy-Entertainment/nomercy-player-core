@@ -591,21 +591,78 @@ export class Plugin<
 	}
 
 	private surfaceError(error: PlayerError): void {
-		// Emit on the matching severity channel so generic error pipelines catch it
-		this.player.emit(error.severity, {
+		const payload = {
 			error,
 			severity: error.severity,
 			scope: error.scope,
 			timestamp: Date.now(),
-		});
-		// Also emit on the plugin-scoped channel for consumers wiring to plugin lifecycle specifically
+		};
+
+		// Emit on the matching severity channel so generic error pipelines catch it.
+		this.player.emit(error.severity, payload);
+
+		// Also emit on the plugin-scoped channel for consumers wiring to plugin lifecycle.
 		if (error.severity === 'warning' || error.severity === 'error') {
-			this.player.emit(`plugin:${error.severity}`, {
-				error,
-				severity: error.severity,
-				scope: error.scope,
-				timestamp: Date.now(),
-			});
+			this.player.emit(`plugin:${error.severity}`, payload);
+		}
+
+		// Apply the static onError recovery action for this error code.
+		const ctor = this.constructor as typeof Plugin;
+		const action: PluginRecoveryAction | undefined = ctor.onError?.[error.code];
+		if (action) {
+			this._applyRecoveryAction(action, error);
+		}
+	}
+
+	/**
+	 * Execute a recovery action declared in `static onError`. Called immediately
+	 * after `surfaceError` when the error code has a mapped entry.
+	 *
+	 *  - `'ignore'`     — no-op; the error is already surfaced above.
+	 *  - `'disable'`    — calls `this.disable(reason)` so the plugin stops reacting.
+	 *  - `'retry-once'` — calls `this.retryLastOperation()` when present, otherwise
+	 *                     logs that no retry hook is wired.
+	 *  - `'fallback'`   — calls `this.activateFallback()` when present, otherwise
+	 *                     logs that no fallback hook is wired.
+	 *
+	 * Plugin authors override `retryLastOperation()` / `activateFallback()` to
+	 * implement the actual recovery logic. The kit wires the `onError` map;
+	 * plugins wire the bodies.
+	 */
+	private _applyRecoveryAction(action: PluginRecoveryAction, error: PlayerError): void {
+		const id = (this.constructor as typeof Plugin).id;
+
+		switch (action) {
+			case 'ignore':
+				break;
+
+			case 'disable':
+				this.disable(`onError:${error.code}`);
+				break;
+
+			case 'retry-once': {
+				const selfWithRetry = this as unknown as { retryLastOperation?: () => void };
+				if (typeof selfWithRetry.retryLastOperation === 'function') {
+					try { selfWithRetry.retryLastOperation(); }
+					catch (retryErr) { this.logger.warn(`[${id}] retryLastOperation threw:`, retryErr); }
+				}
+				else {
+					this.logger.warn(`[${id}] onError 'retry-once' declared but retryLastOperation() not implemented`);
+				}
+				break;
+			}
+
+			case 'fallback': {
+				const selfWithFallback = this as unknown as { activateFallback?: () => void };
+				if (typeof selfWithFallback.activateFallback === 'function') {
+					try { selfWithFallback.activateFallback(); }
+					catch (fallbackErr) { this.logger.warn(`[${id}] activateFallback threw:`, fallbackErr); }
+				}
+				else {
+					this.logger.warn(`[${id}] onError 'fallback' declared but activateFallback() not implemented`);
+				}
+				break;
+			}
 		}
 	}
 

@@ -994,4 +994,120 @@ describe('Plugin base class', () => {
 			expect(JSON.parse(JSON.stringify(out))).toEqual({ value: 10, mode: 'exported' });
 		});
 	});
+
+	describe('static onError recovery map', () => {
+		it("'disable' action calls this.disable() with reason including the error code", () => {
+			class DisableOnErrorPlugin extends Plugin<StubPlayer, Options> {
+				static override readonly id: string = 'disable-on-error';
+				static override readonly version: string = '1.0.0';
+				static override readonly description: string = 'Test plugin';
+				static override readonly onError = {
+					'disable-on-error:load/failed': 'disable',
+				} as const;
+				override use(): void {}
+				publicReport(payload: any): void { this.report(payload); }
+			}
+
+			const inst = new DisableOnErrorPlugin();
+			inst.initialize(player, { value: 1 }, new LifecycleRegistry());
+			expect(inst.enabled()).toBe(true);
+
+			inst.publicReport({ code: 'disable-on-error:load/failed', severity: 'error' });
+
+			expect(inst.enabled()).toBe(false);
+		});
+
+		it("'ignore' action does nothing beyond emitting the error event", () => {
+			class IgnoreOnErrorPlugin extends Plugin<StubPlayer, Options> {
+				static override readonly id: string = 'ignore-on-error';
+				static override readonly version: string = '1.0.0';
+				static override readonly description: string = 'Test plugin';
+				static override readonly onError = {
+					'ignore-on-error:load/failed': 'ignore',
+				} as const;
+				override use(): void {}
+				publicReport(payload: any): void { this.report(payload); }
+			}
+
+			const inst = new IgnoreOnErrorPlugin();
+			inst.initialize(player, { value: 1 }, new LifecycleRegistry());
+			const errors: unknown[] = [];
+			player.on('error', (e) => errors.push(e));
+
+			inst.publicReport({ code: 'ignore-on-error:load/failed', severity: 'error' });
+
+			expect(inst.enabled()).toBe(true);
+			expect(errors).toHaveLength(1);
+		});
+
+		it("'retry-once' calls retryLastOperation() if defined", () => {
+			const retryCalled: string[] = [];
+
+			class RetryOnErrorPlugin extends Plugin<StubPlayer, Options> {
+				static override readonly id: string = 'retry-on-error';
+				static override readonly version: string = '1.0.0';
+				static override readonly description: string = 'Test plugin';
+				static override readonly onError = {
+					'retry-on-error:load/failed': 'retry-once',
+				} as const;
+				override use(): void {}
+				retryLastOperation(): void {
+					retryCalled.push('retry');
+				}
+				publicReport(payload: any): void { this.report(payload); }
+			}
+
+			const inst = new RetryOnErrorPlugin();
+			inst.initialize(player, { value: 1 }, new LifecycleRegistry());
+
+			inst.publicReport({ code: 'retry-on-error:load/failed', severity: 'error' });
+
+			expect(retryCalled).toEqual(['retry']);
+		});
+
+		it("'fallback' calls activateFallback() if defined", () => {
+			const fallbackCalled: string[] = [];
+
+			class FallbackOnErrorPlugin extends Plugin<StubPlayer, Options> {
+				static override readonly id: string = 'fallback-on-error';
+				static override readonly version: string = '1.0.0';
+				static override readonly description: string = 'Test plugin';
+				static override readonly onError = {
+					'fallback-on-error:load/failed': 'fallback',
+				} as const;
+				override use(): void {}
+				activateFallback(): void {
+					fallbackCalled.push('fallback');
+				}
+				publicReport(payload: any): void { this.report(payload); }
+			}
+
+			const inst = new FallbackOnErrorPlugin();
+			inst.initialize(player, { value: 1 }, new LifecycleRegistry());
+
+			inst.publicReport({ code: 'fallback-on-error:load/failed', severity: 'error' });
+
+			expect(fallbackCalled).toEqual(['fallback']);
+		});
+
+		it('does nothing when error code has no entry in onError', () => {
+			class NoMatchPlugin extends Plugin<StubPlayer, Options> {
+				static override readonly id: string = 'no-match';
+				static override readonly version: string = '1.0.0';
+				static override readonly description: string = 'Test plugin';
+				static override readonly onError = {
+					'no-match:other/code': 'disable',
+				} as const;
+				override use(): void {}
+				publicReport(payload: any): void { this.report(payload); }
+			}
+
+			const inst = new NoMatchPlugin();
+			inst.initialize(player, { value: 1 }, new LifecycleRegistry());
+
+			inst.publicReport({ code: 'no-match:load/failed', severity: 'error' });
+
+			expect(inst.enabled()).toBe(true);
+		});
+	});
 });

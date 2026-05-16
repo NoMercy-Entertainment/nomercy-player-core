@@ -9,9 +9,59 @@ import { nativeFactory } from '../../adapters/stream/native';
 import { StreamRegistry } from '../../adapters/stream/registry';
 import { browserPlatform } from '../../adapters/platform/browser';
 import { DefaultTranslator } from '../../adapters/translator/translator';
+import { authFetch } from '../auth-fetch';
 
 import { makePlayerErrorEvent, stateError, StateError } from '../../errors';
 import type { Internals } from '../state';
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// Playlist URL resolver
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch a playlist URL, parse the JSON response as an array of items, hand
+ * off to the queue, and emit `playlistReady`. On any failure (network error,
+ * non-array body, JSON parse error) emits `playlistError` with structured info
+ * and `playlistReady` with `length: 0` so the player still reaches the ready
+ * phase. Never throws — all error paths are handled internally.
+ */
+async function _resolvePlaylistUrl(self: Internals, url: string): Promise<void> {
+	self.emit('playlistResolving', { url });
+
+	try {
+		const ctrl = new AbortController();
+		const items = await authFetch<BasePlaylistItem[]>({
+			url,
+			auth: self._authConfig,
+			signal: ctrl.signal,
+			responseType: 'json',
+		});
+
+		if (!Array.isArray(items)) {
+			self.emit('playlistError', {
+				url,
+				error: new Error('Playlist response is not a JSON array'),
+				code: 'core:playlist/parse-error',
+			});
+			self.emit('playlistReady', { length: 0 });
+			return;
+		}
+
+		// Hand off to the queue mixin — reuses the same validation + event path
+		// as a consumer calling `player.queue(items)`.
+		(self as unknown as { queue: (items: BasePlaylistItem[]) => void }).queue(items);
+		self.emit('playlistReady', { length: items.length });
+	}
+	catch (error) {
+		self.emit('playlistError', {
+			url,
+			error: error instanceof Error ? error : new Error(String(error)),
+			code: 'core:playlist/fetch-error',
+		});
+		self.emit('playlistReady', { length: 0 });
+	}
+}
 
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -669,12 +719,9 @@ function _runSetupPipeline(self: Internals): void {
 
 			// Playlist fires `playlistReady` with `length: 0` even when no
 			// playlist is configured, so consumers can rely on the event.
-			// String form (a playlist URL) is reserved for future fetch+parse;
-			// today any non-array also lands on length 0.
 			const playlist = self.options.playlist;
 			if (typeof playlist === 'string') {
-				self.emit('playlistResolving', { url: playlist });
-				self.emit('playlistReady', { length: 0 });
+				await _resolvePlaylistUrl(self, playlist);
 			}
 			else if (Array.isArray(playlist)) {
 				self.emit('playlistReady', { length: playlist.length });

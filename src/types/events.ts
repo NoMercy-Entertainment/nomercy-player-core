@@ -59,6 +59,7 @@ export interface BaseEventMap {
 	'authReady': void;
 	'playlistResolving': { url: string };
 	'playlistReady': { length: number };
+	'playlistError': { url: string; error: Error; code: string };
 	'mediaReady': void;
 	'ready': void;
 

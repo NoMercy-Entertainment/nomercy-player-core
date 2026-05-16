@@ -605,12 +605,12 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._bandwidthEstimate = 0;
 	target._bandwidthEstimator = undefined;
 	target._metrics = {
-		ttfb: 0,
+		ttfb: null,
 		ttff: 0,
 		rebufferRatio: 0,
-		avgBitrate: 0,
-		droppedFrames: 0,
-		decoderStalls: 0,
+		avgBitrate: null,
+		droppedFrames: null,
+		decoderStalls: null,
 		joinTime: 0,
 		sessionDurationMs: 0,
 	};

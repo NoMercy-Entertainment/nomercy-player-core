@@ -11,7 +11,7 @@
  */
 
 import type { BaseEventMap } from '../types';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	composeMixins,
 	EventEmitter,
@@ -98,14 +98,99 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		document.body.appendChild(div);
 		const p = new MockPlayer('pl-url');
 
+		// Mock fetch so the playlist URL resolves to a valid array.
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+			new Response(JSON.stringify([{ id: '1', url: 'https://cdn.test/a.mp4' }]), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			}),
+		);
+
 		const order: string[] = [];
 		p.on('playlistResolving' as any, (data: any) => order.push(`resolving:${data.url}`));
 		p.on('playlistReady' as any, () => order.push('ready'));
 
-		p.setup({ playlist: 'https://example.test/list.m3u' } as any);
+		p.setup({ playlist: 'https://example.test/list.json' } as any);
 		await p.ready();
 
-		expect(order).toEqual(['resolving:https://example.test/list.m3u', 'ready']);
+		expect(order).toEqual(['resolving:https://example.test/list.json', 'ready']);
+
+		fetchSpy.mockRestore();
+	});
+
+	it('fetches + parses playlist URL and hands off to queue; emits playlistReady with correct length', async () => {
+		const div = document.createElement('div');
+		div.id = 'pl-url-queue';
+		document.body.appendChild(div);
+		const p = new MockPlayer('pl-url-queue');
+
+		const items = [
+			{ id: '1', url: 'https://cdn.test/a.mp4' },
+			{ id: '2', url: 'https://cdn.test/b.mp4' },
+		];
+		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+			new Response(JSON.stringify(items), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			}),
+		);
+
+		let readyLength: number | undefined;
+		p.on('playlistReady' as any, (data: any) => { readyLength = data.length; });
+
+		p.setup({ playlist: 'https://example.test/list.json' } as any);
+		await p.ready();
+
+		expect(readyLength).toBe(2);
+		expect((p as any).queue()).toHaveLength(2);
+
+		vi.restoreAllMocks();
+	});
+
+	it('emits playlistError and playlistReady with length 0 when fetch fails', async () => {
+		const div = document.createElement('div');
+		div.id = 'pl-url-err';
+		document.body.appendChild(div);
+		const p = new MockPlayer('pl-url-err');
+
+		vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('network failure'));
+
+		let errFired: unknown;
+		let readyLength: number | undefined;
+		p.on('playlistError' as any, (data: any) => { errFired = data; });
+		p.on('playlistReady' as any, (data: any) => { readyLength = data.length; });
+
+		p.setup({ playlist: 'https://example.test/list.json' } as any);
+		await p.ready();
+
+		expect(errFired).toBeDefined();
+		expect(readyLength).toBe(0);
+
+		vi.restoreAllMocks();
+	});
+
+	it('emits playlistError when response body is not a JSON array', async () => {
+		const div = document.createElement('div');
+		div.id = 'pl-url-bad';
+		document.body.appendChild(div);
+		const p = new MockPlayer('pl-url-bad');
+
+		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+			new Response(JSON.stringify({ not: 'an-array' }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			}),
+		);
+
+		let errFired: unknown;
+		p.on('playlistError' as any, (data: any) => { errFired = data; });
+
+		p.setup({ playlist: 'https://example.test/list.json' } as any);
+		await p.ready();
+
+		expect(errFired).toBeDefined();
+
+		vi.restoreAllMocks();
 	});
 
 	it('emits playlistReady { length: 0 } when no playlist is configured', async () => {
