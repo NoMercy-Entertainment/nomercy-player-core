@@ -63,6 +63,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	private _phase: PlayerPhase = 'idle';
 	private _dispatchStack: string[] = [];
 	private _baseUrl: string | undefined;
+	private _imageBasePath: string | undefined;
 	private _audioContext: AudioContext | undefined;
 	private _language: string = 'en';
 	private _translations: Translations = { en: {} };
@@ -135,15 +136,36 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	private _urlResolver: UrlResolver | undefined;
 
+	imageBasePath(): string | undefined;
+	imageBasePath(path: string): void;
+	imageBasePath(path?: string): string | undefined | void {
+		if (path === undefined)
+			return this._imageBasePath;
+		this._imageBasePath = path;
+	}
+
 	async resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl> {
-		const defaultResolve = async (raw: string) => buildResolvedUrl(raw, raw, this._baseUrl);
+		const resolvedCategory = category ?? 'media';
+		const isArtworkCategory = resolvedCategory === 'poster' || resolvedCategory === 'cast';
+
+		const defaultResolve = async (raw: string): Promise<ResolvedUrl> => {
+			if (isArtworkCategory && this._imageBasePath) {
+				const isAbsolute = /^[a-z][a-z\d+\-.]*:/iu.test(raw);
+				if (!isAbsolute)
+					return buildResolvedUrl(raw, this._imageBasePath + raw);
+			}
+			return buildResolvedUrl(raw, raw, this._baseUrl);
+		};
+
 		const resolver = this._urlResolver;
 		if (!resolver)
 			return defaultResolve(url);
+
+		const ctxBaseUrl = (isArtworkCategory && this._imageBasePath) ? this._imageBasePath : this._baseUrl;
 		const ctx: UrlResolverContext = {
 			auth: undefined,
-			baseUrl: this._baseUrl,
-			category: category ?? 'media',
+			baseUrl: ctxBaseUrl,
+			category: resolvedCategory,
 			defaultResolve,
 		};
 		const out = await resolver(url, ctx);
@@ -407,6 +429,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		this._phase = 'idle';
 		this._dispatchStack.length = 0;
 		this._baseUrl = undefined;
+		this._imageBasePath = undefined;
 		this._audioContext = undefined;
 		this._language = 'en';
 		this._translations = { en: {} };
