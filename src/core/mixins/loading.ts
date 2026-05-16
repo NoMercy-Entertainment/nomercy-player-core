@@ -87,8 +87,10 @@ export const loadingMethods = {
 
 		// Skip the loading phase flash when the player has never shown content
 		// (idle/setup). setup() ends with _transitionPhase('ready'), giving a
-		// clean settled state once backend.load() completes.
-		if (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused' || priorPhase === 'starting') {
+		// clean settled state once backend.load() completes. `'ended'` is
+		// included so auto-advance loads (which fire while the player is in
+		// `ended` phase) properly transition through `loading` → `ready`.
+		if (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused' || priorPhase === 'starting' || priorPhase === 'ended') {
 			this._transitionPhase('loading');
 		}
 
@@ -106,7 +108,9 @@ export const loadingMethods = {
 			if (!backend || typeof backend.load !== 'function') {
 				throw stateError('core:player/backend-missing', 'No backend wired — backend() returned null/undefined.');
 			}
+			performance.mark('nm:kit:backend.load:start');
 			await backend.load(url);
+			performance.mark('nm:kit:backend.load:end');
 			if (!isLatest()) return;
 
 			// Move cursor to the loaded item so consumer-facing `current()` reflects it.
@@ -146,7 +150,7 @@ export const loadingMethods = {
 			this.emit('mediaReady');
 		}
 		catch (err) {
-			if (this._phase === 'loading' && (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused')) {
+			if (this._phase === 'loading' && (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused' || priorPhase === 'ended')) {
 				this._transitionPhase(priorPhase);
 			}
 			throw err;
