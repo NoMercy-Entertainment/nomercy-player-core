@@ -211,22 +211,31 @@ export const queueMethods = {
 
 		this._queueList.setCurrent(target);
 
-		const readyToLoad = this._phase === 'ready'
-			|| this._phase === 'playing'
-			|| this._phase === 'paused'
-			|| this._phase === 'ended'
-			|| this._phase === 'stopped';
-		if (!readyToLoad) return;
+		if (this._phase === 'idle' || this._phase === 'disposed' || this._phase === 'disposing') return;
 
 		const item = this._queueList.current();
 		if (!item) return;
 
-		void this.load(item as BasePlaylistItem & { url?: string }, { source: opts?.source }).then(() => {
+		const doLoad = (): void => {
 			if (this._currentEpoch !== navigationEpoch) return;
-			if (opts?.autoplay) {
-				void this.play({ source: opts.source });
-			}
-		}).catch(() => { /* load errors surface via the 'error' event; suppress unhandled rejection */ });
+
+			const currentItem = this._queueList.current();
+			if (!currentItem) return;
+
+			void this.load(currentItem as BasePlaylistItem & { url?: string }, { source: opts?.source }).then(() => {
+				if (this._currentEpoch !== navigationEpoch) return;
+				if (opts?.autoplay) {
+					void this.play({ source: opts.source });
+				}
+			}).catch(() => { /* load errors surface via the 'error' event; suppress unhandled rejection */ });
+		};
+
+		if (this._phase === 'setup') {
+			void this.ready().then(doLoad).catch(() => { /* setup failed — nothing to load */ });
+		}
+		else {
+			doLoad();
+		}
 	},
 
 	/**

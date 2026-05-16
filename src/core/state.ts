@@ -537,6 +537,9 @@ export interface MixinSurface {
 	listenersOf?(event: string): ReadonlyArray<(data: unknown) => void>;
 	pushDispatch?(name: string): void;
 	popDispatch?(): string | undefined;
+
+	// lifecycleMethods (see mixins/lifecycle.ts) — setup completion promise
+	ready(): Promise<void>;
 }
 
 /**
