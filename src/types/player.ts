@@ -1,5 +1,6 @@
 import type { CueParser } from '../adapters/cue-parser/ICueParser';
 import type { AddClasses, CreateElement } from '../core/mixins/dom-mixin';
+import type { DispatchTarget } from '../core/dispatch';
 
 import type { AuthConfig } from './config';
 import type { PlayerExperimental } from './experimental';
@@ -160,7 +161,9 @@ export type PlayerConstructorId = string | number;
  * `BaseEventMap` while still satisfying this constraint; most consumers can
  * leave it at its default.
  */
-export interface IPlayer<E extends import('./events').BaseEventMap = import('./events').BaseEventMap> {
+export interface IPlayer<E extends import('./events').BaseEventMap = import('./events').BaseEventMap>
+	extends DispatchTarget {
+
 	/** Stable identifier set at construction. Reads back the id passed to the factory. */
 	readonly playerId: string;
 
