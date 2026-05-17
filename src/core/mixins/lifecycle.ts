@@ -724,6 +724,12 @@ function _runSetupPipeline(self: Internals): void {
 				await _resolvePlaylistUrl(self, playlist);
 			}
 			else if (Array.isArray(playlist)) {
+				// Seed the queue so the cursor is ready for `current()` /
+				// `play()` calls that land in `ready` event handlers.
+				// `_resolvePlaylistUrl` already does this for URL playlists;
+				// inline arrays were previously missing this step, leaving the
+				// queue empty when the consumer reached the `ready` phase.
+				(self as unknown as { queue: (items: BasePlaylistItem[]) => void }).queue(playlist);
 				self.emit('playlistReady', { length: playlist.length });
 			}
 			else {
