@@ -50,7 +50,7 @@ async function _resolvePlaylistUrl(self: Internals, url: string): Promise<void> 
 
 		// Hand off to the queue mixin — reuses the same validation + event path
 		// as a consumer calling `player.queue(items)`.
-		(self as unknown as { queue: (items: BasePlaylistItem[]) => void }).queue(items);
+		self.queue(items);
 		self.emit('playlistReady', { length: items.length });
 	}
 	catch (error) {
@@ -724,12 +724,16 @@ function _runSetupPipeline(self: Internals): void {
 				await _resolvePlaylistUrl(self, playlist);
 			}
 			else if (Array.isArray(playlist)) {
-				// Seed the queue so the cursor is ready for `current()` /
-				// `play()` calls that land in `ready` event handlers.
-				// `_resolvePlaylistUrl` already does this for URL playlists;
-				// inline arrays were previously missing this step, leaving the
-				// queue empty when the consumer reached the `ready` phase.
-				(self as unknown as { queue: (items: BasePlaylistItem[]) => void }).queue(playlist);
+				// Only seed the queue from the config array when the consumer
+				// has not already populated it (e.g. by calling queue() between
+				// setup() and ready()). If the consumer pre-seeded the queue
+				// with resolved URLs, clobbering their work here would replace
+				// those with the raw config items — which may lack a resolved
+				// `url` field — causing load() to throw 'missing-url'.
+				const alreadySeeded = (self.queue() as ReadonlyArray<BasePlaylistItem>).length > 0;
+				if (!alreadySeeded) {
+					self.queue(playlist);
+				}
 				self.emit('playlistReady', { length: playlist.length });
 			}
 			else {
