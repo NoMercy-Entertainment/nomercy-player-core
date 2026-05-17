@@ -5,6 +5,9 @@ import type {
 	AuthConfig,
 	BaseEventMap,
 	Chapter,
+	CurrentAudioTrackSelection,
+	CurrentQualitySelection,
+	CurrentSubtitleSelection,
 	IPlayer,
 	PlayerExperimental,
 	PlayerPhase,
@@ -251,24 +254,24 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	private _currentAudioTrackIdx: number | null = null;
 	private _currentQualityIdx: number | 'auto' = 'auto';
 
-	currentSubtitle(): number | null;
+	currentSubtitle(): CurrentSubtitleSelection | null;
 	currentSubtitle(idx: number | null): void;
-	currentSubtitle(idx?: number | null): number | null | void {
-		if (idx === undefined) return this._currentSubtitleIdx;
+	currentSubtitle(idx?: number | null): CurrentSubtitleSelection | null | void {
+		if (idx === undefined) return null;
 		this._currentSubtitleIdx = idx;
 	}
 
-	currentAudioTrack(): number | null;
+	currentAudioTrack(): CurrentAudioTrackSelection | null;
 	currentAudioTrack(idx: number): void;
-	currentAudioTrack(idx?: number): number | null | void {
-		if (idx === undefined) return this._currentAudioTrackIdx;
+	currentAudioTrack(idx?: number): CurrentAudioTrackSelection | null | void {
+		if (idx === undefined) return null;
 		this._currentAudioTrackIdx = idx;
 	}
 
-	currentQuality(): number | 'auto';
+	currentQuality(): CurrentQualitySelection | 'auto';
 	currentQuality(idx: number | 'auto'): void;
-	currentQuality(idx?: number | 'auto'): number | 'auto' | void {
-		if (idx === undefined) return this._currentQualityIdx;
+	currentQuality(idx?: number | 'auto'): CurrentQualitySelection | 'auto' | void {
+		if (idx === undefined) return 'auto';
 		this._currentQualityIdx = idx;
 	}
 

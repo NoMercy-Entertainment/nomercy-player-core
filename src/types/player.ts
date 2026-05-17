@@ -7,6 +7,7 @@ import type { PluginCtorWithId } from './plugin';
 import type { BasePlaylistItem } from './playlist';
 import type { AudioTrackState, BufferState, NetworkState, QualityState, VisibilityState } from './state';
 import type { Chapter } from './chapter';
+import type { CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection } from './tracks';
 import type { Translations } from './translations';
 import type { ResolvedUrl, UrlCategory, UrlResolver } from './url';
 
@@ -323,28 +324,28 @@ export interface IPlayer<E extends import('./events').BaseEventMap = import('./e
 	/**
 	 * Read or write the active subtitle track.
 	 *
-	 * `currentSubtitle()` — index of the selected track, or `null` when off.
+	 * `currentSubtitle()` — `{ index, track }` of the selected track, or `null` when off.
 	 * `currentSubtitle(idx)` — select track; pass `null` to disable. Fires `subtitle`.
 	 */
-	currentSubtitle(): number | null;
+	currentSubtitle(): CurrentSubtitleSelection | null;
 	currentSubtitle(idx: number | null): void;
 
 	/**
 	 * Read or write the active audio track.
 	 *
-	 * `currentAudioTrack()` — index of the selected track, or `null` when unset.
+	 * `currentAudioTrack()` — `{ index, track }` of the selected track, or `null` when unset.
 	 * `currentAudioTrack(idx)` — select track. Fires `audioTrack`.
 	 */
-	currentAudioTrack(): number | null;
+	currentAudioTrack(): CurrentAudioTrackSelection | null;
 	currentAudioTrack(idx: number): void;
 
 	/**
 	 * Read or write the active quality level.
 	 *
-	 * `currentQuality()` — selected quality index, or `'auto'` for ABR.
+	 * `currentQuality()` — `{ index, level }` of selected quality, or `'auto'` for ABR.
 	 * `currentQuality(idx)` — lock to a level or pass `'auto'` to restore ABR.
 	 */
-	currentQuality(): number | 'auto';
+	currentQuality(): CurrentQualitySelection | 'auto';
 	currentQuality(idx: number | 'auto'): void;
 
 	/**
