@@ -171,9 +171,13 @@ export const transportMethods = {
 	/**
 	 * Advance to the next queue item and start playback. Dispatches
 	 * `beforeNext`; preventable via `preventDefault()` (emits `nextPrevented`).
-	 * When there is no next item, emits `queue:exhausted` and returns without
-	 * loading anything. Otherwise emits `next`, then `load()`s the item and
-	 * fire-and-forgets a `play()`.
+	 *
+	 * Repeat mode (set via `repeatState()`) is honoured here:
+	 *  - `'one'`  — reload the current item instead of advancing. The queue
+	 *               cursor does not move.
+	 *  - `'all'`  — when already at the last item, wrap to the first item
+	 *               instead of emitting `queue:exhausted`.
+	 *  - `'off'`  — emit `queue:exhausted` when there is no next item (default).
 	 */
 	async next(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
@@ -186,8 +190,37 @@ export const transportMethods = {
 			return;
 		}
 
+		const repeatMode = this._repeatState;
+
+		if (repeatMode === 'one') {
+			const currentItem = this._queueList.current();
+			if (!currentItem) {
+				this.emit('queue:exhausted');
+				return;
+			}
+			this.emit('next', result.data);
+			await this.load(currentItem, { source: result.data?.source });
+			void this.play({ source: result.data?.source });
+			return;
+		}
+
 		const nextItem = this._queueList.peekNext();
+
 		if (!nextItem) {
+			if (repeatMode === 'all') {
+				const allItems = this._queueList.get();
+				const firstItem = allItems[0];
+				if (!firstItem) {
+					this.emit('queue:exhausted');
+					return;
+				}
+				this.emit('next', result.data);
+				this._queueList.setCurrent(0);
+				await this.load(firstItem, { source: result.data?.source });
+				void this.play({ source: result.data?.source });
+				return;
+			}
+
 			this.emit('queue:exhausted');
 			return;
 		}

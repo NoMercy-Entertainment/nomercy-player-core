@@ -76,9 +76,12 @@ export interface AuthConfig {
 }
 
 /**
- * DRM configuration shorthand. When present on `BasePlayerConfig.drm`, the
- * kit auto-installs the DRM plugin and uses these values without requiring an
- * explicit `use(DrmPlugin, config)` call.
+ * DRM configuration. Passed to a library-specific DRM plugin (e.g. the video
+ * package's `DrmPlugin`) via `addPlugin(DrmPlugin, config)`.
+ *
+ * DRM is a video-only concern — this type is defined in the kit for
+ * cross-package type sharing, but `BasePlayerConfig` does not include a `drm`
+ * field. Configure DRM through the plugin directly.
  */
 export interface DrmConfig {
 	/** EME key system string (e.g. `'com.widevine.alpha'`, `'com.apple.fps'`). */
@@ -191,12 +194,22 @@ export interface BasePlayerConfig {
 	 */
 	onMissingTranslation?: (key: string, lang: string) => string;
 
-	/** Pluggable storage backend. Default: `LocalStorageBackend`. */
+	/**
+	 * Pluggable storage backend. Default: `LocalStorageBackend`.
+	 *
+	 * This field is not read by any player mixin — `Plugin.storage` is the sole
+	 * read path. Each plugin receives an auto-namespaced wrapper around this
+	 * backend so plugin keys never collide with each other or with player-level keys.
+	 * See `Plugin.storage` in the plugin authoring guide.
+	 */
 	storage?: IStorage;
 
 	/**
 	 * Realtime channel factory used by `Plugin.websocket(url)`. Swap to inject
 	 * SignalR / Socket.IO / custom transport. Default: `nativeWebSocketAdapter`.
+	 *
+	 * This field is not read by any player mixin — `Plugin.websocket()` is the
+	 * sole read path. Plugins access it automatically when they call `this.websocket(url)`.
 	 */
 	websocketFactory?: RealtimeFactory;
 
@@ -237,9 +250,6 @@ export interface BasePlayerConfig {
 	 * built-ins for the same URL pattern.
 	 */
 	cueParsers?: ReadonlyArray<CueParser>;
-
-	/** DRM sugar — auto-installs the `drm` plugin with these settings. */
-	drm?: DrmConfig;
 
 	/** How often the player emits `playback:metrics` (ms). `0` disables. Default 10000. */
 	metricsIntervalMs?: number;

@@ -29,6 +29,7 @@ export interface BackendShape {
 	currentTime?: (t: number) => void;
 	buffered?: () => number;
 	bufferedRanges?: () => TimeRanges;
+	seekable?: () => TimeRanges;
 	volume?: (v: number) => void;
 	mute?: () => void;
 	unmute?: () => void;

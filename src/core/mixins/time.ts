@@ -84,12 +84,13 @@ export const timeMethods = {
 	},
 
 	/**
-	 * Seekable `TimeRanges` for the current source. Currently returns an
-	 * empty range set as a stub; backends that support fine-grained seekable
-	 * ranges should override this via the backend contract.
+	 * Seekable `TimeRanges` for the current source. Delegates to the backend's
+	 * `seekable()` when the backend exposes it (e.g. an `HTMLVideoElement`
+	 * backend). Returns an empty range set when no backend is mounted or the
+	 * backend does not implement `seekable()`.
 	 */
 	seekable(this: Internals): TimeRanges {
-		return _emptyTimeRanges();
+		return this._resolveBackend()?.seekable?.() ?? _emptyTimeRanges();
 	},
 
 	/**

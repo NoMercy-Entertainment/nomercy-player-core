@@ -163,6 +163,9 @@ export type { SpectrumOptions } from './plugins/spectrum';
 export { VisualizationPlugin } from './plugins/visualization';
 export type { VisualizationFrame, VisualizationOptions } from './plugins/visualization';
 
+export { embedPlugin, EmbedPlugin } from './plugins/embed';
+export type { EmbedCommand, EmbedEventMessage, EmbedOptions } from './plugins/embed';
+
 // Realtime channel abstraction (WebSocket / SignalR / Socket.IO via factory)
 export { nativeWebSocketAdapter } from './adapters/realtime/websocket';
 

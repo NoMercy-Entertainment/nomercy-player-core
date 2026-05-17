@@ -89,15 +89,29 @@ export const stateMethods = {
 	 * `shuffleState()` — returns the current `ShuffleStateToken`
 	 * (`'on'` / `'off'`).
 	 *
-	 * `shuffleState(state)` — accepts a `ShuffleStateToken` or a plain
-	 * boolean (`true` → `'on'`, `false` → `'off'`). Emits `shuffle` with
-	 * the normalised token.
+	 * `shuffleState('on')` — randomises the queue order immediately via
+	 * `queueShuffle()`, then emits `shuffle`. The original order is not
+	 * preserved — this matches the behaviour of major media players.
+	 *
+	 * `shuffleState('off')` — updates the token and emits `shuffle`. The queue
+	 * is NOT automatically restored to its original order; the current
+	 * (shuffled) order is kept. Consumers that want the original order must
+	 * re-supply the queue.
+	 *
+	 * Accepts a `ShuffleStateToken` or a plain boolean (`true` → `'on'`,
+	 * `false` → `'off'`).
 	 */
 	shuffleState(this: Internals, state?: ShuffleStateToken | boolean): ShuffleStateToken | void {
 		if (state === undefined)
 			return this._shuffleState;
+
 		const next = typeof state === 'boolean' ? (state ? 'on' : 'off') : state;
 		this._shuffleState = next;
+
+		if (next === 'on') {
+			this._queueList.shuffle();
+		}
+
 		this.emit('shuffle', { state: next });
 	},
 

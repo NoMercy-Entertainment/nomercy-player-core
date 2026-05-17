@@ -1,4 +1,5 @@
 import type { ActionOptions, AudioTrack, BasePlaylistItem, Chapter, CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection, QualityLevel, SubtitleCue as SubtitleCuePayload, SubtitleStyle, SubtitleTrack } from '../../types';
+import { AudioTrackState, QualityState } from '../../types';
 import { CueTracker } from '../../cues/tracker';
 import { parseVttSubtitles, parseVtt } from '../../adapters/cue-parser/vtt';
 import type { VTTSubtitlePayload } from '../../adapters/cue-parser/vtt';
@@ -468,12 +469,18 @@ export const mediaTracksMethods = {
 			if (!track) return null;
 			return { index: storedIdx, track };
 		}
+
 		this._currentAudioTrackIdx = idx;
+
+		// Keep the audio-track-state token in sync so audioTrackState() always
+		// reflects that a manual selection is active.
+		this._audioTrackState = AudioTrackState.MANUAL;
+		this.emit('audioTrackState', { state: this._audioTrackState });
+
 		const backend = this._peekBackendTyped<_BackendWithAudioTrack>();
 		if (typeof backend?.setAudioTrack === 'function') {
 			backend.setAudioTrack(idx);
 		}
-		// No backend track support — emit for symmetry.
 		this.emit('audioTrack', { id: idx });
 	},
 
@@ -515,7 +522,14 @@ export const mediaTracksMethods = {
 			if (!track) return 'auto';
 			return { index: storedIdx, track };
 		}
+
 		this._currentQualityIdx = idx;
+
+		// Keep the quality-state token in sync so qualityState() always reflects
+		// whether manual or auto selection is active.
+		this._qualityState = idx === 'auto' ? QualityState.AUTO : QualityState.MANUAL;
+		this.emit('qualityState', { state: this._qualityState });
+
 		const backend = this._peekBackendTyped<_BackendWithSetQualityLevel>();
 		if (typeof backend?.setQuality === 'function') {
 			backend.setQuality(idx);

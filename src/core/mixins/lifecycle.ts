@@ -389,11 +389,23 @@ function _wireNetworkPolicy(self: Internals): void {
 	if (onOffline === 'ignore') return;
 
 	const platform = self._platform ?? browserPlatform;
+	let wasNetworkSlow = false;
+
 	const unsubscribe = platform.network.subscribe((state) => {
 		if (state.online) {
 			self.emit('network:online');
+
+			const downlink = platform.network.downlinkMbps?.();
+			const isSlowNow = typeof downlink === 'number' && downlink > 0 && downlink < 1.5;
+
+			if (isSlowNow && !wasNetworkSlow) {
+				self.emit('network:slow', { rttMs: platform.network.rttMs?.() });
+			}
+
+			wasNetworkSlow = isSlowNow;
 		}
 		else {
+			wasNetworkSlow = false;
 			self.emit('network:offline');
 			if (onOffline === 'pause') {
 				self.pause({ source: 'platform' }).catch(() => { /* swallow */ });

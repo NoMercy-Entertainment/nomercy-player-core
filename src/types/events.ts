@@ -77,8 +77,13 @@ export interface BaseEventMap {
 	// paired *Prevented event instead of the post-action event.
 
 	'beforePlay': BeforeEvent<ActionOptions>;
-	'playRequested': ActionOptions;
 	'firstFrame': void;
+
+	/**
+	 * Fires when the backend confirms media is actively rendering — equivalent
+	 * to the HTML `playing` event (fires after buffering resolves, not just on
+	 * `play()` call). Emitted by per-library backend wiring, not by kit transport.
+	 */
 	'playing': ActionOptions;
 	'playPrevented': { reason: PreventedReason; cause?: unknown };
 	'beforePause': BeforeEvent<ActionOptions>;
@@ -220,7 +225,6 @@ export interface BaseEventMap {
 	// ── Auth runtime ──────────────────────────────────────────────────────────
 
 	'auth:refreshed': { tokenAcquiredAt: number };
-	'auth:expired': { lastValidAt: number };
 	'auth:failed': { error: PlayerErrorEvent['error'] };
 
 	// ── Stream-level ──────────────────────────────────────────────────────────
@@ -305,21 +309,20 @@ export interface BaseEventMap {
 
 	'network:online': void;
 	'network:offline': void;
-	'network:slow': { rttMs: number };
+
+	/**
+	 * Fires when a network transition reveals a slow connection: online but
+	 * downlink < 1.5 Mbps. `rttMs` is `undefined` when the Network Information
+	 * API is unavailable (Firefox, Safari). Only fires when the condition
+	 * transitions from not-slow to slow — not on every heartbeat.
+	 */
+	'network:slow': { rttMs: number | undefined };
 	'visibility:visible': void;
 	'visibility:hidden': void;
 
 	// ── Performance metrics ───────────────────────────────────────────────────
 
 	'playback:metrics': PlaybackMetrics;
-
-	// ── Embed context ─────────────────────────────────────────────────────────
-	// Emitted when the EmbedPlugin is registered and the player is hosted
-	// inside an iframe that communicates via postMessage.
-
-	'embed:host-attached': { origin: string };
-	'embed:host-detached': void;
-	'embed:host-message': { data: unknown };
 
 	/** Fetch lifecycle — observability for loading UI / telemetry. */
 	'fetch:start': { url: string; pluginId?: string };
