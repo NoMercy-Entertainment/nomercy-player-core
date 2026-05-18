@@ -5,7 +5,7 @@
  */
 
 import type { BaseEventMap } from '../../types';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	composeMixins,
 	EventEmitter,
@@ -128,6 +128,57 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			await p.ready();
 			const inst = p.getPluginById<TabLeaderPlugin>('tab-leader')!;
 			expect((inst as any).getLockKey()).toBe('nomercy-player-leader');
+		});
+
+		it('getLockKey() returns the custom key from opts.getLockKey when provided', async () => {
+			const p = makePlayer('lock-3').setup({});
+			p.addPlugin(TabLeaderPlugin, { getLockKey: () => 'custom-key' });
+			await p.ready();
+			const inst = p.getPluginById<TabLeaderPlugin>('tab-leader')!;
+			expect((inst as any).getLockKey()).toBe('custom-key');
+		});
+
+		it('onLost reads the LIVE opts — changing onLost after use() takes effect on the next leader-lost', async () => {
+			// JSDOM lacks Web Locks — stub navigator.locks so use() doesn't bail early.
+			const originalLocks = Object.getOwnPropertyDescriptor(navigator, 'locks');
+			const lockRequestFn = vi.fn((_key: string, cb: (lock: unknown) => Promise<void>) =>
+				cb({}).then(() => {}));
+			Object.defineProperty(navigator, 'locks', {
+				configurable: true,
+				get: () => ({ request: lockRequestFn }),
+			});
+
+			const p = makePlayer('lock-4').setup({});
+
+			// Inject own-property transport stubs BEFORE addPlugin so use() sees them.
+			const pauseCalls: unknown[] = [];
+			const muteCalls: unknown[] = [];
+			Object.defineProperty(p, 'pause', { value: (): void => { pauseCalls.push(true); }, configurable: true, writable: true });
+			Object.defineProperty(p, 'mute', { value: (): void => { muteCalls.push(true); }, configurable: true, writable: true });
+
+			p.addPlugin(TabLeaderPlugin, { onLost: 'pause' });
+			await p.ready();
+			const inst = p.getPluginById<TabLeaderPlugin>('tab-leader')!;
+
+			// Restore navigator.locks after setup.
+			if (originalLocks) {
+				Object.defineProperty(navigator, 'locks', originalLocks);
+			}
+			else {
+				// @ts-expect-error — deleting a property from navigator for cleanup
+				delete (navigator as Record<string, unknown>).locks;
+			}
+
+			// Simulate losing leadership with current opt = 'pause'
+			p.emit('plugin:tab-leader:leader-lost' as any, { reason: 'request' });
+			expect(pauseCalls).toHaveLength(1);
+			expect(muteCalls).toHaveLength(0);
+
+			// Mutate opt to 'mute' and simulate losing again
+			inst.options({ onLost: 'mute' });
+			p.emit('plugin:tab-leader:leader-lost' as any, { reason: 'request' });
+			expect(muteCalls).toHaveLength(1);
+			expect(pauseCalls).toHaveLength(1);
 		});
 	});
 });

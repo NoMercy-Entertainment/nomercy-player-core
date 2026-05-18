@@ -123,6 +123,26 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			this.emit('unsupported' as keyof TabLeaderEvents);
 			return;
 		}
+
+		this.on(TabLeaderPlugin, 'leader-lost', (_data) => {
+			const action = this.opts?.onLost ?? 'pause';
+			const surface = this.player as unknown as { pause?: () => unknown; mute?: () => void };
+			if (action === 'mute') {
+				surface.mute?.();
+			}
+			else {
+				void surface.pause?.();
+			}
+		});
+
+		if (typeof document !== 'undefined') {
+			this.listen(document, 'visibilitychange', () => {
+				if (document.visibilityState === 'visible' && (this.opts?.handoffOnVisible !== false)) {
+					void this.requestLock();
+				}
+			});
+		}
+
 		void this.requestLock();
 	}
 
