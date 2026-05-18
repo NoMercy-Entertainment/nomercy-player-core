@@ -27,7 +27,18 @@ export const volumeMethods = {
 
 		this._internalVolume = Math.max(0, Math.min(100, v));
 
-		if (this._volumeState !== 'muted') {
+		// User-driven volume change while muted = unmute. Standard player UX
+		// (every consumer-facing slider, hardware media key, gesture). Without
+		// this, dragging the slider while muted silently writes _internalVolume
+		// but `volume()` keeps returning 0, so the user sees the slider snap
+		// back to 0 and hears nothing.
+		if (this._volumeState === 'muted' && this._internalVolume > 0) {
+			this._volumeState = 'unmuted';
+			this._volumeBeforeMute = this._internalVolume;
+			this.emit('mute', { muted: false });
+			this._resolveBackend()?.unmute?.();
+		}
+		else if (this._volumeState !== 'muted') {
 			this._volumeBeforeMute = this._internalVolume;
 		}
 
