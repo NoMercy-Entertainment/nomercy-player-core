@@ -258,6 +258,16 @@ export class Plugin<
 	declare readonly __events__: E;
 	protected lifecycle!: LifecycleRegistry;
 
+	/**
+	 * Instance-level accessor for the plugin's id. Returns the same value as
+	 * `(this.constructor as typeof Plugin).id`. Exposed on the instance so
+	 * consumers that hold a `Plugin` reference (e.g. `player.plugins()`) can read
+	 * `plugin.id` without reaching into `plugin.constructor`.
+	 */
+	get id(): string {
+		return (this.constructor as typeof Plugin).id;
+	}
+
 	/** Auto-provided scoped logger. Output is prefixed `[nmplayer][<id>]`. */
 	protected logger!: ILogger;
 

@@ -174,6 +174,29 @@ describe('Plugin base class', () => {
 			}
 			expect(Advised.advisories).toHaveLength(1);
 		});
+
+		it('instance.id returns the same value as the static id', () => {
+			expect(plugin.id).toBe(TestPlugin.id);
+			expect(plugin.id).toBe('test');
+		});
+
+		it('instance.id works for the base Plugin class', () => {
+			const base = new Plugin();
+			expect(base.id).toBe(Plugin.id);
+			expect(base.id).toBe('plugin');
+		});
+
+		it('instance.id works for a second-level subclass', () => {
+			class LayerOne extends Plugin {
+				static override readonly id: string = 'layer-one';
+			}
+			class LayerTwo extends LayerOne {
+				static override readonly id: string = 'layer-two';
+			}
+			const instance = new LayerTwo();
+			expect(instance.id).toBe('layer-two');
+			expect(instance.id).toBe(LayerTwo.id);
+		});
 	});
 
 	// ─────────────────────────────────────────────────────────────────────
