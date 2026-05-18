@@ -161,6 +161,38 @@ export class EmbedPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 	}
 
 	/**
+	 * Read or write runtime options.
+	 *
+	 * Overrides the base implementation so that a change to `allowedOrigins`
+	 * is reflected immediately in `this._allowedOrigins` — the internal list
+	 * that `isOriginAllowed()` reads on every inbound message. Without this
+	 * override, calling `options({ allowedOrigins: ... })` would update
+	 * `this.opts` but leave the live filter stale.
+	 */
+	override options(): Readonly<EmbedOptions>;
+	override options(partial: Partial<EmbedOptions>): void;
+	override options(partial?: Partial<EmbedOptions>): Readonly<EmbedOptions> | void {
+		if (partial === undefined) {
+			return super.options();
+		}
+
+		super.options(partial);
+
+		if (partial.allowedOrigins !== undefined) {
+			const origins = partial.allowedOrigins;
+			if (Array.isArray(origins)) {
+				this._allowedOrigins = [...origins];
+			}
+			else if (typeof origins === 'string') {
+				this._allowedOrigins = [origins];
+			}
+			else {
+				this._allowedOrigins = [];
+			}
+		}
+	}
+
+	/**
 	 * Detaches all forwarded player event listeners and clears internal state.
 	 * The `window` message listener is removed by the plugin lifecycle registry.
 	 */
