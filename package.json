@@ -244,13 +244,8 @@
 		"test:watch": "vitest",
 		"prepublishOnly": "npm run build"
 	},
-	"peerDependencies": {
+	"dependencies": {
 		"hls.js": ">=1.6.0"
-	},
-	"peerDependenciesMeta": {
-		"hls.js": {
-			"optional": true
-		}
 	},
 	"devDependencies": {
 		"@antfu/eslint-config": "^4.0.0",
