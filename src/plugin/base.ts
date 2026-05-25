@@ -160,13 +160,13 @@ export class Plugin<
 	static readonly description: string = '';
 
 	/**
-	 * Module URL of the plugin file — set by the plugin class itself with
-	 * `static override readonly moduleUrl = import.meta.url`. Bundlers (Vite /
-	 * Rollup) replace `import.meta.url` with the final asset URL at build time.
+	 * Module URL of the plugin file. Retained for identity and diagnostic use.
+	 * Set with `static override readonly moduleUrl = import.meta.url` when
+	 * needed; bundlers rewrite `import.meta.url` to the final asset URL.
 	 *
-	 * `appendStyles('./styles.css', 'id')` resolves the relative path against
-	 * this URL, so plugin authors never have to write `new URL(...)` ceremony
-	 * at the call site.
+	 * Note: passing this to `appendStyles` does NOT trigger Vite asset emission
+	 * for sibling CSS files. Use `new URL('./styles.css', import.meta.url).href`
+	 * literally at the `appendStyles` call site instead.
 	 */
 	static readonly moduleUrl?: string;
 
@@ -798,18 +798,17 @@ export class Plugin<
 	 * Append a stylesheet to `document.head` exactly once per `id`. Re-entrant:
 	 * a second call with the same `id` is a no-op.
 	 *
-	 * `href` is resolved against the plugin class's `static moduleUrl` (which
-	 * the plugin sets to `import.meta.url` so bundlers rewrite it to the final
-	 * asset URL). The editor still treats `styles.css` as a normal stylesheet
-	 * with full syntax highlighting.
+	 * Pass a pre-resolved URL so Vite's static analyser emits and hashes the
+	 * CSS file. The literal `new URL('./styles.css', import.meta.url)` expression
+	 * must appear in the plugin source file — the analyser does not follow
+	 * runtime variables.
 	 *
 	 * ```ts
 	 * export class MyPlugin extends Plugin {
 	 *   static override readonly id = 'myplugin';
-	 *   static override readonly moduleUrl = import.meta.url;
 	 *
 	 *   override use(): void {
-	 *     void this.appendStyles('./styles.css', 'plugin-myplugin-styles');
+	 *     this.appendStyles(new URL('./styles.css', import.meta.url).href, 'plugin-myplugin-styles');
 	 *   }
 	 * }
 	 * ```
