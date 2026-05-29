@@ -1,8 +1,8 @@
 import type {
+	IStreamSource,
 	StreamFactory,
 	StreamFactoryOptions,
 	StreamInterceptor,
-	StreamSource,
 } from './IStreamSource';
 
 import { StreamError } from '../../errors';
@@ -12,7 +12,7 @@ import { StreamError } from '../../errors';
  *
  * Each player holds one `StreamRegistry`. When the backend needs to load a URL
  * it calls `resolve()`, which walks the factory list newest-first and returns a
- * `StreamSource` from the first factory whose `canPlay` returns `true`.
+ * `IStreamSource` from the first factory whose `canPlay` returns `true`.
  *
  * Built-in factories (`native`, `hls`) are pre-registered on player init. Add
  * further protocols (DASH, smooth streaming, custom CDN) via
@@ -52,10 +52,10 @@ export class StreamRegistry {
 
 	/**
 	 * Find the highest-priority factory that claims the URL and return a new
-	 * `StreamSource` for it. Throws `StreamError('core:stream/no-factory-match')`
+	 * `IStreamSource` for it. Throws `StreamError('core:stream/no-factory-match')`
 	 * when no factory matches — register the appropriate factory first.
 	 */
-	resolve(opts: StreamFactoryOptions): StreamSource {
+	resolve(opts: StreamFactoryOptions): IStreamSource {
 		for (let i = this.factories.length - 1; i >= 0; i--) {
 			const factory = this.factories[i];
 			if (!factory)

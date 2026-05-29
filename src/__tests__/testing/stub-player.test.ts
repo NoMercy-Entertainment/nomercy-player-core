@@ -15,7 +15,7 @@
  *  - reset() — clears all in-memory state
  */
 
-import type { CueParser } from '../../adapters/cue-parser/ICueParser';
+import type { ICueParser } from '../../adapters/cue-parser/ICueParser';
 import type { CueList } from '../../cues/cue';
 import { describe, expect, it, vi } from 'vitest';
 import { StubPlayer } from '../../testing/stub-player';
@@ -221,7 +221,7 @@ describe('StubPlayer', () => {
 	});
 
 	describe('cue parser registry', () => {
-		const dummy = (id: string): CueParser => ({
+		const dummy = (id: string): ICueParser => ({
 			id,
 			canParse: () => true,
 			parse: () => ({ cues: [] } as unknown as CueList),

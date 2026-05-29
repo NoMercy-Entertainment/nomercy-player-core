@@ -1,4 +1,4 @@
-import type { CueParser } from '../../adapters/cue-parser/ICueParser';
+import type { ICueParser } from '../../adapters/cue-parser/ICueParser';
 
 import type { Internals } from '../state';
 
@@ -12,7 +12,7 @@ export const cueParserMethods = {
 	 * Pass `prepend: true` to push the parser below all existing entries instead.
 	 * Re-registering with the same `id` replaces the existing entry.
 	 */
-	registerCueParser(this: Internals, parser: CueParser, prepend?: boolean): void {
+	registerCueParser(this: Internals, parser: ICueParser, prepend?: boolean): void {
 		this._cueParsers.register(parser, prepend);
 	},
 	/** Remove a registered cue parser by id. No-op when the id is not found. */
@@ -20,7 +20,7 @@ export const cueParserMethods = {
 		this._cueParsers.unregister(id);
 	},
 	/** Return the highest-priority parser that matches `url`, or `undefined` when none match. */
-	resolveCueParser(this: Internals, url: string): CueParser | undefined {
+	resolveCueParser(this: Internals, url: string): ICueParser | undefined {
 		return this._cueParsers.resolve(url);
 	},
 } as const;

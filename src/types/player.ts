@@ -1,4 +1,4 @@
-import type { CueParser } from '../adapters/cue-parser/ICueParser';
+import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { DispatchTarget } from '../core/dispatch';
 import type { AddClasses, CreateElement } from '../core/mixins/dom-mixin';
 
@@ -15,7 +15,7 @@ import type {
 } from './state';
 import type { CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection } from './tracks';
 import type { Translations } from './translations';
-import type { ResolvedUrl, UrlCategory, UrlResolver } from './url';
+import type { IUrlResolver, ResolvedUrl, UrlCategory } from './url';
 
 /**
  * Source attribution for actions. Every transport / queue mutation accepts a
@@ -233,8 +233,8 @@ export interface IPlayer<E extends import('./events').BaseEventMap = import('./e
 	 * the built-in default. Useful when CDN credentials rotate and signing
 	 * logic needs to swap without re-running `setup()`.
 	 */
-	urlResolver(): UrlResolver | undefined;
-	urlResolver(resolver: UrlResolver | undefined): void;
+	urlResolver(): IUrlResolver | undefined;
+	urlResolver(resolver: IUrlResolver | undefined): void;
 
 	/** Tier-4 override namespace — see `PlayerExperimental` for full contract. */
 	readonly experimental: PlayerExperimental;
@@ -310,13 +310,13 @@ export interface IPlayer<E extends import('./events').BaseEventMap = import('./e
 	 * can override the kit's built-ins (LRC, VTT, sprite-VTT) for the same URL
 	 * pattern.
 	 */
-	registerCueParser(parser: CueParser, prepend?: boolean): void;
+	registerCueParser(parser: ICueParser, prepend?: boolean): void;
 
 	/** Unregister a cue parser by id. */
 	unregisterCueParser(id: string): void;
 
 	/** Resolve the registered parser for the given URL, or `undefined` if none match. */
-	resolveCueParser(url: string): CueParser | undefined;
+	resolveCueParser(url: string): ICueParser | undefined;
 
 	/**
 	 * Read or write the auth config.

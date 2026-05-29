@@ -1,6 +1,6 @@
 export type {
+	IUrlResolver,
 	ResolvedUrl,
 	UrlCategory,
-	UrlResolver,
 	UrlResolverContext,
 } from './IUrlResolver';

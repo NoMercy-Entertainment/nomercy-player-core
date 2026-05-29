@@ -1,4 +1,4 @@
-import type { CueParser } from './ICueParser';
+import type { ICueParser } from './ICueParser';
 
 /**
  * Ordered registry of cue parsers. Resolution is most-recently-registered
@@ -6,14 +6,14 @@ import type { CueParser } from './ICueParser';
  * URL pattern.
  */
 export class CueParserRegistry {
-	private readonly parsers: CueParser[] = [];
+	private readonly parsers: ICueParser[] = [];
 
 	/**
 	 * Add a parser to the registry. Re-registering an id replaces the existing
 	 * entry. `prepend: true` puts the parser at the LOW-priority end of the
 	 * list — built-ins use this to seed defaults that can be overridden.
 	 */
-	register(parser: CueParser, prepend?: boolean): void {
+	register(parser: ICueParser, prepend?: boolean): void {
 		const existing = this.parsers.findIndex(p => p.id === parser.id);
 		if (existing >= 0)
 			this.parsers.splice(existing, 1);
@@ -36,7 +36,7 @@ export class CueParserRegistry {
 	 * `undefined` when nothing matches — caller decides whether absence is an
 	 * error or a no-op.
 	 */
-	resolve(url: string, contentType?: string): CueParser | undefined {
+	resolve(url: string, contentType?: string): ICueParser | undefined {
 		for (let i = this.parsers.length - 1; i >= 0; i--) {
 			const parser = this.parsers[i];
 			if (!parser)
@@ -48,7 +48,7 @@ export class CueParserRegistry {
 	}
 
 	/** Return the registered parser with `id`, or `undefined` if absent. */
-	findById(id: string): CueParser | undefined {
+	findById(id: string): ICueParser | undefined {
 		return this.parsers.find(p => p.id === id);
 	}
 

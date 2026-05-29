@@ -2,12 +2,12 @@
  * CueParserRegistry tests — same shape as StreamRegistry; mirror semantics.
  */
 
-import type { CueParser } from '../../adapters/cue-parser/ICueParser';
+import type { ICueParser } from '../../adapters/cue-parser/ICueParser';
 import type { CueList } from '../../cues/cue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CueParserRegistry } from '../../adapters/cue-parser/registry';
 
-function makeParser(id: string, canParseResult: boolean = true): CueParser {
+function makeParser(id: string, canParseResult: boolean = true): ICueParser {
 	return {
 		id,
 		canParse: () => canParseResult,

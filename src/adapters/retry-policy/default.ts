@@ -1,6 +1,6 @@
-import type { RetryPolicy } from './IRetryPolicy';
+import type { IRetryPolicy } from './IRetryPolicy';
 
-export type { RetryConfig, RetryPolicy } from './IRetryPolicy';
+export type { IRetryPolicy, RetryConfig } from './IRetryPolicy';
 
 /**
  * Built-in retry defaults. Covers the common HTTP + media error codes out of the
@@ -8,7 +8,7 @@ export type { RetryConfig, RetryPolicy } from './IRetryPolicy';
  * All defaults err on the side of fewer retries — noisy retries are worse than
  * a fast failure for debugging.
  */
-export const DEFAULT_RETRY_POLICY: RetryPolicy = {
+export const DEFAULT_RETRY_POLICY: IRetryPolicy = {
 	'core:network/timeout': {
 		attempts: 5,
 		backoff: 'exponential',

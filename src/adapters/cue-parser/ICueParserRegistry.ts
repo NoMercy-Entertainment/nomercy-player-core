@@ -1,4 +1,4 @@
-import type { CueParser } from './ICueParser';
+import type { ICueParser } from './ICueParser';
 
 /**
  * Ordered registry of cue parsers. Resolution is most-recently-registered
@@ -6,10 +6,10 @@ import type { CueParser } from './ICueParser';
  * URL pattern.
  */
 export interface ICueParserRegistry {
-	register(parser: CueParser, prepend?: boolean): void;
+	register(parser: ICueParser, prepend?: boolean): void;
 	unregister(id: string): void;
-	resolve(url: string, contentType?: string): CueParser | undefined;
-	findById(id: string): CueParser | undefined;
+	resolve(url: string, contentType?: string): ICueParser | undefined;
+	findById(id: string): ICueParser | undefined;
 	list(): string[];
 	dispose(): void;
 }

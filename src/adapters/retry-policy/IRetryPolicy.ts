@@ -27,4 +27,4 @@ export interface RetryConfig {
  * Consumers pass a custom policy to `setup({ retryPolicy })` — it's merged over
  * `DEFAULT_RETRY_POLICY` so only the overridden codes need to appear.
  */
-export type RetryPolicy = Record<string, RetryConfig>;
+export type IRetryPolicy = Record<string, RetryConfig>;

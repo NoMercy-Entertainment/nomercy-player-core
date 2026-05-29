@@ -15,7 +15,7 @@
  *    lock-screen artwork 404 when items carry relative paths.
  */
 
-import type { ResolvedUrl, UrlResolver } from '../types';
+import type { IUrlResolver, ResolvedUrl } from '../types';
 import { describe, expect, it } from 'vitest';
 import { buildResolvedUrl } from '../core/resolved-url';
 import { StubPlayer } from '../testing/stub-player';
@@ -97,7 +97,7 @@ describe('StubPlayer.resolveUrl', () => {
 		const p = new StubPlayer();
 		p.baseUrl('https://cdn.example.com/');
 		const seen: Array<{ url: string; category: string }> = [];
-		const resolver: UrlResolver = (url, ctx) => {
+		const resolver: IUrlResolver = (url, ctx) => {
 			seen.push({ url, category: ctx.category });
 			return buildResolvedUrl(url, `${url}?signed=1`);
 		};
@@ -110,7 +110,7 @@ describe('StubPlayer.resolveUrl', () => {
 
 	it('custom resolver can delegate back to ctx.defaultResolve', async () => {
 		const p = new StubPlayer();
-		const resolver: UrlResolver = (url, ctx) => {
+		const resolver: IUrlResolver = (url, ctx) => {
 			if (ctx.category === 'cast')
 				return buildResolvedUrl(url, `${url}?cast=1`);
 			return ctx.defaultResolve(url);
@@ -135,7 +135,7 @@ describe('StubPlayer.resolveUrl', () => {
 
 	it('urlResolver(undefined) reverts to default', async () => {
 		const p = new StubPlayer();
-		const resolver: UrlResolver = url => buildResolvedUrl(url, `${url}?x=1`);
+		const resolver: IUrlResolver = url => buildResolvedUrl(url, `${url}?x=1`);
 		p.urlResolver(resolver);
 		expect((await p.resolveUrl('https://x/y.mp4')).href).toBe('https://x/y.mp4?x=1');
 		p.urlResolver(undefined);
@@ -244,7 +244,7 @@ describe('StubPlayer.resolveUrl — imageBasePath poster/cast resolution', () =>
 	it('custom urlResolver overrides the default for poster', async () => {
 		const p = new StubPlayer();
 		p.imageBasePath('https://image.tmdb.org/t/p/w780');
-		const resolver: UrlResolver = url => buildResolvedUrl(url, `https://cdn.example.com/signed.jpg?signed=1`);
+		const resolver: IUrlResolver = url => buildResolvedUrl(url, `https://cdn.example.com/signed.jpg?signed=1`);
 		p.urlResolver(resolver);
 		const r = await p.resolveUrl('/poster.jpg', 'poster');
 		expect(r.href).toContain('signed=1');
@@ -254,7 +254,7 @@ describe('StubPlayer.resolveUrl — imageBasePath poster/cast resolution', () =>
 		const p = new StubPlayer();
 		p.imageBasePath('https://image.tmdb.org/t/p/w780');
 		const seenBaseUrls: Array<string | undefined> = [];
-		const resolver: UrlResolver = (_url, ctx) => {
+		const resolver: IUrlResolver = (_url, ctx) => {
 			seenBaseUrls.push(ctx.baseUrl);
 			return ctx.defaultResolve(_url);
 		};

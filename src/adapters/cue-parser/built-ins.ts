@@ -1,5 +1,5 @@
 /**
- * Built-in `CueParser` instances for LRC, VTT subtitles, and sprite VTT.
+ * Built-in `ICueParser` instances for LRC, VTT subtitles, and sprite VTT.
  *
  * The kit auto-registers these at low priority during setup so consumer-supplied
  * parsers for the same URL patterns always take precedence.
@@ -11,7 +11,7 @@
  * at higher priority.
  */
 
-import type { CueParser } from './ICueParser';
+import type { ICueParser } from './ICueParser';
 import type { LrcPayload } from './lrc';
 import type { VTTSpritePayload, VTTSubtitlePayload } from './vtt';
 import { parseLrc } from './lrc';
@@ -24,7 +24,7 @@ const VTT_MIME_RE = /^text\/vtt$/i;
 const SPRITE_VTT_HINT_RE = /sprite\.vtt(?:\?|$)|sprites?\.vtt(?:\?|$)/i;
 
 /** Built-in parser for `.lrc` files and `application/x-lrc` content-type. */
-export const lrcParser: CueParser<LrcPayload> = {
+export const lrcParser: ICueParser<LrcPayload> = {
 	id: 'lrc',
 	canParse(url: string, contentType?: string): boolean {
 		if (LRC_EXT_RE.test(url))
@@ -39,7 +39,7 @@ export const lrcParser: CueParser<LrcPayload> = {
 };
 
 /** Built-in parser for WebVTT subtitle files. Does not match sprite-VTT URLs. */
-export const vttSubtitleParser: CueParser<VTTSubtitlePayload> = {
+export const vttSubtitleParser: ICueParser<VTTSubtitlePayload> = {
 	id: 'vtt',
 	canParse(url: string, contentType?: string): boolean {
 		// Sprite VTT outranks plain VTT only when the URL hints at sprites; this
@@ -58,7 +58,7 @@ export const vttSubtitleParser: CueParser<VTTSubtitlePayload> = {
 };
 
 /** Built-in parser for sprite WebVTT files (`*.sprite.vtt` / `*.sprites.vtt`). */
-export const spriteVttParser: CueParser<VTTSpritePayload> = {
+export const spriteVttParser: ICueParser<VTTSpritePayload> = {
 	id: 'sprite-vtt',
 	canParse(url: string): boolean {
 		// Activates only when the URL strongly hints at sprite content
@@ -77,7 +77,7 @@ export const spriteVttParser: CueParser<VTTSpritePayload> = {
  * to replace any of them, or call `player.cueRegistry.unregister(id)` to
  * remove one entirely.
  */
-export const builtInCueParsers: ReadonlyArray<CueParser> = [
+export const builtInCueParsers: ReadonlyArray<ICueParser> = [
 	lrcParser,
 	vttSubtitleParser,
 	spriteVttParser,

@@ -1,8 +1,8 @@
 import type {
 	AuthConfig,
+	IUrlResolver,
 	ResolvedUrl,
 	UrlCategory,
-	UrlResolver,
 	UrlResolverContext,
 } from '../../types';
 import type { Internals } from '../state';
@@ -143,7 +143,7 @@ export const authMethods = {
 	 * to revert to the built-in default. Takes effect on the next `resolveUrl`
 	 * call; fires no event.
 	 */
-	urlResolver(this: Internals, resolver?: UrlResolver | undefined): UrlResolver | undefined | void {
+	urlResolver(this: Internals, resolver?: IUrlResolver | undefined): IUrlResolver | undefined | void {
 		if (arguments.length === 0) {
 			return this._urlResolver;
 		}

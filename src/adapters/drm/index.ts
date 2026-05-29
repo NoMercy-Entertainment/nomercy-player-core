@@ -1,1 +1,1 @@
-export type { DrmConfig } from './IDrmConfig';
+export type { DrmConfig } from '../../types/config';

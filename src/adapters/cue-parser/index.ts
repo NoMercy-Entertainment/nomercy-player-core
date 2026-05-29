@@ -1,4 +1,4 @@
-export type { CueParser } from './ICueParser';
+export type { ICueParser } from './ICueParser';
 export type { ICueParserRegistry } from './ICueParserRegistry';
 export { parseLrc } from './lrc';
 export type { LrcPayload } from './lrc';

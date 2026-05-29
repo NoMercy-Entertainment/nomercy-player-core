@@ -45,8 +45,8 @@ export type {
 } from './tracks';
 export type { TranslationLoader, Translations } from './translations';
 export type {
+	IUrlResolver,
 	ResolvedUrl,
 	UrlCategory,
-	UrlResolver,
 	UrlResolverContext,
 } from './url';

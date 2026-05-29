@@ -1,16 +1,16 @@
 import type {
+	IStreamSource,
 	StreamEvent,
 	StreamEventPayloadMap,
 	StreamFactory,
 	StreamFactoryOptions,
-	StreamSource,
 	StreamSourceState,
 } from './IStreamSource';
 
 const AUDIO_EXT_RE = /\.(?:mp3|flac|aac|m4a|wav|ogg|opus|weba)(?:\?|$)/iu;
 const VIDEO_EXT_RE = /\.(?:mp4|webm|mov|m4v|ogv)(?:\?|$)/iu;
 
-class NativeStreamSource implements StreamSource {
+class NativeStreamSource implements IStreamSource {
 	readonly kind = 'native' as const;
 	private listeners = new Map<StreamEvent, Set<(data: StreamEventPayloadMap[StreamEvent]) => void>>();
 	private element?: HTMLMediaElement;
@@ -144,7 +144,7 @@ export const nativeFactory: StreamFactory = {
 		return false;
 	},
 
-	create(opts: StreamFactoryOptions): StreamSource {
+	create(opts: StreamFactoryOptions): IStreamSource {
 		return new NativeStreamSource(opts.url);
 	},
 };

@@ -233,7 +233,7 @@ export interface BaseEventMap {
 	'auth:failed': { error: PlayerErrorEvent['error'] };
 
 	// ── Stream-level ──────────────────────────────────────────────────────────
-	// Re-exposed from the active StreamSource so consumers don't need to reach
+	// Re-exposed from the active IStreamSource so consumers don't need to reach
 	// into the backend to observe manifest / fragment / encryption events.
 
 	'stream:manifest-loaded': { url: string };

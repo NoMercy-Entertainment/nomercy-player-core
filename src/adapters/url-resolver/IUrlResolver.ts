@@ -1,7 +1,7 @@
 import type { AuthConfig } from '../../types/config';
 
 /**
- * Hint passed to a `UrlResolver` so custom implementations can branch on
+ * Hint passed to a `IUrlResolver` so custom implementations can branch on
  * the *consumer* of the URL — for example, only signing media URLs with
  * a CDN-specific token while leaving poster URLs untouched. Always a
  * lowercase string. Built-in callers use:
@@ -51,7 +51,7 @@ export interface ResolvedUrl {
 }
 
 /**
- * Context handed to a custom `UrlResolver`. Provides everything a custom
+ * Context handed to a custom `IUrlResolver`. Provides everything a custom
  * resolver might need to make a routing decision without reaching into
  * private player state — auth config, baseUrl, the category hint, and a
  * fallback to the built-in resolver so custom resolvers can short-circuit
@@ -79,6 +79,6 @@ export interface UrlResolverContext {
  * declaration-merge custom resolver shapes and tooling can pick up doc
  * comments on the call signature.
  */
-export interface UrlResolver {
+export interface IUrlResolver {
 	(url: string, ctx: UrlResolverContext): Promise<ResolvedUrl> | ResolvedUrl;
 }

@@ -1,6 +1,7 @@
 export { hlsFactory } from './hls';
 export type { IStreamRegistry } from './IStreamRegistry';
 export type {
+	IStreamSource,
 	StreamCapabilities,
 	StreamEvent,
 	StreamEventPayloadMap,
@@ -8,7 +9,6 @@ export type {
 	StreamFactoryOptions,
 	StreamInterceptor,
 	StreamLevel,
-	StreamSource,
 	StreamSourceState,
 } from './IStreamSource';
 export { nativeFactory } from './native';

@@ -11,7 +11,7 @@
  *  - dispose
  */
 
-import type { StreamFactory, StreamSource } from '../../adapters/stream/IStreamSource';
+import type { IStreamSource, StreamFactory } from '../../adapters/stream/IStreamSource';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { StreamRegistry } from '../../adapters/stream/registry';
 
@@ -19,7 +19,7 @@ function makeFactory(id: string, canPlayResult: boolean = true): StreamFactory {
 	return {
 		id,
 		canPlay: () => canPlayResult,
-		create: () => ({ kind: 'native' as const } as StreamSource),
+		create: () => ({ kind: 'native' as const } as IStreamSource),
 	};
 }
 
@@ -98,7 +98,7 @@ describe('StreamRegistry', () => {
 				},
 				create: () => ({
 					kind: 'native' as const,
-				} as StreamSource),
+				} as IStreamSource),
 			};
 			registry.register(a);
 			registry.register(b);
@@ -120,7 +120,7 @@ describe('StreamRegistry', () => {
 			const factory: StreamFactory = {
 				id: 'cap',
 				canPlay: (_url, _ct, caps) => { capturedCaps = caps; return true; },
-				create: () => ({ kind: 'native' as const } as StreamSource),
+				create: () => ({ kind: 'native' as const } as IStreamSource),
 			};
 			registry.register(factory);
 			registry.resolve({ url: 'x', capabilities: { width: 1920, height: 1080 } });
@@ -132,7 +132,7 @@ describe('StreamRegistry', () => {
 			const factory: StreamFactory = {
 				id: 'ct',
 				canPlay: (_url, ct) => { capturedCt = ct; return true; },
-				create: () => ({ kind: 'native' as const } as StreamSource),
+				create: () => ({ kind: 'native' as const } as IStreamSource),
 			};
 			registry.register(factory);
 			registry.resolve({ url: 'x', contentType: 'application/dash+xml' });

@@ -9,12 +9,12 @@ import type {
 	LoaderStats,
 } from 'hls.js';
 import type {
+	IStreamSource,
 	StreamEvent,
 	StreamEventPayloadMap,
 	StreamFactory,
 	StreamFactoryOptions,
 	StreamLevel,
-	StreamSource,
 	StreamSourceState,
 } from './IStreamSource';
 import type { StreamRegistry } from './registry';
@@ -26,7 +26,7 @@ export const HLS_EXT_RE = /\.m3u8(?:\?|$)/iu;
 const HLS_MIME_RE = /^(?:application|audio)\/(?:vnd\.apple\.mpegurl|x-mpegurl|mpegurl)$/iu;
 
 /**
- * `StreamSource` implementation for HLS streams.
+ * `IStreamSource` implementation for HLS streams.
  *
  * On browsers that report native HLS support (Safari, iOS WebKit) the URL is
  * set directly on the media element — no extra library, full OS integration.
@@ -37,7 +37,7 @@ const HLS_MIME_RE = /^(?:application|audio)\/(?:vnd\.apple\.mpegurl|x-mpegurl|mp
  * before hls.js processes the bytes. Interceptors are NOT called on the native
  * path because the browser fetches those resources directly.
  */
-export class HlsStreamSource implements StreamSource {
+export class HlsStreamSource implements IStreamSource {
 	readonly kind = 'hls' as const;
 
 	private hls?: Hls;
@@ -397,7 +397,7 @@ export const hlsFactory: StreamFactory = {
 		return false;
 	},
 
-	create(opts: StreamFactoryOptions): StreamSource {
+	create(opts: StreamFactoryOptions): IStreamSource {
 		return new HlsStreamSource(opts.url, opts.registry);
 	},
 };

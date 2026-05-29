@@ -1,1 +1,1 @@
-export type { AuthConfig, AuthHeaderValue } from './IAuthConfig';
+export type { AuthConfig, AuthHeaderValue } from '../../types/config';

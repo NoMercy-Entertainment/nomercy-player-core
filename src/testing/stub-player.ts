@@ -1,4 +1,4 @@
-import type { CueParser } from '../adapters/cue-parser/ICueParser';
+import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { AddClasses, CreateElement } from '../core/mixins/dom-mixin';
 import type {
 	ActionOptions,
@@ -9,13 +9,13 @@ import type {
 	CurrentQualitySelection,
 	CurrentSubtitleSelection,
 	IPlayer,
+	IUrlResolver,
 	PlayerExperimental,
 	PlayerPhase,
 	PluginCtorWithId,
 	ResolvedUrl,
 	Translations,
 	UrlCategory,
-	UrlResolver,
 	UrlResolverContext,
 } from '../types';
 import { EventEmitter } from '../adapters/event-bus/default';
@@ -76,7 +76,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	private _audioContext: AudioContext | undefined;
 	private _language: string = 'en';
 	private _translations: Translations = { en: {} };
-	private _registeredParsers: CueParser[] = [];
+	private _registeredParsers: ICueParser[] = [];
 	private _overrides = new Map<string, { fn: (...args: any[]) => any; by: string }>();
 
 	constructor(opts?: { id?: string; container?: HTMLElement; phase?: PlayerPhase; translations?: Translations }) {
@@ -143,7 +143,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		this._audioContext = ctx;
 	}
 
-	private _urlResolver: UrlResolver | undefined;
+	private _urlResolver: IUrlResolver | undefined;
 
 	imageBasePath(): string | undefined;
 	imageBasePath(path: string): void;
@@ -183,9 +183,9 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		return out;
 	}
 
-	urlResolver(): UrlResolver | undefined;
-	urlResolver(resolver: UrlResolver | undefined): void;
-	urlResolver(resolver?: UrlResolver | undefined): UrlResolver | undefined | void {
+	urlResolver(): IUrlResolver | undefined;
+	urlResolver(resolver: IUrlResolver | undefined): void;
+	urlResolver(resolver?: IUrlResolver | undefined): IUrlResolver | undefined | void {
 		if (arguments.length === 0)
 			return this._urlResolver;
 		this._urlResolver = resolver;
@@ -346,7 +346,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	 */
 	seekByPercentage(_pct: number, _opts?: ActionOptions): void {}
 
-	registerCueParser(parser: CueParser, prepend?: boolean): void {
+	registerCueParser(parser: ICueParser, prepend?: boolean): void {
 		const existing = this._registeredParsers.findIndex(p => p.id === parser.id);
 		if (existing >= 0)
 			this._registeredParsers.splice(existing, 1);
@@ -361,12 +361,12 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 			this._registeredParsers.splice(idx, 1);
 	}
 
-	resolveCueParser(url: string): CueParser | undefined {
+	resolveCueParser(url: string): ICueParser | undefined {
 		return this._registeredParsers.find(p => p.canParse(url));
 	}
 
 	/** Test-only: introspect registered parsers without going through `resolve()`. */
-	cueParsers(): ReadonlyArray<CueParser> {
+	cueParsers(): ReadonlyArray<ICueParser> {
 		return this._registeredParsers;
 	}
 

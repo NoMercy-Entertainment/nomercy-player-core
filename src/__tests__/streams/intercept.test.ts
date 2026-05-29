@@ -8,7 +8,7 @@
  * composes correctly.
  */
 
-import type { StreamFactory, StreamFactoryOptions, StreamSource } from '../../adapters/stream/IStreamSource';
+import type { IStreamSource, StreamFactory, StreamFactoryOptions } from '../../adapters/stream/IStreamSource';
 import { describe, expect, it, vi } from 'vitest';
 import { hlsFactory, HlsStreamSource } from '../../adapters/stream/hls';
 import { StreamRegistry } from '../../adapters/stream/registry';
@@ -97,7 +97,7 @@ describe('streams/intercept wiring', () => {
 				canPlay: () => true,
 				create: (opts) => {
 					captured = opts;
-					return { kind: 'native' as const } as StreamSource;
+					return { kind: 'native' as const } as IStreamSource;
 				},
 			};
 			registry.register(factory);

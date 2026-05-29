@@ -7,7 +7,7 @@ import type {
 import type { StreamRegistry } from './registry';
 
 /**
- * Events a `StreamSource` can emit. Subscribe via `source.on(event, fn)`.
+ * Events an `IStreamSource` can emit. Subscribe via `source.on(event, fn)`.
  *
  * - `manifest-loaded` — playlist / header parsed; levels are now available.
  * - `level-switched` — ABR or manual call changed the active quality level.
@@ -48,7 +48,7 @@ export type StreamErrorPayload = MediaError | ErrorData;
 
 /**
  * Typed payload map for every `StreamEvent`. Consumers receive the narrowed
- * type automatically from `StreamSource.on(event, fn)` — no inline annotations
+ * type automatically from `IStreamSource.on(event, fn)` — no inline annotations
  * or casts needed at the call site.
  */
 export interface StreamEventPayloadMap {
@@ -75,7 +75,7 @@ export interface StreamLevel {
 	index?: number;
 }
 
-/** Lifecycle state reported by `StreamSource.state()`. */
+/** Lifecycle state reported by `IStreamSource.state()`. */
 export type StreamSourceState = 'idle' | 'loading' | 'ready' | 'playing' | 'error';
 
 /**
@@ -100,7 +100,7 @@ export interface StreamCapabilities {
  * All three concrete kinds (`native`, `hls`, `dash`) satisfy this interface, so
  * backend code does not need to branch on protocol.
  */
-export interface StreamSource {
+export interface IStreamSource {
 	readonly kind: 'native' | 'hls' | 'dash';
 
 	/** Wire this source to a media element. Resolves once metadata is available. */
@@ -168,8 +168,8 @@ export interface StreamFactory {
 	 */
 	canPlay(url: string, contentType?: string, capabilities?: StreamCapabilities): boolean;
 
-	/** Instantiate a `StreamSource` for the given options. */
-	create(opts: StreamFactoryOptions): StreamSource;
+	/** Instantiate an `IStreamSource` for the given options. */
+	create(opts: StreamFactoryOptions): IStreamSource;
 }
 
 /**

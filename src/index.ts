@@ -1,4 +1,4 @@
-export type { CueParser } from './adapters/cue-parser/ICueParser';
+export type { ICueParser } from './adapters/cue-parser/ICueParser';
 export { parseLrc } from './adapters/cue-parser/lrc';
 export type { LrcPayload } from './adapters/cue-parser/lrc';
 export { CueParserRegistry } from './adapters/cue-parser/registry';
@@ -51,13 +51,13 @@ export type { IStorage } from './adapters/storage';
 // Streams (re-exported here too for convenience; subpath imports also work)
 export { HLS_EXT_RE } from './adapters/stream/hls';
 export type {
+	IStreamSource,
 	StreamCapabilities,
 	StreamEvent,
 	StreamFactory,
 	StreamFactoryOptions,
 	StreamInterceptor,
 	StreamLevel,
-	StreamSource,
 	StreamSourceState,
 } from './adapters/stream/IStreamSource';
 export { StreamRegistry } from './adapters/stream/registry';
@@ -163,10 +163,10 @@ export {
 export type {
 	CodeFields,
 	ErrorScope,
+	IRetryPolicy,
 	PlayerErrorEvent,
 	PlayerErrorInit,
 	RetryConfig,
-	RetryPolicy,
 	Severity,
 } from './errors';
 
@@ -229,6 +229,7 @@ export type {
 	DeviceCapabilities,
 	DrmConfig,
 	IPlayer,
+	IUrlResolver,
 	LoadOptions,
 	LogLevel,
 	LogSink,
@@ -250,7 +251,6 @@ export type {
 	TranslationLoader,
 	Translations,
 	UrlCategory,
-	UrlResolver,
 	UrlResolverContext,
 } from './types';
 export {

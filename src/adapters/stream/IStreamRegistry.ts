@@ -1,8 +1,8 @@
 import type {
+	IStreamSource,
 	StreamFactory,
 	StreamFactoryOptions,
 	StreamInterceptor,
-	StreamSource,
 } from './IStreamSource';
 
 /**
@@ -11,7 +11,7 @@ import type {
 export interface IStreamRegistry {
 	register(factory: StreamFactory, prepend?: boolean): void;
 	unregister(id: string): void;
-	resolve(opts: StreamFactoryOptions): StreamSource;
+	resolve(opts: StreamFactoryOptions): IStreamSource;
 	has(id: string): boolean;
 	findById(id: string): StreamFactory | undefined;
 	list(): string[];

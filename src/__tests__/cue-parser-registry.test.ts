@@ -7,7 +7,7 @@
  * registered via `setup({ cueParsers })` win the resolution.
  */
 
-import type { CueParser } from '../adapters/cue-parser/ICueParser';
+import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { BaseEventMap } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EventEmitter } from '../adapters/event-bus/default';
@@ -28,7 +28,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare setup: (config: any) => this;
 	declare ready: () => Promise<void>;
 	declare dispose: () => void;
-	declare registerCueParser: (parser: CueParser, prepend?: boolean) => void;
+	declare registerCueParser: (parser: ICueParser, prepend?: boolean) => void;
 	declare unregisterCueParser: (id: string) => void;
 
 	constructor(id?: string | number) {
@@ -69,7 +69,7 @@ describe('Cue parser registry — kit defaults', () => {
 		await p.ready();
 		// Indirect check: registry's `_cueParsers` field is internal but we can
 		// resolve URL patterns to confirm a parser claims them.
-		const reg = (p as any)._cueParsers as { resolve: (url: string, ct?: string) => CueParser | undefined };
+		const reg = (p as any)._cueParsers as { resolve: (url: string, ct?: string) => ICueParser | undefined };
 		expect(reg.resolve('lyrics.lrc')?.id).toBe('lrc');
 		expect(reg.resolve('subs.vtt')?.id).toBe('vtt');
 		expect(reg.resolve('thumbs.sprite.vtt')?.id).toBe('sprite-vtt');
@@ -84,7 +84,7 @@ describe('Cue parser registry — kit defaults', () => {
 	});
 
 	it('consumer-supplied parser via setup() wins over a built-in for the same URL', async () => {
-		const customLrc: CueParser = {
+		const customLrc: ICueParser = {
 			id: 'custom-lrc',
 			canParse: (url: string) => /\.lrc(?:\?|$)/i.test(url),
 			parse: () => ({ get: () => [], at: () => undefined, after: () => undefined, before: () => undefined } as any),
@@ -105,7 +105,7 @@ describe('Cue parser registry — kit defaults', () => {
 	it('runtime registerCueParser appends to back so latest wins', async () => {
 		const p = make('p5');
 		await p.ready();
-		const customVtt: CueParser = {
+		const customVtt: ICueParser = {
 			id: 'late-vtt',
 			canParse: (url: string) => /\.vtt(?:\?|$)/i.test(url),
 			parse: () => ({ get: () => [], at: () => undefined, after: () => undefined, before: () => undefined } as any),

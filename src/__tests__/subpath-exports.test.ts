@@ -7,7 +7,7 @@ import type { INetworkMonitor } from '../adapters/platform/network';
 import type { IPipController } from '../adapters/platform/pip';
 import type { IVisibilityMonitor } from '../adapters/platform/visibility';
 import type { IWakeLock } from '../adapters/platform/wake-lock';
-import type { UrlResolver } from '../adapters/url-resolver';
+import type { IUrlResolver } from '../adapters/url-resolver';
 import { describe, expect, it } from 'vitest';
 import { addClasses } from '../adapters/class-manager';
 import { systemClock } from '../adapters/clock';
@@ -208,8 +208,8 @@ describe('subpath-exports', () => {
 	});
 
 	describe('adapters/url-resolver (type-only)', () => {
-		it('UrlResolver is importable as a type', () => {
-			const ref: UrlResolver | undefined = undefined;
+		it('IUrlResolver is importable as a type', () => {
+			const ref: IUrlResolver | undefined = undefined;
 			expect(ref).toBeUndefined();
 		});
 	});

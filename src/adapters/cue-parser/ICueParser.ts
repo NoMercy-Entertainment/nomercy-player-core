@@ -9,7 +9,7 @@ import type { CueList } from '../../cues/cue';
  * automatically. Consumers add custom formats via
  * `player.registerCueParser(parser)`.
  */
-export interface CueParser<T = unknown> {
+export interface ICueParser<T = unknown> {
 	/**
 	 * Identifier — `'lrc'`, `'vtt'`, `'sprite-vtt'`, vendor-prefixed for
 	 * custom formats (`'fillz:karaoke'`).

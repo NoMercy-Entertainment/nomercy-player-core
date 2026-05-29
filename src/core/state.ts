@@ -14,11 +14,11 @@ import type {
 	BaseEventMap,
 	BasePlayerConfig,
 	BasePlaylistItem,
+	IUrlResolver,
 	PlaybackMetrics,
 	PlayerPhase,
 	PluginCtorWithId,
 	SubtitleStyle,
-	UrlResolver,
 } from '../types';
 import { CueParserRegistry } from '../adapters/cue-parser/registry';
 import { MediaList } from '../adapters/media-list/default';
@@ -281,7 +281,7 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	_authConfig: AuthConfig | undefined;
 
 	/** Live URL resolver — readable via `urlResolver()`, mutable via `urlResolver(fn)`. */
-	_urlResolver: UrlResolver | undefined;
+	_urlResolver: IUrlResolver | undefined;
 
 	// ── Track selection ───────────────────────────────────────────────────────
 
