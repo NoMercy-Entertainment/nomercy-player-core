@@ -1,9 +1,11 @@
-import type { ICapabilitiesProbe } from '../adapters/platform/capabilities';
-import type { IFullscreenController } from '../adapters/platform/fullscreen';
-import type { INetworkMonitor } from '../adapters/platform/network';
-import type { IPipController } from '../adapters/platform/pip';
-import type { IVisibilityMonitor } from '../adapters/platform/visibility';
-import type { IWakeLock } from '../adapters/platform/wake-lock';
+import type {
+	ICapabilitiesProbe,
+	IFullscreenController,
+	INetworkMonitor,
+	IPipController,
+	IVisibilityMonitor,
+	IWakeLock,
+} from '../adapters/platform';
 import type { IUrlResolver } from '../adapters/url-resolver';
 import type { AuthConfig, DrmConfig } from '../types/config';
 import { describe, expect, it } from 'vitest';
@@ -50,42 +52,32 @@ describe('subpath-exports', () => {
 		});
 	});
 
-	describe('adapters/platform/wake-lock (type-only)', () => {
+	describe('adapters/platform sub-interfaces (type-only)', () => {
 		it('IWakeLock is importable as a type', () => {
 			const ref: IWakeLock | undefined = undefined;
 			expect(ref).toBeUndefined();
 		});
-	});
 
-	describe('adapters/platform/network (type-only)', () => {
 		it('INetworkMonitor is importable as a type', () => {
 			const ref: INetworkMonitor | undefined = undefined;
 			expect(ref).toBeUndefined();
 		});
-	});
 
-	describe('adapters/platform/visibility (type-only)', () => {
 		it('IVisibilityMonitor is importable as a type', () => {
 			const ref: IVisibilityMonitor | undefined = undefined;
 			expect(ref).toBeUndefined();
 		});
-	});
 
-	describe('adapters/platform/capabilities (type-only)', () => {
 		it('ICapabilitiesProbe is importable as a type', () => {
 			const ref: ICapabilitiesProbe | undefined = undefined;
 			expect(ref).toBeUndefined();
 		});
-	});
 
-	describe('adapters/platform/fullscreen (type-only)', () => {
 		it('IFullscreenController is importable as a type', () => {
 			const ref: IFullscreenController | undefined = undefined;
 			expect(ref).toBeUndefined();
 		});
-	});
 
-	describe('adapters/platform/pip (type-only)', () => {
 		it('IPipController is importable as a type', () => {
 			const ref: IPipController | undefined = undefined;
 			expect(ref).toBeUndefined();

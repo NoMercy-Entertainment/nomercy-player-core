@@ -78,30 +78,6 @@
 			"types": "./dist/adapters/platform/index.d.ts",
 			"import": "./dist/adapters/platform/index.js"
 		},
-		"./adapters/platform/capabilities": {
-			"types": "./dist/adapters/platform/capabilities/index.d.ts",
-			"import": "./dist/adapters/platform/capabilities/index.js"
-		},
-		"./adapters/platform/fullscreen": {
-			"types": "./dist/adapters/platform/fullscreen/index.d.ts",
-			"import": "./dist/adapters/platform/fullscreen/index.js"
-		},
-		"./adapters/platform/network": {
-			"types": "./dist/adapters/platform/network/index.d.ts",
-			"import": "./dist/adapters/platform/network/index.js"
-		},
-		"./adapters/platform/pip": {
-			"types": "./dist/adapters/platform/pip/index.d.ts",
-			"import": "./dist/adapters/platform/pip/index.js"
-		},
-		"./adapters/platform/visibility": {
-			"types": "./dist/adapters/platform/visibility/index.d.ts",
-			"import": "./dist/adapters/platform/visibility/index.js"
-		},
-		"./adapters/platform/wake-lock": {
-			"types": "./dist/adapters/platform/wake-lock/index.d.ts",
-			"import": "./dist/adapters/platform/wake-lock/index.js"
-		},
 		"./adapters/preload": {
 			"types": "./dist/adapters/preload/index.d.ts",
 			"import": "./dist/adapters/preload/index.js"
