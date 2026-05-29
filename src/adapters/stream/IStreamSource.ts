@@ -79,7 +79,7 @@ export interface StreamLevel {
 export type StreamSourceState = 'idle' | 'loading' | 'ready' | 'playing' | 'error';
 
 /**
- * Device capability hint passed to `StreamFactory.canPlay`. Factories use this
+ * Device capability hint passed to `IStreamFactory.canPlay`. Factories use this
  * to decline URLs they could technically parse but cannot decode on this hardware.
  * Populated from `navigator.mediaCapabilities` and the player's config.
  */
@@ -135,7 +135,7 @@ export interface IStreamSource {
 }
 
 /**
- * Arguments passed to `StreamFactory.create()` and forwarded by
+ * Arguments passed to `IStreamFactory.create()` and forwarded by
  * `StreamRegistry.resolve()`. The `registry` field is injected automatically
  * by the registry so the created source can pipe its fetches through
  * `runInterceptors()`; callers do not set it directly.
@@ -158,7 +158,7 @@ export interface StreamFactoryOptions {
  * `canPlay` is called for every URL the player resolves; return `true` only when
  * your factory can handle it. `create` is called at most once per resolution.
  */
-export interface StreamFactory {
+export interface IStreamFactory {
 	readonly id: string;
 
 	/**

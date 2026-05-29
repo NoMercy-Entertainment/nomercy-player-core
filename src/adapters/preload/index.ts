@@ -1,5 +1,5 @@
-export type { PreloadAsset, PreloadContext, PreloadStrategy } from './default';
-export type { TransitionBackend, TransitionContext, TransitionStrategy } from './default';
+export type { IPreloadStrategy, PreloadAsset, PreloadContext } from './default';
+export type { ITransitionBackend, ITransitionStrategy, TransitionContext } from './default';
 export {
 	CrossfadeTransitionStrategy,
 	DefaultPreloadStrategy,

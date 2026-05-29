@@ -12,7 +12,7 @@
  *  - CrossfadeTransitionStrategy fires transition events when crossfadeEnabled
  */
 
-import type { PreloadStrategy, TransitionStrategy } from '../adapters/preload/default';
+import type { IPreloadStrategy, ITransitionStrategy } from '../adapters/preload/default';
 import type { Plugin } from '../plugin';
 import type { BaseEventMap, BasePlaylistItem } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -62,10 +62,10 @@ class PreloadTestPlayer extends EventEmitter<BaseEventMap> {
 	declare removePluginById: (id: string) => void;
 	declare plugins: () => ReadonlyArray<any>;
 	declare enabledPlugins: () => ReadonlyArray<any>;
-	declare setPreloadStrategy: (strategy: PreloadStrategy) => void;
-	declare setTransitionStrategy: (strategy: TransitionStrategy) => void;
-	declare preloadStrategy: () => PreloadStrategy;
-	declare transitionStrategy: () => TransitionStrategy;
+	declare setPreloadStrategy: (strategy: IPreloadStrategy) => void;
+	declare setTransitionStrategy: (strategy: ITransitionStrategy) => void;
+	declare preloadStrategy: () => IPreloadStrategy;
+	declare transitionStrategy: () => ITransitionStrategy;
 
 	// stub remaining required mixin surfaces
 	declare ready: () => Promise<void>;
@@ -402,7 +402,7 @@ describe('strategy swappers', () => {
 
 	it('setPreloadStrategy replaces the active strategy', () => {
 		const player = setupPlayer({ preloadLeadSeconds: 10 });
-		const customStrategy: PreloadStrategy = {
+		const customStrategy: IPreloadStrategy = {
 			shouldPreload: () => false,
 			assetsToPreload: () => [],
 			cancel: () => {},
@@ -414,7 +414,7 @@ describe('strategy swappers', () => {
 	it('setTransitionStrategy replaces the active strategy', () => {
 		vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {});
 		const player = setupPlayer({});
-		const customStrategy: TransitionStrategy = {
+		const customStrategy: ITransitionStrategy = {
 			shouldTransition: () => false,
 			tick: () => {},
 			start: () => {},
@@ -427,7 +427,7 @@ describe('strategy swappers', () => {
 
 	it('custom preloadStrategy from config is respected', async () => {
 		const customShouldPreload = vi.fn().mockReturnValue(false);
-		const customStrategy: PreloadStrategy = {
+		const customStrategy: IPreloadStrategy = {
 			shouldPreload: customShouldPreload,
 			assetsToPreload: () => [],
 			cancel: () => {},

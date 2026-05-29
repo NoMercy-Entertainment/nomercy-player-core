@@ -35,12 +35,12 @@ export {
 } from './adapters/preload/default';
 
 export type {
+	IPreloadStrategy,
+	ITransitionBackend,
+	ITransitionStrategy,
 	PreloadAsset,
 	PreloadContext,
-	PreloadStrategy,
-	TransitionBackend,
 	TransitionContext,
-	TransitionStrategy,
 } from './adapters/preload/default';
 export type { IRealtimeChannel, RealtimeFactory, RealtimeFactoryOptions } from './adapters/realtime/IRealtimeChannel';
 
@@ -51,10 +51,10 @@ export type { IStorage } from './adapters/storage';
 // Streams (re-exported here too for convenience; subpath imports also work)
 export { HLS_EXT_RE } from './adapters/stream/hls';
 export type {
+	IStreamFactory,
 	IStreamSource,
 	StreamCapabilities,
 	StreamEvent,
-	StreamFactory,
 	StreamFactoryOptions,
 	StreamInterceptor,
 	StreamLevel,

@@ -11,11 +11,11 @@
  *  - dispose
  */
 
-import type { IStreamSource, StreamFactory } from '../../adapters/stream/IStreamSource';
+import type { IStreamFactory, IStreamSource } from '../../adapters/stream/IStreamSource';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { StreamRegistry } from '../../adapters/stream/registry';
 
-function makeFactory(id: string, canPlayResult: boolean = true): StreamFactory {
+function makeFactory(id: string, canPlayResult: boolean = true): IStreamFactory {
 	return {
 		id,
 		canPlay: () => canPlayResult,
@@ -90,7 +90,7 @@ describe('StreamRegistry', () => {
 		it('skips factories whose canPlay returns false', () => {
 			let bCalled = false;
 			const a = makeFactory('a', false);
-			const b: StreamFactory = {
+			const b: IStreamFactory = {
 				id: 'b',
 				canPlay: () => {
 					bCalled = true;
@@ -117,7 +117,7 @@ describe('StreamRegistry', () => {
 
 		it('passes capabilities through to canPlay', () => {
 			let capturedCaps: any;
-			const factory: StreamFactory = {
+			const factory: IStreamFactory = {
 				id: 'cap',
 				canPlay: (_url, _ct, caps) => { capturedCaps = caps; return true; },
 				create: () => ({ kind: 'native' as const } as IStreamSource),
@@ -129,7 +129,7 @@ describe('StreamRegistry', () => {
 
 		it('passes contentType through to canPlay', () => {
 			let capturedCt: any;
-			const factory: StreamFactory = {
+			const factory: IStreamFactory = {
 				id: 'ct',
 				canPlay: (_url, ct) => { capturedCt = ct; return true; },
 				create: () => ({ kind: 'native' as const } as IStreamSource),

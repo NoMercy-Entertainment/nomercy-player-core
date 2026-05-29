@@ -1,5 +1,5 @@
 import type { IPlatform } from '../../adapters/platform/browser';
-import type { PreloadAsset, PreloadStrategy, TransitionBackend } from '../../adapters/preload/default';
+import type { IPreloadStrategy, ITransitionBackend, PreloadAsset } from '../../adapters/preload/default';
 import type { BasePlayerConfig, BasePlaylistItem, PlayerPhase } from '../../types';
 import type { Internals } from '../state';
 import { builtInCueParsers } from '../../adapters/cue-parser/built-ins';
@@ -788,7 +788,7 @@ function _runSetupPipeline(self: Internals): void {
  * Emits `preloadStart`, then one `preloadProgress` per asset, then either
  * `preloadComplete` (all finished) or `preloadError` (any fetch threw).
  */
-async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strategy: PreloadStrategy): Promise<void> {
+async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strategy: IPreloadStrategy): Promise<void> {
 	const capturedEpoch = player._preloadEpoch;
 	const assets = strategy.assetsToPreload(nextItem);
 
@@ -918,17 +918,17 @@ function _runTransition(player: Internals, outgoing: BasePlaylistItem, incoming:
 
 /**
  * Probe the active backend for crossfade capability. Returns the backend
- * narrowed to `TransitionBackend` when it implements `supportsCrossfade`,
+ * narrowed to `ITransitionBackend` when it implements `supportsCrossfade`,
  * or `null` for backends without crossfade hooks (most video backends —
  * audio backends are where this matters).
  */
-function _resolveTransitionBackend(player: Internals): TransitionBackend | null {
+function _resolveTransitionBackend(player: Internals): ITransitionBackend | null {
 	const backend = player.backend?.();
 	if (!backend)
 		return null;
-	const candidate = backend as Partial<TransitionBackend>;
+	const candidate = backend as Partial<ITransitionBackend>;
 	if (typeof candidate.supportsCrossfade === 'function') {
-		return candidate as TransitionBackend;
+		return candidate as ITransitionBackend;
 	}
 	return null;
 }

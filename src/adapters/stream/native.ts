@@ -1,8 +1,8 @@
 import type {
+	IStreamFactory,
 	IStreamSource,
 	StreamEvent,
 	StreamEventPayloadMap,
-	StreamFactory,
 	StreamFactoryOptions,
 	StreamSourceState,
 } from './IStreamSource';
@@ -127,7 +127,7 @@ class NativeStreamSource implements IStreamSource {
  * Any other factory that also claims a URL wins because the registry resolves
  * newest-first.
  */
-export const nativeFactory: StreamFactory = {
+export const nativeFactory: IStreamFactory = {
 	id: 'native',
 
 	canPlay(url: string, contentType?: string): boolean {

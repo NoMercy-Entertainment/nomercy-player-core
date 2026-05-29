@@ -1,6 +1,6 @@
 import type {
+	IStreamFactory,
 	IStreamSource,
-	StreamFactory,
 	StreamFactoryOptions,
 	StreamInterceptor,
 } from './IStreamSource';
@@ -9,11 +9,11 @@ import type {
  * Per-player catalogue of stream factories and content interceptors.
  */
 export interface IStreamRegistry {
-	register(factory: StreamFactory, prepend?: boolean): void;
+	register(factory: IStreamFactory, prepend?: boolean): void;
 	unregister(id: string): void;
 	resolve(opts: StreamFactoryOptions): IStreamSource;
 	has(id: string): boolean;
-	findById(id: string): StreamFactory | undefined;
+	findById(id: string): IStreamFactory | undefined;
 	list(): string[];
 	intercept(fn: StreamInterceptor): () => void;
 	runInterceptors(url: string, response: Response): Promise<Response>;

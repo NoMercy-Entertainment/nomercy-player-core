@@ -1,6 +1,6 @@
 import type {
+	IStreamFactory,
 	IStreamSource,
-	StreamFactory,
 	StreamFactoryOptions,
 	StreamInterceptor,
 } from './IStreamSource';
@@ -24,7 +24,7 @@ import { StreamError } from '../../errors';
  * Pass `prepend: true` to push a factory to the front (lowest priority).
  */
 export class StreamRegistry {
-	private readonly factories: StreamFactory[] = [];
+	private readonly factories: IStreamFactory[] = [];
 	private readonly interceptors: StreamInterceptor[] = [];
 
 	/**
@@ -32,7 +32,7 @@ export class StreamRegistry {
 	 * exists it is replaced in-place. Pass `prepend: true` to place the factory
 	 * at the lowest-priority position instead of the default highest.
 	 */
-	register(factory: StreamFactory, prepend?: boolean): void {
+	register(factory: IStreamFactory, prepend?: boolean): void {
 		const existing = this.factories.findIndex(f => f.id === factory.id);
 		if (existing >= 0)
 			this.factories.splice(existing, 1);
@@ -87,7 +87,7 @@ export class StreamRegistry {
 	}
 
 	/** Return the factory registered under `id`, or `undefined` if absent. */
-	findById(id: string): StreamFactory | undefined {
+	findById(id: string): IStreamFactory | undefined {
 		return this.factories.find(f => f.id === id);
 	}
 

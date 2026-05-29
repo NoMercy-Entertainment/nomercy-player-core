@@ -9,10 +9,10 @@ import type {
 	LoaderStats,
 } from 'hls.js';
 import type {
+	IStreamFactory,
 	IStreamSource,
 	StreamEvent,
 	StreamEventPayloadMap,
-	StreamFactory,
 	StreamFactoryOptions,
 	StreamLevel,
 	StreamSourceState,
@@ -386,7 +386,7 @@ async function readBody(response: Response, original: string | ArrayBuffer | obj
  * This factory ships pre-registered at the second-highest priority (above native).
  * Register a custom factory with the same `canPlay` signature to override it.
  */
-export const hlsFactory: StreamFactory = {
+export const hlsFactory: IStreamFactory = {
 	id: 'hls',
 
 	canPlay(url: string, contentType?: string): boolean {

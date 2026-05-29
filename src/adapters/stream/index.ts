@@ -1,11 +1,11 @@
 export { hlsFactory } from './hls';
 export type { IStreamRegistry } from './IStreamRegistry';
 export type {
+	IStreamFactory,
 	IStreamSource,
 	StreamCapabilities,
 	StreamEvent,
 	StreamEventPayloadMap,
-	StreamFactory,
 	StreamFactoryOptions,
 	StreamInterceptor,
 	StreamLevel,

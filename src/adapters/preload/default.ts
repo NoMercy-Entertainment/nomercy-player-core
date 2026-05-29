@@ -1,8 +1,8 @@
 /**
  * Preload + transition strategy interfaces and default implementations.
  *
- * The `PreloadStrategy` interface drives **when** and **what** to prefetch before the
- * outgoing item ends. The `TransitionStrategy` interface drives **how** the boundary
+ * The `IPreloadStrategy` interface drives **when** and **what** to prefetch before the
+ * outgoing item ends. The `ITransitionStrategy` interface drives **how** the boundary
  * between outgoing and incoming items is handled — crossfade, hard-cut, gapless, etc.
  *
  * Both are swappable per-player-instance via `BasePlayerConfig` injection, so
@@ -13,7 +13,7 @@
  *    `TransitionContext` snapshot so callers never reach into private player state.
  *  - Default implementations carry the music-validated values (10 s preload, 3 s
  *    crossfade lead, 3 s tail). Video overrides the defaults in its own player class.
- *  - The `TransitionBackend` interface is the minimal dual-playback surface. Both
+ *  - The `ITransitionBackend` interface is the minimal dual-playback surface. Both
  *    `IAudioBackend` and (in future) `IVideoBackend` can implement it. The transition
  *    engine only requires this surface — not the full backend contract — so it works
  *    across both media types without importing per-library backend types.
@@ -23,7 +23,7 @@ import type { BasePlaylistItem } from '../../types';
 
 // ─── Shared context snapshots ────────────────────────────────────────────────
 
-/** Snapshot passed to every `PreloadStrategy` method. */
+/** Snapshot passed to every `IPreloadStrategy` method. */
 export interface PreloadContext {
 	/** Current playback position in seconds. */
 	readonly currentTime: number;
@@ -33,7 +33,7 @@ export interface PreloadContext {
 	readonly nextItem: BasePlaylistItem | null;
 }
 
-/** Snapshot passed to every `TransitionStrategy` method. */
+/** Snapshot passed to every `ITransitionStrategy` method. */
 export interface TransitionContext {
 	/** Current playback position of the outgoing item in seconds. */
 	readonly currentTime: number;
@@ -77,7 +77,7 @@ export interface PreloadAsset {
 	mode?: 'metadata' | 'auto';
 }
 
-// ─── PreloadStrategy interface ───────────────────────────────────────────────
+// ─── IPreloadStrategy interface ──────────────────────────────────────────────
 
 /**
  * Controls when and what to preload for the next queue item.
@@ -88,7 +88,7 @@ export interface PreloadAsset {
  * a generic asset list. Music and video players compose domain-specific lists on
  * top by providing their own `assetsToPreload` implementations.
  */
-export interface PreloadStrategy {
+export interface IPreloadStrategy {
 	/**
 	 * Return `true` when the player should begin prefetching assets for the next
 	 * item. Called on every `time` event while a next item is queued.
@@ -113,7 +113,7 @@ export interface PreloadStrategy {
 	cancel(): void;
 }
 
-// ─── TransitionStrategy interface ────────────────────────────────────────────
+// ─── ITransitionStrategy interface ───────────────────────────────────────────
 
 /**
  * Backend surface required for overlap transitions (crossfade).
@@ -124,7 +124,7 @@ export interface PreloadStrategy {
  * The transition engine only requires these five methods — not the full backend
  * contract — so the interface stays small and backend-agnostic.
  */
-export interface TransitionBackend {
+export interface ITransitionBackend {
 	/** `true` when this backend can host a secondary parallel-playback slot. */
 	supportsCrossfade(): boolean;
 
@@ -162,7 +162,7 @@ export interface TransitionBackend {
  *  - `GaplessTransitionStrategy` (default for video) — hard-cut at natural end;
  *    the incoming item is already preloaded so buffering is minimal.
  */
-export interface TransitionStrategy {
+export interface ITransitionStrategy {
 	/**
 	 * Return `true` when the player should begin the transition. Called on every
 	 * `time` event after preloading is complete and the incoming backend is ready.
@@ -179,14 +179,14 @@ export interface TransitionStrategy {
 	 * The player calls this between `start()` and `complete()` at the rate of
 	 * `requestAnimationFrame` — keep it fast and non-blocking.
 	 */
-	tick(context: TransitionContext, backend: TransitionBackend | null): void;
+	tick(context: TransitionContext, backend: ITransitionBackend | null): void;
 
 	/**
 	 * Invoked once when the transition begins (first `shouldTransition` → `true`).
 	 * Use this to emit plugin events, start the incoming backend, or acquire
 	 * any resources needed during the transition window.
 	 */
-	start(outgoing: BasePlaylistItem, incoming: BasePlaylistItem, backend: TransitionBackend | null): void;
+	start(outgoing: BasePlaylistItem, incoming: BasePlaylistItem, backend: ITransitionBackend | null): void;
 
 	/**
 	 * Invoked once when the transition is complete (the incoming item is the new
@@ -212,7 +212,7 @@ export interface TransitionStrategy {
  *
  * Custom strategies extend this class and override `assetsToPreload`.
  */
-export class DefaultPreloadStrategy implements PreloadStrategy {
+export class DefaultPreloadStrategy implements IPreloadStrategy {
 	private _abortController: AbortController | null = null;
 
 	constructor(private readonly _leadSeconds: number = 10) {}
@@ -251,7 +251,7 @@ export class DefaultPreloadStrategy implements PreloadStrategy {
  *  - `'linear'`       — simple linear ramp (equal to v1 behaviour).
  *  - `'equal-power'`  — cosine-based constant-power fade (perceptually smoother).
  */
-export class CrossfadeTransitionStrategy implements TransitionStrategy {
+export class CrossfadeTransitionStrategy implements ITransitionStrategy {
 	private readonly _leadSeconds: number;
 	private readonly _tailSeconds: number;
 	private readonly _curve: 'linear' | 'equal-power';
@@ -273,7 +273,7 @@ export class CrossfadeTransitionStrategy implements TransitionStrategy {
 		return currentTime >= duration - this._leadSeconds;
 	}
 
-	tick(context: TransitionContext, backend: TransitionBackend | null): void {
+	tick(context: TransitionContext, backend: ITransitionBackend | null): void {
 		if (backend === null)
 			return;
 		if (!backend.supportsCrossfade())
@@ -290,7 +290,7 @@ export class CrossfadeTransitionStrategy implements TransitionStrategy {
 		void outGain;
 	}
 
-	start(outgoing: BasePlaylistItem, incoming: BasePlaylistItem, _backend: TransitionBackend | null): void {
+	start(outgoing: BasePlaylistItem, incoming: BasePlaylistItem, _backend: ITransitionBackend | null): void {
 		void outgoing;
 		void incoming;
 	}
@@ -319,14 +319,14 @@ export class CrossfadeTransitionStrategy implements TransitionStrategy {
  * elements, which browsers handle inconsistently. Use `CrossfadeTransitionStrategy`
  * explicitly on a video player if you want audio overlap.
  */
-export class GaplessTransitionStrategy implements TransitionStrategy {
+export class GaplessTransitionStrategy implements ITransitionStrategy {
 	shouldTransition(_context: PreloadContext): boolean {
 		return false;
 	}
 
-	tick(_context: TransitionContext, _backend: TransitionBackend | null): void {}
+	tick(_context: TransitionContext, _backend: ITransitionBackend | null): void {}
 
-	start(_outgoing: BasePlaylistItem, _incoming: BasePlaylistItem, _backend: TransitionBackend | null): void {}
+	start(_outgoing: BasePlaylistItem, _incoming: BasePlaylistItem, _backend: ITransitionBackend | null): void {}
 
 	complete(_from: BasePlaylistItem, _to: BasePlaylistItem): void {}
 

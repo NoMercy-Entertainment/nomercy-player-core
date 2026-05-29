@@ -360,14 +360,14 @@ export interface BasePlayerConfig {
 	 * The strategy is stateless — a single instance is reused across items.
 	 * Call `strategy.cancel()` before navigating away if you hold a reference.
 	 */
-	preloadStrategy?: import('../adapters/preload/default').PreloadStrategy;
+	preloadStrategy?: import('../adapters/preload/default').IPreloadStrategy;
 
 	/**
 	 * Custom transition strategy. When supplied, replaces the per-library default
 	 * (`CrossfadeTransitionStrategy` for music, `GaplessTransitionStrategy` for
 	 * video). Inject this to implement custom fades, cuts, or creative transitions.
 	 */
-	transitionStrategy?: import('../adapters/preload/default').TransitionStrategy;
+	transitionStrategy?: import('../adapters/preload/default').ITransitionStrategy;
 
 	/**
 	 * Attach the player instance to `window.player` for console debugging.
