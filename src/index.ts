@@ -174,6 +174,7 @@ export { buildResolvedUrl } from './core/resolved-url';
 export { IndexedDBBackend, LocalStorageBackend, MemoryStorageBackend } from './adapters/storage';
 export type { IStorage } from './adapters/storage';
 // Streams (re-exported here too for convenience; subpath imports also work)
+export { HLS_EXT_RE } from './adapters/stream/hls';
 export { StreamRegistry } from './adapters/stream/registry';
 export type {
 	StreamCapabilities,

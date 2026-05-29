@@ -275,6 +275,7 @@ export class Plugin<
 	protected storage!: IStorage;
 
 	private _enabled: boolean = true;
+	private _mountCache?: Map<string, HTMLDivElement>;
 
 	/**
 	 * Called by the player immediately after instantiating the plugin class.
@@ -289,14 +290,13 @@ export class Plugin<
 		this.opts = opts;
 		this.lifecycle = lifecycle;
 
-		const id = (this.constructor as typeof Plugin).id;
 		const config = (player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
 
 		const rootLogger: ILogger = config.logger ?? new Logger({ prefix: 'nmplayer', level: config.logLevel });
-		this.logger = rootLogger.child(id);
+		this.logger = rootLogger.child(this.id);
 
 		const rootStorage: IStorage = config.storage ?? new LocalStorageBackend();
-		this.storage = _namespacedStorage(rootStorage, `nmplayer-${id}-`);
+		this.storage = _namespacedStorage(rootStorage, `nmplayer-${this.id}-`);
 	}
 
 	/**
@@ -334,9 +334,9 @@ export class Plugin<
 		if (this._enabled)
 			return;
 		this._enabled = true;
-		const id = (this.constructor as typeof Plugin).id;
-		this.player.emit('plugin:enabled', { id });
-		this.player.emit(`plugin:${id}:enabled`, { id });
+		const pluginId = this.id;
+		this.player.emit('plugin:enabled', { id: pluginId });
+		this.player.emit(`plugin:${pluginId}:enabled`, { id: pluginId });
 	}
 
 	/** Deactivate plugin behavior without unloading. Idempotent. */
@@ -344,13 +344,13 @@ export class Plugin<
 		if (!this._enabled)
 			return;
 		this._enabled = false;
-		const id = (this.constructor as typeof Plugin).id;
+		const pluginId = this.id;
 		this.player.emit('plugin:disabled', {
-			id,
+			id: pluginId,
 			reason,
 		});
-		this.player.emit(`plugin:${id}:disabled`, {
-			id,
+		this.player.emit(`plugin:${pluginId}:disabled`, {
+			id: pluginId,
 			reason,
 		});
 	}
@@ -389,16 +389,15 @@ export class Plugin<
 			return Object.freeze({ ...(this.opts as object) }) as Readonly<O>;
 		}
 		this.opts = mergeConfig(this.opts, partial);
-		const id = (this.constructor as typeof Plugin).id;
+		const pluginId = this.id;
 		this.player.emit('plugin:opts:changed', {
-			id,
+			id: pluginId,
 			opts: this.opts,
 		});
-		this.player.emit(`plugin:${id}:opts:changed`, {
-			id,
+		this.player.emit(`plugin:${pluginId}:opts:changed`, {
+			id: pluginId,
 			opts: this.opts,
 		});
-		// Plugin-self namespaced (used by sibling plugins via `on(MyPluginClass, 'opts:changed', ...)`).
 		this.emit('opts:changed', this.opts);
 	}
 
@@ -491,8 +490,7 @@ export class Plugin<
 	protected emit<K extends keyof E>(event: K, data?: E[K]): void;
 	protected emit(event: string, data?: any): void;
 	protected emit(event: any, data?: any): void {
-		const id = (this.constructor as typeof Plugin).id;
-		const namespaced = `plugin:${id}:${String(event)}`;
+		const namespaced = `plugin:${this.id}:${String(event)}`;
 		this.player.emit(namespaced, data);
 	}
 
@@ -549,8 +547,7 @@ export class Plugin<
 	 * plugins can advise on `duringEvent: 'plugin:equalizer:beforeSetBand'`.
 	 */
 	protected async dispatchBefore<TData>(event: string, data: TData, opts?: DispatchBeforeOptions): Promise<BeforeDispatchResult<TData>> {
-		const id = (this.constructor as typeof Plugin).id;
-		const namespaced = `plugin:${id}:${event}`;
+		const namespaced = `plugin:${this.id}:${event}`;
 		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
 		const timeoutMs = opts?.timeoutMs ?? config.beforeEventTimeoutMs ?? 10_000;
 
@@ -584,14 +581,13 @@ export class Plugin<
 	}
 
 	private buildError(payload: ThrowPayload): PlayerError {
-		const id = (this.constructor as typeof Plugin).id;
 		return new PlayerError({
 			code: payload.code,
 			id: payload.id,
 			severity: payload.severity ?? 'error',
 			scope: {
 				kind: 'plugin',
-				id,
+				id: this.id,
 			},
 			message: payload.message,
 			cause: payload.cause,
@@ -616,9 +612,7 @@ export class Plugin<
 			this.player.emit(`plugin:${error.severity}`, payload);
 		}
 
-		// Apply the static onError recovery action for this error code.
-		const ctor = this.constructor as typeof Plugin;
-		const action: PluginRecoveryAction | undefined = ctor.onError?.[error.code];
+		const action: PluginRecoveryAction | undefined = (this.constructor as typeof Plugin).onError?.[error.code];
 		if (action) {
 			this._applyRecoveryAction(action, error);
 		}
@@ -640,7 +634,7 @@ export class Plugin<
 	 * plugins wire the bodies.
 	 */
 	private _applyRecoveryAction(action: PluginRecoveryAction, error: PlayerError): void {
-		const id = (this.constructor as typeof Plugin).id;
+		const pluginId = this.id;
 
 		switch (action) {
 			case 'ignore':
@@ -654,10 +648,10 @@ export class Plugin<
 				const selfWithRetry = this as unknown as { retryLastOperation?: () => void };
 				if (typeof selfWithRetry.retryLastOperation === 'function') {
 					try { selfWithRetry.retryLastOperation(); }
-					catch (retryErr) { this.logger.warn(`[${id}] retryLastOperation threw:`, retryErr); }
+					catch (retryErr) { this.logger.warn(`[${pluginId}] retryLastOperation threw:`, retryErr); }
 				}
 				else {
-					this.logger.warn(`[${id}] onError 'retry-once' declared but retryLastOperation() not implemented`);
+					this.logger.warn(`[${pluginId}] onError 'retry-once' declared but retryLastOperation() not implemented`);
 				}
 				break;
 			}
@@ -666,10 +660,10 @@ export class Plugin<
 				const selfWithFallback = this as unknown as { activateFallback?: () => void };
 				if (typeof selfWithFallback.activateFallback === 'function') {
 					try { selfWithFallback.activateFallback(); }
-					catch (fallbackErr) { this.logger.warn(`[${id}] activateFallback threw:`, fallbackErr); }
+					catch (fallbackErr) { this.logger.warn(`[${pluginId}] activateFallback threw:`, fallbackErr); }
 				}
 				else {
-					this.logger.warn(`[${id}] onError 'fallback' declared but activateFallback() not implemented`);
+					this.logger.warn(`[${pluginId}] onError 'fallback' declared but activateFallback() not implemented`);
 				}
 				break;
 			}
@@ -710,14 +704,13 @@ export class Plugin<
 		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
 		const liveAuth = (this.player as unknown as { auth?: () => AuthConfig | undefined }).auth?.();
 		const auth = liveAuth ?? config.auth;
-		const pluginId = (this.constructor as typeof Plugin).id;
 		const scope = options?.scope ?? 'plugin';
 		return authFetch<T>({
 			...options,
 			url,
 			auth,
 			signal: ctrl.signal,
-			pluginId,
+			pluginId: this.id,
 			scope,
 			emit: (event: string, data: unknown) => this.player.emit(event, data),
 		} as InternalFetchOptions<T>);
@@ -813,13 +806,13 @@ export class Plugin<
 	 * }
 	 * ```
 	 */
-	protected appendStyles(href: string, id: string): void {
+	protected appendStyles(href: string, styleId: string): void {
 		if (typeof document === 'undefined') return;
-		if (document.getElementById(id)) return;
+		if (document.getElementById(styleId)) return;
 		const baseUrl = (this.constructor as typeof Plugin).moduleUrl;
 		const url = baseUrl ? new URL(href, baseUrl) : new URL(href, document.baseURI);
 		const link = document.createElement('link');
-		link.id = id;
+		link.id = styleId;
 		link.rel = 'stylesheet';
 		link.href = url.href;
 		document.head.appendChild(link);
@@ -838,14 +831,10 @@ export class Plugin<
 	 * append it under the player container directly.
 	 */
 	protected mount(name: string): HTMLDivElement {
-		const id = (this.constructor as typeof Plugin).id;
-		const className = `nmplayer-${id}-${name}`;
+		const className = `nmplayer-${this.id}-${name}`;
 
-		// Cache mount divs per plugin instance so the same name returns the
-		// same element across calls.
-		const cache = (this as unknown as { _mountCache?: Map<string, HTMLDivElement> })._mountCache
-			?? new Map<string, HTMLDivElement>();
-		(this as unknown as { _mountCache: Map<string, HTMLDivElement> })._mountCache = cache;
+		if (!this._mountCache) this._mountCache = new Map<string, HTMLDivElement>();
+		const cache = this._mountCache;
 		const cached = cache.get(name);
 		if (cached)
 			return cached;
@@ -873,8 +862,7 @@ export class Plugin<
 	 * `setup({ onMissingTranslation })`, defaulting to the key itself.
 	 */
 	protected t(key: string, vars?: Record<string, string>): string {
-		const id = (this.constructor as typeof Plugin).id;
-		const namespaced = `plugin.${id}.${key}`;
+		const namespaced = `plugin.${this.id}.${key}`;
 		const player = this.player as IPlayer<any> & { t?: (key: string, vars?: Record<string, string>) => string };
 		if (typeof player.t === 'function')
 			return player.t(namespaced, vars);

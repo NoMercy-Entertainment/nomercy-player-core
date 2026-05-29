@@ -1,4 +1,4 @@
-import type { IPlayer } from '../types';
+import type { BaseEventMap, IPlayer } from '../types';
 import { StateError } from '../errors';
 
 /**
@@ -79,7 +79,7 @@ function getGlobals(): VitestGlobals {
  * });
  * ```
  */
-export function runIPlayerContract<P extends IPlayer<any>>(opts: {
+export function runIPlayerContract<P extends IPlayer<BaseEventMap>>(opts: {
 	create: () => P | Promise<P>;
 	label: string;
 	teardown?: (player: P) => void | Promise<void>;
@@ -122,13 +122,13 @@ export function runIPlayerContract<P extends IPlayer<any>>(opts: {
 		describe('event surface', () => {
 			it('emit / on round-trip delivers the data', () => {
 				let received: unknown;
-				player.on('phase' as any, (data: unknown) => {
+				player.on('phase', (data: unknown) => {
 					received = data;
 				});
-				player.emit('phase' as any, {
+				player.emit('phase', {
 					from: 'idle',
 					to: 'idle',
-				} as any);
+				});
 				expect(received).toEqual({
 					from: 'idle',
 					to: 'idle',
@@ -140,42 +140,42 @@ export function runIPlayerContract<P extends IPlayer<any>>(opts: {
 				const fn = (): void => {
 					count += 1;
 				};
-				player.on('phase' as any, fn);
-				player.emit('phase' as any, {
+				player.on('phase', fn);
+				player.emit('phase', {
 					from: 'idle',
 					to: 'idle',
-				} as any);
-				player.off('phase' as any, fn);
-				player.emit('phase' as any, {
+				});
+				player.off('phase', fn);
+				player.emit('phase', {
 					from: 'idle',
 					to: 'idle',
-				} as any);
+				});
 				expect(count).toBe(1);
 			});
 
 			it('once auto-removes after first emit', () => {
 				let count = 0;
-				player.once('phase' as any, () => {
+				player.once('phase', () => {
 					count += 1;
 				});
-				player.emit('phase' as any, {
+				player.emit('phase', {
 					from: 'idle',
 					to: 'idle',
-				} as any);
-				player.emit('phase' as any, {
+				});
+				player.emit('phase', {
 					from: 'idle',
 					to: 'idle',
-				} as any);
+				});
 				expect(count).toBe(1);
 			});
 
 			it('hasListeners reflects subscription state', () => {
-				expect(player.hasListeners('phase' as any)).toBe(false);
+				expect(player.hasListeners('phase')).toBe(false);
 				const fn = (): void => {};
-				player.on('phase' as any, fn);
-				expect(player.hasListeners('phase' as any)).toBe(true);
-				player.off('phase' as any, fn);
-				expect(player.hasListeners('phase' as any)).toBe(false);
+				player.on('phase', fn);
+				expect(player.hasListeners('phase')).toBe(true);
+				player.off('phase', fn);
+				expect(player.hasListeners('phase')).toBe(false);
 			});
 		});
 
