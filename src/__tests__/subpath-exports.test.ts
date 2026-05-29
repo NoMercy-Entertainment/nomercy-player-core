@@ -1,6 +1,3 @@
-import type { AuthConfig } from '../adapters/auth';
-
-import type { DrmConfig } from '../adapters/drm';
 import type { ICapabilitiesProbe } from '../adapters/platform/capabilities';
 import type { IFullscreenController } from '../adapters/platform/fullscreen';
 import type { INetworkMonitor } from '../adapters/platform/network';
@@ -8,11 +5,11 @@ import type { IPipController } from '../adapters/platform/pip';
 import type { IVisibilityMonitor } from '../adapters/platform/visibility';
 import type { IWakeLock } from '../adapters/platform/wake-lock';
 import type { IUrlResolver } from '../adapters/url-resolver';
+import type { AuthConfig, DrmConfig } from '../types/config';
 import { describe, expect, it } from 'vitest';
-import { addClasses } from '../adapters/class-manager';
 import { systemClock } from '../adapters/clock';
 import { CueParserRegistry } from '../adapters/cue-parser';
-import { createElement } from '../adapters/element-factory';
+import { addClasses, createElement } from '../adapters/element-factory';
 import { EventEmitter } from '../adapters/event-bus';
 import { defaultFetch } from '../adapters/fetch';
 import { defaultIdGenerator } from '../adapters/id-generator';
@@ -185,22 +182,18 @@ describe('subpath-exports', () => {
 		it('createElement is a function', () => {
 			expect(typeof createElement).toBe('function');
 		});
-	});
 
-	describe('adapters/class-manager', () => {
 		it('addClasses is a function', () => {
 			expect(typeof addClasses).toBe('function');
 		});
 	});
 
-	describe('adapters/auth (type-only)', () => {
+	describe('config types (main barrel)', () => {
 		it('AuthConfig is importable as a type', () => {
 			const ref: AuthConfig | undefined = undefined;
 			expect(ref).toBeUndefined();
 		});
-	});
 
-	describe('adapters/drm (type-only)', () => {
 		it('DrmConfig is importable as a type', () => {
 			const ref: DrmConfig | undefined = undefined;
 			expect(ref).toBeUndefined();

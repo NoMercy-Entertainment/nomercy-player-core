@@ -1,6 +1,6 @@
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
+import type { AddClasses, CreateElement } from '../adapters/element-factory';
 import type { DispatchTarget } from '../core/dispatch';
-import type { AddClasses, CreateElement } from '../core/mixins/dom-mixin';
 
 import type { Chapter } from './chapter';
 import type { AuthConfig } from './config';

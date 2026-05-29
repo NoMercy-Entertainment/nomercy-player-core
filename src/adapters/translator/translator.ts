@@ -1,26 +1,9 @@
 import type { Translations } from '../../types';
-
 import type { DefaultTranslatorOptions, ITranslator } from './ITranslator';
 
-export type { DefaultTranslatorOptions, ITranslator } from './ITranslator';
+import { bcp47FallbackChain } from '../language-matcher/bcp47';
 
-/**
- * Walk a BCP-47 tag down its parent chain. `'pt-BR'` → `['pt-BR', 'pt']`,
- * `'zh-Hant-TW'` → `['zh-Hant-TW', 'zh-Hant', 'zh']`, `'en'` → `['en']`.
- * Strips one trailing subtag at a time on the `-` separator. Whitespace and
- * casing are preserved — bundle keys are looked up byte-for-byte.
- */
-export function bcp47FallbackChain(tag: string): string[] {
-	if (!tag)
-		return [];
-	const out: string[] = [tag];
-	let cur = tag;
-	while (cur.includes('-')) {
-		cur = cur.slice(0, cur.lastIndexOf('-'));
-		out.push(cur);
-	}
-	return out;
-}
+export type { DefaultTranslatorOptions, ITranslator } from './ITranslator';
 
 const VAR_RE = /\{(\w+)\}/g;
 

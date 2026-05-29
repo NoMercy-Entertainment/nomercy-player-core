@@ -110,10 +110,7 @@ Full subpath table:
 | `@nomercy-entertainment/nomercy-player-core/adapters/fetch` | `IFetch`, `authFetch` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/clock` | `IClock` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/id-generator` | `IIdGenerator` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/element-factory` | `IElementFactory` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/class-manager` | `IClassManager` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/auth` | `IAuthConfig` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/drm` | `IDrmConfig` |
+| `@nomercy-entertainment/nomercy-player-core/adapters/element-factory` | `createElement`, `createButton`, `createSVG`, `addClasses`, `removeClasses`, `AddClasses`, `AppendTo`, `CreateElement` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/url-resolver` | `IUrlResolver` |
 | `@nomercy-entertainment/nomercy-player-core/plugins/audio-graph` | `AudioGraphPlugin`, `audioGraphPlugin` |
 | `@nomercy-entertainment/nomercy-player-core/plugins/canvas` | `CanvasPlugin`, `canvasPlugin` |

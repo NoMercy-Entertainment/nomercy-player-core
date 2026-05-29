@@ -1,9 +1,10 @@
 import type { ITranslator } from '../../adapters/translator/translator';
 import type { PluginCtorWithId, Translations } from '../../types';
 import type { Internals } from '../state';
+import { bcp47FallbackChain } from '../../adapters/language-matcher/bcp47';
 import { getLazyTranslationLoader } from '../../adapters/translator/loaders/translations-glob';
 
-import { bcp47FallbackChain, DefaultTranslator } from '../../adapters/translator/translator';
+import { DefaultTranslator } from '../../adapters/translator/translator';
 
 /**
  * The i18n mixin's slice of player state — composed into `PlayerCoreState`.

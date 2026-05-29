@@ -10,7 +10,8 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { bcp47FallbackChain, DefaultTranslator } from '../adapters/translator/translator';
+import { bcp47FallbackChain } from '../adapters/language-matcher/bcp47';
+import { DefaultTranslator } from '../adapters/translator/translator';
 
 describe('bcp47FallbackChain', () => {
 	it('returns just the tag for a bare language', () => {

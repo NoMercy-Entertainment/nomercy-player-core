@@ -1,5 +1,5 @@
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
-import type { AddClasses, CreateElement } from '../core/mixins/dom-mixin';
+import type { AddClasses, CreateElement } from '../adapters/element-factory';
 import type {
 	ActionOptions,
 	AuthConfig,

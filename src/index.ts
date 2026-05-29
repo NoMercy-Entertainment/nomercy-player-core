@@ -5,16 +5,30 @@ export { CueParserRegistry } from './adapters/cue-parser/registry';
 
 export { parseVtt, parseVttSprite, parseVttSubtitles } from './adapters/cue-parser/vtt';
 export type { VTTSpritePayload, VTTSubtitlePayload } from './adapters/cue-parser/vtt';
+// DOM helpers
+export {
+	addClasses,
+	createButton,
+	createElement,
+	createSVG,
+	removeClasses,
+} from './adapters/element-factory';
+export type { AddClasses, AppendTo, CreateElement } from './adapters/element-factory';
 // Primitives
 export { EventEmitter } from './adapters/event-bus/default';
+// Language matcher (BCP-47 fallback chain — swap for a custom matching strategy)
+export { bcp47FallbackChain } from './adapters/language-matcher';
+export type { ILanguageMatcher } from './adapters/language-matcher';
 export { LifecycleRegistry } from './adapters/lifecycle-registry/default';
 export { Logger } from './adapters/logger/default';
 export type { ILogger, LoggerOptions } from './adapters/logger/ILogger';
 // Media list (cursor-aware list — both libs' queue surface delegates here)
 export { MediaList } from './adapters/media-list/default';
+
 export type { MediaListEvent } from './adapters/media-list/default';
 // Platform bundle (wake-lock, network, visibility, capabilities, fullscreen, pip)
 export { browserPlatform } from './adapters/platform/browser';
+
 export type {
 	DecodeCapability,
 	DecodeProfile,
@@ -33,7 +47,6 @@ export {
 	DefaultPreloadStrategy,
 	GaplessTransitionStrategy,
 } from './adapters/preload/default';
-
 export type {
 	IPreloadStrategy,
 	ITransitionBackend,
@@ -43,13 +56,14 @@ export type {
 	TransitionContext,
 } from './adapters/preload/default';
 export type { IRealtimeChannel, RealtimeFactory, RealtimeFactoryOptions } from './adapters/realtime/IRealtimeChannel';
-
 // Realtime channel abstraction (WebSocket / SignalR / Socket.IO via factory)
 export { nativeWebSocketAdapter } from './adapters/realtime/websocket';
 export { IndexedDBBackend, LocalStorageBackend, MemoryStorageBackend } from './adapters/storage';
+
 export type { IStorage } from './adapters/storage';
 // Streams (re-exported here too for convenience; subpath imports also work)
 export { HLS_EXT_RE } from './adapters/stream/hls';
+
 export type {
 	IStreamFactory,
 	IStreamSource,
@@ -70,7 +84,7 @@ export { translationsFromGlob } from './adapters/translator/loaders/translations
 
 export type { GlobModule } from './adapters/translator/loaders/translations-glob';
 // Translator (i18n engine — swap for i18next / FormatJS / custom)
-export { bcp47FallbackChain, DefaultTranslator } from './adapters/translator/translator';
+export { DefaultTranslator } from './adapters/translator/translator';
 
 export type { DefaultTranslatorOptions, ITranslator } from './adapters/translator/translator';
 // Player core — shared logic composed onto NMMusicPlayer + NMVideoPlayer
@@ -112,8 +126,8 @@ export { preloadStrategyMethods } from './base-player';
 
 // Auth-aware fetch (shared between Plugin.fetch and the player core's setup-time loads)
 export { authFetch, isAuthError, isNetworkError } from './core/auth-fetch';
-export type { AuthFetchOptions } from './core/auth-fetch';
 
+export type { AuthFetchOptions } from './core/auth-fetch';
 // Mixin + factory
 export { composeMixins } from './core/compose';
 
@@ -122,16 +136,6 @@ export { mergeConfig } from './core/config-merge';
 export { runDispatchBefore } from './core/dispatch';
 
 export type { BeforeDispatchOutcome, DispatchBeforeOpts, DispatchTarget } from './core/dispatch';
-// DOM helpers
-export {
-	addClasses,
-	createButton,
-	createElement,
-	createSVG,
-	removeClasses,
-} from './core/mixins/dom-mixin';
-
-export type { AddClasses, AppendTo, CreateElement } from './core/mixins/dom-mixin';
 export { buildResolvedUrl } from './core/resolved-url';
 // Cues
 export { createCueList, createMutableCueList } from './cues/cue';

@@ -34,14 +34,6 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
 		},
-		"./adapters/auth": {
-			"types": "./dist/adapters/auth/index.d.ts",
-			"import": "./dist/adapters/auth/index.js"
-		},
-		"./adapters/class-manager": {
-			"types": "./dist/adapters/class-manager/index.d.ts",
-			"import": "./dist/adapters/class-manager/index.js"
-		},
 		"./adapters/clock": {
 			"types": "./dist/adapters/clock/index.d.ts",
 			"import": "./dist/adapters/clock/index.js"
@@ -49,10 +41,6 @@
 		"./adapters/cue-parser": {
 			"types": "./dist/adapters/cue-parser/index.d.ts",
 			"import": "./dist/adapters/cue-parser/index.js"
-		},
-		"./adapters/drm": {
-			"types": "./dist/adapters/drm/index.d.ts",
-			"import": "./dist/adapters/drm/index.js"
 		},
 		"./adapters/element-factory": {
 			"types": "./dist/adapters/element-factory/index.d.ts",

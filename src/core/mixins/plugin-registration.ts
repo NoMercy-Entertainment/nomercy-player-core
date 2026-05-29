@@ -1,11 +1,11 @@
 import type { Plugin } from '../../plugin';
 import type { IPlayer, PluginCtorWithId, Translations } from '../../types';
 import type { Internals } from '../state';
+import { bcp47FallbackChain } from '../../adapters/language-matcher/bcp47';
 import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import { Logger } from '../../adapters/logger/default';
 import { getLazyTranslationLoader } from '../../adapters/translator/loaders/translations-glob';
 
-import { bcp47FallbackChain } from '../../adapters/translator/translator';
 import { pluginError, stateError } from '../../errors';
 import { KIT_VERSION } from '../kit-version';
 

@@ -63,10 +63,7 @@ The kit ships 28 named ports. Each port is an interface you can swap end-to-end.
 | fetch | `IFetch` | `authFetch` (auth-aware, retry-backed) | HTTP fetch with auth headers, scope, and retry — plugins use this, never raw `globalThis.fetch` | `@nomercy-entertainment/nomercy-player-core/adapters/fetch` |
 | clock | `IClock` | system (`performance.now` / `Date.now`) | Monotonic clock — swap for a server-synced clock in group-sync scenarios | `@nomercy-entertainment/nomercy-player-core/adapters/clock` |
 | id-generator | `IIdGenerator` | default (`crypto.randomUUID` with fallback) | Unique ID generation for player instances and events | `@nomercy-entertainment/nomercy-player-core/adapters/id-generator` |
-| element-factory | `IElementFactory` | dom (`document.createElement`) | DOM element creation — swap for SSR stubs or native-shell equivalents | `@nomercy-entertainment/nomercy-player-core/adapters/element-factory` |
-| class-manager | `IClassManager` | dom (classList operations) | CSS class management on the player container | `@nomercy-entertainment/nomercy-player-core/adapters/class-manager` |
-| auth | `IAuthConfig` | port only — consumer required | Token delivery contract; no default because auth is always app-specific | `@nomercy-entertainment/nomercy-player-core/adapters/auth` |
-| drm | `IDrmConfig` | port only — consumer required | DRM key-system and license server config; no default | `@nomercy-entertainment/nomercy-player-core/adapters/drm` |
+| element-factory | — (concrete utilities) | `createElement`, `createButton`, `createSVG`, `addClasses`, `removeClasses` | DOM element creation and class manipulation — the player binds these onto its prototype | `@nomercy-entertainment/nomercy-player-core/adapters/element-factory` |
 | url-resolver | `IUrlResolver` | port only — consumer required | URL rewriting for CDN signing, auth params, or proxy routing | `@nomercy-entertainment/nomercy-player-core/adapters/url-resolver` |
 
 ---
