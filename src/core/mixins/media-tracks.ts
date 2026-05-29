@@ -5,6 +5,7 @@ import { parseVttSubtitles, parseVtt } from '../../adapters/cue-parser/vtt';
 import type { VTTSubtitlePayload } from '../../adapters/cue-parser/vtt';
 import type { Cue } from '../../cues/cue';
 import { buildResolvedUrl } from '../resolved-url';
+import { authFetch } from '../auth-fetch';
 
 import type { Internals, SidecarSubtitleContext } from '../state';
 
@@ -46,13 +47,17 @@ function hasTracksField(item: BasePlaylistItem): item is ItemWithDefinedTracks {
  * `Chapter[]` shape. Network or parse failures resolve to an empty list —
  * chapters are an enhancement; a failed fetch should never prevent playback.
  */
-async function fetchChaptersVtt(url: string): Promise<Chapter[]> {
+async function fetchChaptersVtt(url: string, self: Internals): Promise<Chapter[]> {
+	const ctrl = new AbortController();
 	try {
-		const r = await fetch(url);
-		if (!r.ok) return [];
-		const text = await r.text();
-		return parseVtt(text).cues.map((cue, i) => ({
-			index: i,
+		const text = await authFetch<string>({
+			url,
+			auth: self._authConfig,
+			signal: ctrl.signal,
+			responseType: 'text',
+		});
+		return parseVtt(text).cues.map((cue, index) => ({
+			index,
 			start: cue.start,
 			end: cue.end,
 			title: cue.payload,
@@ -118,19 +123,18 @@ async function _startSidecarSubtitle(
 ): Promise<void> {
 	if (!track.url) return;
 
+	const ctrl = new AbortController();
 	let raw: string;
 	try {
-		const r = await fetch(track.url);
-		if (!r.ok) {
-			self.emit('subtitleCue', {
-				cues: [],
-				language: track.language,
-			});
-			return;
-		}
-		raw = await r.text();
+		raw = await authFetch<string>({
+			url: track.url,
+			auth: self._authConfig,
+			signal: ctrl.signal,
+			responseType: 'text',
+		});
 	}
 	catch {
+		ctrl.abort();
 		self.emit('subtitleCue', {
 			cues: [],
 			language: track.language,
@@ -238,7 +242,7 @@ export const mediaTracksMethods = {
 		if (!Array.isArray(existingChapters) || existingChapters.length === 0) {
 			const chapterTrack = resolved.find((sidecarTrack: SidecarTrack) => sidecarTrack.kind === 'chapters' && sidecarTrack.file);
 			if (chapterTrack?.file) {
-				const chapters = await fetchChaptersVtt(chapterTrack.file);
+				const chapters = await fetchChaptersVtt(chapterTrack.file, this);
 				if (chapters.length > 0) {
 					return { ...withTracks, chapters };
 				}
