@@ -175,6 +175,13 @@ export type PlayerConstructorId = string | number;
 export interface IPlayer<E extends import('./events').BaseEventMap = import('./events').BaseEventMap>
 	extends DispatchTarget {
 
+	/**
+	 * Phantom field — present only for TypeScript's `PlayerEventMap<P>` inference.
+	 * Never read or written at runtime. Allows `Plugin<IPlayer<E>>` to resolve the
+	 * correct event map without requiring the concrete class.
+	 */
+	readonly __eventMap__: E;
+
 	/** Stable identifier set at construction. Reads back the id passed to the factory. */
 	readonly playerId: string;
 
