@@ -2,7 +2,6 @@ import type { ActionOptions, BasePlaylistItem } from '../../types';
 
 import type { Internals } from '../state';
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Wire the MediaList events to the player event bus. Idempotent — safe to
 // call before every queue mutation.
@@ -40,7 +39,6 @@ function _wireQueue(self: Internals): void {
 	self._backlogList.on('remove', data => self.emit('backlog:remove', data));
 	self._backlogList.on('clear', data => self.emit('backlog:clear', data));
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: queue + cursor + backlog (delegates to MediaList<T>)
@@ -192,7 +190,7 @@ export const queueMethods = {
 			return this._queueList.current();
 		}
 		_wireQueue(this);
-		if (!this._emitBeforeMutation( 'current', [target]))
+		if (!this._emitBeforeMutation('current', [target]))
 			return;
 
 		// Bump the load epoch so any in-flight load()'s cursor-move continuation
@@ -211,27 +209,34 @@ export const queueMethods = {
 
 		this._queueList.setCurrent(target);
 
-		if (this._phase === 'idle' || this._phase === 'disposed' || this._phase === 'disposing') return;
+		if (this._phase === 'idle' || this._phase === 'disposed' || this._phase === 'disposing')
+			return;
 
 		const item = this._queueList.current();
-		if (!item) return;
+		if (!item)
+			return;
 
 		const doLoad = (): void => {
-			if (this._currentEpoch !== navigationEpoch) return;
+			if (this._currentEpoch !== navigationEpoch)
+				return;
 
 			const currentItem = this._queueList.current();
-			if (!currentItem) return;
+			if (!currentItem)
+				return;
 
 			void this.load(currentItem as BasePlaylistItem & { url?: string }, { source: opts?.source }).then(() => {
-				if (this._currentEpoch !== navigationEpoch) return;
+				if (this._currentEpoch !== navigationEpoch)
+					return;
 				if (opts?.autoplay) {
 					void this.play({ source: opts.source });
 				}
-			}).catch(() => { /* load errors surface via the 'error' event; suppress unhandled rejection */ });
+			})
+				.catch(() => { /* load errors surface via the 'error' event; suppress unhandled rejection */ });
 		};
 
 		if (this._phase === 'setup') {
-			void this.ready().then(doLoad).catch(() => { /* setup failed — nothing to load */ });
+			void this.ready().then(doLoad)
+				.catch(() => { /* setup failed — nothing to load */ });
 		}
 		else {
 			doLoad();
@@ -255,7 +260,7 @@ export const queueMethods = {
 	 *
 	 * @throws {RangeError} when `position` is not a positive integer.
 	 */
-	seekToIndex(this: Internals, position: number, opts?: ActionOptions): void {
+	seekToIndex(this: Internals, position: number, _opts?: ActionOptions): void {
 		if (!Number.isInteger(position) || position < 1) {
 			throw new RangeError(`seekToIndex: position must be a positive integer, got ${position}`);
 		}
@@ -263,10 +268,11 @@ export const queueMethods = {
 		const zeroBasedIndex = position - 1;
 		const items = this._queueList.get();
 
-		if (zeroBasedIndex >= items.length) return;
+		if (zeroBasedIndex >= items.length)
+			return;
 
 		_wireQueue(this);
-		if (!this._emitBeforeMutation( 'current', [zeroBasedIndex]))
+		if (!this._emitBeforeMutation('current', [zeroBasedIndex]))
 			return;
 
 		this._queueList.setCurrent(zeroBasedIndex);

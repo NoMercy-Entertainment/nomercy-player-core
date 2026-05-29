@@ -18,7 +18,8 @@ const MIME_BY_EXT: Readonly<Record<string, string>> = {
  * browser will follow `Content-Type` regardless, so this is advisory only.
  */
 function mimeFromUrl(url: string): string {
-	const ext = url.split('?')[0]?.split('.').pop()?.toLowerCase() ?? '';
+	const ext = url.split('?')[0]?.split('.').pop()
+		?.toLowerCase() ?? '';
 	return MIME_BY_EXT[ext] ?? 'image/jpeg';
 }
 
@@ -171,7 +172,8 @@ export class MediaSessionPlugin<
 		const currentItemReader = (this.player as unknown as { current?: () => I | undefined }).current;
 		if (typeof currentItemReader === 'function') {
 			const existing = currentItemReader.call(this.player);
-			if (existing) void this._pushMetadata(existing);
+			if (existing)
+				void this._pushMetadata(existing);
 		}
 	}
 

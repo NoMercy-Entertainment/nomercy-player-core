@@ -82,6 +82,14 @@ export default antfu({
 		},
 	},
 }, {
+	// antfu/consistent-chaining conflicts with style/newline-per-chained-call
+	// (ignoreChainWithDepth: 2): both try to autofix depth-3 inline chains in
+	// opposite directions, producing an oscillating fix loop. The explicit
+	// style/newline-per-chained-call config is the project rule; this one loses.
+	rules: {
+		'antfu/consistent-chaining': 'off',
+	},
+}, {
 	files: ['src/__tests__/**/*.ts'],
 	rules: {
 		// Tests routinely use deep one-liners for assertions; relax the

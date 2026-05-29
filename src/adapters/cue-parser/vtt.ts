@@ -2,28 +2,40 @@ import type { Cue, CueList } from '../../cues/cue';
 import { createCueList } from '../../cues/cue';
 
 export interface VTTSubtitlePayload {
-	/** Cue text with all inline tags stripped. Use for plain-text consumers
-	 *  (chrome / accessibility tools, DOM-less environments). */
+	/**
+	 * Cue text with all inline tags stripped. Use for plain-text consumers
+	 *  (chrome / accessibility tools, DOM-less environments).
+	 */
 	text: string;
-	/** Raw cue body with `<i>`, `<b>`, `<u>` markup preserved (and unrecognised
+	/**
+	 * Raw cue body with `<i>`, `<b>`, `<u>` markup preserved (and unrecognised
 	 *  tags `<c>`, `<v>`, `<ruby>`, `<rt>`, `<lang>` + inline timestamps already
 	 *  stripped). Renderers should pass this to `buildSubtitleFragment()` to
-	 *  produce a sanitised `DocumentFragment` with real DOM nodes. */
+	 *  produce a sanitised `DocumentFragment` with real DOM nodes.
+	 */
 	markup?: string;
-	/** Inferred styles (legacy convenience for consumers that just need
+	/**
+	 * Inferred styles (legacy convenience for consumers that just need
 	 *  bold / italic / color flags without rendering). The `markup` field is
-	 *  the source of truth. */
+	 *  the source of truth.
+	 */
 	styles?: { color?: string; bold?: boolean; italic?: boolean };
-	/** WebVTT `line:` cue setting normalised to a percentage 0–100. Vertical
+	/**
+	 * WebVTT `line:` cue setting normalised to a percentage 0–100. Vertical
 	 *  positioning hint — renderers map this to a `top:` style and clear
 	 *  `bottom:`. Default-positioned cues (no `line:`) leave this undefined,
-	 *  letting the renderer pick its own safe-area bottom inset. */
+	 *  letting the renderer pick its own safe-area bottom inset.
+	 */
 	linePosition?: number;
-	/** WebVTT `align:` cue setting normalised to `start | center | end`
-	 *  (legacy `middle` → `center`, `left` → `start`, `right` → `end`). */
+	/**
+	 * WebVTT `align:` cue setting normalised to `start | center | end`
+	 *  (legacy `middle` → `center`, `left` → `start`, `right` → `end`).
+	 */
 	alignment?: 'start' | 'center' | 'end';
-	/** WebVTT `size:` cue setting (0–100, percent of the cue area). When
-	 *  present, renderers shrink the area horizontally and centre it. */
+	/**
+	 * WebVTT `size:` cue setting (0–100, percent of the cue area). When
+	 *  present, renderers shrink the area horizontally and centre it.
+	 */
 	size?: number;
 }
 
@@ -59,10 +71,12 @@ export interface VTTSpritePayload {
 
 const TIMESTAMP_LINE_RE = /^((?:\d{1,3}:)?\d{2}:\d{2}(?:\.\d{1,3})?)\s+-->\s+((?:\d{1,3}:)?\d{2}:\d{2}(?:\.\d{1,3})?)(\s+(?:\S.*)?)?$/;
 const TAG_STRIP_RE = /<[^>]+>/g;
-/** Strip everything except the inline tags renderers know how to draw safely:
+/**
+ * Strip everything except the inline tags renderers know how to draw safely:
  *  `<i>`, `<b>`, `<u>` (with closing variants). `<c.foo>`, `<v Speaker>`,
  *  `<ruby>`, `<rt>`, `<lang ...>`, and inline timestamp tags are removed so
- *  consumers using `buildSubtitleFragment` produce an identical DOM tree. */
+ *  consumers using `buildSubtitleFragment` produce an identical DOM tree.
+ */
 const UNRECOGNISED_TAG_RE = /<\/?(?:c(?:\.[^>]*)?|v(?:\s[^>]*)?|ruby|rt|lang(?:\.[^>]*)?)>/gi;
 const TIMESTAMP_TAG_RE = /<\d{2}:\d{2}:\d{2}\.\d{3}>/g;
 const SPRITE_FRAGMENT_RE = /^([^#]+)#xywh=(-?\d+),(-?\d+),(\d+),(\d+)$/;
@@ -153,7 +167,7 @@ export function parseVttSprite(text: string, baseUrl?: string): CueList<VTTSprit
 			start: c.start,
 			end: c.end,
 			payload: {
-				url: baseUrl && !url.match(/^https?:\/\//) ? joinUrl(baseUrl, url) : url,
+				url: baseUrl && !/^https?:\/\//.test(url) ? joinUrl(baseUrl, url) : url,
 				x: Number.parseInt(m[2]!, 10),
 				y: Number.parseInt(m[3]!, 10),
 				w: Number.parseInt(m[4]!, 10),
@@ -232,7 +246,7 @@ function parseRaw(text: string): RawCue[] {
 		const settings = parseCueSettings(tsMatch[3]);
 
 		const body = lines.slice(tsLineIdx + 1).join('\n')
-.trim();
+			.trim();
 		cues.push({
 			start,
 			end,
@@ -306,7 +320,9 @@ function parsePercent(raw: string): number | null {
 function parseTimestamp(ts: string): number {
 	// Accepts HH:MM:SS.mmm or MM:SS.mmm (HH optional)
 	const parts = ts.split(':');
-	let h = 0; let m = 0; let s = 0;
+	let h = 0;
+	let m = 0;
+	let s = 0;
 	if (parts.length === 3) {
 		h = Number.parseInt(parts[0]!, 10);
 		m = Number.parseInt(parts[1]!, 10);
