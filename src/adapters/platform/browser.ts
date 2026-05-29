@@ -136,7 +136,7 @@ export interface DecodeCapability {
  */
 export interface ICapabilitiesProbe {
 	canDecode(profile: DecodeProfile): Promise<DecodeCapability>;
-	supportedCodecs?(): readonly string[] | Promise<readonly string[]>;
+	supportedCodecs?(): Promise<readonly string[]>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -356,7 +356,7 @@ function browserCapabilitiesProbe(): ICapabilitiesProbe {
 			}
 		},
 
-		supportedCodecs(): readonly string[] {
+		async supportedCodecs(): Promise<readonly string[]> {
 			if (typeof MediaSource === 'undefined' || typeof MediaSource.isTypeSupported !== 'function') {
 				return [];
 			}
