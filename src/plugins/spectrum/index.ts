@@ -34,7 +34,7 @@ export interface SpectrumEvents {
 	 * `energy` carries the pre-computed bass/mid/treble band energies (0..1)
 	 * as a convenience so listeners don't have to re-slice the FFT buffer.
 	 */
-	frame: { frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } };
+	'frame': { frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } };
 
 	/**
 	 * Fired whenever `options(partial)` is called on this plugin. Payload is the

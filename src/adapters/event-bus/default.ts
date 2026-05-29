@@ -33,12 +33,16 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	private readonly _lcPending = new Set<string>();
 
 	private _scheduleListenersChanged(name: string, _count: number): void {
-		if (this._lcPending.has(name)) return;
+		if (this._lcPending.has(name))
+			return;
 		this._lcPending.add(name);
 		queueMicrotask(() => {
 			this._lcPending.delete(name);
 			const current = this.listeners.get(name)?.size ?? 0;
-			this.emit('listeners-changed', { name, count: current });
+			this.emit('listeners-changed', {
+				name,
+				count: current,
+			});
 		});
 	}
 
@@ -65,7 +69,8 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 		}
 		const wasEmpty = set.size === 0;
 		set.add(fn);
-		if (wasEmpty && key !== 'listeners-changed') this._scheduleListenersChanged(key, 1);
+		if (wasEmpty && key !== 'listeners-changed')
+			this._scheduleListenersChanged(key, 1);
 	}
 
 	/**
@@ -114,7 +119,8 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 			const wasNonEmpty = set.size > 0;
 			set.clear();
 			this.listeners.delete(key);
-			if (wasNonEmpty && key !== 'listeners-changed') this._scheduleListenersChanged(key, 0);
+			if (wasNonEmpty && key !== 'listeners-changed')
+				this._scheduleListenersChanged(key, 0);
 			return;
 		}
 
@@ -130,7 +136,8 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 
 		if (set.size === 0) {
 			this.listeners.delete(key);
-			if (sizeBefore > 0 && key !== 'listeners-changed') this._scheduleListenersChanged(key, 0);
+			if (sizeBefore > 0 && key !== 'listeners-changed')
+				this._scheduleListenersChanged(key, 0);
 		}
 	}
 

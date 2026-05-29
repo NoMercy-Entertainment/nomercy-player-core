@@ -1,6 +1,13 @@
-import { AuthError, NetworkError } from '../../errors';
+import type {
+	AttemptCtx,
+	AuthConfig,
+	AuthFetchBase,
+	AuthFetchOptions,
+	AuthHeaderValue,
+	RetryConfig,
+} from './types';
 
-import type { AuthFetchOptions, AttemptCtx, AuthFetchBase, AuthConfig, AuthHeaderValue, RetryConfig } from './types';
+import { AuthError, NetworkError } from '../../errors';
 
 const DEFAULT_RETRY: RetryConfig = { attempts: 0 };
 

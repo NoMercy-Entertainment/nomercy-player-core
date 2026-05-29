@@ -2,7 +2,6 @@ import type { PlaybackMetrics } from '../../types';
 
 import type { Internals } from '../state';
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: metrics / clock / accessibility — grouped because they share the
 // same "instrumentation surface" semantics across both libraries.

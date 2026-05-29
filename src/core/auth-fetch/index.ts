@@ -9,10 +9,10 @@
  *
  * Public entry point is `authFetch` from the orchestrator.
  */
+import { AuthError, NetworkError } from '../../errors';
+
 export { authFetch } from './orchestrator';
 export type { AuthFetchOptions } from './types';
-
-import { AuthError, NetworkError } from '../../errors';
 
 /** Type guard helper exposed for player + plugin code that needs to inspect errors. */
 export function isAuthError(err: unknown): err is AuthError {

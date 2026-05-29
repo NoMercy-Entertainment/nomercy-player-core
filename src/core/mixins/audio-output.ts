@@ -1,14 +1,12 @@
-import { browserPolicyError } from '../../errors';
-
 import type { Internals } from '../state';
 
+import { browserPolicyError } from '../../errors';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Narrow backend interface — local to this mixin
 // ──────────────────────────────────────────────────────────────────────────
 
 interface _BackendWithMediaElement { mediaElement?: () => HTMLMediaElement & { setSinkId?: (id: string) => Promise<void>; sinkId?: string } }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: audio output device routing.

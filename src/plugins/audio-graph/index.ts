@@ -1,6 +1,6 @@
 import type { BaseEventMap, IPlayer } from '../../types';
-import { BrowserPolicyError, PluginError } from '../../errors';
 import { setPlayerAudioContext } from '../../base-player';
+import { BrowserPolicyError, PluginError } from '../../errors';
 import { Plugin } from '../../plugin';
 
 /** Options for {@link AudioGraphPlugin}. */

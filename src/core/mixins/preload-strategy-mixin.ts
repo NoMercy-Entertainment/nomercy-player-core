@@ -2,7 +2,6 @@ import type { PreloadStrategy, TransitionStrategy } from '../../adapters/preload
 
 import type { Internals } from '../state';
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: preload + transition strategy swappers
 // ──────────────────────────────────────────────────────────────────────────

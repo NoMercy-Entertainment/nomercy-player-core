@@ -1,11 +1,16 @@
-import { AudioTrackState, BufferState, NetworkState, QualityState, VisibilityState } from '../../types';
 import type { PlayerPhase } from '../../types';
-import { runDispatchBefore } from '../dispatch';
 import type { BeforeDispatchOutcome } from '../dispatch';
-import { stateError } from '../../errors';
-
 import type { Internals } from '../state';
+import { stateError } from '../../errors';
+import {
+	AudioTrackState,
+	BufferState,
+	NetworkState,
+	QualityState,
+	VisibilityState,
+} from '../../types';
 
+import { runDispatchBefore } from '../dispatch';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Narrow backend interfaces — local to this mixin
@@ -14,7 +19,6 @@ import type { Internals } from '../state';
 interface _BackendWithState { state?: () => string }
 interface _BackendWithSetQuality { setQuality?: (idx: number | 'auto') => void }
 interface _BackendWithSetAudioTrack { setAudioTrack?: (idx: number) => void }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Backend shape — structural contract for the resolved backend handle.
@@ -39,7 +43,6 @@ export interface BackendShape {
 function _isBackendShape(value: unknown): value is BackendShape {
 	return typeof value === 'object' && value !== null;
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: shared buffer / network / stream / visibility / quality / audioTrack
@@ -75,7 +78,8 @@ export const playerStateMethods = {
 	 * guarding themselves.
 	 */
 	_resolveBackend(this: Internals): BackendShape | undefined {
-		if (typeof this.backend !== 'function') return undefined;
+		if (typeof this.backend !== 'function')
+			return undefined;
 		const result = this.backend();
 		return _isBackendShape(result) ? result : undefined;
 	},

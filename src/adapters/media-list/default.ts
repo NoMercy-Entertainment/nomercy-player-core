@@ -93,7 +93,8 @@ export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaLis
 	 */
 	replaceItem(item: T): void {
 		const idx = this.items.findIndex(i => i.id === item.id);
-		if (idx >= 0) this.items[idx] = item;
+		if (idx >= 0)
+			this.items[idx] = item;
 	}
 
 	/**

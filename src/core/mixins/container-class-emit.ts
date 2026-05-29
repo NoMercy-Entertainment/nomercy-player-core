@@ -1,8 +1,7 @@
 import type { PlayerPhase } from '../../types';
-import { EventEmitter } from '../../adapters/event-bus/default';
-
 import type { Internals } from '../state';
 
+import { EventEmitter } from '../../adapters/event-bus/default';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Container class rules — data-driven table that maps player event names to
@@ -13,27 +12,75 @@ import type { Internals } from '../state';
 /** Mutually exclusive playback-state classes managed as a group by the rules table. */
 const PLAY_STATE_CLASSES: ReadonlyArray<string> = ['playing', 'paused', 'stopped', 'ended', 'loading', 'buffering'] as const;
 
-type ContainerClassRule =
-	| { kind: 'swap'; add: string; remove: readonly string[] }
-	| { kind: 'drop'; remove: readonly string[] }
-	| { kind: 'toggle'; cls: string; payloadKey: string }
-	| { kind: 'binary'; whenTrue: string; whenFalse: string; payloadKey: string }
-	| { kind: 'phase' };
+type ContainerClassRule
+	= | { kind: 'swap'; add: string; remove: readonly string[] }
+		| { kind: 'drop'; remove: readonly string[] }
+		| { kind: 'toggle'; cls: string; payloadKey: string }
+		| { kind: 'binary'; whenTrue: string; whenFalse: string; payloadKey: string }
+		| { kind: 'phase' };
 
 const CONTAINER_CLASS_RULES: ReadonlyMap<string, ContainerClassRule> = new Map<string, ContainerClassRule>([
-	['play', { kind: 'swap', add: 'playing', remove: PLAY_STATE_CLASSES.filter(c => c !== 'playing') }],
-	['pause', { kind: 'swap', add: 'paused', remove: PLAY_STATE_CLASSES.filter(c => c !== 'paused') }],
-	['stop', { kind: 'swap', add: 'stopped', remove: PLAY_STATE_CLASSES.filter(c => c !== 'stopped') }],
-	['ended', { kind: 'swap', add: 'ended', remove: PLAY_STATE_CLASSES.filter(c => c !== 'ended') }],
-	['waiting', { kind: 'swap', add: 'buffering', remove: ['playing'] }],
-	['stalled', { kind: 'swap', add: 'buffering', remove: ['playing'] }],
-	['canplay', { kind: 'drop', remove: ['buffering'] }],
-	['mute', { kind: 'toggle', cls: 'muted', payloadKey: 'muted' }],
-	['fullscreen', { kind: 'toggle', cls: 'fullscreen', payloadKey: 'active' }],
-	['pip', { kind: 'toggle', cls: 'pip', payloadKey: 'active' }],
-	['theater', { kind: 'toggle', cls: 'theater', payloadKey: 'active' }],
+	['play', {
+		kind: 'swap',
+		add: 'playing',
+		remove: PLAY_STATE_CLASSES.filter(c => c !== 'playing'),
+	}],
+	['pause', {
+		kind: 'swap',
+		add: 'paused',
+		remove: PLAY_STATE_CLASSES.filter(c => c !== 'paused'),
+	}],
+	['stop', {
+		kind: 'swap',
+		add: 'stopped',
+		remove: PLAY_STATE_CLASSES.filter(c => c !== 'stopped'),
+	}],
+	['ended', {
+		kind: 'swap',
+		add: 'ended',
+		remove: PLAY_STATE_CLASSES.filter(c => c !== 'ended'),
+	}],
+	['waiting', {
+		kind: 'swap',
+		add: 'buffering',
+		remove: ['playing'],
+	}],
+	['stalled', {
+		kind: 'swap',
+		add: 'buffering',
+		remove: ['playing'],
+	}],
+	['canplay', {
+		kind: 'drop',
+		remove: ['buffering'],
+	}],
+	['mute', {
+		kind: 'toggle',
+		cls: 'muted',
+		payloadKey: 'muted',
+	}],
+	['fullscreen', {
+		kind: 'toggle',
+		cls: 'fullscreen',
+		payloadKey: 'active',
+	}],
+	['pip', {
+		kind: 'toggle',
+		cls: 'pip',
+		payloadKey: 'active',
+	}],
+	['theater', {
+		kind: 'toggle',
+		cls: 'theater',
+		payloadKey: 'active',
+	}],
 	['phase', { kind: 'phase' }],
-	['activity', { kind: 'binary', whenTrue: 'active', whenFalse: 'inactive', payloadKey: 'active' }],
+	['activity', {
+		kind: 'binary',
+		whenTrue: 'active',
+		whenFalse: 'inactive',
+		payloadKey: 'active',
+	}],
 ]);
 
 /**
@@ -49,7 +96,8 @@ const CONTAINER_CLASS_RULES: ReadonlyMap<string, ContainerClassRule> = new Map<s
  * No-ops silently when `container` is absent (player not mounted yet).
  */
 function _applyContainerClassRule(container: HTMLElement | undefined, rule: ContainerClassRule, data: unknown): void {
-	if (!container || typeof container.classList === 'undefined') return;
+	if (!container || typeof container.classList === 'undefined')
+		return;
 
 	if (rule.kind === 'swap') {
 		for (const cls of rule.remove) container.classList.remove(cls);
@@ -80,7 +128,8 @@ function _applyContainerClassRule(container: HTMLElement | undefined, rule: Cont
 		const phasePayload = typeof data === 'object' && data !== null && 'to' in data
 			? (data as { to: PlayerPhase })
 			: undefined;
-		if (!phasePayload) return;
+		if (!phasePayload)
+			return;
 
 		if (PLAY_STATE_CLASSES.includes(phasePayload.to)) {
 			for (const cls of PLAY_STATE_CLASSES) container.classList.remove(cls);
@@ -94,7 +143,6 @@ function _applyContainerClassRule(container: HTMLElement | undefined, rule: Cont
 		}
 	}
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: containerClassEmit — wraps `emit` to keep `.nomercyplayer` CSS

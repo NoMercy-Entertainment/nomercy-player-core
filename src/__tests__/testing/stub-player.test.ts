@@ -15,8 +15,8 @@
  *  - reset() — clears all in-memory state
  */
 
-import type { CueList } from '../../cues/cue';
 import type { CueParser } from '../../adapters/cue-parser/ICueParser';
+import type { CueList } from '../../cues/cue';
 import { describe, expect, it, vi } from 'vitest';
 import { StubPlayer } from '../../testing/stub-player';
 

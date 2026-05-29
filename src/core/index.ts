@@ -5,79 +5,84 @@
  * resolution, state initialisation, and the full mixin set.
  */
 
-export { KIT_VERSION } from './kit-version';
-export { stateError, resourceError, pluginError, browserPolicyError, mediaFormatError } from '../errors';
+import { abrMethods } from './mixins/abr';
+import { audioOutputMethods } from './mixins/audio-output';
+import { authMethods } from './mixins/auth';
+import { baseUrlAudioContextMethods } from './mixins/base-url-audio-context';
+import { castMethods } from './mixins/cast';
+import { containerClassEmitMethods } from './mixins/container-class-emit';
+import { cueParserMethods } from './mixins/cue-parser';
+import { deviceMethods } from './mixins/device';
+import { domMethods } from './mixins/dom-mixin';
+import { experimentalDescriptor } from './mixins/experimental';
+import { i18nMethods } from './mixins/i18n';
+import { lifecycleMethods } from './mixins/lifecycle';
+import { loadingMethods } from './mixins/loading';
+import { mediaTracksMethods } from './mixins/media-tracks';
+import { metricsMethods } from './mixins/metrics';
+import { playerStateMethods } from './mixins/player-state';
+import { pluginRegistrationMethods } from './mixins/plugin-registration';
+import { preloadStrategyMethods } from './mixins/preload-strategy-mixin';
+import { queueMethods } from './mixins/queue';
+import { stateMethods } from './mixins/state-mutators';
+import { streamRegistrationMethods } from './mixins/stream-registration';
+import { timeMethods } from './mixins/time';
+import { transportMethods } from './mixins/transport';
+import { volumeMethods } from './mixins/volume';
+
+export {
+	browserPolicyError,
+	mediaFormatError,
+	pluginError,
+	resourceError,
+	stateError,
+} from '../errors';
 export { resolvePlayerConstructor } from './constructor';
 export type { PlayerCtorResolution } from './constructor';
+export { KIT_VERSION } from './kit-version';
+export { abrMethods } from './mixins/abr';
+export { audioOutputMethods } from './mixins/audio-output';
+
+export { authMethods } from './mixins/auth';
+export { baseUrlAudioContextMethods } from './mixins/base-url-audio-context';
+export { castMethods } from './mixins/cast';
+export { containerClassEmitMethods } from './mixins/container-class-emit';
+export { cueParserMethods } from './mixins/cue-parser';
+export { deviceMethods } from './mixins/device';
+export { domMethods } from './mixins/dom-mixin';
+export { experimentalDescriptor } from './mixins/experimental';
+export { i18nMethods } from './mixins/i18n';
+export { lifecycleMethods } from './mixins/lifecycle';
+export { loadingMethods } from './mixins/loading';
+export { mediaTracksMethods } from './mixins/media-tracks';
+export type { ItemWithDefinedTracks, ItemWithTracks, SidecarTrack } from './mixins/media-tracks';
+export { metricsMethods } from './mixins/metrics';
+export { playerStateMethods } from './mixins/player-state';
+export type { BackendShape } from './mixins/player-state';
+export { pluginRegistrationMethods } from './mixins/plugin-registration';
+export { preloadStrategyMethods } from './mixins/preload-strategy-mixin';
+export { queueMethods } from './mixins/queue';
+export { stateMethods } from './mixins/state-mutators';
+export { HOT_MUTATIONS } from './mixins/state-mutators';
+export { streamRegistrationMethods } from './mixins/stream-registration';
+export { timeMethods } from './mixins/time';
+export { transportMethods } from './mixins/transport';
+
+export { volumeMethods } from './mixins/volume';
 export {
 	initPlayerCoreState,
 	setPlayerAudioContext,
 } from './state';
 export type {
-	SidecarSubtitleContext,
+	Internals,
+	MixinSurface,
+	PlayerCoreState,
 	PlayStateToken,
-	VolumeStateToken,
 	RepeatStateToken,
 	ShuffleStateToken,
-	PlayerCoreState,
-	MixinSurface,
-	Internals,
+	SidecarSubtitleContext,
+	VolumeStateToken,
 } from './state';
-
-export { lifecycleMethods } from './mixins/lifecycle';
-export { baseUrlAudioContextMethods } from './mixins/base-url-audio-context';
-export { experimentalDescriptor } from './mixins/experimental';
-export { i18nMethods } from './mixins/i18n';
-export { cueParserMethods } from './mixins/cue-parser';
-export { transportMethods } from './mixins/transport';
-export { timeMethods } from './mixins/time';
-export { volumeMethods } from './mixins/volume';
-export { stateMethods } from './mixins/state-mutators';
-export { playerStateMethods } from './mixins/player-state';
-export { queueMethods } from './mixins/queue';
-export { pluginRegistrationMethods } from './mixins/plugin-registration';
-export { authMethods } from './mixins/auth';
-export { streamRegistrationMethods } from './mixins/stream-registration';
-export { mediaTracksMethods } from './mixins/media-tracks';
-export { deviceMethods } from './mixins/device';
-export { audioOutputMethods } from './mixins/audio-output';
-export { castMethods } from './mixins/cast';
-export { abrMethods } from './mixins/abr';
-export { metricsMethods } from './mixins/metrics';
-export { domMethods } from './mixins/dom-mixin';
-export { loadingMethods } from './mixins/loading';
-export { containerClassEmitMethods } from './mixins/container-class-emit';
-export { preloadStrategyMethods } from './mixins/preload-strategy-mixin';
-
-export type { BackendShape } from './mixins/player-state';
-export type { SidecarTrack, ItemWithTracks, ItemWithDefinedTracks } from './mixins/media-tracks';
-export { HOT_MUTATIONS } from './mixins/state-mutators';
-
-
-import { lifecycleMethods } from './mixins/lifecycle';
-import { baseUrlAudioContextMethods } from './mixins/base-url-audio-context';
-import { experimentalDescriptor } from './mixins/experimental';
-import { i18nMethods } from './mixins/i18n';
-import { cueParserMethods } from './mixins/cue-parser';
-import { transportMethods } from './mixins/transport';
-import { timeMethods } from './mixins/time';
-import { volumeMethods } from './mixins/volume';
-import { stateMethods } from './mixins/state-mutators';
-import { playerStateMethods } from './mixins/player-state';
-import { queueMethods } from './mixins/queue';
-import { pluginRegistrationMethods } from './mixins/plugin-registration';
-import { authMethods } from './mixins/auth';
-import { streamRegistrationMethods } from './mixins/stream-registration';
-import { mediaTracksMethods } from './mixins/media-tracks';
-import { deviceMethods } from './mixins/device';
-import { audioOutputMethods } from './mixins/audio-output';
-import { castMethods } from './mixins/cast';
-import { abrMethods } from './mixins/abr';
-import { metricsMethods } from './mixins/metrics';
-import { domMethods } from './mixins/dom-mixin';
-import { loadingMethods } from './mixins/loading';
-import { containerClassEmitMethods } from './mixins/container-class-emit';
-import { preloadStrategyMethods } from './mixins/preload-strategy-mixin';
 
 /**
  * Every shared mixin collected into a single `as const` tuple.

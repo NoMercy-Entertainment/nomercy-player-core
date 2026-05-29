@@ -41,7 +41,6 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		initPlayerCoreState(this, { className: 'MockPlayer' });
 		const resolved = resolvePlayerConstructor(id, _instances, 'MockPlayer');
 		if (resolved.kind === 'existing') {
-			// eslint-disable-next-line no-constructor-return
 			return resolved.instance as unknown as this;
 		}
 		(this as { playerId: string }).playerId = resolved.id;
@@ -87,7 +86,7 @@ describe('t() overload', () => {
 
 		it('interpolates vars', () => {
 			const player = makePlayer();
-			player.addTranslations({ en: { 'greet': 'Hi {name}' } });
+			player.addTranslations({ en: { greet: 'Hi {name}' } });
 			expect(player.t('greet', { name: 'Arc' })).toBe('Hi Arc');
 		});
 	});

@@ -1,8 +1,7 @@
 import type { CanPlayResult } from '../../types';
-import { browserPlatform } from '../../adapters/platform/browser';
-
 import type { Internals } from '../state';
 
+import { browserPlatform } from '../../adapters/platform/browser';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: ABR — `bandwidth`, `bandwidthEstimator`, `canPlay`.

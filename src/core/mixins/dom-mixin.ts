@@ -1,6 +1,5 @@
 import type { Internals } from '../state';
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: DOM construction helpers re-exposed on the player so plugins and UI
 // authors can call `this.player.createElement(...)` without importing from a
@@ -58,7 +57,6 @@ export const domMethods = {
 		return removeClasses(el, names);
 	},
 } as const;
-
 
 /** Chainable element-creation helper. Both players + plugin authors use these. */
 export interface CreateElement<T extends Element> {
@@ -164,7 +162,6 @@ export function createButton(id: string, label: string, onClick: (e: Event) => v
 	button.addEventListener('click', onClick);
 	return button;
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────
 // Internals

@@ -1,19 +1,18 @@
-import type { BasePlaylistItem, BasePlayerConfig, PlayerPhase } from '../../types';
-import { SetupState } from '../../types';
 import type { IPlatform } from '../../adapters/platform/browser';
 import type { PreloadAsset, PreloadStrategy, TransitionBackend } from '../../adapters/preload/default';
-import { DefaultPreloadStrategy } from '../../adapters/preload/default';
+import type { BasePlayerConfig, BasePlaylistItem, PlayerPhase } from '../../types';
+import type { Internals } from '../state';
 import { builtInCueParsers } from '../../adapters/cue-parser/built-ins';
+import { browserPlatform } from '../../adapters/platform/browser';
+import { DefaultPreloadStrategy } from '../../adapters/preload/default';
 import { hlsFactory } from '../../adapters/stream/hls';
 import { nativeFactory } from '../../adapters/stream/native';
 import { StreamRegistry } from '../../adapters/stream/registry';
-import { browserPlatform } from '../../adapters/platform/browser';
 import { DefaultTranslator } from '../../adapters/translator/translator';
-import { authFetch } from '../auth-fetch';
-
 import { makePlayerErrorEvent, stateError, StateError } from '../../errors';
-import type { Internals } from '../state';
 
+import { SetupState } from '../../types';
+import { authFetch } from '../auth-fetch';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Playlist URL resolver
@@ -62,7 +61,6 @@ async function _resolvePlaylistUrl(self: Internals, url: string): Promise<void> 
 		self.emit('playlistReady', { length: 0 });
 	}
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: lifecycle — owns the player's birth, ready signal, and death.
@@ -256,7 +254,6 @@ export const lifecycleMethods = {
 	},
 } as const;
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Setup phase helpers — invoked in order by setup() above
 // ──────────────────────────────────────────────────────────────────────────
@@ -360,7 +357,8 @@ function _resolvePlatform(self: Internals): void {
  * `options.pauseWhenHidden` (default off).
  */
 function _wireVisibilityPolicy(self: Internals): void {
-	if (!self.options.pauseWhenHidden) return;
+	if (!self.options.pauseWhenHidden)
+		return;
 
 	const platform = self._platform ?? browserPlatform;
 	const unsubscribe = platform.visibility.subscribe((visible) => {
@@ -386,7 +384,8 @@ function _wireVisibilityPolicy(self: Internals): void {
  */
 function _wireNetworkPolicy(self: Internals): void {
 	const onOffline = self.options.onOffline ?? 'continue-buffered';
-	if (onOffline === 'ignore') return;
+	if (onOffline === 'ignore')
+		return;
 
 	const platform = self._platform ?? browserPlatform;
 	let wasNetworkSlow = false;
@@ -566,15 +565,21 @@ function _wireTimeAndDurationSync(self: Internals): void {
  */
 function _wireProgressEmit(self: Internals): void {
 	const progressInterval = self.options.progressIntervalMs ?? 5_000;
-	if (progressInterval <= 0) return;
+	if (progressInterval <= 0)
+		return;
 
 	const onTime = ({ time }: { time: number }): void => {
 		const now = Date.now();
-		if (now - self._lastProgressEmit < progressInterval) return;
+		if (now - self._lastProgressEmit < progressInterval)
+			return;
 		self._lastProgressEmit = now;
 		const duration = self.duration();
 		const percentage = duration > 0 ? (time / duration) * 100 : 0;
-		self.emit('progress', { time, duration, percentage });
+		self.emit('progress', {
+			time,
+			duration,
+			percentage,
+		});
 	};
 	self.on('time', onTime);
 	self._policyCleanup.push(() => {
@@ -632,7 +637,11 @@ function _wirePreloadAndTransition(self: Internals): void {
 	const onTimeOrchestration = ({ time }: { time: number }): void => {
 		const duration = self._internalDuration;
 		const nextItem = self._queueList.peekNext() ?? null;
-		const context = { currentTime: time, duration, nextItem };
+		const context = {
+			currentTime: time,
+			duration,
+			nextItem,
+		};
 
 		if (!self._preloadFired && self._preloadStrategy.shouldPreload(context) && nextItem !== null) {
 			self._preloadFired = true;
@@ -660,7 +669,8 @@ function _wirePreloadAndTransition(self: Internals): void {
  * second player instance won't clobber the wrong handle.
  */
 function _wireWindowExpose(self: Internals): void {
-	if (self.options.expose !== true || typeof window === 'undefined') return;
+	if (self.options.expose !== true || typeof window === 'undefined')
+		return;
 
 	Object.assign(window, { player: self });
 	self._policyCleanup.push(() => {
@@ -676,7 +686,6 @@ function _initContainerClass(self: Internals): void {
 		self.container.classList.add('nomercyplayer', 'paused');
 	}
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Setup pipeline + transition helpers — async work fired by setup()
@@ -785,7 +794,10 @@ async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strate
 
 	player.emit('preloadStart', {
 		item: nextItem,
-		assets: assets.map(asset => ({ url: asset.url, category: asset.category })),
+		assets: assets.map(asset => ({
+			url: asset.url,
+			category: asset.category,
+		})),
 	});
 
 	let loaded = 0;
@@ -797,7 +809,8 @@ async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strate
 	}
 
 	const fetchAsset = async (asset: PreloadAsset): Promise<void> => {
-		if (player._preloadEpoch !== capturedEpoch) return;
+		if (player._preloadEpoch !== capturedEpoch)
+			return;
 
 		try {
 			const request = new Request(asset.url, {
@@ -808,17 +821,26 @@ async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strate
 
 			loaded += 1;
 
-			if (player._preloadEpoch !== capturedEpoch) return;
+			if (player._preloadEpoch !== capturedEpoch)
+				return;
 
-			player.emit('preloadProgress', { item: nextItem, loaded, total });
+			player.emit('preloadProgress', {
+				item: nextItem,
+				loaded,
+				total,
+			});
 
 			if (loaded === total) {
 				player.emit('preloadComplete', { item: nextItem });
 			}
 		}
 		catch (error: unknown) {
-			if (player._preloadEpoch !== capturedEpoch) return;
-			player.emit('preloadError', { item: nextItem, error });
+			if (player._preloadEpoch !== capturedEpoch)
+				return;
+			player.emit('preloadError', {
+				item: nextItem,
+				error,
+			});
 		}
 	};
 
@@ -842,7 +864,10 @@ function _runTransition(player: Internals, outgoing: BasePlaylistItem, incoming:
 	const backend = _resolveTransitionBackend(player);
 
 	player._transitionStrategy.start(outgoing, incoming, backend);
-	player.emit('transitionStart', { outgoing, incoming });
+	player.emit('transitionStart', {
+		outgoing,
+		incoming,
+	});
 
 	const capturedEpoch = player._preloadEpoch;
 	const crossfadeLeadSeconds = player.options.crossfadeLeadSeconds ?? 3;
@@ -850,22 +875,37 @@ function _runTransition(player: Internals, outgoing: BasePlaylistItem, incoming:
 	const totalWindowSeconds = crossfadeLeadSeconds + crossfadeTailSeconds;
 
 	const tick = (): void => {
-		if (player._preloadEpoch !== capturedEpoch) return;
-		if (player._phase === 'disposed' || player._phase === 'disposing') return;
+		if (player._preloadEpoch !== capturedEpoch)
+			return;
+		if (player._phase === 'disposed' || player._phase === 'disposing')
+			return;
 
 		const currentTime = player._internalCurrentTime;
 		const duration = player._internalDuration;
 		const elapsed = currentTime - (duration - crossfadeLeadSeconds);
 		const fraction = totalWindowSeconds > 0 ? Math.max(0, Math.min(1, elapsed / totalWindowSeconds)) : 1;
 
-		const context = { currentTime, duration, outgoingItem: outgoing, incomingItem: incoming, fraction };
+		const context = {
+			currentTime,
+			duration,
+			outgoingItem: outgoing,
+			incomingItem: incoming,
+			fraction,
+		};
 
 		player._transitionStrategy.tick(context, backend);
-		player.emit('transitionProgress', { outgoing, incoming, fraction });
+		player.emit('transitionProgress', {
+			outgoing,
+			incoming,
+			fraction,
+		});
 
 		if (fraction >= 1) {
 			player._transitionStrategy.complete(outgoing, incoming);
-			player.emit('transitionComplete', { from: outgoing, to: incoming });
+			player.emit('transitionComplete', {
+				from: outgoing,
+				to: incoming,
+			});
 			player._transitionRafHandle = undefined;
 			return;
 		}
@@ -884,7 +924,8 @@ function _runTransition(player: Internals, outgoing: BasePlaylistItem, incoming:
  */
 function _resolveTransitionBackend(player: Internals): TransitionBackend | null {
 	const backend = player.backend?.();
-	if (!backend) return null;
+	if (!backend)
+		return null;
 	const candidate = backend as Partial<TransitionBackend>;
 	if (typeof candidate.supportsCrossfade === 'function') {
 		return candidate as TransitionBackend;
@@ -921,12 +962,12 @@ async function _runStage(
 		const error = raw instanceof StateError
 			? raw
 			: new StateError({
-				code: `core:lifecycle/${stage}-failed`,
-				severity: 'error',
-				scope: { kind: 'core' },
-				message: raw.message,
-				cause: raw,
-			});
+					code: `core:lifecycle/${stage}-failed`,
+					severity: 'error',
+					scope: { kind: 'core' },
+					message: raw.message,
+					cause: raw,
+				});
 		const payload = makePlayerErrorEvent(error, 'error', { kind: 'core' });
 		self.emit(errorEvent, payload);
 		self.emit('error', payload);

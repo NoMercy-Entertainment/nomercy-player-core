@@ -1,8 +1,13 @@
+import type {
+	Internals,
+	PlayStateToken,
+	RepeatStateToken,
+	ShuffleStateToken,
+	VolumeStateToken,
+
+} from '../state';
+
 import { makePlayerErrorEvent, pluginError } from '../../errors';
-
-import type { PlayStateToken, RepeatStateToken, ShuffleStateToken, VolumeStateToken } from '../state';
-import type { Internals } from '../state';
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mutation guard helpers
@@ -39,7 +44,6 @@ function _shouldGuardMutation(self: Internals, method: string): boolean {
 	// Default: normal mutations fire, hot ones don't.
 	return !isHot;
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: state-enum read accessors + mutation guard.
@@ -134,6 +138,7 @@ export const stateMethods = {
 		if (!_shouldGuardMutation(this, method))
 			return true;
 
+		// eslint-disable-next-line ts/no-this-alias
 		const player = this;
 		let prevented = false;
 		const evt = {
@@ -200,7 +205,10 @@ export const stateMethods = {
 				this.emit(advisory.severity, makePlayerErrorEvent(
 					error,
 					advisory.severity,
-					{ kind: 'plugin', id: ctor.id },
+					{
+						kind: 'plugin',
+						id: ctor.id,
+					},
 				));
 			}
 		}

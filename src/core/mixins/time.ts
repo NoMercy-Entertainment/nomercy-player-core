@@ -2,15 +2,17 @@ import type { ActionOptions, TimeState } from '../../types';
 
 import type { Internals } from '../state';
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by timeMethods
 // ──────────────────────────────────────────────────────────────────────────
 
 function _emptyTimeRanges(): TimeRanges {
-	return { length: 0, start: (): number => 0, end: (): number => 0 } as unknown as TimeRanges;
+	return {
+		length: 0,
+		start: (): number => 0,
+		end: (): number => 0,
+	} as unknown as TimeRanges;
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: time / position
@@ -32,7 +34,8 @@ export const timeMethods = {
 	 * `seek` / `seeked` payloads so listeners can attribute the seek origin.
 	 */
 	currentTime(this: Internals, t?: number, opts: ActionOptions = {}): number | Promise<void> {
-		if (t === undefined) return this._internalCurrentTime;
+		if (t === undefined)
+			return this._internalCurrentTime;
 		const target = Math.max(0, t);
 
 		return (async () => {
@@ -124,7 +127,8 @@ export const timeMethods = {
 	seekByPercentage(this: Internals, pct: number, opts?: ActionOptions): void {
 		const clamped = Math.max(0, Math.min(100, pct));
 		const d = this.duration();
-		if (!Number.isFinite(d) || d <= 0) return;
+		if (!Number.isFinite(d) || d <= 0)
+			return;
 		const ret = this.currentTime(d * clamped / 100, opts);
 		if (ret instanceof Promise)
 			void ret;

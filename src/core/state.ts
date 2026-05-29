@@ -1,8 +1,15 @@
-import { EventEmitter } from '../adapters/event-bus/default';
+import type { VTTSubtitlePayload } from '../adapters/cue-parser/vtt';
+import type { EventEmitter } from '../adapters/event-bus/default';
+import type { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
 import type { IPlatform } from '../adapters/platform/browser';
-import type { Plugin } from '../plugin';
+import type { PreloadStrategy, TransitionStrategy } from '../adapters/preload/default';
+import type { StreamRegistry } from '../adapters/stream/registry';
 import type { ITranslator } from '../adapters/translator/translator';
+import type { Cue } from '../cues/cue';
+import type { CueTracker } from '../cues/tracker';
+import type { Plugin } from '../plugin';
 import type {
+	CastState as _CastStateEnum,
 	AuthConfig,
 	BaseEventMap,
 	BasePlayerConfig,
@@ -13,17 +20,10 @@ import type {
 	SubtitleStyle,
 	UrlResolver,
 } from '../types';
-import { AudioTrackState, CastState as _CastStateEnum, QualityState } from '../types';
 import { CueParserRegistry } from '../adapters/cue-parser/registry';
-import { CueTracker } from '../cues/tracker';
-import type { Cue } from '../cues/cue';
-import type { VTTSubtitlePayload } from '../adapters/cue-parser/vtt';
-import { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
 import { MediaList } from '../adapters/media-list/default';
 import { DefaultPreloadStrategy } from '../adapters/preload/default';
-import type { PreloadStrategy, TransitionStrategy } from '../adapters/preload/default';
-import type { StreamRegistry } from '../adapters/stream/registry';
-
+import { AudioTrackState, QualityState } from '../types';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Sidecar subtitle context
@@ -42,7 +42,6 @@ export interface SidecarSubtitleContext {
 	active: Set<Cue<VTTSubtitlePayload>>;
 	language?: string;
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // State token unions
@@ -84,7 +83,6 @@ export type RepeatStateToken = 'off' | 'all' | 'one';
  */
 export type ShuffleStateToken = 'off' | 'on';
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // PlayerCoreState — the shared internal field surface
 // ──────────────────────────────────────────────────────────────────────────
@@ -118,7 +116,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	/** Full resolved config object. Written once in the constructor; plugins read via `player.options`. */
 	options: C;
 
-
 	// ── Lifecycle ────────────────────────────────────────────────────────────
 
 	/**
@@ -149,7 +146,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	_readyResolve?: () => void;
 	_readyReject?: (err: unknown) => void;
 
-
 	// ── Networking / media base ──────────────────────────────────────────────
 
 	/**
@@ -167,7 +163,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_audioContext: AudioContext | undefined;
 
-
 	// ── i18n ─────────────────────────────────────────────────────────────────
 
 	/**
@@ -178,7 +173,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_translator: ITranslator | undefined;
 
-
 	// ── Cue / subtitle infrastructure ────────────────────────────────────────
 
 	/**
@@ -187,7 +181,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 * register additional formats via `player.registerCueParser()`.
 	 */
 	_cueParsers: CueParserRegistry;
-
 
 	// ── Experimental override map ─────────────────────────────────────────────
 
@@ -199,7 +192,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 * the instance without a cast.
 	 */
 	_overrides: Map<string, { fn: (...args: any[]) => any; by: string }>;
-
 
 	// ── Playback state tokens ─────────────────────────────────────────────────
 
@@ -241,7 +233,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_playbackRate: number;
 
-
 	// ── Queue ─────────────────────────────────────────────────────────────────
 
 	/**
@@ -266,7 +257,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_queueWired: boolean;
 
-
 	// ── Plugins ───────────────────────────────────────────────────────────────
 
 	/**
@@ -285,7 +275,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_pluginQueue: Array<{ ctor: PluginCtorWithId; opts?: unknown }>;
 
-
 	// ── Auth + URL resolution ─────────────────────────────────────────────────
 
 	/** Live `AuthConfig` — readable via `auth()`, mutable via `auth(config)` / `auth(partial)`. */
@@ -293,7 +282,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 
 	/** Live URL resolver — readable via `urlResolver()`, mutable via `urlResolver(fn)`. */
 	_urlResolver: UrlResolver | undefined;
-
 
 	// ── Track selection ───────────────────────────────────────────────────────
 
@@ -315,7 +303,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	/** Audio track selection mode. Written by `audioTrackState(idx)`. Defaults to `AudioTrackState.DEFAULT`. */
 	_audioTrackState: AudioTrackState;
 
-
 	// ── Platform ──────────────────────────────────────────────────────────────
 
 	/**
@@ -324,7 +311,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_platform: IPlatform | undefined;
 
-
 	// ── Policy hooks ──────────────────────────────────────────────────────────
 
 	/**
@@ -332,7 +318,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 * during setup(). All run on dispose() so policy hooks never leak.
 	 */
 	_policyCleanup: Array<() => void>;
-
 
 	// ── Streaming ─────────────────────────────────────────────────────────────
 
@@ -343,7 +328,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_streamRegistry: StreamRegistry | undefined;
 
-
 	// ── Bandwidth / ABR ──────────────────────────────────────────────────────
 
 	/** Last-known bandwidth estimate (bps). Updated by the active stream source. */
@@ -351,7 +335,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 
 	/** Override estimator function. When set, ABR queries this instead of stream defaults. */
 	_bandwidthEstimator: (() => number) | undefined;
-
 
 	// ── Metrics ───────────────────────────────────────────────────────────────
 
@@ -372,7 +355,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_lastProgressEmit: number;
 
-
 	// ── Experimental ─────────────────────────────────────────────────────────
 
 	/**
@@ -384,24 +366,23 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_overrideOriginals?: Map<string, ((...args: unknown[]) => unknown) | undefined>;
 
-
 	// ── Cast / handoff ────────────────────────────────────────────────────────
 
 	/** Active cast/handoff state. Written by `transferTo()`; read by `castState()`. */
 	_castState?: _CastStateEnum;
-
 
 	// ── Load epoch ────────────────────────────────────────────────────────────
 
 	/** Monotonic counter bumped on each `load()` call; stale continuations bail when epoch mismatches. */
 	_loadEpoch?: number;
 
-	/** Monotonic counter bumped on each `current()` write call. The autoplay
+	/**
+	 * Monotonic counter bumped on each `current()` write call. The autoplay
 	 *  continuation in `current()` checks this before calling `play()` so that
 	 *  a superseded navigation (rapid episode clicks) does not fire a spurious
-	 *  play() once its stale load silently resolves. */
+	 *  play() once its stale load silently resolves.
+	 */
 	_currentEpoch?: number;
-
 
 	// ── Preload + transition state ────────────────────────────────────────────
 
@@ -423,25 +404,21 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	/** Monotonically increasing epoch. Bumped whenever the cursor changes. Stale RAF callbacks bail when epoch differs. */
 	_preloadEpoch: number;
 
-
 	// ── Chapter ───────────────────────────────────────────────────────────────
 
 	/** Monotonic counter bumped on each `_resolveAndEmitChapters` call. Stale chapter fetches bail when epoch differs. */
 	_chapterEpoch?: number;
-
 
 	// ── Sidecar subtitle ─────────────────────────────────────────────────────
 
 	/** Active sidecar VTT subtitle context. One per player. Torn down on track change or item change. */
 	_sidecarSubtitle?: SidecarSubtitleContext;
 
-
 	// ── Subtitle style ────────────────────────────────────────────────────────
 
 	/** Subtitle style patch cache. Seeded on first read; mutated by `subtitleStyle(patch)`. */
 	_subtitleStyle?: SubtitleStyle;
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // MixinSurface — cross-mixin method declarations
@@ -550,10 +527,22 @@ export interface MixinSurface {
  */
 export type Internals = PlayerCoreState<BasePlaylistItem, BasePlayerConfig, BaseEventMap> & MixinSurface;
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // State initialiser
 // ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * No-op transition strategy used as the initial `_transitionStrategy` default.
+ * Per-library players overwrite this in their constructor after `initPlayerCoreState`
+ * runs (music uses `CrossfadeTransitionStrategy`, video uses `GaplessTransitionStrategy`).
+ */
+const _NOOP_TRANSITION: TransitionStrategy = {
+	shouldTransition: () => false,
+	tick: () => {},
+	start: () => {},
+	complete: () => {},
+	cancel: () => {},
+};
 
 /**
  * Seeds every internal slot on `player` to its canonical starting value.
@@ -635,17 +624,3 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 export function setPlayerAudioContext(player: object, ctx: AudioContext | undefined): void {
 	(player as Internals)._audioContext = ctx;
 }
-
-
-/**
- * No-op transition strategy used as the initial `_transitionStrategy` default.
- * Per-library players overwrite this in their constructor after `initPlayerCoreState`
- * runs (music uses `CrossfadeTransitionStrategy`, video uses `GaplessTransitionStrategy`).
- */
-const _NOOP_TRANSITION: TransitionStrategy = {
-	shouldTransition: () => false,
-	tick: () => {},
-	start: () => {},
-	complete: () => {},
-	cancel: () => {},
-};

@@ -14,14 +14,14 @@ const idx = player.currentSubtitle(); // number | null
 
 // beta.1
 const sel = player.currentSubtitle(); // CurrentSubtitleSelection | null
-const idx = sel?.index;               // number | undefined
-const track = sel?.track;             // SubtitleTrack | undefined
+const idx = sel?.index; // number | undefined
+const track = sel?.track; // SubtitleTrack | undefined
 ```
 
 The **setter** overloads are unchanged:
 
 ```ts
-player.currentSubtitle(2);    // still takes a number
+player.currentSubtitle(2); // still takes a number
 player.currentSubtitle(null); // still takes null to turn subtitles off
 ```
 
@@ -44,9 +44,9 @@ This guide covers kit-level changes: subpath imports, the five-layer architectur
 Public API is stable. Import names did not change. If your code does:
 
 ```ts
-import { Plugin, IPlayer, LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
-import { nmplayer, NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 import { nmMPlayer, NMMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
+import { IPlayer, LocalStorageBackend, Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import { nmplayer, NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 ```
 
 no changes are required. All named exports from the root `index.ts` of each package resolve to the same names they always did.

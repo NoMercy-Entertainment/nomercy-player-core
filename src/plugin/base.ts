@@ -1,9 +1,11 @@
-import type { Severity } from '../errors';
-import type { AuthFetchOptions } from '../core/auth-fetch';
 import type { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
 import type { ILogger } from '../adapters/logger/ILogger';
 import type { IRealtimeChannel, RealtimeFactoryOptions } from '../adapters/realtime/IRealtimeChannel';
 import type { IStorage } from '../adapters/storage/IStorage';
+import type { AuthFetchOptions } from '../core/auth-fetch';
+import type { DispatchTarget } from '../core/dispatch';
+import type { Severity } from '../errors';
+
 import type {
 	AuthConfig,
 	BaseEventMap,
@@ -15,21 +17,19 @@ import type {
 	Translations,
 	UrlCategory,
 } from '../types';
-
-import type { BeforeDispatchOutcome, DispatchTarget } from '../core/dispatch';
 import type { BeforeDispatchResult, DispatchBeforeOptions } from './dispatch';
 import type { FetchOptions } from './fetch';
-import type { PluginRecoveryAction, ThrowPayload } from './throw';
 import type { PluginState } from './lifecycle';
+import type { PluginRecoveryAction, ThrowPayload } from './throw';
 
+import { Logger } from '../adapters/logger/default';
+import { nativeWebSocketAdapter } from '../adapters/realtime/websocket';
+import { LocalStorageBackend } from '../adapters/storage/local-storage';
 import { authFetch } from '../core/auth-fetch';
 import { mergeConfig } from '../core/config-merge';
 import { runDispatchBefore } from '../core/dispatch';
-import { PlayerError } from '../errors';
-import { Logger } from '../adapters/logger/default';
-import { nativeWebSocketAdapter } from '../adapters/realtime/websocket';
 import { buildResolvedUrl } from '../core/resolved-url';
-import { LocalStorageBackend } from '../adapters/storage/local-storage';
+import { PlayerError } from '../errors';
 import { PluginThrow } from './throw';
 
 /**
@@ -42,8 +42,8 @@ import { PluginThrow } from './throw';
  * types); falls back to `EventEmitter<infer E>` for players whose class
  * complexity blocks TypeScript's conditional-type inference through `IPlayer`.
  */
-export type PlayerEventMap<P> =
-	P extends { readonly __eventMap__: infer E }
+export type PlayerEventMap<P>
+	= P extends { readonly __eventMap__: infer E }
 		? (E extends BaseEventMap ? E : BaseEventMap)
 		: P extends IPlayer<infer E>
 			? E
@@ -86,7 +86,6 @@ function _namespacedStorage(backend: IStorage, prefix: string): IStorage {
 		setJSON: <T>(key: string, value: T) => backend.setJSON<T>(prefix + key, value),
 	};
 }
-
 
 /**
  * Constructor signature matching any Plugin subclass. `never[]` is the
@@ -292,7 +291,10 @@ export class Plugin<
 
 		const config = (player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
 
-		const rootLogger: ILogger = config.logger ?? new Logger({ prefix: 'nmplayer', level: config.logLevel });
+		const rootLogger: ILogger = config.logger ?? new Logger({
+			prefix: 'nmplayer',
+			level: config.logLevel,
+		});
 		this.logger = rootLogger.child(this.id);
 
 		const rootStorage: IStorage = config.storage ?? new LocalStorageBackend();
@@ -647,7 +649,9 @@ export class Plugin<
 			case 'retry-once': {
 				const selfWithRetry = this as unknown as { retryLastOperation?: () => void };
 				if (typeof selfWithRetry.retryLastOperation === 'function') {
-					try { selfWithRetry.retryLastOperation(); }
+					try {
+						selfWithRetry.retryLastOperation();
+					}
 					catch (retryErr) { this.logger.warn(`[${pluginId}] retryLastOperation threw:`, retryErr); }
 				}
 				else {
@@ -659,7 +663,9 @@ export class Plugin<
 			case 'fallback': {
 				const selfWithFallback = this as unknown as { activateFallback?: () => void };
 				if (typeof selfWithFallback.activateFallback === 'function') {
-					try { selfWithFallback.activateFallback(); }
+					try {
+						selfWithFallback.activateFallback();
+					}
 					catch (fallbackErr) { this.logger.warn(`[${pluginId}] activateFallback threw:`, fallbackErr); }
 				}
 				else {
@@ -807,8 +813,10 @@ export class Plugin<
 	 * ```
 	 */
 	protected appendStyles(href: string, styleId: string): void {
-		if (typeof document === 'undefined') return;
-		if (document.getElementById(styleId)) return;
+		if (typeof document === 'undefined')
+			return;
+		if (document.getElementById(styleId))
+			return;
 		const baseUrl = (this.constructor as typeof Plugin).moduleUrl;
 		const url = baseUrl ? new URL(href, baseUrl) : new URL(href, document.baseURI);
 		const link = document.createElement('link');
@@ -833,7 +841,8 @@ export class Plugin<
 	protected mount(name: string): HTMLDivElement {
 		const className = `nmplayer-${this.id}-${name}`;
 
-		if (!this._mountCache) this._mountCache = new Map<string, HTMLDivElement>();
+		if (!this._mountCache)
+			this._mountCache = new Map<string, HTMLDivElement>();
 		const cache = this._mountCache;
 		const cached = cache.get(name);
 		if (cached)
@@ -953,8 +962,7 @@ export class Plugin<
 		opts: Partial<InstanceType<C>['opts']>,
 		newId?: string,
 	): C {
-		const Parent = this;
-		class Derived extends (Parent as unknown as new () => Plugin) {
+		class Derived extends (this as unknown as new () => Plugin) {
 			override initialize(player: any, consumerOpts: any, lifecycle: any): void {
 				const merged = {
 					...(opts as object),

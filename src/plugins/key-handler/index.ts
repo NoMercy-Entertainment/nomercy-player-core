@@ -345,36 +345,44 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		const allowed = (): boolean => !(this.opts?.disableMediaControls ?? false);
 
 		this.bind('MediaPlay', () => {
-			if (!allowed()) return;
+			if (!allowed())
+				return;
 			void surface().play?.();
 		});
 		this.bind('MediaPause', () => {
-			if (!allowed()) return;
+			if (!allowed())
+				return;
 			void surface().pause?.();
 		});
 		this.bind('MediaPlayPause', () => {
-			if (!allowed()) return;
+			if (!allowed())
+				return;
 			void surface().togglePlayback?.();
 		});
 		this.bind('MediaStop', () => {
-			if (!allowed()) return;
+			if (!allowed())
+				return;
 			const s = surface();
 			void (s.stop ?? s.pause)?.();
 		});
 		this.bind('MediaRewind', () => {
-			if (!allowed()) return;
+			if (!allowed())
+				return;
 			void surface().rewind?.(5);
 		});
 		this.bind('MediaFastForward', () => {
-			if (!allowed()) return;
+			if (!allowed())
+				return;
 			void surface().forward?.(5);
 		});
 		this.bind('MediaTrackNext', () => {
-			if (!allowed()) return;
+			if (!allowed())
+				return;
 			void surface().next?.();
 		});
 		this.bind('MediaTrackPrevious', () => {
-			if (!allowed()) return;
+			if (!allowed())
+				return;
 			void surface().previous?.();
 		});
 	}

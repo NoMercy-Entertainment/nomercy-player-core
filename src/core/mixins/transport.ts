@@ -2,7 +2,6 @@ import type { ActionOptions } from '../../types';
 
 import type { Internals } from '../state';
 
-
 /**
  * Shared seek scaffolding for `rewind` / `forward` / `restart`. Each of them
  * does the same five-step dance — dispatch `beforeSeek`, bail on prevention,
@@ -46,7 +45,6 @@ async function _dispatchSeek(
 	self.emit('seeked', { time: targetTime });
 	return { proceeded: true };
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: transport — play / pause / stop / seek / next / previous, the
@@ -293,6 +291,7 @@ export const transportMethods = {
 	async restart(this: Internals, opts: ActionOptions = {}): Promise<void> {
 		this._assertReady();
 		const { proceeded } = await _dispatchSeek(this, 0, opts);
-		if (proceeded) await this.play(opts);
+		if (proceeded)
+			await this.play(opts);
 	},
 } as const;

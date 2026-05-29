@@ -42,10 +42,12 @@ class EpochPlayer extends EventEmitter<BaseEventMap> {
 		(): ReadonlyArray<BasePlaylistItem>;
 		(items: BasePlaylistItem[]): void;
 	};
+
 	declare current: {
 		(): BasePlaylistItem | undefined;
 		(target: string | number | BasePlaylistItem, opts?: { source?: string; autoplay?: boolean }): void;
 	};
+
 	declare currentIndex: () => number;
 	declare load: (item: BasePlaylistItem & { url?: string }, opts?: Record<string, unknown>) => Promise<void>;
 
@@ -125,8 +127,10 @@ describe('current() — _currentEpoch autoplay race guard', () => {
 		// load() is called via queue.ts current(). Intercept it here so we can
 		// return a deferred promise per URL without needing a real backend.
 		vi.spyOn(player, 'load').mockImplementation((item) => {
-			if (item.id === 'ep2') return loadEp2.promise;
-			if (item.id === 'ep3') return loadEp3.promise;
+			if (item.id === 'ep2')
+				return loadEp2.promise;
+			if (item.id === 'ep3')
+				return loadEp3.promise;
 			return Promise.resolve();
 		});
 

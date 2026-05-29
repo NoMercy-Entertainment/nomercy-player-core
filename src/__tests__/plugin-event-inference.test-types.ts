@@ -14,10 +14,10 @@
  * concrete subclass `E` rather than widening to the default.
  */
 
-import type { BaseEventMap, IPlayer } from '../types';
 import type { PluginEventMap } from '../plugin';
+import type { CanvasPlugin } from '../plugins/canvas';
+import type { BaseEventMap, IPlayer } from '../types';
 import { Plugin } from '../plugin';
-import { CanvasPlugin } from '../plugins/canvas';
 
 // ─── Fixture plugin with a known event map ────────────────────────────────────
 

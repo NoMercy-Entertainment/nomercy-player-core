@@ -1,9 +1,8 @@
 import type { BasePlaylistItem, LoadOptions } from '../../types';
-import { authFetch } from '../auth-fetch';
+import type { Internals } from '../state';
 import { mediaFormatError, stateError } from '../../errors';
 
-import type { Internals } from '../state';
-
+import { authFetch } from '../auth-fetch';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: loading — `load(item, opts)` / `loadQueue(url, parser?)`.
@@ -111,7 +110,8 @@ export const loadingMethods = {
 			performance.mark('nm:kit:backend.load:start');
 			await backend.load(url);
 			performance.mark('nm:kit:backend.load:end');
-			if (!isLatest()) return;
+			if (!isLatest())
+				return;
 
 			// Move cursor to the loaded item so consumer-facing `current()` reflects it.
 			// Use setCurrent directly — calling this.current() here would re-trigger load().
@@ -125,7 +125,8 @@ export const loadingMethods = {
 				const ret = this.currentTime(opts.startAt);
 				if (ret instanceof Promise)
 					await ret;
-				if (!isLatest()) return;
+				if (!isLatest())
+					return;
 			}
 
 			// Trivial linear fade — no easing curve. Plugins that need fancier
@@ -138,12 +139,14 @@ export const loadingMethods = {
 				const stepMs = (opts.fadeIn * 1000) / steps;
 				for (let stepIndex = 1; stepIndex <= steps; stepIndex++) {
 					await new Promise(r => setTimeout(r, stepMs));
-					if (!isLatest()) return;
+					if (!isLatest())
+						return;
 					this.volume((target * stepIndex) / steps);
 				}
 			}
 
-			if (!isLatest()) return;
+			if (!isLatest())
+				return;
 			if (this._phase === 'loading') {
 				this._transitionPhase('ready');
 			}

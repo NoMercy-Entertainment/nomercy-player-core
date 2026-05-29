@@ -1,6 +1,5 @@
 import { resourceError, stateError } from '../errors';
 
-
 /**
  * Discriminated result from {@link resolvePlayerConstructor}.
  *

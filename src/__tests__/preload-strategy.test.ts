@@ -12,6 +12,8 @@
  *  - CrossfadeTransitionStrategy fires transition events when crossfadeEnabled
  */
 
+import type { PreloadStrategy, TransitionStrategy } from '../adapters/preload/default';
+import type { Plugin } from '../plugin';
 import type { BaseEventMap, BasePlaylistItem } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -24,8 +26,6 @@ import {
 	playerCoreMethods,
 	resolvePlayerConstructor,
 } from '../index';
-import type { Plugin } from '../plugin';
-import type { PreloadStrategy, TransitionStrategy } from '../adapters/preload/default';
 
 // ── MockPlayer (same shape as base-player.test.ts) ───────────────────────────
 

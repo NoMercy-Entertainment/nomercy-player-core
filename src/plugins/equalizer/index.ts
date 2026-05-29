@@ -705,7 +705,8 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			const raw = this.storage?.get?.(key);
 			if (typeof raw === 'string') {
 				const parsed: unknown = JSON.parse(raw);
-				if (parsed !== null && typeof parsed === 'object') return parsed as PersistedEqState;
+				if (parsed !== null && typeof parsed === 'object')
+					return parsed as PersistedEqState;
 			}
 		}
 		catch { /* swallow */ }

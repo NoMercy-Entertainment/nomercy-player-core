@@ -36,7 +36,10 @@ export function pluginError(
 		code,
 		severity: opts?.severity ?? 'error',
 		scope: opts?.pluginId
-			? { kind: 'plugin', id: opts.pluginId }
+			? {
+					kind: 'plugin',
+					id: opts.pluginId,
+				}
 			: { kind: 'core' },
 		message: `${code}: ${message}`,
 		context: opts?.context,

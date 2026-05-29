@@ -14,7 +14,7 @@
  */
 
 import type { BaseEventMap, BasePlaylistItem } from '../types';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,
 	EventEmitter,
@@ -105,7 +105,8 @@ class RegistryTruthPlayer extends EventEmitter<BaseEventMap> {
 		super();
 		initPlayerCoreState(this, { className: 'RegistryTruthPlayer' });
 		const resolved = resolvePlayerConstructor(id, _instances, 'RegistryTruthPlayer');
-		if (resolved.kind === 'existing') return resolved.instance as unknown as this;
+		if (resolved.kind === 'existing')
+			return resolved.instance as unknown as this;
 		(this as { playerId: string }).playerId = resolved.id;
 		this.container = resolved.div;
 		_instances.set(resolved.id, this);
@@ -132,7 +133,6 @@ afterEach(() => {
 });
 
 describe('Plugin.enabled() registry truth', () => {
-
 	describe('successful use() path', () => {
 		class GoodPlugin extends Plugin {
 			static override readonly id = 'good';

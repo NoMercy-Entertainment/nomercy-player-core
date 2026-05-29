@@ -299,7 +299,8 @@ export class MixerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 			// at `use()` time — async backends restore lazily on the next setter.
 			if (typeof raw === 'string') {
 				const parsed: unknown = JSON.parse(raw);
-				if (parsed !== null && typeof parsed === 'object') return parsed as PersistedMixerState;
+				if (parsed !== null && typeof parsed === 'object')
+					return parsed as PersistedMixerState;
 			}
 		}
 		catch {

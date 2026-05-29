@@ -7,28 +7,44 @@
  * are supplementary and opt-in.
  */
 
-export type { Severity } from './severity';
-export { SEVERITY, SEVERITY_LEVEL } from './severity';
+export type { RetryConfig, RetryPolicy } from '../adapters/retry-policy/default';
+export { DEFAULT_RETRY_POLICY } from '../adapters/retry-policy/default';
 
-export type { ErrorScope, CodeFields } from './code';
-export { makeCode, parseCode, formatCode, VENDOR } from './code';
+export { AuthError } from './auth';
+export type { CodeFields, ErrorScope } from './code';
 
-export type { PlayerErrorInit, PlayerErrorEvent } from './player';
-export { PlayerError, StateError, makePlayerErrorEvent, stateError } from './player';
+export {
+	formatCode,
+	makeCode,
+	parseCode,
+	VENDOR,
+} from './code';
+export { DrmError } from './drm';
+
+export {
+	MediaFormatError,
+	mediaFormatError,
+	ResourceError,
+	resourceError,
+	StreamError,
+} from './media';
 
 export { NetworkError } from './network';
 
-export { AuthError } from './auth';
+export { NotImplementedError } from './not-implemented';
 
-export { MediaFormatError, StreamError, ResourceError, mediaFormatError, resourceError } from './media';
+export type { PlayerErrorEvent, PlayerErrorInit } from './player';
 
-export { DrmError } from './drm';
-
-export { BrowserPolicyError, browserPolicyError } from './policy';
+export {
+	makePlayerErrorEvent,
+	PlayerError,
+	StateError,
+	stateError,
+} from './player';
 
 export { PluginError, pluginError } from './plugin';
 
-export { NotImplementedError } from './not-implemented';
+export { BrowserPolicyError, browserPolicyError } from './policy';
 
-export type { RetryConfig, RetryPolicy } from '../adapters/retry-policy/default';
-export { DEFAULT_RETRY_POLICY } from '../adapters/retry-policy/default';
+export type { Severity } from './severity';
+export { SEVERITY, SEVERITY_LEVEL } from './severity';

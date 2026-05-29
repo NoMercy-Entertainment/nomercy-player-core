@@ -1,8 +1,7 @@
-import { buildRequest } from './prepare';
-import { decodeBody } from './decode';
+import type { AttemptCtx, Outcome, RetryConfig } from './types';
 
-import type { AttemptCtx, Outcome } from './types';
-import type { RetryConfig } from './types';
+import { decodeBody } from './decode';
+import { buildRequest } from './prepare';
 
 class TimeoutError extends Error {
 	constructor(msg: string) {

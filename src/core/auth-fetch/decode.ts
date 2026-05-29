@@ -11,13 +11,19 @@ import type { AttemptCtx, Outcome } from './types';
 export async function decodeBody<T>(response: Response, ctx: AttemptCtx<T>): Promise<Outcome<T>> {
 	if (ctx.responseType === 'arrayBuffer') {
 		const buffer = await response.arrayBuffer();
-		return { kind: 'value', value: buffer as unknown as T };
+		return {
+			kind: 'value',
+			value: buffer as unknown as T,
+		};
 	}
 
 	if (ctx.responseType === 'json') {
 		try {
 			const parsed = await response.json() as T;
-			return { kind: 'value', value: parsed };
+			return {
+				kind: 'value',
+				value: parsed,
+			};
 		}
 		catch (parseErr) {
 			return {
@@ -31,7 +37,10 @@ export async function decodeBody<T>(response: Response, ctx: AttemptCtx<T>): Pro
 
 	if (ctx.parser) {
 		try {
-			return { kind: 'value', value: ctx.parser(text) };
+			return {
+				kind: 'value',
+				value: ctx.parser(text),
+			};
 		}
 		catch (parseErr) {
 			return {
@@ -41,5 +50,8 @@ export async function decodeBody<T>(response: Response, ctx: AttemptCtx<T>): Pro
 		}
 	}
 
-	return { kind: 'value', value: text as unknown as T };
+	return {
+		kind: 'value',
+		value: text as unknown as T,
+	};
 }

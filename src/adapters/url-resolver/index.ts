@@ -1,1 +1,6 @@
-export type { ResolvedUrl, UrlCategory, UrlResolver, UrlResolverContext } from './IUrlResolver';
+export type {
+	ResolvedUrl,
+	UrlCategory,
+	UrlResolver,
+	UrlResolverContext,
+} from './IUrlResolver';

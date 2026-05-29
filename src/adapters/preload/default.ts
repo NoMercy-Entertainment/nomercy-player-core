@@ -220,8 +220,10 @@ export class DefaultPreloadStrategy implements PreloadStrategy {
 	shouldPreload(context: PreloadContext): boolean {
 		const { currentTime, duration, nextItem } = context;
 
-		if (nextItem === null) return false;
-		if (duration <= 0) return false;
+		if (nextItem === null)
+			return false;
+		if (duration <= 0)
+			return false;
 
 		return currentTime >= duration - this._leadSeconds;
 	}
@@ -263,15 +265,19 @@ export class CrossfadeTransitionStrategy implements TransitionStrategy {
 	shouldTransition(context: PreloadContext): boolean {
 		const { currentTime, duration, nextItem } = context;
 
-		if (nextItem === null) return false;
-		if (duration <= 0) return false;
+		if (nextItem === null)
+			return false;
+		if (duration <= 0)
+			return false;
 
 		return currentTime >= duration - this._leadSeconds;
 	}
 
 	tick(context: TransitionContext, backend: TransitionBackend | null): void {
-		if (backend === null) return;
-		if (!backend.supportsCrossfade()) return;
+		if (backend === null)
+			return;
+		if (!backend.supportsCrossfade())
+			return;
 
 		const { fraction } = context;
 		const outGain = this._applyGainCurve(1 - fraction);

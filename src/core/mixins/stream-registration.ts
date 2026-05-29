@@ -1,8 +1,7 @@
 import type { StreamFactory } from '../../adapters/stream/IStreamSource';
-import { StreamRegistry } from '../../adapters/stream/registry';
-
 import type { Internals } from '../state';
 
+import { StreamRegistry } from '../../adapters/stream/registry';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by streamRegistrationMethods
@@ -19,7 +18,6 @@ function _ensureStreamRegistry(self: Internals): StreamRegistry {
 	}
 	return self._streamRegistry;
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: stream registration — delegates to the per-player `StreamRegistry`.

@@ -23,8 +23,8 @@
 
 import type { PluginAdvisory } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PlayerError } from '../errors';
 import { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
+import { PlayerError } from '../errors';
 import { Plugin } from '../plugin';
 import { StubPlayer } from '../testing/stub-player';
 
@@ -111,7 +111,9 @@ class OtherPlugin extends Plugin<StubPlayer, unknown, { ping: { count: number } 
 }
 
 function setupPlugin<P extends Plugin<any, any, any>>(
-PluginClass: new () => P,	opts: P['opts'] | unknown,): { plugin: P; player: StubPlayer; lifecycle: LifecycleRegistry } {
+	PluginClass: new () => P,
+	opts: P['opts'] | unknown,
+): { plugin: P; player: StubPlayer; lifecycle: LifecycleRegistry } {
 	const player = new StubPlayer();
 	const lifecycle = new LifecycleRegistry();
 	const plugin = new PluginClass();
@@ -1019,7 +1021,7 @@ describe('Plugin base class', () => {
 	});
 
 	describe('static onError recovery map', () => {
-		it("'disable' action calls this.disable() with reason including the error code", () => {
+		it('\'disable\' action calls this.disable() with reason including the error code', () => {
 			class DisableOnErrorPlugin extends Plugin<StubPlayer, Options> {
 				static override readonly id: string = 'disable-on-error';
 				static override readonly version: string = '1.0.0';
@@ -1027,6 +1029,7 @@ describe('Plugin base class', () => {
 				static override readonly onError = {
 					'disable-on-error:load/failed': 'disable',
 				} as const;
+
 				override use(): void {}
 				publicReport(payload: any): void { this.report(payload); }
 			}
@@ -1040,7 +1043,7 @@ describe('Plugin base class', () => {
 			expect(inst.enabled()).toBe(false);
 		});
 
-		it("'ignore' action does nothing beyond emitting the error event", () => {
+		it('\'ignore\' action does nothing beyond emitting the error event', () => {
 			class IgnoreOnErrorPlugin extends Plugin<StubPlayer, Options> {
 				static override readonly id: string = 'ignore-on-error';
 				static override readonly version: string = '1.0.0';
@@ -1048,6 +1051,7 @@ describe('Plugin base class', () => {
 				static override readonly onError = {
 					'ignore-on-error:load/failed': 'ignore',
 				} as const;
+
 				override use(): void {}
 				publicReport(payload: any): void { this.report(payload); }
 			}
@@ -1055,7 +1059,7 @@ describe('Plugin base class', () => {
 			const inst = new IgnoreOnErrorPlugin();
 			inst.initialize(player, { value: 1 }, new LifecycleRegistry());
 			const errors: unknown[] = [];
-			player.on('error', (e) => errors.push(e));
+			player.on('error', e => errors.push(e));
 
 			inst.publicReport({ code: 'ignore-on-error:load/failed', severity: 'error' });
 
@@ -1063,7 +1067,7 @@ describe('Plugin base class', () => {
 			expect(errors).toHaveLength(1);
 		});
 
-		it("'retry-once' calls retryLastOperation() if defined", () => {
+		it('\'retry-once\' calls retryLastOperation() if defined', () => {
 			const retryCalled: string[] = [];
 
 			class RetryOnErrorPlugin extends Plugin<StubPlayer, Options> {
@@ -1073,10 +1077,12 @@ describe('Plugin base class', () => {
 				static override readonly onError = {
 					'retry-on-error:load/failed': 'retry-once',
 				} as const;
+
 				override use(): void {}
 				retryLastOperation(): void {
 					retryCalled.push('retry');
 				}
+
 				publicReport(payload: any): void { this.report(payload); }
 			}
 
@@ -1088,7 +1094,7 @@ describe('Plugin base class', () => {
 			expect(retryCalled).toEqual(['retry']);
 		});
 
-		it("'fallback' calls activateFallback() if defined", () => {
+		it('\'fallback\' calls activateFallback() if defined', () => {
 			const fallbackCalled: string[] = [];
 
 			class FallbackOnErrorPlugin extends Plugin<StubPlayer, Options> {
@@ -1098,10 +1104,12 @@ describe('Plugin base class', () => {
 				static override readonly onError = {
 					'fallback-on-error:load/failed': 'fallback',
 				} as const;
+
 				override use(): void {}
 				activateFallback(): void {
 					fallbackCalled.push('fallback');
 				}
+
 				publicReport(payload: any): void { this.report(payload); }
 			}
 
@@ -1121,6 +1129,7 @@ describe('Plugin base class', () => {
 				static override readonly onError = {
 					'no-match:other/code': 'disable',
 				} as const;
+
 				override use(): void {}
 				publicReport(payload: any): void { this.report(payload); }
 			}

@@ -1,13 +1,18 @@
 import type { CueParser } from '../adapters/cue-parser/ICueParser';
-import type { AddClasses, CreateElement } from '../core/mixins/dom-mixin';
 import type { DispatchTarget } from '../core/dispatch';
+import type { AddClasses, CreateElement } from '../core/mixins/dom-mixin';
 
+import type { Chapter } from './chapter';
 import type { AuthConfig } from './config';
 import type { PlayerExperimental } from './experimental';
 import type { PluginCtorWithId } from './plugin';
-import type { BasePlaylistItem } from './playlist';
-import type { AudioTrackState, BufferState, NetworkState, QualityState, VisibilityState } from './state';
-import type { Chapter } from './chapter';
+import type {
+	AudioTrackState,
+	BufferState,
+	NetworkState,
+	QualityState,
+	VisibilityState,
+} from './state';
 import type { CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection } from './tracks';
 import type { Translations } from './translations';
 import type { ResolvedUrl, UrlCategory, UrlResolver } from './url';
@@ -103,19 +108,19 @@ export interface LoadOptions extends ActionOptions {
  * for "the player is `playing` AND currently dispatching `beforeSeek`."
  */
 export type PlayerPhase
-	= | 'idle'       // before setup() runs — initial state
-		| 'setup'      // setup() in flight (config resolving, plugins registering, auth/streams/playlist mounting)
-		| 'ready'      // setup done OR loaded but not playing — awaiting commands
-		| 'loading'    // load(item) in flight — backend pulling source
-		| 'starting'   // play() called, backend kicking up — pre-firstFrame
-		| 'playing'    // backend producing output
-		| 'paused'     // user-paused or auto-paused
-		| 'buffering'  // buffer ran dry mid-playback (data underrun)
-		| 'seeking'    // seek in progress (transient)
-		| 'ended'      // natural end of current item
-		| 'stopped'    // explicit stop()
-		| 'disposing'  // dispose() called, teardown in flight
-		| 'disposed';  // dispose complete
+	= | 'idle' // before setup() runs — initial state
+		| 'setup' // setup() in flight (config resolving, plugins registering, auth/streams/playlist mounting)
+		| 'ready' // setup done OR loaded but not playing — awaiting commands
+		| 'loading' // load(item) in flight — backend pulling source
+		| 'starting' // play() called, backend kicking up — pre-firstFrame
+		| 'playing' // backend producing output
+		| 'paused' // user-paused or auto-paused
+		| 'buffering' // buffer ran dry mid-playback (data underrun)
+		| 'seeking' // seek in progress (transient)
+		| 'ended' // natural end of current item
+		| 'stopped' // explicit stop()
+		| 'disposing' // dispose() called, teardown in flight
+		| 'disposed'; // dispose complete
 
 /**
  * Reason a cancellable action was prevented. Carried on `<action>Prevented`
@@ -123,8 +128,8 @@ export type PlayerPhase
  */
 export type PreventedReason
 	= | 'listener-prevented' // a listener called preventDefault
-		| 'delay-rejected'     // a delay() promise rejected
-		| 'delay-timeout';     // a delay() promise exceeded beforeEventTimeoutMs
+		| 'delay-rejected' // a delay() promise rejected
+		| 'delay-timeout'; // a delay() promise exceeded beforeEventTimeoutMs
 
 /**
  * The argument accepted by the `nmplayer()` / `nmMPlayer()` factory function.

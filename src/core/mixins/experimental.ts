@@ -2,7 +2,6 @@ import type { PlayerExperimental } from '../../types';
 
 import type { Internals } from '../state';
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: experimental override surface (descriptor with a getter)
 // ──────────────────────────────────────────────────────────────────────────

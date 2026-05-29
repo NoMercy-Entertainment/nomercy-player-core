@@ -1,8 +1,13 @@
-import type { AuthConfig, ResolvedUrl, UrlCategory, UrlResolver, UrlResolverContext } from '../../types';
-import { buildResolvedUrl } from '../resolved-url';
-
+import type {
+	AuthConfig,
+	ResolvedUrl,
+	UrlCategory,
+	UrlResolver,
+	UrlResolverContext,
+} from '../../types';
 import type { Internals } from '../state';
 
+import { buildResolvedUrl } from '../resolved-url';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: auth runtime — `auth` / `urlResolver` / `refreshAuth`.

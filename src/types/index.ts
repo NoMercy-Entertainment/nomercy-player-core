@@ -1,5 +1,11 @@
 export type { Chapter } from './chapter';
-export type { AuthConfig, AuthHeaderValue, BasePlayerConfig, CastConfig, DrmConfig } from './config';
+export type {
+	AuthConfig,
+	AuthHeaderValue,
+	BasePlayerConfig,
+	CastConfig,
+	DrmConfig,
+} from './config';
 export type { CueEventPayload, SubtitleCue, SubtitleCueChange } from './cues';
 export type { DeviceCapabilities } from './device';
 export type { BaseEventMap, BeforeEvent } from './events';
@@ -27,6 +33,20 @@ export {
 	SetupState,
 	VisibilityState,
 } from './state';
-export type { AudioTrack, CanPlayResult, CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection, QualityLevel, SubtitleStyle, SubtitleTrack } from './tracks';
+export type {
+	AudioTrack,
+	CanPlayResult,
+	CurrentAudioTrackSelection,
+	CurrentQualitySelection,
+	CurrentSubtitleSelection,
+	QualityLevel,
+	SubtitleStyle,
+	SubtitleTrack,
+} from './tracks';
 export type { TranslationLoader, Translations } from './translations';
-export type { ResolvedUrl, UrlCategory, UrlResolver, UrlResolverContext } from './url';
+export type {
+	ResolvedUrl,
+	UrlCategory,
+	UrlResolver,
+	UrlResolverContext,
+} from './url';

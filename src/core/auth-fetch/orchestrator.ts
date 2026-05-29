@@ -1,7 +1,7 @@
-import { prepareAttempt } from './prepare';
+import type { AuthFetchOptions } from './types';
 import { attemptOnce, sleep } from './attempt';
 
-import type { AuthFetchOptions } from './types';
+import { prepareAttempt } from './prepare';
 
 /**
  * Fetch a URL through the player's auth pipeline.

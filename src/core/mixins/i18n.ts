@@ -1,10 +1,9 @@
-import type { PluginCtorWithId, Translations } from '../../types';
-import { bcp47FallbackChain, DefaultTranslator } from '../../adapters/translator/translator';
 import type { ITranslator } from '../../adapters/translator/translator';
+import type { PluginCtorWithId, Translations } from '../../types';
+import type { Internals } from '../state';
 import { getLazyTranslationLoader } from '../../adapters/translator/loaders/translations-glob';
 
-import type { Internals } from '../state';
-
+import { bcp47FallbackChain, DefaultTranslator } from '../../adapters/translator/translator';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by i18nMethods
@@ -31,7 +30,6 @@ function _getLoadTranslations(instance: unknown): _LoadTranslationsFn | undefine
 	const fn: unknown = (instance as { loadTranslations: unknown }).loadTranslations;
 	return typeof fn === 'function' ? (fn as _LoadTranslationsFn) : undefined;
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: i18n
@@ -86,7 +84,8 @@ export const i18nMethods = {
 	 *    player lifetime.
 	 */
 	language(this: Internals, lang?: string): string | Promise<void> {
-		if (lang === undefined) return _ensureTranslator(this).language();
+		if (lang === undefined)
+			return _ensureTranslator(this).language();
 		return (async () => {
 			await _ensureTranslator(this).language(lang);
 			const langChain = bcp47FallbackChain(lang);
@@ -98,7 +97,7 @@ export const i18nMethods = {
 				// tag in the BCP-47 chain that hasn't been loaded yet.
 				let cur: unknown = ctor;
 				while (cur && cur !== Function.prototype) {
-					if (Object.prototype.hasOwnProperty.call(cur, 'translations')) {
+					if (Object.hasOwn(cur, 'translations')) {
 						const withT = cur as { translations?: Translations };
 						const lazy = withT.translations ? getLazyTranslationLoader(withT.translations) : undefined;
 						if (lazy) {

@@ -1,5 +1,5 @@
 import type { CueParser } from '../adapters/cue-parser/ICueParser';
-import type { CreateElement, AddClasses } from '../core/mixins/dom-mixin';
+import type { AddClasses, CreateElement } from '../core/mixins/dom-mixin';
 import type {
 	ActionOptions,
 	AuthConfig,
@@ -18,9 +18,15 @@ import type {
 	UrlResolver,
 	UrlResolverContext,
 } from '../types';
-import { AudioTrackState, BufferState, NetworkState, QualityState, VisibilityState } from '../types';
 import { EventEmitter } from '../adapters/event-bus/default';
 import { buildResolvedUrl } from '../core/resolved-url';
+import {
+	AudioTrackState,
+	BufferState,
+	NetworkState,
+	QualityState,
+	VisibilityState,
+} from '../types';
 
 /**
  * Lightweight `IPlayer` test double for plugin and unit tests. It is real
@@ -244,10 +250,14 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	auth(partial: Partial<AuthConfig>): void;
 	auth(configOrPartial?: AuthConfig | Partial<AuthConfig>): Readonly<AuthConfig> | undefined | void {
 		if (configOrPartial === undefined) {
-			if (!this._authConfig) return undefined;
+			if (!this._authConfig)
+				return undefined;
 			return Object.freeze({ ...this._authConfig }) as Readonly<AuthConfig>;
 		}
-		this._authConfig = { ...(this._authConfig ?? {}), ...configOrPartial };
+		this._authConfig = {
+			...(this._authConfig ?? {}),
+			...configOrPartial,
+		};
 	}
 
 	private _currentSubtitleIdx: number | null = null;
@@ -257,21 +267,24 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	currentSubtitle(): CurrentSubtitleSelection | null;
 	currentSubtitle(idx: number | null): void;
 	currentSubtitle(idx?: number | null): CurrentSubtitleSelection | null | void {
-		if (idx === undefined) return null;
+		if (idx === undefined)
+			return null;
 		this._currentSubtitleIdx = idx;
 	}
 
 	currentAudioTrack(): CurrentAudioTrackSelection | null;
 	currentAudioTrack(idx: number): void;
 	currentAudioTrack(idx?: number): CurrentAudioTrackSelection | null | void {
-		if (idx === undefined) return null;
+		if (idx === undefined)
+			return null;
 		this._currentAudioTrackIdx = idx;
 	}
 
 	currentQuality(): CurrentQualitySelection | 'auto';
 	currentQuality(idx: number | 'auto'): void;
 	currentQuality(idx?: number | 'auto'): CurrentQualitySelection | 'auto' | void {
-		if (idx === undefined) return 'auto';
+		if (idx === undefined)
+			return 'auto';
 		this._currentQualityIdx = idx;
 	}
 
@@ -282,13 +295,15 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	currentChapter(): Chapter | null;
 	currentChapter(idx: number): void;
 	currentChapter(_idx?: number): Chapter | null | void {
-		if (_idx === undefined) return null;
+		if (_idx === undefined)
+			return null;
 	}
 
 	async currentAudioOutput(): Promise<string | null>;
 	async currentAudioOutput(deviceId: string): Promise<void>;
 	async currentAudioOutput(_deviceId?: string): Promise<string | null | void> {
-		if (_deviceId === undefined) return null;
+		if (_deviceId === undefined)
+			return null;
 	}
 
 	bufferState(): BufferState {

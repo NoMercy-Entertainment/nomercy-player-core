@@ -7,7 +7,6 @@ import type {
 
 import { StreamError } from '../../errors';
 
-
 /**
  * Per-player catalogue of stream factories and content interceptors.
  *
@@ -28,7 +27,6 @@ export class StreamRegistry {
 	private readonly factories: StreamFactory[] = [];
 	private readonly interceptors: StreamInterceptor[] = [];
 
-
 	/**
 	 * Add a factory to the registry. If a factory with the same `id` already
 	 * exists it is replaced in-place. Pass `prepend: true` to place the factory
@@ -45,14 +43,12 @@ export class StreamRegistry {
 			this.factories.push(factory);
 	}
 
-
 	/** Remove the factory with the given `id`. No-op if it was never registered. */
 	unregister(id: string): void {
 		const idx = this.factories.findIndex(f => f.id === id);
 		if (idx >= 0)
 			this.factories.splice(idx, 1);
 	}
-
 
 	/**
 	 * Find the highest-priority factory that claims the URL and return a new
@@ -85,24 +81,20 @@ export class StreamRegistry {
 		});
 	}
 
-
 	/** `true` if a factory with the given `id` is registered. */
 	has(id: string): boolean {
 		return this.factories.some(f => f.id === id);
 	}
-
 
 	/** Return the factory registered under `id`, or `undefined` if absent. */
 	findById(id: string): StreamFactory | undefined {
 		return this.factories.find(f => f.id === id);
 	}
 
-
 	/** Factory ids in resolution order (highest priority first). */
 	list(): string[] {
 		return this.factories.map(f => f.id).reverse();
 	}
-
 
 	/**
 	 * Install a content interceptor. It runs on every manifest and segment
@@ -122,7 +114,6 @@ export class StreamRegistry {
 		};
 	}
 
-
 	/**
 	 * Pass `response` through every registered interceptor in order and return
 	 * the final result. Called internally by stream sources before yielding bytes
@@ -137,7 +128,6 @@ export class StreamRegistry {
 
 		return current;
 	}
-
 
 	/** Release all factories and interceptors. The instance is unusable after this. */
 	dispose(): void {

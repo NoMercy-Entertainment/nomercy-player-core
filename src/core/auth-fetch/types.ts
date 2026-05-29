@@ -1,6 +1,5 @@
-import type { RetryConfig } from '../../errors';
+import type { AuthError, NetworkError, RetryConfig } from '../../errors';
 import type { AuthConfig, AuthHeaderValue } from '../../types';
-import type { AuthError, NetworkError } from '../../errors';
 
 /**
  * Common fields shared by every fetch call. The `responseType` discriminator
@@ -64,15 +63,15 @@ export type AuthFetchOptions<T> = AuthFetchBase & (
  * network / timeout (normal retry, eats one attempt slot), `false` for the
  * 401-refresh path (free retry, counted against `maxRefreshes` instead).
  */
-export type Outcome<T> =
-	| { kind: 'value'; value: T }
-	| { kind: 'throw'; error: NetworkError | AuthError }
-	| {
-		kind: 'retry';
-		reason: 'network' | 'timeout' | 'http-5xx' | 'unauthenticated';
-		delayMs: number;
-		consumesAttempt: boolean;
-	};
+export type Outcome<T>
+	= | { kind: 'value'; value: T }
+		| { kind: 'throw'; error: NetworkError | AuthError }
+		| {
+			kind: 'retry';
+			reason: 'network' | 'timeout' | 'http-5xx' | 'unauthenticated';
+			delayMs: number;
+			consumesAttempt: boolean;
+		};
 
 /**
  * Per-call context shared across the three layers. Built once by

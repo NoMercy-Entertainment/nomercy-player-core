@@ -6,7 +6,6 @@ import type {
 
 import type { StreamRegistry } from './registry';
 
-
 /**
  * Events a `StreamSource` can emit. Subscribe via `source.on(event, fn)`.
  *
@@ -24,7 +23,6 @@ export type StreamEvent
 		| 'fragment-loaded'
 		| 'encrypted'
 		| 'error';
-
 
 /** Payload for `level-considered` — ABR evaluated but did not switch. */
 export interface StreamLevelConsideredPayload {
@@ -68,7 +66,6 @@ export interface StreamEventPayloadMap {
 	'error': StreamErrorPayload;
 }
 
-
 /** One quality rendition from an adaptive playlist, or a description of a fixed-bitrate source. */
 export interface StreamLevel {
 	bitrate: number;
@@ -78,10 +75,8 @@ export interface StreamLevel {
 	index?: number;
 }
 
-
 /** Lifecycle state reported by `StreamSource.state()`. */
 export type StreamSourceState = 'idle' | 'loading' | 'ready' | 'playing' | 'error';
-
 
 /**
  * Device capability hint passed to `StreamFactory.canPlay`. Factories use this
@@ -95,7 +90,6 @@ export interface StreamCapabilities {
 	framerate?: number;
 	preferred?: 'smooth' | 'powerEfficient';
 }
-
 
 /**
  * Protocol-agnostic handle for a playing or pending media source. One instance
@@ -140,7 +134,6 @@ export interface StreamSource {
 	off<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void;
 }
 
-
 /**
  * Arguments passed to `StreamFactory.create()` and forwarded by
  * `StreamRegistry.resolve()`. The `registry` field is injected automatically
@@ -157,7 +150,6 @@ export interface StreamFactoryOptions {
 	capabilities?: StreamCapabilities;
 	registry?: StreamRegistry;
 }
-
 
 /**
  * Plugin contract for registering a new streaming protocol. Implement this
@@ -179,7 +171,6 @@ export interface StreamFactory {
 	/** Instantiate a `StreamSource` for the given options. */
 	create(opts: StreamFactoryOptions): StreamSource;
 }
-
 
 /**
  * Function installed via `StreamRegistry.intercept()`. Receives every manifest

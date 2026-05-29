@@ -11,10 +11,10 @@
  * fire the event bus and the `on()` listener to receive it.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { EventEmitter } from '../../index';
 import type { BaseEventMap } from '../../types';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
+import { EventEmitter } from '../../index';
 import { SpectrumPlugin } from '../../plugins/spectrum';
 
 /** Minimal AnalyserNode stub with mutable fftSize + smoothingTimeConstant. */

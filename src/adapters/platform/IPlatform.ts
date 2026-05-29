@@ -1,12 +1,12 @@
 export type {
-	IPlatform,
-	IWakeLock,
-	INetworkMonitor,
-	IVisibilityMonitor,
+	DecodeCapability,
+	DecodeProfile,
 	ICapabilitiesProbe,
 	IFullscreenController,
+	INetworkMonitor,
 	IPipController,
+	IPlatform,
+	IVisibilityMonitor,
+	IWakeLock,
 	NetworkType,
-	DecodeProfile,
-	DecodeCapability,
 } from './browser';

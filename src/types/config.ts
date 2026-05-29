@@ -6,9 +6,9 @@ import type { IStorage } from '../adapters/storage/IStorage';
 import type { ITranslator } from '../adapters/translator/translator';
 
 import type { LogLevel } from './log';
+import type { BasePlaylistItem } from './playlist';
 import type { TranslationLoader, Translations } from './translations';
 import type { UrlResolver } from './url';
-import type { BasePlaylistItem } from './playlist';
 
 /**
  * An `Authorization` header value — accepted as a static string, a sync

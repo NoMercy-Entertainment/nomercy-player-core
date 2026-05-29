@@ -4,7 +4,12 @@ import type { Chapter } from './chapter';
 import type { BasePlayerConfig } from './config';
 import type { CueEventPayload, SubtitleCueChange } from './cues';
 import type { PlaybackMetrics } from './metrics';
-import type { ActionOptions, ActionSource, PlayerPhase, PreventedReason } from './player';
+import type {
+	ActionOptions,
+	ActionSource,
+	PlayerPhase,
+	PreventedReason,
+} from './player';
 import type { BasePlaylistItem } from './playlist';
 import type { CastState } from './state';
 import type { SubtitleStyle } from './tracks';

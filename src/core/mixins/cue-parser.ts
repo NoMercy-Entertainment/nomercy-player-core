@@ -2,7 +2,6 @@ import type { CueParser } from '../../adapters/cue-parser/ICueParser';
 
 import type { Internals } from '../state';
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: cue parser registry
 // ──────────────────────────────────────────────────────────────────────────

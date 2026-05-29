@@ -14,15 +14,12 @@
 	],
 	"license": "Apache-2.0",
 	"homepage": "https://docs.nomercy.tv/player/",
-	"bugs": {
-		"url": "https://github.com/NoMercy-Entertainment/nomercy-player-kit/issues"
-	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/NoMercy-Entertainment/nomercy-player-kit.git"
 	},
-	"engines": {
-		"node": ">=18.0.0"
+	"bugs": {
+		"url": "https://github.com/NoMercy-Entertainment/nomercy-player-kit/issues"
 	},
 	"keywords": [
 		"player",
@@ -223,13 +220,16 @@
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"files": [
-		"dist",
 		"CHANGELOG.md",
-		"MIGRATION.md",
 		"CODE_OF_CONDUCT.md",
 		"CONTRIBUTING.md",
-		"SECURITY.md"
+		"MIGRATION.md",
+		"SECURITY.md",
+		"dist"
 	],
+	"engines": {
+		"node": ">=18.0.0"
+	},
 	"publishConfig": {
 		"access": "public",
 		"tag": "beta"
