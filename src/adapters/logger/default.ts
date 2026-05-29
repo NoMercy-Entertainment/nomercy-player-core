@@ -4,15 +4,7 @@ import type {
 	LogLevel,
 	LogSink,
 } from './ILogger';
-
-const LEVEL_RANK: Record<LogLevel, number> = {
-	silent: -1,
-	error: 0,
-	warn: 1,
-	info: 2,
-	debug: 3,
-	trace: 4,
-};
+import { LEVEL_RANK } from './ILogger';
 
 /**
  * Lightweight scoped logger. The kit and every plugin share a single root

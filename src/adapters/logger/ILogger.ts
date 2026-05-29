@@ -15,6 +15,19 @@ export const LOG_LEVEL = {
 export type LogLevel = typeof LOG_LEVEL[keyof typeof LOG_LEVEL];
 
 /**
+ * Log level ranks for quick comparison. Higher is more verbose. `silent` is
+ * special-cased as -1 so it ranks below all other levels.
+ */
+export const LEVEL_RANK: Record<LogLevel, number> = {
+	[LOG_LEVEL.SILENT]: -1,
+	[LOG_LEVEL.ERROR]: 0,
+	[LOG_LEVEL.WARN]: 1,
+	[LOG_LEVEL.INFO]: 2,
+	[LOG_LEVEL.DEBUG]: 3,
+	[LOG_LEVEL.TRACE]: 4,
+};
+
+/**
  * A log sink function that receives every log entry the player produces.
  * Supply via a custom `ILogger` implementation or directly to a logging
  * bridge (Sentry breadcrumbs, Datadog, etc.).
