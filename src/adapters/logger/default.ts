@@ -1,6 +1,9 @@
-import type { LogLevel, LogSink } from '../../types';
-
-import type { ILogger, LoggerOptions } from './ILogger';
+import type {
+	ILogger,
+	LoggerOptions,
+	LogLevel,
+	LogSink,
+} from './ILogger';
 
 const LEVEL_RANK: Record<LogLevel, number> = {
 	silent: -1,
