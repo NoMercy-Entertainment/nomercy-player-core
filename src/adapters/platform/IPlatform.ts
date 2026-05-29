@@ -56,8 +56,16 @@ export interface IWakeLock {
 // Network monitor
 // ─────────────────────────────────────────────────────────────────────────
 
+export const NETWORK_TYPE = {
+	WIFI: 'wifi',
+	CELLULAR: 'cellular',
+	ETHERNET: 'ethernet',
+	NONE: 'none',
+	UNKNOWN: 'unknown',
+} as const;
+
 /** Canonical network connection type reported by `INetworkMonitor.type()`. */
-export type NetworkType = 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown';
+export type NetworkType = typeof NETWORK_TYPE[keyof typeof NETWORK_TYPE];
 
 /**
  * Read-only view of the host device's network state.

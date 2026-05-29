@@ -1,9 +1,18 @@
+export const LOG_LEVEL = {
+	SILENT: 'silent',
+	ERROR: 'error',
+	WARN: 'warn',
+	INFO: 'info',
+	DEBUG: 'debug',
+	TRACE: 'trace',
+} as const;
+
 /**
  * Logger verbosity level. Controls how much output the player and its plugins
  * produce. Set via `BasePlayerConfig.logLevel`. Ordered from least to most
  * verbose: `silent` → `error` → `warn` → `info` → `debug` → `trace`.
  */
-export type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+export type LogLevel = typeof LOG_LEVEL[keyof typeof LOG_LEVEL];
 
 /**
  * A log sink function that receives every log entry the player produces.

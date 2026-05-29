@@ -1,6 +1,19 @@
 import type { BasePlaylistItem } from '../../types';
 
-export type MediaListEvent = 'change' | 'append' | 'prepend' | 'insert' | 'remove' | 'move' | 'clear' | 'shuffle' | 'sort' | 'current';
+export const MEDIA_LIST_EVENT = {
+	CHANGE: 'change',
+	APPEND: 'append',
+	PREPEND: 'prepend',
+	INSERT: 'insert',
+	REMOVE: 'remove',
+	MOVE: 'move',
+	CLEAR: 'clear',
+	SHUFFLE: 'shuffle',
+	SORT: 'sort',
+	CURRENT: 'current',
+} as const;
+
+export type MediaListEvent = typeof MEDIA_LIST_EVENT[keyof typeof MEDIA_LIST_EVENT];
 
 /**
  * Cursor-aware ordered list contract shared by both player libraries.

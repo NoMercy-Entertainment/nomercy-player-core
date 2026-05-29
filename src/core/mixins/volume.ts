@@ -1,10 +1,15 @@
 import type { Internals } from '../state';
 
+export const VOLUME_STATE = {
+	UNMUTED: 'unmuted',
+	MUTED: 'muted',
+} as const;
+
 /**
  * Mute state token. Written by `volumeMethods.mute` / `volumeMethods.unmute`.
  * Read by `volume()` (returns 0 when `'muted'`) and the container-class emitter.
  */
-export type VolumeStateToken = 'unmuted' | 'muted';
+export type VolumeStateToken = typeof VOLUME_STATE[keyof typeof VOLUME_STATE];
 
 /**
  * The volume mixin's slice of player state — composed into `PlayerCoreState`.

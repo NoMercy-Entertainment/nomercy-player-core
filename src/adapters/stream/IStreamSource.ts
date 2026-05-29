@@ -75,8 +75,16 @@ export interface StreamLevel {
 	index?: number;
 }
 
+export const STREAM_SOURCE_STATE = {
+	IDLE: 'idle',
+	LOADING: 'loading',
+	READY: 'ready',
+	PLAYING: 'playing',
+	ERROR: 'error',
+} as const;
+
 /** Lifecycle state reported by `IStreamSource.state()`. */
-export type StreamSourceState = 'idle' | 'loading' | 'ready' | 'playing' | 'error';
+export type StreamSourceState = typeof STREAM_SOURCE_STATE[keyof typeof STREAM_SOURCE_STATE];
 
 /**
  * Device capability hint passed to `IStreamFactory.canPlay`. Factories use this

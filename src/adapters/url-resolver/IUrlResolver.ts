@@ -18,7 +18,18 @@ import type { AuthConfig } from '../../types/config';
  * Custom plugins may pass any string they like; the resolver should treat
  * unknown categories as a passthrough.
  */
-export type UrlCategory = 'media' | 'subtitle' | 'font' | 'poster' | 'sprite' | 'lyrics' | 'cast' | 'license' | (string & {});
+export const URL_CATEGORY = {
+	MEDIA: 'media',
+	SUBTITLE: 'subtitle',
+	FONT: 'font',
+	POSTER: 'poster',
+	SPRITE: 'sprite',
+	LYRICS: 'lyrics',
+	CAST: 'cast',
+	LICENSE: 'license',
+} as const;
+
+export type UrlCategory = typeof URL_CATEGORY[keyof typeof URL_CATEGORY] | (string & {});
 
 /**
  * Structured URL returned by `player.resolveUrl(url)`. Contains the

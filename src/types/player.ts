@@ -17,13 +17,19 @@ import type { CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtit
 import type { Translations } from './translations';
 import type { IUrlResolver, ResolvedUrl, UrlCategory } from './url';
 
+export const ACTION_SOURCE = {
+	USER: 'user',
+	REMOTE: 'remote',
+	PLUGIN: 'plugin',
+} as const;
+
 /**
  * Source attribution for actions. Every transport / queue mutation accepts a
  * `source` (default `'user'`) and emits the resulting event with `source`
  * stamped on it. Lets remote-sync plugins filter out their own remote-applied
  * actions to avoid re-broadcast loops.
  */
-export type ActionSource = 'user' | 'remote' | 'plugin' | (string & {});
+export type ActionSource = typeof ACTION_SOURCE[keyof typeof ACTION_SOURCE] | (string & {});
 
 /**
  * Common options accepted by every transport / queue / load action. Pass these

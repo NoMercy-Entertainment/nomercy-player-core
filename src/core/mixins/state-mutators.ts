@@ -7,6 +7,12 @@ import type {
 
 import { makePlayerErrorEvent, pluginError } from '../../errors';
 
+export const REPEAT_STATE = {
+	OFF: 'off',
+	ALL: 'all',
+	ONE: 'one',
+} as const;
+
 /**
  * Repeat mode token. Written by `stateMutatorsMethods.repeatState()`.
  * Read by `queueMethods.next()` / `queueMethods.previous()` to decide
@@ -16,13 +22,18 @@ import { makePlayerErrorEvent, pluginError } from '../../errors';
  * - `'all'` — loop the whole queue.
  * - `'one'` — loop only the current item.
  */
-export type RepeatStateToken = 'off' | 'all' | 'one';
+export type RepeatStateToken = typeof REPEAT_STATE[keyof typeof REPEAT_STATE];
+
+export const SHUFFLE_STATE = {
+	OFF: 'off',
+	ON: 'on',
+} as const;
 
 /**
  * Shuffle mode token. Written by `stateMutatorsMethods.shuffleState()`.
  * Read by `queueMethods` when picking the next item.
  */
-export type ShuffleStateToken = 'off' | 'on';
+export type ShuffleStateToken = typeof SHUFFLE_STATE[keyof typeof SHUFFLE_STATE];
 
 /**
  * The state-mutators mixin's slice of player state — composed into

@@ -22,10 +22,17 @@ export interface ThrowPayload {
 	id?: number;
 }
 
+export const PLUGIN_RECOVERY_ACTION = {
+	RETRY_ONCE: 'retry-once',
+	FALLBACK: 'fallback',
+	DISABLE: 'disable',
+	IGNORE: 'ignore',
+} as const;
+
 /**
  * Per-error recovery action. Configured per-plugin via `static onError`.
  */
-export type PluginRecoveryAction = 'retry-once' | 'fallback' | 'disable' | 'ignore';
+export type PluginRecoveryAction = typeof PLUGIN_RECOVERY_ACTION[keyof typeof PLUGIN_RECOVERY_ACTION];
 
 /**
  * Internally raised by `this.throw(...)` so the kit can identify structured

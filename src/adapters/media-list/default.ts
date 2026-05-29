@@ -1,7 +1,7 @@
 import type { BasePlaylistItem } from '../../types';
 import { EventEmitter } from '../event-bus/default';
 
-export type MediaListEvent = 'change' | 'append' | 'prepend' | 'insert' | 'remove' | 'move' | 'clear' | 'shuffle' | 'sort' | 'current';
+export type { MediaListEvent } from './IMediaList';
 
 interface MediaListEventMap<T> {
 	change: { items: ReadonlyArray<T> };
