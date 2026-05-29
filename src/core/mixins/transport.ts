@@ -2,6 +2,15 @@ import type { ActionOptions } from '../../types';
 
 import type { Internals } from '../state';
 
+export const PLAYER_STATE = {
+	IDLE: 'idle',
+	LOADING: 'loading',
+	PLAYING: 'playing',
+	PAUSED: 'paused',
+	STOPPED: 'stopped',
+	ERROR: 'error',
+} as const;
+
 /**
  * Coarse playback lifecycle token. Written by `transportMethods` / `lifecycleMethods`.
  * Read by the consumer (via `playState()`) and by container-class emit logic.
@@ -13,7 +22,7 @@ import type { Internals } from '../state';
  * - `'stopped'` — playback stopped; position may be reset.
  * - `'error'` — unrecoverable failure; consumer should surface a message.
  */
-export type PlayStateToken = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
+export type PlayStateToken = typeof PLAYER_STATE[keyof typeof PLAYER_STATE];
 
 /**
  * The transport mixin's slice of player state — composed into `PlayerCoreState`.
