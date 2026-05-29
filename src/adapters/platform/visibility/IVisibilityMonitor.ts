@@ -1,1 +1,1 @@
-export type { IVisibilityMonitor } from '../browser';
+export type { IVisibilityMonitor } from '../IPlatform';

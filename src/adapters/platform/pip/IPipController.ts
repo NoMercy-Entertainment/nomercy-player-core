@@ -1,1 +1,1 @@
-export type { IPipController } from '../browser';
+export type { IPipController } from '../IPlatform';

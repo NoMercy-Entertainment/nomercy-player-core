@@ -1,1 +1,1 @@
-export type { IFullscreenController } from '../browser';
+export type { IFullscreenController } from '../IPlatform';

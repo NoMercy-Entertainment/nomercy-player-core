@@ -7,8 +7,8 @@
  * are supplementary and opt-in.
  */
 
-export type { RetryConfig, RetryPolicy } from '../adapters/retry-policy/default';
 export { DEFAULT_RETRY_POLICY } from '../adapters/retry-policy/default';
+export type { RetryConfig, RetryPolicy } from '../adapters/retry-policy/IRetryPolicy';
 
 export { AuthError } from './auth';
 export type { CodeFields, ErrorScope } from './code';
