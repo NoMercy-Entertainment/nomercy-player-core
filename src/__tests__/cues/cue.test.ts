@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createCueList, createMutableCueList } from '../../cues/cue';
+import { createCueList, createMutableCueList } from '../../core/cues/cue';
 
 interface Payload { name: string }
 

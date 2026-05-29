@@ -1,4 +1,4 @@
-import type { Plugin } from '../plugin';
+import type { Plugin } from '../core/plugin';
 import type { IPlayer } from '../types';
 import { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
 import { StateError } from '../errors';

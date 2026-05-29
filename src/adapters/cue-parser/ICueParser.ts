@@ -1,4 +1,4 @@
-import type { CueList } from '../../cues/cue';
+import type { CueList } from '../../core/cues/cue';
 
 /**
  * Registry contract for a cue-format parser. Parsers turn raw text (LRC, VTT,

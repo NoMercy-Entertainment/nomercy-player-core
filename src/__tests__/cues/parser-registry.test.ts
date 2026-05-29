@@ -3,7 +3,7 @@
  */
 
 import type { ICueParser } from '../../adapters/cue-parser/ICueParser';
-import type { CueList } from '../../cues/cue';
+import type { CueList } from '../../core/cues/cue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CueParserRegistry } from '../../adapters/cue-parser/registry';
 

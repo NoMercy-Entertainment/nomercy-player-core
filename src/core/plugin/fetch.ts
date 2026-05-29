@@ -1,4 +1,4 @@
-import type { RetryConfig } from '../errors';
+import type { RetryConfig } from '../../errors';
 
 /**
  * Options accepted by `Plugin.fetch<T>(url, options)`.

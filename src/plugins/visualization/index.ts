@@ -1,6 +1,6 @@
 import type { BaseEventMap, IPlayer, RequireSpec } from '../../types';
 import type { CanvasRenderFn } from '../canvas';
-import { Plugin } from '../../plugin';
+import { Plugin } from '../../core/plugin';
 import { CanvasPlugin } from '../canvas';
 import { SpectrumPlugin } from '../spectrum';
 

@@ -1,4 +1,4 @@
-import type { BaseEventMap, IPlayer } from '../types';
+import type { BaseEventMap, IPlayer } from '../../types';
 import type { Cue, CueList } from './cue';
 
 /**

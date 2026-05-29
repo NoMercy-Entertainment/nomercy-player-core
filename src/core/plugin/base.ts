@@ -1,11 +1,8 @@
-import type { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
-import type { ILogger } from '../adapters/logger/ILogger';
-import type { IRealtimeChannel, RealtimeFactoryOptions } from '../adapters/realtime/IRealtimeChannel';
-import type { IStorage } from '../adapters/storage/IStorage';
-import type { AuthFetchOptions } from '../core/auth-fetch';
-import type { DispatchTarget } from '../core/dispatch';
-import type { Severity } from '../errors';
-
+import type { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
+import type { ILogger } from '../../adapters/logger/ILogger';
+import type { IRealtimeChannel, RealtimeFactoryOptions } from '../../adapters/realtime/IRealtimeChannel';
+import type { IStorage } from '../../adapters/storage/IStorage';
+import type { Severity } from '../../errors';
 import type {
 	AuthConfig,
 	BaseEventMap,
@@ -16,20 +13,23 @@ import type {
 	ResolvedUrl,
 	Translations,
 	UrlCategory,
-} from '../types';
+} from '../../types';
+import type { AuthFetchOptions } from '../auth-fetch';
+
+import type { DispatchTarget } from '../dispatch';
 import type { BeforeDispatchResult, DispatchBeforeOptions } from './dispatch';
 import type { FetchOptions } from './fetch';
 import type { PluginState } from './lifecycle';
 import type { PluginRecoveryAction, ThrowPayload } from './throw';
 
-import { Logger } from '../adapters/logger/default';
-import { nativeWebSocketAdapter } from '../adapters/realtime/websocket';
-import { LocalStorageBackend } from '../adapters/storage/local-storage';
-import { authFetch } from '../core/auth-fetch';
-import { mergeConfig } from '../core/config-merge';
-import { runDispatchBefore } from '../core/dispatch';
-import { buildResolvedUrl } from '../core/resolved-url';
-import { PlayerError } from '../errors';
+import { Logger } from '../../adapters/logger/default';
+import { nativeWebSocketAdapter } from '../../adapters/realtime/websocket';
+import { LocalStorageBackend } from '../../adapters/storage/local-storage';
+import { PlayerError } from '../../errors';
+import { authFetch } from '../auth-fetch';
+import { mergeConfig } from '../config-merge';
+import { runDispatchBefore } from '../dispatch';
+import { buildResolvedUrl } from '../resolved-url';
 import { PluginThrow } from './throw';
 
 /**

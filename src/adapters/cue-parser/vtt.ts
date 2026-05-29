@@ -1,5 +1,5 @@
-import type { Cue, CueList } from '../../cues/cue';
-import { createCueList } from '../../cues/cue';
+import type { Cue, CueList } from '../../core/cues/cue';
+import { createCueList } from '../../core/cues/cue';
 
 export interface VTTSubtitlePayload {
 	/**

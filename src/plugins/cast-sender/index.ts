@@ -1,6 +1,6 @@
 import type { BasePlaylistItem, IPlayer, Translations } from '../../types';
+import { Plugin } from '../../core/plugin';
 import { BrowserPolicyError } from '../../errors';
-import { Plugin } from '../../plugin';
 
 import enBundle from './i18n/en';
 import nlBundle from './i18n/nl';

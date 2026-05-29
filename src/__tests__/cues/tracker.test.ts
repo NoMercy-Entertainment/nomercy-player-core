@@ -16,8 +16,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createCueList } from '../../cues/cue';
-import { CueTracker } from '../../cues/tracker';
+import { createCueList } from '../../core/cues/cue';
+import { CueTracker } from '../../core/cues/tracker';
 import { StubPlayer } from '../../testing/stub-player';
 
 interface CueData { text: string }

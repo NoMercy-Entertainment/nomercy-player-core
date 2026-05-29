@@ -1,6 +1,6 @@
 import type { BaseEventMap, IPlayer } from '../../types';
 
-import { Plugin } from '../../plugin';
+import { Plugin } from '../../core/plugin';
 
 /** Commands the host page can send INTO the embedded player via `postMessage`. */
 export type EmbedCommand

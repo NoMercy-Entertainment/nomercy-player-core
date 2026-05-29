@@ -1,5 +1,5 @@
 import type { BaseEventMap, IPlayer } from '../../types';
-import { Plugin } from '../../plugin';
+import { Plugin } from '../../core/plugin';
 
 /**
  * Map of keyboard combo strings to player action callbacks.

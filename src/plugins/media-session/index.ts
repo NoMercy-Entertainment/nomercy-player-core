@@ -1,5 +1,5 @@
 import type { BaseEventMap, BasePlaylistItem, IPlayer } from '../../types';
-import { Plugin } from '../../plugin';
+import { Plugin } from '../../core/plugin';
 
 /** MIME type inferred from a URL's lowercase file extension. */
 const MIME_BY_EXT: Readonly<Record<string, string>> = {

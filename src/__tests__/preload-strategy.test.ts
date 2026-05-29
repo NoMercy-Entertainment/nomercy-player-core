@@ -13,7 +13,7 @@
  */
 
 import type { IPreloadStrategy, ITransitionStrategy } from '../adapters/preload/default';
-import type { Plugin } from '../plugin';
+import type { Plugin } from '../core/plugin';
 import type { BaseEventMap, BasePlaylistItem } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {

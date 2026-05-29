@@ -1,5 +1,5 @@
 import type { BaseEventMap, IPlayer } from '../../types';
-import { Plugin } from '../../plugin';
+import { Plugin } from '../../core/plugin';
 
 /** Options for {@link TabLeaderPlugin}. */
 export interface TabLeaderOptions {

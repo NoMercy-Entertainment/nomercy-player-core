@@ -1,7 +1,7 @@
 import type { BaseEventMap, IPlayer, RequireSpec } from '../../types';
 import type { VisualizationFrame } from '../visualization';
+import { Plugin } from '../../core/plugin';
 import { PluginError } from '../../errors';
-import { Plugin } from '../../plugin';
 import { AudioGraphPlugin } from '../audio-graph';
 
 /** Options for {@link SpectrumPlugin}. */

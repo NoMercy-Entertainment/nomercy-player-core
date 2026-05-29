@@ -163,12 +163,12 @@
 			"import": "./dist/adapters/stream/hls.js"
 		},
 		"./cues/parsers/vtt": {
-			"types": "./dist/cues/parsers/vtt.d.ts",
-			"import": "./dist/cues/parsers/vtt.js"
+			"types": "./dist/adapters/cue-parser/vtt.d.ts",
+			"import": "./dist/adapters/cue-parser/vtt.js"
 		},
 		"./cues/parsers/lrc": {
-			"types": "./dist/cues/parsers/lrc.d.ts",
-			"import": "./dist/cues/parsers/lrc.js"
+			"types": "./dist/adapters/cue-parser/lrc.d.ts",
+			"import": "./dist/adapters/cue-parser/lrc.js"
 		},
 		"./testing": {
 			"types": "./dist/testing/index.d.ts",

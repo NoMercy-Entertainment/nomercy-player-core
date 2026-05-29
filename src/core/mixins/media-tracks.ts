@@ -1,5 +1,4 @@
 import type { VTTSubtitlePayload } from '../../adapters/cue-parser/vtt';
-import type { Cue } from '../../cues/cue';
 import type {
 	ActionOptions,
 	AudioTrack,
@@ -13,11 +12,12 @@ import type {
 	SubtitleStyle,
 	SubtitleTrack,
 } from '../../types';
+import type { Cue } from '../cues/cue';
 import type { Internals } from '../state';
 import { parseVtt, parseVttSubtitles } from '../../adapters/cue-parser/vtt';
-import { CueTracker } from '../../cues/tracker';
 import { AudioTrackState, QualityState } from '../../types';
 import { authFetch } from '../auth-fetch';
+import { CueTracker } from '../cues/tracker';
 
 import { buildResolvedUrl } from '../resolved-url';
 

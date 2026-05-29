@@ -6,8 +6,8 @@ import type {
 	EqSliderValues,
 	SliderRange,
 } from './presets';
+import { Plugin } from '../../core/plugin';
 import { PluginError } from '../../errors';
-import { Plugin } from '../../plugin';
 import { AudioGraphPlugin } from '../audio-graph';
 import {
 	BUILTIN_PRESETS,

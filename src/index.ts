@@ -132,16 +132,27 @@ export type { AuthFetchOptions } from './core/auth-fetch';
 export { composeMixins } from './core/compose';
 
 export { mergeConfig } from './core/config-merge';
+// Cues
+export { createCueList, createMutableCueList } from './core/cues/cue';
+
+export type { Cue, CueList, MutableCueList } from './core/cues/cue';
+export { CueTracker } from './core/cues/tracker';
+export type { CueTrackerOptions } from './core/cues/tracker';
 // Shared cancellable-event dispatcher (used by both kit transport mixins and Plugin.dispatchBefore)
 export { runDispatchBefore } from './core/dispatch';
-
 export type { BeforeDispatchOutcome, DispatchBeforeOpts, DispatchTarget } from './core/dispatch';
+// Plugin runtime
+export { Plugin, PluginThrow } from './core/plugin';
+
+export type {
+	BeforeDispatchResult,
+	DispatchBeforeOptions,
+	FetchOptions,
+	PluginRecoveryAction,
+	PluginState,
+	ThrowPayload,
+} from './core/plugin';
 export { buildResolvedUrl } from './core/resolved-url';
-// Cues
-export { createCueList, createMutableCueList } from './cues/cue';
-export type { Cue, CueList, MutableCueList } from './cues/cue';
-export { CueTracker } from './cues/tracker';
-export type { CueTrackerOptions } from './cues/tracker';
 
 // Errors
 export {
@@ -176,17 +187,6 @@ export type {
 
 // i18n — default English bundle (audit I7)
 export { defaultTranslations, enTranslations } from './i18n/en';
-// Plugin runtime
-export { Plugin, PluginThrow } from './plugin';
-
-export type {
-	BeforeDispatchResult,
-	DispatchBeforeOptions,
-	FetchOptions,
-	PluginRecoveryAction,
-	PluginState,
-	ThrowPayload,
-} from './plugin';
 
 // Audio-graph + canvas plugins (opt-in, layered) — every Web Audio / canvas
 // plugin builds on these. Apps that don't add them pay zero AudioContext /

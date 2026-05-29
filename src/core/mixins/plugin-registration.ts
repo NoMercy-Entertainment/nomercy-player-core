@@ -1,5 +1,5 @@
-import type { Plugin } from '../../plugin';
 import type { IPlayer, PluginCtorWithId, Translations } from '../../types';
+import type { Plugin } from '../plugin';
 import type { Internals } from '../state';
 import { bcp47FallbackChain } from '../../adapters/language-matcher/bcp47';
 import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';

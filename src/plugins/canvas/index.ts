@@ -1,6 +1,6 @@
 import type { BaseEventMap, IPlayer } from '../../types';
+import { Plugin } from '../../core/plugin';
 import { BrowserPolicyError, StateError } from '../../errors';
-import { Plugin } from '../../plugin';
 
 /** Options for {@link CanvasPlugin}. */
 export interface CanvasOptions {

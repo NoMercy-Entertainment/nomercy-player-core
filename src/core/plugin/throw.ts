@@ -1,4 +1,4 @@
-import type { RetryConfig, Severity } from '../errors';
+import type { RetryConfig, Severity } from '../../errors';
 
 /**
  * Structured throw payload. The kit handles the rest:

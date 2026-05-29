@@ -16,7 +16,7 @@
  */
 
 import type { ICueParser } from '../../adapters/cue-parser/ICueParser';
-import type { CueList } from '../../cues/cue';
+import type { CueList } from '../../core/cues/cue';
 import { describe, expect, it, vi } from 'vitest';
 import { StubPlayer } from '../../testing/stub-player';
 

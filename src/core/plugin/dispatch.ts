@@ -1,4 +1,4 @@
-import type { BeforeDispatchOutcome } from '../core/dispatch';
+import type { BeforeDispatchOutcome } from '../dispatch';
 
 /**
  * Result returned by `Plugin.dispatchBefore(...)`. Alias for `BeforeDispatchOutcome`
