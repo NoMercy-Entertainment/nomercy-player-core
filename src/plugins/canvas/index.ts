@@ -276,16 +276,16 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 		if (!canvasEl)
 			return;
 
-		const h = height!;
+		const resolvedHeight = height!;
 		const ratio = this.opts?.pixelRatio ?? (typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1);
 		canvasEl.width = Math.max(0, Math.floor(width * ratio));
-		canvasEl.height = Math.max(0, Math.floor(h * ratio));
+		canvasEl.height = Math.max(0, Math.floor(resolvedHeight * ratio));
 		canvasEl.style.width = `${width}px`;
-		canvasEl.style.height = `${h}px`;
+		canvasEl.style.height = `${resolvedHeight}px`;
 
 		this.emit('resized', {
 			width,
-			height: h,
+			height: resolvedHeight,
 		});
 	}
 
@@ -302,9 +302,9 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 		if (!surface)
 			return;
 
-		const w = this.opts?.width ?? surface.clientWidth;
-		const h = this.opts?.height ?? surface.clientHeight;
-		this.size(w, h);
+		const width = this.opts?.width ?? surface.clientWidth;
+		const height = this.opts?.height ?? surface.clientHeight;
+		this.size(width, height);
 	}
 
 	/**
@@ -322,13 +322,13 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 		if (!surface || !canvasEl)
 			return;
 
-		const w = this.opts?.width ?? surface.clientWidth ?? 0;
-		const h = this.opts?.height ?? surface.clientHeight ?? 0;
-		this.size(w, h);
+		const width = this.opts?.width ?? surface.clientWidth ?? 0;
+		const height = this.opts?.height ?? surface.clientHeight ?? 0;
+		this.size(width, height);
 
 		this.emit('mounted', {
-			width: w,
-			height: h,
+			width,
+			height,
 		});
 	}
 

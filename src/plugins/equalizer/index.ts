@@ -637,8 +637,8 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	}
 
 	private toFloat(value: number | string): number {
-		const n = typeof value === 'number' ? value : Number.parseFloat(`${value}`);
-		return Number.isFinite(n) ? n : 0;
+		const numeric = typeof value === 'number' ? value : Number.parseFloat(`${value}`);
+		return Number.isFinite(numeric) ? numeric : 0;
 	}
 
 	private snapPreGain(value: number): number {

@@ -56,9 +56,9 @@ export class DefaultTranslator implements ITranslator {
 		let raw: string | undefined;
 		for (const lang of chain) {
 			const bundle = this.bundles[lang];
-			const v = bundle?.[key];
-			if (typeof v === 'string') {
-				raw = v;
+			const value = bundle?.[key];
+			if (typeof value === 'string') {
+				raw = value;
 				break;
 			}
 		}

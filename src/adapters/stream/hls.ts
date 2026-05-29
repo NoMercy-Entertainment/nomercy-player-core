@@ -179,11 +179,11 @@ export class HlsStreamSource implements IStreamSource {
 	getLevels(): StreamLevel[] {
 		if (!this.hls)
 			return [];
-		return this.hls.levels.map((l, index) => ({
-			bitrate: l.bitrate,
-			height: l.height,
-			width: l.width,
-			label: l.name ?? `${l.bitrate}`,
+		return this.hls.levels.map((hlsLevel, index) => ({
+			bitrate: hlsLevel.bitrate,
+			height: hlsLevel.height,
+			width: hlsLevel.width,
+			label: hlsLevel.name ?? `${hlsLevel.bitrate}`,
 			index,
 		}));
 	}
@@ -197,14 +197,14 @@ export class HlsStreamSource implements IStreamSource {
 	getCurrentLevel(): StreamLevel | undefined {
 		if (!this.hls || this.currentLevelIdx < 0)
 			return undefined;
-		const l = this.hls.levels[this.currentLevelIdx];
-		if (!l)
+		const level = this.hls.levels[this.currentLevelIdx];
+		if (!level)
 			return undefined;
 		return {
-			bitrate: l.bitrate,
-			height: l.height,
-			width: l.width,
-			label: l.name ?? `${l.bitrate}`,
+			bitrate: level.bitrate,
+			height: level.height,
+			width: level.width,
+			label: level.name ?? `${level.bitrate}`,
 			index: this.currentLevelIdx,
 		};
 	}

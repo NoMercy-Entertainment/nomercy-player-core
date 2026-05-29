@@ -432,16 +432,16 @@ export const mediaTracksMethods = {
 		// keep emitting active cues from the old track.
 		this._disposeSidecarSubtitle();
 
-		const b = this._peekBackendTyped<_BackendWithSubtitleTracks>();
-		const backendCount = (typeof b?.subtitleTracks === 'function')
-			? (b.subtitleTracks() ?? []).length
+		const backend = this._peekBackendTyped<_BackendWithSubtitleTracks>();
+		const backendCount = (typeof backend?.subtitleTracks === 'function')
+			? (backend.subtitleTracks() ?? []).length
 			: 0;
 
 		// "Off" — clear backend selection AND emit an empty cue list so
 		// renderers wipe their overlays.
 		if (idx === null || idx < 0) {
 			this._currentSubtitleIdx = null;
-			b?.setSubtitleTrack?.(null);
+			backend?.setSubtitleTrack?.(null);
 			this.emit('subtitle', { track: null });
 			this.emit('subtitleCue', {
 				cues: [],
@@ -454,7 +454,7 @@ export const mediaTracksMethods = {
 		// Backend will emit `subtitleCue` itself via its cuechange hook.
 		if (idx < backendCount) {
 			this._currentSubtitleIdx = idx;
-			b?.setSubtitleTrack?.(idx);
+			backend?.setSubtitleTrack?.(idx);
 			this.emit('subtitle', { track: idx });
 			return;
 		}
@@ -464,7 +464,7 @@ export const mediaTracksMethods = {
 		// Disable any backend track first so the two streams don't both
 		// fire `subtitleCue`.
 		this._currentSubtitleIdx = idx;
-		b?.setSubtitleTrack?.(null);
+		backend?.setSubtitleTrack?.(null);
 		const sidecar = _resolveSidecarSubtitle(this, idx - backendCount);
 		this.emit('subtitle', { track: idx });
 		if (!sidecar?.url) {
@@ -674,8 +674,8 @@ export const mediaTracksMethods = {
 		if (list.length === 0)
 			return;
 
-		const t = this._internalCurrentTime;
-		const nextIdx = list.findIndex(c => c.start > t);
+		const currentTime = this._internalCurrentTime;
+		const nextIdx = list.findIndex(c => c.start > currentTime);
 		if (nextIdx < 0)
 			return;
 
@@ -693,10 +693,10 @@ export const mediaTracksMethods = {
 		if (list.length === 0)
 			return;
 
-		const t = this._internalCurrentTime;
+		const currentTime = this._internalCurrentTime;
 		let currentIdx = -1;
 		for (let i = list.length - 1; i >= 0; i--) {
-			if (list[i]!.start <= t) {
+			if (list[i]!.start <= currentTime) {
 				currentIdx = i;
 				break;
 			}
@@ -704,7 +704,7 @@ export const mediaTracksMethods = {
 		if (currentIdx < 0)
 			return;
 
-		const intoChapter = t - list[currentIdx]!.start;
+		const intoChapter = currentTime - list[currentIdx]!.start;
 		const targetIdx = (intoChapter > 10 || currentIdx === 0) ? currentIdx : currentIdx - 1;
 		this.seekToChapter(targetIdx, opts);
 	},
@@ -725,10 +725,10 @@ export const mediaTracksMethods = {
 			if (list.length === 0)
 				return null;
 
-			const t = this._internalCurrentTime;
+			const currentTime = this._internalCurrentTime;
 			for (let i = list.length - 1; i >= 0; i--) {
 				const ch = list[i]!;
-				if (t >= ch.start && t < ch.end)
+				if (currentTime >= ch.start && currentTime < ch.end)
 					return ch;
 			}
 			return null;

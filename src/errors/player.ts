@@ -58,8 +58,8 @@ export class PlayerError extends Error {
 
 	/** True if context.httpStatus is in the requested 1xx-5xx century. */
 	isHttp(century: 1 | 2 | 3 | 4 | 5): boolean {
-		const s = this.context?.['httpStatus'];
-		return typeof s === 'number' && s >= century * 100 && s < (century + 1) * 100;
+		const status = this.context?.['httpStatus'];
+		return typeof status === 'number' && status >= century * 100 && status < (century + 1) * 100;
 	}
 }
 

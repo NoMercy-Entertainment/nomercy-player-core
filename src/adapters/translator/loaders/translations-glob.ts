@@ -200,6 +200,6 @@ function extractBundle(mod: GlobModule, tag: string): Record<string, string> | n
  * authors don't call this.
  */
 export function getLazyTranslationLoader(t: Translations): LazyTranslationLoader | null {
-	const v = (t as unknown as { [k: symbol]: unknown })[LAZY_TRANSLATIONS_MARKER];
-	return typeof v === 'function' ? (v as LazyTranslationLoader) : null;
+	const markerValue = (t as unknown as { [k: symbol]: unknown })[LAZY_TRANSLATIONS_MARKER];
+	return typeof markerValue === 'function' ? (markerValue as LazyTranslationLoader) : null;
 }

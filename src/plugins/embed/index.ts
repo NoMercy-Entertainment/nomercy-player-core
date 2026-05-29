@@ -114,11 +114,11 @@ export class EmbedPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 	 * cleaned up automatically on dispose.
 	 */
 	override use(): void {
-		const o = this.opts?.allowedOrigins;
-		if (Array.isArray(o))
-			this._allowedOrigins = [...o];
-		else if (typeof o === 'string')
-			this._allowedOrigins = [o];
+		const opts = this.opts?.allowedOrigins;
+		if (Array.isArray(opts))
+			this._allowedOrigins = [...opts];
+		else if (typeof opts === 'string')
+			this._allowedOrigins = [opts];
 		else this._allowedOrigins = [];
 
 		if (typeof window === 'undefined')

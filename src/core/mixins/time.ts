@@ -147,10 +147,10 @@ export const timeMethods = {
 	 */
 	seekByPercentage(this: Internals, pct: number, opts?: ActionOptions): void {
 		const clamped = Math.max(0, Math.min(100, pct));
-		const d = this.duration();
-		if (!Number.isFinite(d) || d <= 0)
+		const duration = this.duration();
+		if (!Number.isFinite(duration) || duration <= 0)
 			return;
-		const ret = this.currentTime(d * clamped / 100, opts);
+		const ret = this.currentTime(duration * clamped / 100, opts);
 		if (ret instanceof Promise)
 			void ret;
 	},

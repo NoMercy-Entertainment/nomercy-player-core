@@ -159,19 +159,19 @@ export function parseVttSprite(text: string, baseUrl?: string): CueList<VTTSprit
 	const cues: Cue<VTTSpritePayload>[] = [];
 
 	for (const c of raw) {
-		const m = c.body.trim().match(SPRITE_FRAGMENT_RE);
-		if (!m)
+		const spriteMatch = c.body.trim().match(SPRITE_FRAGMENT_RE);
+		if (!spriteMatch)
 			continue; // skip cues that aren't sprite-formatted
-		const url = m[1]!;
+		const url = spriteMatch[1]!;
 		cues.push({
 			start: c.start,
 			end: c.end,
 			payload: {
 				url: baseUrl && !/^https?:\/\//.test(url) ? joinUrl(baseUrl, url) : url,
-				x: Number.parseInt(m[2]!, 10),
-				y: Number.parseInt(m[3]!, 10),
-				w: Number.parseInt(m[4]!, 10),
-				h: Number.parseInt(m[5]!, 10),
+				x: Number.parseInt(spriteMatch[2]!, 10),
+				y: Number.parseInt(spriteMatch[3]!, 10),
+				w: Number.parseInt(spriteMatch[4]!, 10),
+				h: Number.parseInt(spriteMatch[5]!, 10),
 			},
 		});
 	}
@@ -227,10 +227,10 @@ function parseRaw(text: string): RawCue[] {
 		let tsLineIdx = -1;
 		let tsMatch: RegExpExecArray | null = null;
 		for (let j = 0; j < Math.min(2, lines.length); j++) {
-			const m = TIMESTAMP_LINE_RE.exec(lines[j]!);
-			if (m) {
+			const tsLineMatch = TIMESTAMP_LINE_RE.exec(lines[j]!);
+			if (tsLineMatch) {
 				tsLineIdx = j;
-				tsMatch = m as RegExpExecArray;
+				tsMatch = tsLineMatch as RegExpExecArray;
 				break;
 			}
 		}
@@ -283,59 +283,59 @@ function parseCueSettings(raw: string | undefined): CueSettings {
 		const value = tok.slice(sep + 1);
 
 		if (key === 'align') {
-			const v = value.toLowerCase();
-			if (v === 'start' || v === 'left')
+			const alignValue = value.toLowerCase();
+			if (alignValue === 'start' || alignValue === 'left')
 				out.alignment = 'start';
-			else if (v === 'end' || v === 'right')
+			else if (alignValue === 'end' || alignValue === 'right')
 				out.alignment = 'end';
-			else if (v === 'center' || v === 'middle' || v === 'centre')
+			else if (alignValue === 'center' || alignValue === 'middle' || alignValue === 'centre')
 				out.alignment = 'center';
 		}
 		else if (key === 'line') {
 			// `line:auto` and line numbers (negative integers) aren't meaningful
 			// here — only honour percent values 0–100.
-			const n = parsePercent(value);
-			if (n !== null)
-				out.linePosition = n;
+			const linePercent = parsePercent(value);
+			if (linePercent !== null)
+				out.linePosition = linePercent;
 		}
 		else if (key === 'size') {
-			const n = parsePercent(value);
-			if (n !== null)
-				out.size = n;
+			const sizePercent = parsePercent(value);
+			if (sizePercent !== null)
+				out.size = sizePercent;
 		}
 	}
 	return out;
 }
 
 function parsePercent(raw: string): number | null {
-	const m = raw.match(/^(-?\d+(?:\.\d+)?)%?$/);
-	if (!m)
+	const percentMatch = raw.match(/^(-?\d+(?:\.\d+)?)%?$/);
+	if (!percentMatch)
 		return null;
-	const n = Number(m[1]);
-	if (!Number.isFinite(n) || n < 0 || n > 100)
+	const percentNum = Number(percentMatch[1]);
+	if (!Number.isFinite(percentNum) || percentNum < 0 || percentNum > 100)
 		return null;
-	return n;
+	return percentNum;
 }
 
 function parseTimestamp(ts: string): number {
 	// Accepts HH:MM:SS.mmm or MM:SS.mmm (HH optional)
 	const parts = ts.split(':');
-	let h = 0;
-	let m = 0;
-	let s = 0;
+	let hours = 0;
+	let minutes = 0;
+	let seconds = 0;
 	if (parts.length === 3) {
-		h = Number.parseInt(parts[0]!, 10);
-		m = Number.parseInt(parts[1]!, 10);
-		s = Number.parseFloat(parts[2]!);
+		hours = Number.parseInt(parts[0]!, 10);
+		minutes = Number.parseInt(parts[1]!, 10);
+		seconds = Number.parseFloat(parts[2]!);
 	}
 	else if (parts.length === 2) {
-		m = Number.parseInt(parts[0]!, 10);
-		s = Number.parseFloat(parts[1]!);
+		minutes = Number.parseInt(parts[0]!, 10);
+		seconds = Number.parseFloat(parts[1]!);
 	}
 	else {
 		return Number.NaN;
 	}
-	return h * 3600 + m * 60 + s;
+	return hours * 3600 + minutes * 60 + seconds;
 }
 
 function joinUrl(base: string, relative: string): string {
