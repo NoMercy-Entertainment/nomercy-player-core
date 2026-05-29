@@ -169,7 +169,7 @@ describe('authFetch', () => {
 
 		it('auth.accessToken (string) attaches Bearer header', async () => {
 			mockFetchResponse(200);
-			// eslint-disable-next-line deprecation/deprecation
+			// eslint-disable-next-line ts/no-deprecated
 			await authFetch({
 				url: 'https://x/y',
 				signal: ctrl().signal,
