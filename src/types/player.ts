@@ -466,4 +466,70 @@ export interface IPlayer<E extends import('./events').BaseEventMap = import('./e
 	 */
 	getPluginById<P extends object = object>(id: string): P | undefined;
 
+	// ── Transport — shared by both NMMusicPlayer and NMVideoPlayer ──
+
+	/**
+	 * Start or resume playback.
+	 * `opts.source` defaults to `'user'`. `opts.silent` skips lifecycle events.
+	 */
+	play?(opts?: ActionOptions): Promise<void> | void;
+
+	/** Pause playback. */
+	pause?(opts?: ActionOptions): Promise<void> | void;
+
+	/** Stop playback and reset position. */
+	stop?(opts?: ActionOptions): Promise<void> | void;
+
+	/** Toggle between play and pause. */
+	togglePlayback?(opts?: ActionOptions): Promise<void> | void;
+
+	/** Seek backward by `seconds` (default 5). */
+	rewind?(seconds?: number, opts?: ActionOptions): void;
+
+	/** Seek forward by `seconds` (default 5). */
+	forward?(seconds?: number, opts?: ActionOptions): void;
+
+	/** Advance to the next item in the queue. */
+	next?(opts?: ActionOptions): Promise<void> | void;
+
+	/** Go to the previous item in the queue. */
+	previous?(opts?: ActionOptions): Promise<void> | void;
+
+	// ── Volume ──
+
+	/** Increase volume by `step` (default 0.1). */
+	volumeUp?(step?: number): void;
+
+	/** Decrease volume by `step` (default 0.1). */
+	volumeDown?(step?: number): void;
+
+	/** Mute the player. */
+	mute?(opts?: ActionOptions): void;
+
+	/** Unmute the player. */
+	unmute?(opts?: ActionOptions): void;
+
+	/** Toggle mute state. */
+	toggleMute?(): void;
+
+	// ── Playback state accessors ──
+
+	/**
+	 * Read or write the current playback position in seconds.
+	 * `currentTime()` — returns the current position.
+	 * `currentTime(seconds, opts?)` — seek to `seconds`.
+	 */
+	currentTime?(): number;
+	currentTime?(seconds: number, opts?: ActionOptions): void;
+
+	/** Total duration of the current item in seconds. `0` when unknown. */
+	duration?(): number;
+
+	/**
+	 * Read or write the playback rate.
+	 * `1.0` = normal speed; `0.5` = half speed; `2.0` = double speed.
+	 */
+	playbackRate?(): number;
+	playbackRate?(rate: number): void;
+
 }

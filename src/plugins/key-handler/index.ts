@@ -66,21 +66,6 @@ export interface KeyHandlerOptions<P> {
 	disableMediaControls?: boolean;
 }
 
-/** Loose surface for transport methods we read off the player. */
-interface PlayerSurface {
-	play?: () => unknown;
-	pause?: () => unknown;
-	stop?: () => unknown;
-	togglePlayback?: () => unknown;
-	rewind?: (seconds?: number) => unknown;
-	forward?: (seconds?: number) => unknown;
-	next?: () => unknown;
-	previous?: () => unknown;
-	volumeUp?: (step?: number) => unknown;
-	volumeDown?: (step?: number) => unknown;
-	toggleMute?: () => unknown;
-}
-
 /**
  * Keyboard-binding router. Attaches a single `keydown` listener to the
  * configured scope and dispatches events to registered combo callbacks.
@@ -146,17 +131,17 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 			ctrl: false,
 			shift: false,
 		};
-		let s = combo;
+		let remainder = combo;
 		while (true) {
-			const m = KeyHandlerPlugin.COMBO_MOD_RE.exec(s);
-			if (!m)
+			const modMatch = KeyHandlerPlugin.COMBO_MOD_RE.exec(remainder);
+			if (!modMatch)
 				break;
-			const tag = m[1]!.toLowerCase() as 'alt' | 'ctrl' | 'shift';
+			const tag = modMatch[1]!.toLowerCase() as 'alt' | 'ctrl' | 'shift';
 			mods[tag] = true;
-			s = s.slice(m[0]!.length);
+			remainder = remainder.slice(modMatch[0]!.length);
 		}
 		return {
-			key: s,
+			key: remainder,
 			mods,
 		};
 	}
@@ -169,8 +154,8 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 			parts.push('ctrl');
 		if (mods.shift)
 			parts.push('shift');
-		const k = key.length === 1 ? key.toLowerCase() : key;
-		return parts.length ? `${parts.join('+')}+${k}` : k;
+		const normalizedKey = key.length === 1 ? key.toLowerCase() : key;
+		return parts.length ? `${parts.join('+')}+${normalizedKey}` : normalizedKey;
 	}
 
 	/**
@@ -251,7 +236,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		if (opt instanceof EventTarget)
 			return opt;
 		if (opt === 'container') {
-			const container = (this.player as unknown as { container?: HTMLElement }).container;
+			const container = this.player.container;
 			if (container)
 				return container;
 		}
@@ -293,34 +278,31 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 
 	/** Installs `Space → togglePlayback()`. Override to change the play/pause key. */
 	protected addPlaybackKeys(): void {
-		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
 		this.bind(' ', () => {
-			void surface().togglePlayback?.();
+			void this.player.togglePlayback?.();
 		});
 	}
 
 	/** Installs `ArrowLeft → rewind(5)` and `ArrowRight → forward(5)`. */
 	protected addNavigationKeys(): void {
-		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
 		this.bind('ArrowLeft', () => {
-			void surface().rewind?.(5);
+			this.player.rewind?.(5);
 		});
 		this.bind('ArrowRight', () => {
-			void surface().forward?.(5);
+			this.player.forward?.(5);
 		});
 	}
 
 	/** Installs `ArrowUp → volumeUp()`, `ArrowDown → volumeDown()`, `m → toggleMute()`. */
 	protected addVolumeKeys(): void {
-		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
 		this.bind('ArrowUp', () => {
-			void surface().volumeUp?.();
+			this.player.volumeUp?.();
 		});
 		this.bind('ArrowDown', () => {
-			void surface().volumeDown?.();
+			this.player.volumeDown?.();
 		});
 		this.bind('m', () => {
-			void surface().toggleMute?.();
+			this.player.toggleMute?.();
 		});
 	}
 
@@ -341,49 +323,45 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	 * | `MediaTrackPrevious` | `player.previous?.()` |
 	 */
 	protected addMediaKeys(): void {
-		const surface = (): PlayerSurface => this.player as unknown as PlayerSurface;
-		const allowed = (): boolean => !(this.opts?.disableMediaControls ?? false);
-
 		this.bind('MediaPlay', () => {
-			if (!allowed())
+			if (this.opts?.disableMediaControls)
 				return;
-			void surface().play?.();
+			void this.player.play?.();
 		});
 		this.bind('MediaPause', () => {
-			if (!allowed())
+			if (this.opts?.disableMediaControls)
 				return;
-			void surface().pause?.();
+			void this.player.pause?.();
 		});
 		this.bind('MediaPlayPause', () => {
-			if (!allowed())
+			if (this.opts?.disableMediaControls)
 				return;
-			void surface().togglePlayback?.();
+			void this.player.togglePlayback?.();
 		});
 		this.bind('MediaStop', () => {
-			if (!allowed())
+			if (this.opts?.disableMediaControls)
 				return;
-			const s = surface();
-			void (s.stop ?? s.pause)?.();
+			void (this.player.stop ?? this.player.pause)?.();
 		});
 		this.bind('MediaRewind', () => {
-			if (!allowed())
+			if (this.opts?.disableMediaControls)
 				return;
-			void surface().rewind?.(5);
+			this.player.rewind?.(5);
 		});
 		this.bind('MediaFastForward', () => {
-			if (!allowed())
+			if (this.opts?.disableMediaControls)
 				return;
-			void surface().forward?.(5);
+			this.player.forward?.(5);
 		});
 		this.bind('MediaTrackNext', () => {
-			if (!allowed())
+			if (this.opts?.disableMediaControls)
 				return;
-			void surface().next?.();
+			void this.player.next?.();
 		});
 		this.bind('MediaTrackPrevious', () => {
-			if (!allowed())
+			if (this.opts?.disableMediaControls)
 				return;
-			void surface().previous?.();
+			void this.player.previous?.();
 		});
 	}
 

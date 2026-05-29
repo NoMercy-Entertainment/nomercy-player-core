@@ -126,12 +126,11 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 
 		this.on(TabLeaderPlugin, 'leader-lost', (_data) => {
 			const action = this.opts?.onLost ?? 'pause';
-			const surface = this.player as unknown as { pause?: () => unknown; mute?: () => void };
 			if (action === 'mute') {
-				surface.mute?.();
+				this.player.mute?.();
 			}
 			else {
-				void surface.pause?.();
+				void this.player.pause?.();
 			}
 		});
 

@@ -40,11 +40,11 @@ export interface AudioGraphEvents {
 
 /** Resolve a global AudioContext constructor across browsers. Returns `undefined` if unsupported. */
 function resolveAudioContextCtor(): (new (opts?: AudioContextOptions) => AudioContext) | undefined {
-	const g = globalThis as unknown as {
+	const audioGlobal = globalThis as unknown as {
 		AudioContext?: new (opts?: AudioContextOptions) => AudioContext;
 		webkitAudioContext?: new (opts?: AudioContextOptions) => AudioContext;
 	};
-	return g.AudioContext ?? g.webkitAudioContext;
+	return audioGlobal.AudioContext ?? audioGlobal.webkitAudioContext;
 }
 
 /**

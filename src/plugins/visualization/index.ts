@@ -124,12 +124,8 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 	 * returns early — the rest of the player keeps running.
 	 */
 	override use(): void {
-		const player = this.player as unknown as {
-			getPlugin?: <T>(c: new () => T) => T | undefined;
-		};
-
-		const canvas = player.getPlugin?.(CanvasPlugin as unknown as new () => CanvasPlugin);
-		const spectrum = player.getPlugin?.(SpectrumPlugin as unknown as new () => SpectrumPlugin);
+		const canvas = this.player.getPlugin(CanvasPlugin);
+		const spectrum = this.player.getPlugin(SpectrumPlugin);
 
 		// Graceful degradation: in environments without an AudioContext (happy-dom,
 		// SSR, locked autoplay policy) the spectrum plugin's `use()` will have
@@ -297,19 +293,19 @@ export class WaveformVisualization<P extends IPlayer<BaseEventMap> = IPlayer> ex
 		const wave = frame.waveform;
 		if (!wave || wave.length === 0)
 			return;
-		const w = ctx.canvas.width;
-		const h = ctx.canvas.height;
-		if (w === 0 || h === 0)
+		const canvasWidth = ctx.canvas.width;
+		const canvasHeight = ctx.canvas.height;
+		if (canvasWidth === 0 || canvasHeight === 0)
 			return;
 
 		ctx.lineWidth = 2;
 		ctx.strokeStyle = '#ffffff';
 		ctx.beginPath();
-		const sliceWidth = w / wave.length;
+		const sliceWidth = canvasWidth / wave.length;
 		let x = 0;
 		for (let i = 0; i < wave.length; i++) {
-			const v = (wave[i] ?? 128) / 128.0;
-			const y = (v * h) / 2;
+			const sampleValue = (wave[i] ?? 128) / 128.0;
+			const y = (sampleValue * canvasHeight) / 2;
 			if (i === 0)
 				ctx.moveTo(x, y);
 			else ctx.lineTo(x, y);

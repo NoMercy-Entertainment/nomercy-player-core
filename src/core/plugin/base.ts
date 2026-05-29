@@ -726,10 +726,9 @@ export class Plugin<
 	 * is for the URLs you can't route through `fetch`.
 	 */
 	protected async resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl> {
-		const fn = (this.player as unknown as { resolveUrl?: (u: string, c?: string) => Promise<ResolvedUrl> }).resolveUrl;
-		if (typeof fn === 'function') {
+		if (typeof this.player.resolveUrl === 'function') {
 			try {
-				return await fn.call(this.player, url, category);
+				return await this.player.resolveUrl(url, category);
 			}
 			catch {
 				// Fall through to passthrough below.
@@ -831,7 +830,7 @@ export class Plugin<
 		if (cached)
 			return cached;
 
-		const container = (this.player as IPlayer<any> & { container: HTMLElement }).container;
+		const container = this.player.container;
 		const div = document.createElement('div');
 		div.className = className;
 		container.appendChild(div);

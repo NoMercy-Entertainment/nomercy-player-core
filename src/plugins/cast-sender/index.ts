@@ -1,4 +1,9 @@
-import type { BasePlaylistItem, IPlayer, Translations } from '../../types';
+import type {
+	BaseEventMap,
+	BasePlaylistItem,
+	IPlayer,
+	Translations,
+} from '../../types';
 import { Plugin } from '../../core/plugin';
 import { BrowserPolicyError } from '../../errors';
 
@@ -146,16 +151,6 @@ interface ChromeCastGlobal {
 	};
 }
 
-/** Loose surface of the player methods the bridge drives on Cast → player. */
-interface PlayerSurface<TItem> {
-	play?: (opts?: { source?: string; silent?: boolean }) => unknown;
-	pause?: (opts?: { source?: string; silent?: boolean }) => unknown;
-	stop?: (opts?: { source?: string; silent?: boolean }) => unknown;
-	currentTime?: (t?: number, opts?: { source?: string; silent?: boolean }) => number | Promise<void>;
-	current?: () => TItem | undefined;
-	emit?: (event: string, payload: unknown) => void;
-}
-
 /**
  * Shared Cast sender plugin. Subclass per media library and override the
  * media-specific hooks; everything else is taken care of.
@@ -180,6 +175,18 @@ export class CastSenderPlugin<
 	private applyingFromRemote: boolean = false;
 
 	/**
+	 * Return the current playlist item from the player, or `undefined`.
+	 * `current()` is a per-library method not on `IPlayer`; this is the single
+	 * typed boundary for that access.
+	 */
+	private _readCurrentItem(): TItem | undefined {
+		const playerWithCurrent = this.player as unknown as { current?: () => TItem | undefined };
+		return typeof playerWithCurrent.current === 'function'
+			? playerWithCurrent.current()
+			: undefined;
+	}
+
+	/**
 	 * Called by the plugin system when the plugin is mounted to a player.
 	 * Subscribes to `current`, `play`, `pause`, `stop`, `seek`, `volume`, and
 	 * `mute` player events, forwarding each to the active Cast session via the
@@ -192,41 +199,41 @@ export class CastSenderPlugin<
 				return;
 			void this.forwardCurrent();
 		});
-		this.on('play', (data) => {
-			const d = data as Record<string, unknown> | undefined;
-			if (!this.isConnected() || this.applyingFromRemote || d?.['source'] === 'cast')
+		this.on('play', (eventData) => {
+			const payload = eventData as Record<string, unknown> | undefined;
+			if (!this.isConnected() || this.applyingFromRemote || payload?.['source'] === 'cast')
 				return;
 			this.forwardPlayPause(true);
 		});
-		this.on('pause', (data) => {
-			const d = data as Record<string, unknown> | undefined;
-			if (!this.isConnected() || this.applyingFromRemote || d?.['source'] === 'cast')
+		this.on('pause', (eventData) => {
+			const payload = eventData as Record<string, unknown> | undefined;
+			if (!this.isConnected() || this.applyingFromRemote || payload?.['source'] === 'cast')
 				return;
 			this.forwardPlayPause(false);
 		});
-		this.on('stop', (data) => {
-			const d = data as Record<string, unknown> | undefined;
-			if (!this.isConnected() || this.applyingFromRemote || d?.['source'] === 'cast')
+		this.on('stop', (eventData) => {
+			const payload = eventData as Record<string, unknown> | undefined;
+			if (!this.isConnected() || this.applyingFromRemote || payload?.['source'] === 'cast')
 				return;
 			this.forwardStop();
 		});
-		this.on('seek', (data) => {
-			const d = data as Record<string, unknown> | undefined;
-			if (!this.isConnected() || this.applyingFromRemote || d?.['source'] === 'cast')
+		this.on('seek', (eventData) => {
+			const payload = eventData as Record<string, unknown> | undefined;
+			if (!this.isConnected() || this.applyingFromRemote || payload?.['source'] === 'cast')
 				return;
-			this.forwardSeek(typeof d?.['time'] === 'number' ? d['time'] as number : 0);
+			this.forwardSeek(typeof payload?.['time'] === 'number' ? payload['time'] as number : 0);
 		});
-		this.on('volume', (data) => {
-			const d = data as Record<string, unknown> | undefined;
+		this.on('volume', (eventData) => {
+			const payload = eventData as Record<string, unknown> | undefined;
 			if (!this.isConnected() || this.applyingFromRemote)
 				return;
-			this.forwardVolume(typeof d?.['level'] === 'number' ? d['level'] as number : 1);
+			this.forwardVolume(typeof payload?.['level'] === 'number' ? payload['level'] as number : 1);
 		});
-		this.on('mute', (data) => {
-			const d = data as Record<string, unknown> | undefined;
+		this.on('mute', (eventData) => {
+			const payload = eventData as Record<string, unknown> | undefined;
 			if (!this.isConnected() || this.applyingFromRemote)
 				return;
-			this.forwardMute(!!d?.['muted']);
+			this.forwardMute(!!payload?.['muted']);
 		});
 	}
 
@@ -334,9 +341,8 @@ export class CastSenderPlugin<
 	 */
 	protected async buildMetadata(item: TItem, ctors: ChromeCastMediaCtors): Promise<unknown> {
 		const meta = new ctors.GenericMediaMetadata() as Record<string, unknown>;
-		meta['title'] = (item as unknown as { title?: string; name?: string }).title
-			?? (item as unknown as { name?: string }).name
-			?? '';
+		const titled = item as TItem & { title?: string; name?: string };
+		meta['title'] = titled.title ?? titled.name ?? '';
 		return meta;
 	}
 
@@ -344,8 +350,8 @@ export class CastSenderPlugin<
 
 	/** Resolve the global cast.framework, or null if absent. */
 	private castFramework(): CastFrameworkGlobal['framework'] | null {
-		const g = (typeof globalThis !== 'undefined' ? globalThis : ({} as unknown)) as { cast?: CastFrameworkGlobal };
-		return g.cast?.framework ?? null;
+		const castGlobal = (typeof globalThis !== 'undefined' ? globalThis : ({} as unknown)) as { cast?: CastFrameworkGlobal };
+		return castGlobal.cast?.framework ?? null;
 	}
 
 	/** Resolve the global cast.framework.CastContext, or null if absent. */
@@ -361,8 +367,8 @@ export class CastSenderPlugin<
 
 	/** Resolve the chrome.cast.media constructors, or null if absent. */
 	protected chromeCastMedia(): ChromeCastMediaCtors | null {
-		const g = (typeof globalThis !== 'undefined' ? globalThis : ({} as unknown)) as { chrome?: ChromeCastGlobal };
-		return g.chrome?.cast?.media ?? null;
+		const chromeGlobal = (typeof globalThis !== 'undefined' ? globalThis : ({} as unknown)) as { chrome?: ChromeCastGlobal };
+		return chromeGlobal.chrome?.cast?.media ?? null;
 	}
 
 	/** Wire up RemotePlayerController event subscriptions for cast → player mirroring. */
@@ -429,8 +435,8 @@ export class CastSenderPlugin<
 				const id = remote.mediaInfo?.contentId;
 				if (!id)
 					return;
-				const local = (this.player as unknown as PlayerSurface<TItem>).current?.();
-				const localUrl = (local as unknown as { url?: string })?.url;
+				const local = this._readCurrentItem();
+				const localUrl = (local as (TItem & { url?: string }) | undefined)?.url;
 				if (localUrl && id !== localUrl) {
 					this.emit('cast:media-changed', { contentId: id });
 				}
@@ -480,15 +486,13 @@ export class CastSenderPlugin<
 		this.emit('cast:disconnected', undefined as never);
 
 		if (resume) {
-			const surface = this.player as unknown as PlayerSurface<TItem>;
 			try {
-				const setter = surface.currentTime;
-				if (typeof setter === 'function' && lastTime > 0) {
-					void setter.call(this.player, lastTime, { source: 'cast' });
+				if (typeof this.player.currentTime === 'function' && lastTime > 0) {
+					this.player.currentTime(lastTime, { source: 'cast' });
 				}
 				if (wasPaused)
-					surface.pause?.({ source: 'cast' });
-				else void surface.play?.({ source: 'cast' });
+					void this.player.pause?.({ source: 'cast' });
+				else void this.player.play?.({ source: 'cast' });
 			}
 			catch { /* local player not ready — drop. */ }
 		}
@@ -507,16 +511,16 @@ export class CastSenderPlugin<
 		const ctors = this.chromeCastMedia();
 		if (!session?.loadMedia || !ctors)
 			return;
-		const item = (this.player as unknown as PlayerSurface<TItem>).current?.();
+		const item = this._readCurrentItem();
 		if (!item)
 			return;
 		const opts: CastSenderOptions = this.opts ?? {};
-		const rawUrl = (item as unknown as { url?: string }).url;
+		const itemWithMedia = item as TItem & { url?: string; mime?: string; contentType?: string };
+		const rawUrl = itemWithMedia.url;
 		if (!rawUrl)
 			return;
-		const itemAny = item as unknown as { mime?: string; contentType?: string };
-		const contentType = itemAny.mime
-			?? itemAny.contentType
+		const contentType = itemWithMedia.mime
+			?? itemWithMedia.contentType
 			?? opts.defaultContentType
 			?? this.defaultContentType();
 		try {
@@ -618,7 +622,7 @@ export class CastSenderPlugin<
 	 */
 	private emitPlayer(event: string, payload: unknown): void {
 		try {
-			(this.player as unknown as PlayerSurface<TItem>).emit?.(event, payload);
+			this.player.emit(event as keyof BaseEventMap, payload as BaseEventMap[keyof BaseEventMap]);
 		}
 		catch { /* player teardown raced — drop. */ }
 	}

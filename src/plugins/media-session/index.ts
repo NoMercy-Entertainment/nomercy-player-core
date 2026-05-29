@@ -55,21 +55,6 @@ type Action
 		| 'previoustrack'
 		| 'nexttrack';
 
-/** Loose surface for transport methods we read off the player. */
-interface PlayerSurface {
-	play?: (opts?: unknown) => unknown;
-	pause?: (opts?: unknown) => unknown;
-	stop?: (opts?: unknown) => unknown;
-	next?: (opts?: unknown) => unknown;
-	previous?: (opts?: unknown) => unknown;
-	rewind?: (seconds?: number) => unknown;
-	forward?: (seconds?: number) => unknown;
-	togglePlayback?: () => unknown;
-	currentTime?: ((time?: number) => number | unknown) | (() => number);
-	duration?: () => number;
-	playbackRate?: () => number;
-}
-
 /**
  * Browser `navigator.mediaSession` integration. Bridges the player's transport
  * state to the operating system — lock-screen artwork, hardware media keys,
@@ -169,9 +154,9 @@ export class MediaSessionPlugin<
 		// a microtask), the initial `current` event lands before this listener
 		// is attached. Without this seed the OS lock screen / Now Playing
 		// widget stays empty until the user manually triggers a track change.
-		const currentItemReader = (this.player as unknown as { current?: () => I | undefined }).current;
-		if (typeof currentItemReader === 'function') {
-			const existing = currentItemReader.call(this.player);
+		const currentFn = this._readCurrentFn();
+		if (currentFn) {
+			const existing = currentFn();
 			if (existing)
 				void this._pushMetadata(existing);
 		}
@@ -202,6 +187,19 @@ export class MediaSessionPlugin<
 			}
 		}
 		this.registeredActions.clear();
+	}
+
+	/**
+	 * Return the player's `current()` method bound to the player, or `undefined`
+	 * when the player is a base `IPlayer` without a current-item accessor.
+	 * `current()` is a per-library method (not on `IPlayer`); this is the single
+	 * typed boundary for that access.
+	 */
+	private _readCurrentFn(): (() => I | undefined) | undefined {
+		const playerWithCurrent = this.player as unknown as { current?: () => I | undefined };
+		if (typeof playerWithCurrent.current !== 'function')
+			return undefined;
+		return playerWithCurrent.current.bind(this.player);
 	}
 
 	/**
@@ -279,9 +277,8 @@ export class MediaSessionPlugin<
 		if (typeof navigator === 'undefined' || !('mediaSession' in navigator))
 			return;
 
-		const surface = this.player as unknown as PlayerSurface;
-		const duration = typeof surface.duration === 'function' ? surface.duration() : undefined;
-		const playbackRate = typeof surface.playbackRate === 'function' ? surface.playbackRate() : 1;
+		const duration = typeof this.player.duration === 'function' ? this.player.duration() : undefined;
+		const playbackRate = typeof this.player.playbackRate === 'function' ? this.player.playbackRate() : 1;
 
 		if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0)
 			return;
@@ -374,15 +371,14 @@ export class MediaSessionPlugin<
 	 * Override to add or remove playback action handlers.
 	 */
 	protected addPlaybackActions(): void {
-		const surface = this.player as unknown as PlayerSurface;
 		this.registerAction('play', () => {
-			void surface.play?.();
+			void this.player.play?.();
 		});
 		this.registerAction('pause', () => {
-			void surface.pause?.();
+			void this.player.pause?.();
 		});
 		this.registerAction('stop', () => {
-			void surface.stop?.();
+			void this.player.stop?.();
 		});
 	}
 
@@ -392,12 +388,11 @@ export class MediaSessionPlugin<
 	 * navigation instead of playlist navigation).
 	 */
 	protected addNavigationActions(): void {
-		const surface = this.player as unknown as PlayerSurface;
 		this.registerAction('previoustrack', () => {
-			void surface.previous?.();
+			void this.player.previous?.();
 		});
 		this.registerAction('nexttrack', () => {
-			void surface.next?.();
+			void this.player.next?.();
 		});
 	}
 
@@ -410,23 +405,21 @@ export class MediaSessionPlugin<
 	 * directly to the player's `currentTime` setter.
 	 */
 	protected addSeekActions(): void {
-		const surface = this.player as unknown as PlayerSurface;
 		this.registerAction('seekbackward', (details: MediaSessionActionDetails) => {
 			const offset = details?.seekOffset ?? 5;
-			void surface.rewind?.(offset);
+			this.player.rewind?.(offset);
 		});
 		this.registerAction('seekforward', (details: MediaSessionActionDetails) => {
 			const offset = details?.seekOffset ?? 5;
-			void surface.forward?.(offset);
+			this.player.forward?.(offset);
 		});
 		this.registerAction('seekto', (details: MediaSessionActionDetails) => {
 			const time = details?.seekTime;
 			if (typeof time !== 'number')
 				return;
-			const ct = surface.currentTime as ((t: number) => unknown) | undefined;
-			if (typeof ct === 'function') {
+			if (typeof this.player.currentTime === 'function') {
 				try {
-					(ct as (t: number) => unknown).call(surface, time);
+					this.player.currentTime(time);
 				}
 				catch {
 					// Player may not support the setter form — drop silently.

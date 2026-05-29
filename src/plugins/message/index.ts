@@ -203,8 +203,7 @@ export class MessagePlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Pl
 			return;
 		}
 
-		const playerWithContainer = this.player as unknown as { container?: HTMLElement };
-		const container = playerWithContainer.container;
+		const container = this.player.container;
 		if (!container)
 			return;
 

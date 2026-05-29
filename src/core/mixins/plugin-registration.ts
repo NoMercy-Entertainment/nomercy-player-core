@@ -46,11 +46,13 @@ const _pluginLangLoaded = new WeakMap<Internals, Set<string>>();
 
 /** Build a scoped child logger from the player's configured logger or a fallback. */
 function makePlayerLogger(self: Internals, scope: string): Logger {
-	const configured = (self.options as unknown as { logger?: Logger } | undefined)?.logger;
-	const root = configured ?? new Logger({
-		prefix: 'nmplayer',
-		level: (self.options as unknown as { logLevel?: string } | undefined)?.logLevel as Parameters<Logger['level']>[0] | undefined,
-	});
+	const configured = self.options.logger;
+	const root = configured instanceof Logger
+		? configured
+		: new Logger({
+				prefix: 'nmplayer',
+				level: self.options.logLevel,
+			});
 	return root.child(scope) as Logger;
 }
 
