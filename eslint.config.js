@@ -11,6 +11,7 @@ export default antfu({
 	],
 	typescript: {
 		overrides: {
+			'no-nested-ternary': 'error',
 			'antfu/top-level-function': 'off',
 			'no-async-promise-executor': 'off',
 			'no-extend-native': 'off',

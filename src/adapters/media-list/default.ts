@@ -60,7 +60,10 @@ export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaLis
 
 		if (previousId !== undefined) {
 			const idx = this.items.findIndex(i => i.id === previousId);
-			this.cursor = idx >= 0 ? idx : (this.items.length > 0 ? 0 : -1);
+			if (idx >= 0)
+				this.cursor = idx;
+			else
+				this.cursor = this.items.length > 0 ? 0 : -1;
 		}
 		else {
 			this.cursor = this.items.length > 0 ? 0 : -1;

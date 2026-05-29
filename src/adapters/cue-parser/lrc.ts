@@ -154,7 +154,15 @@ function toSeconds(mmStr: string, ssStr: string, fracStr?: string): number {
 	const ss = Number.parseInt(ssStr, 10);
 	let frac = 0;
 	if (fracStr) {
-		const padded = fracStr.length === 3 ? fracStr : fracStr.length === 2 ? `${fracStr}0` : fracStr.length === 1 ? `${fracStr}00` : fracStr.slice(0, 3);
+		let padded: string;
+		if (fracStr.length === 3)
+			padded = fracStr;
+		else if (fracStr.length === 2)
+			padded = `${fracStr}0`;
+		else if (fracStr.length === 1)
+			padded = `${fracStr}00`;
+		else
+			padded = fracStr.slice(0, 3);
 		frac = Number.parseInt(padded, 10) / 1000;
 	}
 	return mm * 60 + ss + frac;

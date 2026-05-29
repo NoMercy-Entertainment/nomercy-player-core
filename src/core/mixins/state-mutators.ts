@@ -147,7 +147,11 @@ export const stateMethods = {
 		if (state === undefined)
 			return this._shuffleState;
 
-		const next = typeof state === 'boolean' ? (state ? 'on' : 'off') : state;
+		let next: ShuffleStateToken;
+		if (typeof state === 'boolean')
+			next = state ? 'on' : 'off';
+		else
+			next = state;
 		this._shuffleState = next;
 
 		if (next === 'on') {
