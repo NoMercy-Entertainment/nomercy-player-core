@@ -162,11 +162,11 @@
 			"types": "./dist/adapters/stream/hls.d.ts",
 			"import": "./dist/adapters/stream/hls.js"
 		},
-		"./cues/parsers/vtt": {
+		"./adapters/cue-parser/vtt": {
 			"types": "./dist/adapters/cue-parser/vtt.d.ts",
 			"import": "./dist/adapters/cue-parser/vtt.js"
 		},
-		"./cues/parsers/lrc": {
+		"./adapters/cue-parser/lrc": {
 			"types": "./dist/adapters/cue-parser/lrc.d.ts",
 			"import": "./dist/adapters/cue-parser/lrc.js"
 		},
