@@ -12,6 +12,20 @@ import {
 
 import { runDispatchBefore } from '../dispatch';
 
+/**
+ * The player-state mixin's slice of player state — composed into
+ * `PlayerCoreState`. Declared here, beside `_transitionPhase()` which is the
+ * sole writer of `_phase`.
+ */
+export interface PlayerPhaseState {
+	/**
+	 * Current lifecycle phase. Written only by `_transitionPhase()` inside
+	 * `playerStateMethods`. Consumers read via `player.phase()`. Drives
+	 * guard checks (e.g. `_assertReady`) and container-class updates.
+	 */
+	_phase: PlayerPhase;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Narrow backend interfaces — local to this mixin
 // ──────────────────────────────────────────────────────────────────────────

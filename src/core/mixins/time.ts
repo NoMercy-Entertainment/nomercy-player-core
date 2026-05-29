@@ -2,6 +2,27 @@ import type { ActionOptions, TimeState } from '../../types';
 
 import type { Internals } from '../state';
 
+/**
+ * The time mixin's slice of player state — composed into `PlayerCoreState`.
+ * Named `TimeInternalState` to avoid clashing with the public `TimeState` shape
+ * exported from `../../types`. Declared here, beside the methods that write it.
+ */
+export interface TimeInternalState {
+	/**
+	 * Last-known current-time position in seconds. Written by `timeMethods`
+	 * on each `time` event from the backend, and by seek operations before the
+	 * backend confirms. Read by `currentTime()`.
+	 */
+	_internalCurrentTime: number;
+
+	/**
+	 * Current playback rate multiplier (1 = normal). Written by
+	 * `timeMethods.playbackRate()`; forwarded to the backend at write
+	 * time. Read by `playbackRate()`.
+	 */
+	_playbackRate: number;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by timeMethods
 // ──────────────────────────────────────────────────────────────────────────

@@ -1,6 +1,44 @@
+import type { MediaList } from '../../adapters/media-list/default';
 import type { ActionOptions, BasePlaylistItem } from '../../types';
 
 import type { Internals } from '../state';
+
+/**
+ * The queue mixin's slice of player state — composed into `PlayerCoreState`.
+ * Carries the `T` playlist-item generic so per-library subclasses narrow it.
+ * Declared here, beside the methods that write it.
+ */
+export interface QueueState<T extends BasePlaylistItem = BasePlaylistItem> {
+	/**
+	 * The live play queue. Written by `queueMethods.queue()` and queue
+	 * mutators; read by `current()`, `next()`, `previous()`, and every
+	 * consumer that calls `player.queue()`. The `MediaList` wrapper provides
+	 * cursor tracking and shuffle-safe iteration.
+	 */
+	_queueList: MediaList<T>;
+
+	/**
+	 * Items removed from the queue by auto-advance or manual removes.
+	 * Held so `previous()` can reach back past the queue head. Cleared when
+	 * the queue is replaced.
+	 */
+	_backlogList: MediaList<T>;
+
+	/**
+	 * `true` once the queue event listeners (item-change, end-of-list) have
+	 * been attached to `_queueList`. Guards against double-wiring when
+	 * `setup()` or `queue()` is called multiple times.
+	 */
+	_queueWired: boolean;
+
+	/**
+	 * Monotonic counter bumped on each `current()` write call. The autoplay
+	 *  continuation in `current()` checks this before calling `play()` so that
+	 *  a superseded navigation (rapid episode clicks) does not fire a spurious
+	 *  play() once its stale load silently resolves.
+	 */
+	_currentEpoch?: number;
+}
 
 // ──────────────────────────────────────────────────────────────────────────
 // Wire the MediaList events to the player event bus. Idempotent — safe to

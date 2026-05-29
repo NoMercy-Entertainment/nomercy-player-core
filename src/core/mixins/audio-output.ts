@@ -2,11 +2,25 @@ import type { Internals } from '../state';
 
 import { browserPolicyError } from '../../errors';
 
+/**
+ * The audio-output mixin's slice of player state — composed into
+ * `PlayerCoreState`. Declared here, beside the method that writes it.
+ */
+export interface AudioOutputState {
+	/** Currently-selected audio output device id, or null. Written by `currentAudioOutput(deviceId)`. */
+	_currentAudioOutputId: string | null;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Narrow backend interface — local to this mixin
 // ──────────────────────────────────────────────────────────────────────────
 
-interface _BackendWithMediaElement { mediaElement?: () => HTMLMediaElement & { setSinkId?: (id: string) => Promise<void>; sinkId?: string } }
+interface _BackendWithMediaElement {
+	mediaElement?: () => HTMLMediaElement & {
+		setSinkId?: (id: string) => Promise<void>;
+		sinkId?: string;
+	};
+}
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: audio output device routing.

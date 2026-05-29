@@ -1,6 +1,21 @@
 import type { ICueParser } from '../../adapters/cue-parser/ICueParser';
+import type { CueParserRegistry } from '../../adapters/cue-parser/registry';
 
 import type { Internals } from '../state';
+
+/**
+ * The cue-parser mixin's slice of player state — composed into
+ * `PlayerCoreState`. The registry instance is created centrally in
+ * `initPlayerCoreState`; this mixin is its sole mutator (register / unregister).
+ */
+export interface CueParserState {
+	/**
+	 * Registry of cue-format parsers available to this player instance.
+	 * Pre-seeded with VTT in `initPlayerCoreState`; consumers or plugins can
+	 * register additional formats via `player.registerCueParser()`.
+	 */
+	_cueParsers: CueParserRegistry;
+}
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: cue parser registry

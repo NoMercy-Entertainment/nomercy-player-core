@@ -9,6 +9,29 @@ import { bcp47FallbackChain } from '../../adapters/translator/translator';
 import { pluginError, stateError } from '../../errors';
 import { KIT_VERSION } from '../kit-version';
 
+/**
+ * The plugin-registration mixin's slice of player state — composed into
+ * `PlayerCoreState`. Declared here, beside `_registerPlugin` / `addPlugin`
+ * which are the sole writers of the live registry and the pre-setup queue.
+ */
+export interface PluginRegistrationState {
+	/**
+	 * Live plugin registry. Each entry holds the plugin instance, its
+	 * `LifecycleRegistry` (for disposal), and the constructor (for `getPlugin`
+	 * type-safe lookup). Written by `pluginRegistrationMethods._registerPlugin`.
+	 */
+	_plugins: Array<{ instance: Plugin; lifecycle: LifecycleRegistry; ctor: PluginCtorWithId }>;
+
+	/**
+	 * Pre-setup plugin queue. `addPlugin` calls during `'idle'` or `'setup'` phase
+	 * push entries here; the `pluginsRegistering` stage drains them, calling
+	 * `initialize` then awaiting `use()` for each, bounded by `pluginInitTimeoutMs`.
+	 *
+	 * Post-setup `addPlugin` runs the same pipeline inline.
+	 */
+	_pluginQueue: Array<{ ctor: PluginCtorWithId; opts?: unknown }>;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Per-player lang-loaded tracking
 // WeakMap lifetime is tied to the player instance — no manual cleanup needed.

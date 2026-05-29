@@ -3,6 +3,15 @@ import type { Internals } from '../state';
 
 import { browserPlatform } from '../../adapters/platform/browser';
 
+/**
+ * The ABR mixin's slice of player state — composed into `PlayerCoreState`.
+ * Declared here, beside the `bandwidthEstimator()` method that writes it.
+ */
+export interface AbrState {
+	/** Override estimator function. When set, ABR queries this instead of stream defaults. */
+	_bandwidthEstimator: (() => number) | undefined;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: ABR — `bandwidth`, `bandwidthEstimator`, `canPlay`.
 // ──────────────────────────────────────────────────────────────────────────

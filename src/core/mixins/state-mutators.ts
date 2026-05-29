@@ -1,13 +1,40 @@
 import type {
 	Internals,
 	PlayStateToken,
-	RepeatStateToken,
-	ShuffleStateToken,
 	VolumeStateToken,
 
 } from '../state';
 
 import { makePlayerErrorEvent, pluginError } from '../../errors';
+
+/**
+ * Repeat mode token. Written by `stateMutatorsMethods.repeatState()`.
+ * Read by `queueMethods.next()` / `queueMethods.previous()` to decide
+ * whether to wrap or stop at the end of the queue.
+ *
+ * - `'off'` — no repeat.
+ * - `'all'` — loop the whole queue.
+ * - `'one'` — loop only the current item.
+ */
+export type RepeatStateToken = 'off' | 'all' | 'one';
+
+/**
+ * Shuffle mode token. Written by `stateMutatorsMethods.shuffleState()`.
+ * Read by `queueMethods` when picking the next item.
+ */
+export type ShuffleStateToken = 'off' | 'on';
+
+/**
+ * The state-mutators mixin's slice of player state — composed into
+ * `PlayerCoreState`. Declared here, beside the methods that write it.
+ */
+export interface StateMutatorsState {
+	/** Repeat mode. Written by `stateMutatorsMethods.repeatState()`; read by queue advancement logic. */
+	_repeatState: RepeatStateToken;
+
+	/** Shuffle mode. Written by `stateMutatorsMethods.shuffleState()`; read by queue advancement logic. */
+	_shuffleState: ShuffleStateToken;
+}
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mutation guard helpers

@@ -9,6 +9,18 @@ import type { Internals } from '../state';
 
 import { buildResolvedUrl } from '../resolved-url';
 
+/**
+ * The auth mixin's slice of player state — composed into `PlayerCoreState`.
+ * Declared here, beside the methods that write it.
+ */
+export interface AuthState {
+	/** Live `AuthConfig` — readable via `auth()`, mutable via `auth(config)` / `auth(partial)`. */
+	_authConfig: AuthConfig | undefined;
+
+	/** Live URL resolver — readable via `urlResolver()`, mutable via `urlResolver(fn)`. */
+	_urlResolver: IUrlResolver | undefined;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: auth runtime — `auth` / `urlResolver` / `refreshAuth`.
 // Single source of truth for auth config, URL resolution, and token refresh.

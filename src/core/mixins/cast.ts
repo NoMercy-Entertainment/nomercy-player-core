@@ -4,6 +4,15 @@ import { browserPolicyError } from '../../errors';
 
 import { CastState as _CastStateEnum } from '../../types';
 
+/**
+ * The cast mixin's slice of player state — composed into `PlayerCoreState`.
+ * Declared here, beside the `transferTo()` method that writes it.
+ */
+export interface CastMixinState {
+	/** Active cast/handoff state. Written by `transferTo()`; read by `castState()`. */
+	_castState?: _CastStateEnum;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by castMethods
 // ──────────────────────────────────────────────────────────────────────────

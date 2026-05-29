@@ -2,6 +2,17 @@ import type { PlaybackMetrics } from '../../types';
 
 import type { Internals } from '../state';
 
+/**
+ * The metrics mixin's slice of player state — composed into `PlayerCoreState`.
+ * `recordMetric()` mutates the live `_metrics` map; the surrounding timing
+ * fields (`_metricsStartedAt`, `_metricsTimer`, `_lastProgressEmit`) are
+ * written by the setup orchestrator in `lifecycle.ts` and stay central.
+ */
+export interface MetricsState {
+	/** Live mutable metrics map. Snapshotted via `metrics()`, written via `recordMetric()`. */
+	_metrics: PlaybackMetrics;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: metrics / clock / accessibility — grouped because they share the
 // same "instrumentation surface" semantics across both libraries.

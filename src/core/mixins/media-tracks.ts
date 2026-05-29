@@ -13,13 +13,52 @@ import type {
 	SubtitleStyle,
 	SubtitleTrack,
 } from '../../types';
-import type { Internals, SidecarSubtitleContext } from '../state';
+import type { Internals } from '../state';
 import { parseVtt, parseVttSubtitles } from '../../adapters/cue-parser/vtt';
 import { CueTracker } from '../../cues/tracker';
 import { AudioTrackState, QualityState } from '../../types';
 import { authFetch } from '../auth-fetch';
 
 import { buildResolvedUrl } from '../resolved-url';
+
+/**
+ * Runtime state for one active sidecar VTT subtitle track.
+ *
+ * Lives on `PlayerCoreState._sidecarSubtitle`. The `mediaTracksMethods` mixin
+ * is the sole writer; the subtitle renderer reads `active` on each cue event.
+ * Torn down and replaced whenever the track selection changes or the queue
+ * moves to a new item.
+ */
+export interface SidecarSubtitleContext {
+	tracker: CueTracker<VTTSubtitlePayload>;
+	active: Set<Cue<VTTSubtitlePayload>>;
+	language?: string;
+}
+
+/**
+ * The media-tracks mixin's slice of player state — composed into
+ * `PlayerCoreState`. Declared here, beside the methods that write these track
+ * selections, the sidecar subtitle context, and the subtitle style cache.
+ */
+export interface MediaTracksState {
+	/** Currently-selected subtitle index, or null when off. Written by `currentSubtitle(idx)`. */
+	_currentSubtitleIdx: number | null;
+
+	/** Currently-selected audio track index, or null when no explicit selection. Written by `currentAudioTrack(idx)`. */
+	_currentAudioTrackIdx: number | null;
+
+	/** Currently-selected quality index or 'auto'. Written by `currentQuality(idx)`. */
+	_currentQualityIdx: number | 'auto';
+
+	/** Monotonic counter bumped on each `_resolveAndEmitChapters` call. Stale chapter fetches bail when epoch differs. */
+	_chapterEpoch?: number;
+
+	/** Active sidecar VTT subtitle context. One per player. Torn down on track change or item change. */
+	_sidecarSubtitle?: SidecarSubtitleContext;
+
+	/** Subtitle style patch cache. Seeded on first read; mutated by `subtitleStyle(patch)`. */
+	_subtitleStyle?: SubtitleStyle;
+}
 
 // ──────────────────────────────────────────────────────────────────────────
 // Sidecar track types — structural interfaces for item track fields.

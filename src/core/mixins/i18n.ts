@@ -5,6 +5,21 @@ import { getLazyTranslationLoader } from '../../adapters/translator/loaders/tran
 
 import { bcp47FallbackChain, DefaultTranslator } from '../../adapters/translator/translator';
 
+/**
+ * The i18n mixin's slice of player state — composed into `PlayerCoreState`.
+ * Declared here, beside the methods that write the active translator (the
+ * setup-stage seed in `lifecycle.ts` is the i18n concern too).
+ */
+export interface I18nState {
+	/**
+	 * Active translator instance. Written by `i18nMethods` during `setup()` and
+	 * whenever `language()` triggers a bundle load. `undefined` until the first
+	 * translation bundle resolves; kit code that calls `this.t(...)` guards on
+	 * this before forwarding.
+	 */
+	_translator: ITranslator | undefined;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by i18nMethods
 // ──────────────────────────────────────────────────────────────────────────

@@ -3,6 +3,29 @@ import type { ActionOptions } from '../../types';
 import type { Internals } from '../state';
 
 /**
+ * Coarse playback lifecycle token. Written by `transportMethods` / `lifecycleMethods`.
+ * Read by the consumer (via `playState()`) and by container-class emit logic.
+ *
+ * - `'idle'` — player constructed, `setup()` not yet called.
+ * - `'loading'` — item is being fetched / initialised by the backend.
+ * - `'playing'` — backend is actively advancing the clock.
+ * - `'paused'` — playback is suspended; position held.
+ * - `'stopped'` — playback stopped; position may be reset.
+ * - `'error'` — unrecoverable failure; consumer should surface a message.
+ */
+export type PlayStateToken = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
+
+/**
+ * The transport mixin's slice of player state — composed into `PlayerCoreState`.
+ * Declared here, beside the methods that write it; read elsewhere through the
+ * composed `Internals` surface (`playState()`, the container-class emitter).
+ */
+export interface TransportState {
+	/** Coarse play-state label. Written by transport / lifecycle methods; read by `playState()` and the container-class emitter. */
+	_playState: PlayStateToken;
+}
+
+/**
  * Shared seek scaffolding for `rewind` / `forward` / `restart`. Each of them
  * does the same five-step dance — dispatch `beforeSeek`, bail on prevention,
  * round-trip through the `seeking` phase, mutate `_internalCurrentTime`,

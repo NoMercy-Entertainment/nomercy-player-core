@@ -2,6 +2,29 @@ import type { PlayerExperimental } from '../../types';
 
 import type { Internals } from '../state';
 
+/**
+ * The experimental mixin's slice of player state — composed into
+ * `PlayerCoreState`. Both maps live on the instance (not on the mixin object)
+ * so `getOriginals` / `experimentalDescriptor` can find them without a cast —
+ * TypeScript cannot see mixin-installed instance properties through the
+ * prototype chain.
+ */
+export interface ExperimentalState {
+	/**
+	 * Method override table written by `experimental.override()`. Maps method
+	 * name → `{ fn, by }` where `by` is the plugin id that installed the
+	 * override, for debugging.
+	 */
+	_overrides: Map<string, { fn: (...args: any[]) => any; by: string }>;
+
+	/**
+	 * Backing map for `experimental.override` originals. Stored on the instance
+	 * so the `getOriginals` helper in `experimentalDescriptor` can find it
+	 * without casting to `any`.
+	 */
+	_overrideOriginals?: Map<string, ((...args: unknown[]) => unknown) | undefined>;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: experimental override surface (descriptor with a getter)
 // ──────────────────────────────────────────────────────────────────────────

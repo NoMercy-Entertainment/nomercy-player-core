@@ -1,5 +1,27 @@
 import type { Internals } from '../state';
 
+/**
+ * Mute state token. Written by `volumeMethods.mute` / `volumeMethods.unmute`.
+ * Read by `volume()` (returns 0 when `'muted'`) and the container-class emitter.
+ */
+export type VolumeStateToken = 'unmuted' | 'muted';
+
+/**
+ * The volume mixin's slice of player state — composed into `PlayerCoreState`.
+ * Declared here, beside the mixin that writes it; read elsewhere through the
+ * composed `Internals` surface (the `volumeState()` accessor, lifecycle metrics).
+ */
+export interface VolumeState {
+	/** Mute state. */
+	_volumeState: VolumeStateToken;
+
+	/** Stored on the 0-100 scale to match the public volume() API. */
+	_internalVolume: number;
+
+	/** Stored on the 0-100 scale to match the public volume() API. */
+	_volumeBeforeMute: number;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: volume
 // ──────────────────────────────────────────────────────────────────────────

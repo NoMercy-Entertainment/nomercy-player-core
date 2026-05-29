@@ -1,7 +1,21 @@
-import type { StreamFactory } from '../../adapters/stream/IStreamSource';
+import type { IStreamFactory } from '../../adapters/stream/IStreamSource';
 import type { Internals } from '../state';
 
 import { StreamRegistry } from '../../adapters/stream/registry';
+
+/**
+ * The stream-registration mixin's slice of player state — composed into
+ * `PlayerCoreState`. The lazy `_ensureStreamRegistry` helper here is the
+ * writer; the `streamsReady` setup stage triggers the same lazy-init.
+ */
+export interface StreamRegistrationState {
+	/**
+	 * Per-player stream factory registry. Lazy — first touch (either via the
+	 * `streamsReady` setup stage or via consumer `registerStream`) creates
+	 * the registry and seeds it with the kit defaults (`native`, `hls`).
+	 */
+	_streamRegistry: StreamRegistry | undefined;
+}
 
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by streamRegistrationMethods
@@ -34,7 +48,7 @@ export const streamRegistrationMethods = {
 	 * of the queue instead. Re-registering a factory with the same `id` replaces
 	 * the existing entry. Returns the player for fluent chaining.
 	 */
-	registerStream(this: Internals, factory: StreamFactory, prepend?: boolean): unknown {
+	registerStream(this: Internals, factory: IStreamFactory, prepend?: boolean): unknown {
 		_ensureStreamRegistry(this).register(factory, prepend);
 		return this;
 	},
@@ -48,7 +62,7 @@ export const streamRegistrationMethods = {
 		return _ensureStreamRegistry(this).list();
 	},
 	/** Look up a registered factory by id. Returns `undefined` when not found. */
-	getStreamFactory(this: Internals, id: string): StreamFactory | undefined {
+	getStreamFactory(this: Internals, id: string): IStreamFactory | undefined {
 		return _ensureStreamRegistry(this).findById(id);
 	},
 } as const;
