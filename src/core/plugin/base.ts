@@ -4,7 +4,6 @@ import type { IRealtimeChannel, RealtimeFactoryOptions } from '../../adapters/re
 import type { IStorage } from '../../adapters/storage/IStorage';
 import type { Severity } from '../../errors';
 import type {
-	AuthConfig,
 	BaseEventMap,
 	BasePlayerConfig,
 	IPlayer,
@@ -14,22 +13,20 @@ import type {
 	Translations,
 	UrlCategory,
 } from '../../types';
-import type { AuthFetchOptions } from '../auth-fetch';
-
 import type { DispatchTarget } from '../dispatch';
 import type { BeforeDispatchResult, DispatchBeforeOptions } from './dispatch';
 import type { FetchOptions } from './fetch';
 import type { PluginState } from './lifecycle';
 import type { PluginRecoveryAction, ThrowPayload } from './throw';
-
 import { Logger } from '../../adapters/logger/default';
+
 import { nativeWebSocketAdapter } from '../../adapters/realtime/websocket';
 import { LocalStorageBackend } from '../../adapters/storage/local-storage';
 import { PlayerError } from '../../errors';
-import { authFetch } from '../auth-fetch';
 import { mergeConfig } from '../config-merge';
 import { runDispatchBefore } from '../dispatch';
 import { buildResolvedUrl } from '../resolved-url';
+import { pluginFetch } from './fetch';
 import { PluginThrow } from './throw';
 
 /**
@@ -106,11 +103,6 @@ export type AnyPluginCtor = abstract new (...args: never[]) => Plugin<IPlayer<Ba
  * the subclass supplies, bypassing the conditional-`infer` widening problem.
  */
 export type PluginEventMap<C extends AnyPluginCtor> = InstanceType<C>['__events__'];
-
-type InternalFetchOptions<T> = AuthFetchOptions<T> & {
-	pluginId: string;
-	scope: 'plugin' | 'player' | 'silent';
-};
 
 /**
  * Base plugin class. Subclass to write a plugin.
@@ -706,20 +698,11 @@ export class Plugin<
 	 *  - On 5xx / timeout / network: retry per RetryConfig
 	 */
 	protected fetch<T = string>(url: string, options?: FetchOptions<T>): Promise<T> {
-		const ctrl = this.lifecycle.abortable();
-		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
-		const liveAuth = (this.player as unknown as { auth?: () => AuthConfig | undefined }).auth?.();
-		const auth = liveAuth ?? config.auth;
-		const scope = options?.scope ?? 'plugin';
-		return authFetch<T>({
-			...options,
-			url,
-			auth,
-			signal: ctrl.signal,
-			pluginId: this.id,
-			scope,
-			emit: (event: string, data: unknown) => this.player.emit(event, data),
-		} as InternalFetchOptions<T>);
+		return pluginFetch<T>({
+			id: this.id,
+			lifecycle: this.lifecycle,
+			player: this.player,
+		}, url, options);
 	}
 
 	// ── Auth-URL resolution ──
