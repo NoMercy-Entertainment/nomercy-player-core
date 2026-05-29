@@ -1,9 +1,8 @@
-import { browserPolicyError } from '../../errors';
 import type { CastConfig } from '../../types';
-import { CastState as _CastStateEnum } from '../../types';
-
 import type { Internals } from '../state';
+import { browserPolicyError } from '../../errors';
 
+import { CastState as _CastStateEnum } from '../../types';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by castMethods
@@ -80,8 +79,10 @@ function _isRemotePlaybackAvailable(): boolean {
  * near-simultaneous `transferTo('cast')` clicks don't double-inject.
  */
 function _ensureCastLoaded(cfg: CastConfig | undefined): Promise<void> {
-	if (_isCastAvailable()) return Promise.resolve();
-	if (_castLoadPromise) return _castLoadPromise;
+	if (_isCastAvailable())
+		return Promise.resolve();
+	if (_castLoadPromise)
+		return _castLoadPromise;
 
 	const scriptUrl = cfg?.scriptUrl ?? DEFAULT_CAST_SCRIPT;
 	const timeoutMs = cfg?.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
@@ -90,9 +91,11 @@ function _ensureCastLoaded(cfg: CastConfig | undefined): Promise<void> {
 		const win = window as unknown as _CastApiGlobal;
 		const previous = win.__onGCastApiAvailable;
 		let settled = false;
+		let timer: ReturnType<typeof setTimeout>;
 
 		const finish = (ok: boolean, err?: unknown): void => {
-			if (settled) return;
+			if (settled)
+				return;
 			settled = true;
 			clearTimeout(timer);
 			win.__onGCastApiAvailable = previous;
@@ -105,7 +108,7 @@ function _ensureCastLoaded(cfg: CastConfig | undefined): Promise<void> {
 			}
 		};
 
-		const timer = setTimeout(
+		timer = setTimeout(
 			() => finish(false, browserPolicyError(
 				'core:policy/castLoadTimeout',
 				`Cast SDK load exceeded ${timeoutMs}ms`,
@@ -127,7 +130,8 @@ function _ensureCastLoaded(cfg: CastConfig | undefined): Promise<void> {
 
 		// Skip injection if the consumer already added the script tag manually —
 		// we still hold the callback so the SDK reports back to us, not them.
-		if (document.querySelector('script[src*="cast_sender.js"]')) return;
+		if (document.querySelector('script[src*="cast_sender.js"]'))
+			return;
 
 		const script = document.createElement('script');
 		script.src = scriptUrl;
@@ -147,10 +151,12 @@ function _ensureCastLoaded(cfg: CastConfig | undefined): Promise<void> {
  * missing fields.
  */
 function _initCastContext(cfg: CastConfig | undefined): void {
-	if (_castContextConfigured) return;
+	if (_castContextConfigured)
+		return;
 
 	const castGlobal = globalThis as unknown as _CastGlobal;
-	if (!castGlobal.cast?.framework?.CastContext) return;
+	if (!castGlobal.cast?.framework?.CastContext)
+		return;
 
 	const policyMap: Record<NonNullable<CastConfig['autoJoinPolicy']>, string> = {
 		'origin-scoped': 'ORIGIN_SCOPED',
@@ -170,7 +176,6 @@ function _initCastContext(cfg: CastConfig | undefined): void {
 
 	_castContextConfigured = true;
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: cast / handoff — coarse handoff state plus the `transferTo()`

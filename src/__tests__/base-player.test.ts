@@ -51,6 +51,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		(key: string, vars?: Record<string, string>): string;
 		(PluginClass: import('../types').PluginCtorWithId, key: string, vars?: Record<string, string>): string;
 	};
+
 	declare language: { (): string; (lang: string): Promise<void> };
 	declare addTranslations: (bundle: any) => void;
 	declare translation: (lang: string, key: string, value: string) => void;
@@ -153,7 +154,8 @@ describe('player-core mixins (kit)', () => {
 		it('throws StateError with code core:player/no-element when registry empty + no id', () => {
 			let err: unknown;
 			try {
-				new MockPlayer();
+				const _instance = new MockPlayer();
+				void _instance;
 			}
 			catch (e) {
 				err = e;
@@ -166,7 +168,8 @@ describe('player-core mixins (kit)', () => {
 		it('throws ResourceError with code core:player/element-missing when div absent', () => {
 			let err: unknown;
 			try {
-				new MockPlayer('absent');
+				const _instance = new MockPlayer('absent');
+				void _instance;
 			}
 			catch (e) {
 				err = e;
@@ -181,7 +184,8 @@ describe('player-core mixins (kit)', () => {
 			document.body.appendChild(span);
 			let err: unknown;
 			try {
-				new MockPlayer('span-mock');
+				const _instance = new MockPlayer('span-mock');
+				void _instance;
 			}
 			catch (e) {
 				err = e;
@@ -193,7 +197,8 @@ describe('player-core mixins (kit)', () => {
 		it('throws StateError with code core:player/invalid-id-type for non-string-non-number', () => {
 			let err: unknown;
 			try {
-				new MockPlayer({} as any);
+				const _instance = new MockPlayer({} as any);
+				void _instance;
 			}
 			catch (e) {
 				err = e;
@@ -206,10 +211,12 @@ describe('player-core mixins (kit)', () => {
 			const div = document.createElement('div');
 			div.id = 'first';
 			document.body.appendChild(div);
-			new MockPlayer('first');
+			const _first = new MockPlayer('first');
+			void _first;
 			let err: unknown;
 			try {
-				new MockPlayer(99);
+				const _instance = new MockPlayer(99);
+				void _instance;
 			}
 			catch (e) {
 				err = e;
@@ -986,7 +993,6 @@ describe('player-core mixins (kit)', () => {
 		});
 	});
 
-
 	// ── Plugin use() failures are never silent ──
 
 	describe('plugin use() failure is never silent', () => {
@@ -1037,7 +1043,6 @@ describe('player-core mixins (kit)', () => {
 			expect(errorMessages.some(msg => msg.includes('thrower2') && msg.includes('use() blow-up'))).toBe(true);
 		});
 	});
-
 
 	// ── stateError helper sanity ──
 

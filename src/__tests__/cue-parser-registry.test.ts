@@ -10,12 +10,12 @@
 import type { CueParser } from '../adapters/cue-parser/ICueParser';
 import type { BaseEventMap } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { EventEmitter } from '../adapters/event-bus/default';
 import {
 	initPlayerCoreState,
 	playerCoreMethods,
 	resolvePlayerConstructor,
 } from '../base-player';
-import { EventEmitter } from '../adapters/event-bus/default';
 import { composeMixins } from '../core/compose';
 
 const _instances = new Map<string, MockPlayer>();
@@ -86,7 +86,7 @@ describe('Cue parser registry — kit defaults', () => {
 	it('consumer-supplied parser via setup() wins over a built-in for the same URL', async () => {
 		const customLrc: CueParser = {
 			id: 'custom-lrc',
-			canParse: (url: string) => /\.lrc(\?|$)/i.test(url),
+			canParse: (url: string) => /\.lrc(?:\?|$)/i.test(url),
 			parse: () => ({ get: () => [], at: () => undefined, after: () => undefined, before: () => undefined } as any),
 		};
 		const p = make('p3', { cueParsers: [customLrc] });
@@ -107,7 +107,7 @@ describe('Cue parser registry — kit defaults', () => {
 		await p.ready();
 		const customVtt: CueParser = {
 			id: 'late-vtt',
-			canParse: (url: string) => /\.vtt(\?|$)/i.test(url),
+			canParse: (url: string) => /\.vtt(?:\?|$)/i.test(url),
 			parse: () => ({ get: () => [], at: () => undefined, after: () => undefined, before: () => undefined } as any),
 		};
 		p.registerCueParser(customVtt);

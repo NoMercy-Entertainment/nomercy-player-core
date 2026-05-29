@@ -1,14 +1,25 @@
-import type { ActionOptions, AudioTrack, BasePlaylistItem, Chapter, CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection, QualityLevel, SubtitleCue as SubtitleCuePayload, SubtitleStyle, SubtitleTrack } from '../../types';
-import { AudioTrackState, QualityState } from '../../types';
-import { CueTracker } from '../../cues/tracker';
-import { parseVttSubtitles, parseVtt } from '../../adapters/cue-parser/vtt';
 import type { VTTSubtitlePayload } from '../../adapters/cue-parser/vtt';
 import type { Cue } from '../../cues/cue';
-import { buildResolvedUrl } from '../resolved-url';
+import type {
+	ActionOptions,
+	AudioTrack,
+	BasePlaylistItem,
+	Chapter,
+	CurrentAudioTrackSelection,
+	CurrentQualitySelection,
+	CurrentSubtitleSelection,
+	QualityLevel,
+	SubtitleCue as SubtitleCuePayload,
+	SubtitleStyle,
+	SubtitleTrack,
+} from '../../types';
+import type { Internals, SidecarSubtitleContext } from '../state';
+import { parseVtt, parseVttSubtitles } from '../../adapters/cue-parser/vtt';
+import { CueTracker } from '../../cues/tracker';
+import { AudioTrackState, QualityState } from '../../types';
 import { authFetch } from '../auth-fetch';
 
-import type { Internals, SidecarSubtitleContext } from '../state';
-
+import { buildResolvedUrl } from '../resolved-url';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Sidecar track types — structural interfaces for item track fields.
@@ -34,11 +45,13 @@ export interface ItemWithDefinedTracks extends BasePlaylistItem {
 	chapters?: Chapter[];
 }
 
-/** Narrows an item to one carrying a non-empty `tracks` array. Items with an
- *  empty array or no field at all fall through to the no-tracks path. */
+/**
+ * Narrows an item to one carrying a non-empty `tracks` array. Items with an
+ *  empty array or no field at all fall through to the no-tracks path.
+ */
 function hasTracksField(item: BasePlaylistItem): item is ItemWithDefinedTracks {
-	return 'tracks' in item 
-		&& Array.isArray((item as ItemWithTracks).tracks) 
+	return 'tracks' in item
+		&& Array.isArray((item as ItemWithTracks).tracks)
 		&& (item as ItemWithTracks).tracks!.length > 0;
 }
 
@@ -68,7 +81,6 @@ async function fetchChaptersVtt(url: string, self: Internals): Promise<Chapter[]
 	}
 }
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Narrow backend interfaces — local to this mixin
 // ──────────────────────────────────────────────────────────────────────────
@@ -81,7 +93,6 @@ interface _BackendWithAudioTrack { setAudioTrack?: (idx: number) => void }
 interface _BackendWithQualityLevels { qualityLevels?: (opts?: { includeUnsupported?: true }) => QualityLevel[] }
 interface _BackendWithSetQualityLevel { setQuality?: (idx: number | 'auto') => void }
 interface _BackendWithAudioTracks { audioTracks?: () => AudioTrack[] }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Sidecar VTT helpers
@@ -101,7 +112,8 @@ function _resolveSidecarSubtitle(
 	const cur: ItemWithDefinedTracks | undefined = rawCur && hasTracksField(rawCur) ? rawCur : undefined;
 	const list = (cur?.tracks ?? []).filter((sidecarTrack: SidecarTrack) => sidecarTrack.kind === 'subtitles');
 	const sidecarTrack = list[sidecarIdx];
-	if (!sidecarTrack) return undefined;
+	if (!sidecarTrack)
+		return undefined;
 	return {
 		url: sidecarTrack.file,
 		language: sidecarTrack.language,
@@ -121,7 +133,8 @@ async function _startSidecarSubtitle(
 	self: Internals,
 	track: { url?: string; language?: string },
 ): Promise<void> {
-	if (!track.url) return;
+	if (!track.url)
+		return;
 
 	const ctrl = new AbortController();
 	let raw: string;
@@ -144,7 +157,8 @@ async function _startSidecarSubtitle(
 
 	// User may have switched tracks mid-fetch; bail if the slot was
 	// (re)populated by a later `currentSubtitle` while we were waiting.
-	if (self._sidecarSubtitle) return;
+	if (self._sidecarSubtitle)
+		return;
 
 	const cueList = parseVttSubtitles(raw);
 	const tracker = new CueTracker<VTTSubtitlePayload>(cueList, { trackerId: 'subtitle-sidecar' });
@@ -189,7 +203,6 @@ function _toSubtitleCue(p: VTTSubtitlePayload): SubtitleCuePayload {
 	};
 }
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: media tracks — subtitles / audio tracks / quality levels / chapters.
 // Reads delegate to the active backend (when present); no-ops when the
@@ -206,8 +219,11 @@ export const mediaTracksMethods = {
 	 */
 	_disposeSidecarSubtitle(this: Internals): void {
 		const ctx = this._sidecarSubtitle;
-		if (!ctx) return;
-		try { ctx.tracker.dispose(); }
+		if (!ctx)
+			return;
+		try {
+			ctx.tracker.dispose();
+		}
 		catch { /* defensive */ }
 		this._sidecarSubtitle = undefined;
 	},
@@ -223,20 +239,28 @@ export const mediaTracksMethods = {
 	 * inlining the markers.
 	 */
 	async resolveItemTrackUrls<T extends BasePlaylistItem>(this: Internals, item: T): Promise<T> {
-		if (!hasTracksField(item)) return item;
+		if (!hasTracksField(item))
+			return item;
 
 		const transformer = this._authConfig?.transformUrl;
 		const base = this._baseUrl;
 
 		const resolved = await Promise.all(
 			item.tracks.map(async (sidecarTrack: SidecarTrack): Promise<SidecarTrack> => {
-				if (!sidecarTrack.file) return sidecarTrack;
+				if (!sidecarTrack.file)
+					return sidecarTrack;
 				const transformed = transformer ? await transformer(sidecarTrack.file) : sidecarTrack.file;
-				return { ...sidecarTrack, file: buildResolvedUrl(sidecarTrack.file, transformed, base).href };
+				return {
+					...sidecarTrack,
+					file: buildResolvedUrl(sidecarTrack.file, transformed, base).href,
+				};
 			}),
 		);
 
-		const withTracks: T & ItemWithTracks = { ...item, tracks: resolved };
+		const withTracks: T & ItemWithTracks = {
+			...item,
+			tracks: resolved,
+		};
 
 		const existingChapters = withTracks.chapters;
 		if (!Array.isArray(existingChapters) || existingChapters.length === 0) {
@@ -244,7 +268,10 @@ export const mediaTracksMethods = {
 			if (chapterTrack?.file) {
 				const chapters = await fetchChaptersVtt(chapterTrack.file, this);
 				if (chapters.length > 0) {
-					return { ...withTracks, chapters };
+					return {
+						...withTracks,
+						chapters,
+					};
 				}
 			}
 		}
@@ -265,7 +292,8 @@ export const mediaTracksMethods = {
 		const isLatest = (): boolean => this._chapterEpoch === epoch;
 
 		const foundItem = this._queueList.get().find(queued => queued.id === itemId);
-		if (!foundItem) return;
+		if (!foundItem)
+			return;
 		const item = foundItem as ItemWithTracks;
 
 		if (Array.isArray(item.chapters) && item.chapters.length > 0) {
@@ -275,10 +303,12 @@ export const mediaTracksMethods = {
 
 		const resolved = await this.resolveItemTrackUrls(item);
 
-		if (!isLatest()) return;
+		if (!isLatest())
+			return;
 
 		const chapters = resolved.chapters;
-		if (!Array.isArray(chapters) || chapters.length === 0) return;
+		if (!Array.isArray(chapters) || chapters.length === 0)
+			return;
 
 		this._queueList.replaceItem(resolved);
 
@@ -316,8 +346,7 @@ export const mediaTracksMethods = {
 			const tracks = cur?.tracks ?? [];
 			return tracks
 				.filter((sidecarTrack): sidecarTrack is SidecarTrack & { file: string } =>
-					sidecarTrack?.kind === 'subtitles' && typeof sidecarTrack.file === 'string' && sidecarTrack.file.length > 0,
-				)
+					sidecarTrack?.kind === 'subtitles' && typeof sidecarTrack.file === 'string' && sidecarTrack.file.length > 0)
 				.map((sidecarTrack, idx): SubtitleTrack => ({
 					id: sidecarTrack.id ?? `subtitle-sidecar-${idx}`,
 					language: sidecarTrack.language,
@@ -347,11 +376,16 @@ export const mediaTracksMethods = {
 	currentSubtitle(this: Internals, idx?: number | null): CurrentSubtitleSelection | null | void {
 		if (idx === undefined) {
 			const storedIdx = this._currentSubtitleIdx;
-			if (storedIdx === null) return null;
+			if (storedIdx === null)
+				return null;
 			const trackList = mediaTracksMethods.subtitles.call(this);
 			const track = trackList[storedIdx];
-			if (!track) return null;
-			return { index: storedIdx, track };
+			if (!track)
+				return null;
+			return {
+				index: storedIdx,
+				track,
+			};
 		}
 
 		// Tear down any in-flight sidecar tracker first; switching tracks
@@ -429,11 +463,16 @@ export const mediaTracksMethods = {
 			windowOpacity: 0,
 		});
 
-		if (!this._subtitleStyle) this._subtitleStyle = seed();
+		if (!this._subtitleStyle)
+			this._subtitleStyle = seed();
 
-		if (patch === undefined) return { ...this._subtitleStyle };
+		if (patch === undefined)
+			return { ...this._subtitleStyle };
 
-		this._subtitleStyle = { ...this._subtitleStyle, ...patch };
+		this._subtitleStyle = {
+			...this._subtitleStyle,
+			...patch,
+		};
 		this.emit('subtitleStyle', { ...this._subtitleStyle });
 		return undefined;
 	},
@@ -467,11 +506,16 @@ export const mediaTracksMethods = {
 	currentAudioTrack(this: Internals, idx?: number): CurrentAudioTrackSelection | null | void {
 		if (idx === undefined) {
 			const storedIdx = this._currentAudioTrackIdx;
-			if (storedIdx === null) return null;
+			if (storedIdx === null)
+				return null;
 			const trackList = mediaTracksMethods.audioTracks.call(this);
 			const track = trackList[storedIdx];
-			if (!track) return null;
-			return { index: storedIdx, track };
+			if (!track)
+				return null;
+			return {
+				index: storedIdx,
+				track,
+			};
 		}
 
 		this._currentAudioTrackIdx = idx;
@@ -520,11 +564,16 @@ export const mediaTracksMethods = {
 	currentQuality(this: Internals, idx?: number | 'auto'): CurrentQualitySelection | 'auto' | void {
 		if (idx === undefined) {
 			const storedIdx = this._currentQualityIdx;
-			if (storedIdx === 'auto') return 'auto';
+			if (storedIdx === 'auto')
+				return 'auto';
 			const levelList = mediaTracksMethods.qualityLevels.call(this);
 			const track = levelList[storedIdx];
-			if (!track) return 'auto';
-			return { index: storedIdx, track };
+			if (!track)
+				return 'auto';
+			return {
+				index: storedIdx,
+				track,
+			};
 		}
 
 		this._currentQualityIdx = idx;
@@ -608,7 +657,10 @@ export const mediaTracksMethods = {
 		const t = this._internalCurrentTime;
 		let currentIdx = -1;
 		for (let i = list.length - 1; i >= 0; i--) {
-			if (list[i]!.start <= t) { currentIdx = i; break; }
+			if (list[i]!.start <= t) {
+				currentIdx = i;
+				break;
+			}
 		}
 		if (currentIdx < 0)
 			return;

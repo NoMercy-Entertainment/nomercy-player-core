@@ -1,14 +1,3 @@
-import type { StreamRegistry } from './registry';
-import type {
-	StreamEvent,
-	StreamEventPayloadMap,
-	StreamFactory,
-	StreamFactoryOptions,
-	StreamLevel,
-	StreamSource,
-	StreamSourceState,
-} from './IStreamSource';
-import Hls from 'hls.js';
 import type {
 	ErrorData,
 	HlsConfig,
@@ -19,8 +8,18 @@ import type {
 	LoaderResponse,
 	LoaderStats,
 } from 'hls.js';
+import type {
+	StreamEvent,
+	StreamEventPayloadMap,
+	StreamFactory,
+	StreamFactoryOptions,
+	StreamLevel,
+	StreamSource,
+	StreamSourceState,
+} from './IStreamSource';
+import type { StreamRegistry } from './registry';
+import Hls from 'hls.js';
 import { MediaFormatError, StreamError } from '../../errors';
-
 
 export const HLS_EXT_RE = /\.m3u8(?:\?|$)/iu;
 // RFC 8216 + IANA: canonical is `application/vnd.apple.mpegurl`, legacy aliases include `application/x-mpegurl` and `audio/mpegurl`.
@@ -93,7 +92,8 @@ export class HlsStreamSource implements StreamSource {
 		});
 
 		this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
-			this._state = 'ready'; this.emit('manifest-loaded', undefined);
+			this._state = 'ready';
+			this.emit('manifest-loaded', undefined);
 		});
 		this.hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
 			if (typeof data?.level === 'number')
@@ -110,6 +110,10 @@ export class HlsStreamSource implements StreamSource {
 
 		this.hls.attachMedia(element);
 		await new Promise<void>((resolve, reject) => {
+			const cleanup = () => {
+				this.hls?.off(Hls.Events.MEDIA_ATTACHED, onAttached);
+				this.hls?.off(Hls.Events.ERROR, onErr);
+			};
 			const onAttached = () => {
 				cleanup();
 				resolve();
@@ -128,10 +132,6 @@ export class HlsStreamSource implements StreamSource {
 						cause: data,
 					}));
 				}
-			};
-			const cleanup = () => {
-				this.hls?.off(Hls.Events.MEDIA_ATTACHED, onAttached);
-				this.hls?.off(Hls.Events.ERROR, onErr);
 			};
 			this.hls!.on(Hls.Events.MEDIA_ATTACHED, onAttached);
 			this.hls!.on(Hls.Events.ERROR, onErr);
@@ -241,6 +241,10 @@ export class HlsStreamSource implements StreamSource {
 
 	private async waitForLoadedMetadata(element: HTMLMediaElement): Promise<void> {
 		await new Promise<void>((resolve, reject) => {
+			const cleanup = () => {
+				element.removeEventListener('loadedmetadata', onLoad);
+				element.removeEventListener('error', onError);
+			};
 			const onLoad = () => {
 				cleanup();
 				resolve();
@@ -258,10 +262,6 @@ export class HlsStreamSource implements StreamSource {
 					cause: element.error,
 				}));
 			};
-			const cleanup = () => {
-				element.removeEventListener('loadedmetadata', onLoad);
-				element.removeEventListener('error', onError);
-			};
 			element.addEventListener('loadedmetadata', onLoad, { once: true });
 			element.addEventListener('error', onError, { once: true });
 		});
@@ -277,7 +277,6 @@ function canPlayNativeHls(element: HTMLMediaElement): boolean {
 interface HlsWithDefaultConfig {
 	DefaultConfig?: { loader?: new (config: HlsConfig) => Loader<LoaderContext> };
 }
-
 
 /**
  * Build an hls.js `Loader` constructor that wraps the default loader (FetchLoader
@@ -321,7 +320,10 @@ function makeInterceptingLoader(registry: StreamRegistry): (new (config: HlsConf
 						const synthetic = toResponse(response, ctx.url ?? context.url);
 						const intercepted = await registry.runInterceptors(ctx.url ?? context.url, synthetic);
 						const data = await readBody(intercepted, response.data);
-						callbacks.onSuccess({ ...response, data }, stats, ctx, networkDetails);
+						callbacks.onSuccess({
+							...response,
+							data,
+						}, stats, ctx, networkDetails);
 					}
 					catch {
 						// Interceptor failure must not break playback — pass through
@@ -353,7 +355,6 @@ function toResponse(response: { data?: string | ArrayBuffer | object; code?: num
 	return new Response(JSON.stringify(body), init);
 }
 
-
 async function readBody(response: Response, original: string | ArrayBuffer | object | undefined): Promise<string | ArrayBuffer | object | undefined> {
 	if (original == null)
 		return undefined;
@@ -367,7 +368,6 @@ async function readBody(response: Response, original: string | ArrayBuffer | obj
 	}
 	catch { return original; }
 }
-
 
 /**
  * HLS stream factory — resolves `.m3u8` URLs to `HlsStreamSource` instances.

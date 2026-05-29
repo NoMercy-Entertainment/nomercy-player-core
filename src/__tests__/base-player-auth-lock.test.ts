@@ -12,6 +12,7 @@
  *     serialize a raw token string — functions are stripped by JSON.stringify.
  */
 
+import type { BaseEventMap } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	authFetch,
@@ -21,7 +22,6 @@ import {
 	playerCoreMethods,
 	resolvePlayerConstructor,
 } from '../index';
-import type { BaseEventMap } from '../types';
 
 const _instances = new Map<string, AuthMockPlayer>();
 
@@ -199,7 +199,7 @@ describe('auth-lock contract', () => {
 		it('bearerToken as a function: first authFetch call uses initial ref value', async () => {
 			const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('ok', { status: 200 }));
 
-			let tokenValue = 'initial-token';
+			const tokenValue = 'initial-token';
 			const player = setupPlayer();
 			player.auth({ bearerToken: () => tokenValue });
 

@@ -342,7 +342,9 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 		if (!surface)
 			return;
 
-		const ro = new ResizeObserver(() => { this.resize(); });
+		const ro = new ResizeObserver(() => {
+			this.resize();
+		});
 		ro.observe(surface);
 		this.resizeObserver = ro;
 	}

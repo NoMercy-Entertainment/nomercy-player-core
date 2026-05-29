@@ -1,4 +1,4 @@
-const TAG_RE = /(<\/?(i|b|u)>)/gi;
+const TAG_RE = /(<\/?([ibu])>)/gi;
 
 /**
  * Build a `DocumentFragment` from a `VTTSubtitlePayload.markup` string.
@@ -23,7 +23,8 @@ export function buildSubtitleFragment(markup: string): DocumentFragment {
 	let match: RegExpExecArray | null;
 
 	TAG_RE.lastIndex = 0;
-	while ((match = TAG_RE.exec(markup)) !== null) {
+	match = TAG_RE.exec(markup);
+	while (match !== null) {
 		const before = markup.slice(lastIndex, match.index);
 		if (before)
 			stack[stack.length - 1]!.appendChild(document.createTextNode(before));
@@ -49,6 +50,7 @@ export function buildSubtitleFragment(markup: string): DocumentFragment {
 			}
 		}
 		lastIndex = match.index + fullTag.length;
+		match = TAG_RE.exec(markup);
 	}
 
 	const tail = markup.slice(lastIndex);

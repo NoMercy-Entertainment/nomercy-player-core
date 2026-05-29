@@ -18,10 +18,10 @@ import { parseLrc } from './lrc';
 import { parseVttSprite, parseVttSubtitles } from './vtt';
 
 const LRC_EXT_RE = /\.lrc(?:\?|$)/i;
-const LRC_MIME_RE = /^application\/x-(lrc|lyrics)$|^text\/lrc$/i;
-const VTT_EXT_RE = /\.vtt(\?|$)/i;
+const LRC_MIME_RE = /^application\/x-(?:lrc|lyrics)$|^text\/lrc$/i;
+const VTT_EXT_RE = /\.vtt(?:\?|$)/i;
 const VTT_MIME_RE = /^text\/vtt$/i;
-const SPRITE_VTT_HINT_RE = /sprite\.vtt(\?|$)|sprites?\.vtt(\?|$)/i;
+const SPRITE_VTT_HINT_RE = /sprite\.vtt(?:\?|$)|sprites?\.vtt(?:\?|$)/i;
 
 /** Built-in parser for `.lrc` files and `application/x-lrc` content-type. */
 export const lrcParser: CueParser<LrcPayload> = {

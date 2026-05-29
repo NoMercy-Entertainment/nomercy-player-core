@@ -7,10 +7,8 @@ import type {
 	StreamSourceState,
 } from './IStreamSource';
 
-
 const AUDIO_EXT_RE = /\.(?:mp3|flac|aac|m4a|wav|ogg|opus|weba)(?:\?|$)/iu;
 const VIDEO_EXT_RE = /\.(?:mp4|webm|mov|m4v|ogv)(?:\?|$)/iu;
-
 
 class NativeStreamSource implements StreamSource {
 	readonly kind = 'native' as const;
@@ -35,6 +33,10 @@ class NativeStreamSource implements StreamSource {
 		element.src = this.url;
 
 		await new Promise<void>((resolve, reject) => {
+			const cleanup = () => {
+				element.removeEventListener('loadedmetadata', onLoad);
+				element.removeEventListener('error', onError);
+			};
 			const onLoad = () => {
 				cleanup();
 				this._state = 'ready';
@@ -45,10 +47,6 @@ class NativeStreamSource implements StreamSource {
 				cleanup();
 				this._state = 'error';
 				reject(element.error ?? new Error('media element error'));
-			};
-			const cleanup = () => {
-				element.removeEventListener('loadedmetadata', onLoad);
-				element.removeEventListener('error', onError);
 			};
 			element.addEventListener('loadedmetadata', onLoad, { once: true });
 			element.addEventListener('error', onError, { once: true });
@@ -113,7 +111,6 @@ class NativeStreamSource implements StreamSource {
 		}
 	}
 }
-
 
 /**
  * Native stream factory — resolves URLs to direct media-element sources.

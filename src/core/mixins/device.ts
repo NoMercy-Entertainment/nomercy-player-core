@@ -1,19 +1,18 @@
 import type { DeviceCapabilities } from '../../types';
-import { browserPlatform } from '../../adapters/platform/browser';
-
 import type { Internals } from '../state';
 
+import { browserPlatform } from '../../adapters/platform/browser';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by deviceMethods
 // ──────────────────────────────────────────────────────────────────────────
 
-type DetectedDevice = {
+interface DetectedDevice {
 	isTv: boolean;
 	isMobile: boolean;
 	isDesktop: boolean;
 	os: 'android' | 'ios' | 'macos' | 'windows' | 'linux' | 'unknown';
-};
+}
 
 let _cachedDevice: DetectedDevice | undefined;
 
@@ -41,9 +40,9 @@ function _detectDevice(): DetectedDevice {
 	}
 
 	const ua = navigator.userAgent || '';
-	const tvHints = /\b(SmartTV|GoogleTV|AppleTV|HbbTV|NetCast|WebOS|Tizen|VIDAA|BRAVIA|AFTS|AFTM|AFTB|AFTT|AFTN|FireTV|Crkey|PlayStation|Xbox)\b/i;
+	const tvHints = /\b(?:SmartTV|GoogleTV|AppleTV|HbbTV|NetCast|WebOS|Tizen|VIDAA|BRAVIA|AFTS|AFTM|AFTB|AFTT|AFTN|FireTV|Crkey|PlayStation|Xbox)\b/i;
 	const isTv = tvHints.test(ua);
-	const mobileHints = /\b(Android|iPhone|iPad|iPod|Mobile|Tablet|Silk|Kindle|Opera Mini)\b/i;
+	const mobileHints = /\b(?:Android|iPhone|iPad|iPod|Mobile|Tablet|Silk|Kindle|Opera Mini)\b/i;
 	const isMobile = !isTv && mobileHints.test(ua);
 	const isDesktop = !isTv && !isMobile;
 
@@ -67,7 +66,6 @@ function _detectDevice(): DetectedDevice {
 	};
 	return _cachedDevice;
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: device capabilities — `isTv`, `isMobile`, `isDesktop`, `device`.

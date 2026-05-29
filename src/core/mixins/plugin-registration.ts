@@ -1,14 +1,13 @@
-import type { IPlayer, PluginCtorWithId, Translations } from '../../types';
 import type { Plugin } from '../../plugin';
+import type { IPlayer, PluginCtorWithId, Translations } from '../../types';
+import type { Internals } from '../state';
 import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import { Logger } from '../../adapters/logger/default';
-import { bcp47FallbackChain } from '../../adapters/translator/translator';
 import { getLazyTranslationLoader } from '../../adapters/translator/loaders/translations-glob';
 
+import { bcp47FallbackChain } from '../../adapters/translator/translator';
 import { pluginError, stateError } from '../../errors';
-import type { Internals } from '../state';
 import { KIT_VERSION } from '../kit-version';
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Per-player lang-loaded tracking
@@ -25,7 +24,10 @@ const _pluginLangLoaded = new WeakMap<Internals, Set<string>>();
 /** Build a scoped child logger from the player's configured logger or a fallback. */
 function makePlayerLogger(self: Internals, scope: string): Logger {
 	const configured = (self.options as unknown as { logger?: Logger } | undefined)?.logger;
-	const root = configured ?? new Logger({ prefix: 'nmplayer', level: (self.options as unknown as { logLevel?: string } | undefined)?.logLevel as Parameters<Logger['level']>[0] | undefined });
+	const root = configured ?? new Logger({
+		prefix: 'nmplayer',
+		level: (self.options as unknown as { logLevel?: string } | undefined)?.logLevel as Parameters<Logger['level']>[0] | undefined,
+	});
 	return root.child(scope) as Logger;
 }
 
@@ -50,7 +52,6 @@ function _cascadeDisable(self: Internals, failedId: string, reason: string, find
 		catch { /* defensive */ }
 	}
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by pluginRegistrationMethods
@@ -133,7 +134,6 @@ function _findDependents(self: Internals, id: string): string[] {
 	return collected;
 }
 
-
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: pluginRegistration — owns the plugin lifecycle. Handles enqueueing
 // during setup, post-setup inline registration, dependency + version checks,
@@ -208,9 +208,10 @@ export const pluginRegistrationMethods = {
 			const stack: Translations[] = [];
 			let cur: unknown = ctor;
 			while (cur && cur !== Function.prototype) {
-				if (Object.prototype.hasOwnProperty.call(cur, 'translations')) {
+				if (Object.hasOwn(cur, 'translations')) {
 					const withT = cur as { translations?: Translations };
-					if (withT.translations) stack.unshift(withT.translations);
+					if (withT.translations)
+						stack.unshift(withT.translations);
 				}
 				cur = Object.getPrototypeOf(cur);
 			}
@@ -269,12 +270,19 @@ export const pluginRegistrationMethods = {
 				?? makePlayerLogger(this, id);
 			pluginLogger.error('plugin use() failed — plugin will not be registered', failError);
 
-			try { instance.dispose(); }
+			try {
+				instance.dispose();
+			}
 			catch { /* defensive */ }
-			try { lifecycle.dispose(); }
+			try {
+				lifecycle.dispose();
+			}
 			catch { /* defensive */ }
 
-			const failPayload = { id, error: failError };
+			const failPayload = {
+				id,
+				error: failError,
+			};
 
 			this.emit('plugin:failed', failPayload);
 			this.emit(`plugin:${id}:failed`, failPayload);

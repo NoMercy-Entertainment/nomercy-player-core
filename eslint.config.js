@@ -17,11 +17,21 @@ export default antfu({
 			'ts/no-unsafe-function-type': 'off',
 			'ts/method-signature-style': 'off',
 			'unused-imports/no-unused-vars': 'error',
+			// Mutual-closure patterns (cleanup ↔ handler const arrows in promise callbacks) are safe
+			// at runtime; the rule's variable-TDZ check fires false positives here.
+			'ts/no-use-before-define': ['error', { classes: false, functions: false, variables: false }],
+			// dot-notation conflicts with TS noPropertyAccessFromIndexSignature: typed index-signature
+			// properties must use bracket notation; ESLint's autofix would break the build.
+			'dot-notation': 'off',
 		},
 	},
 	test: {
 		overrides: {
 			'test/prefer-lowercase-title': 'off',
+			// Tests use compact `beforeEach(() => { stmt; })` and `try { stmt; } catch (e) { err = e; }` patterns by convention.
+			'style/max-statements-per-line': 'off',
+			// Setter-only mixin objects in tests are intentional (testing mixin composition).
+			'accessor-pairs': 'off',
 		},
 	},
 	stylistic: {
@@ -88,6 +98,12 @@ export default antfu({
 	// style/newline-per-chained-call config is the project rule; this one loses.
 	rules: {
 		'antfu/consistent-chaining': 'off',
+	},
+}, {
+	// Logger is the one place that must call console directly.
+	files: ['src/adapters/logger/default.ts'],
+	rules: {
+		'no-console': 'off',
 	},
 }, {
 	files: ['src/__tests__/**/*.ts'],

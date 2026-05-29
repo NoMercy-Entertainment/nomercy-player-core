@@ -146,7 +146,9 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 
 		// Track the latest spectrum frame as the source of truth — `_renderTick`
 		// reads from it on every canvas RAF tick.
-		this._spectrumFrameHandler = (data) => { this._latestFrame = data.frame; };
+		this._spectrumFrameHandler = (data) => {
+			this._latestFrame = data.frame;
+		};
 		this.on(SpectrumPlugin, 'frame', this._spectrumFrameHandler);
 
 		this._renderTickBound = this._renderTick.bind(this);

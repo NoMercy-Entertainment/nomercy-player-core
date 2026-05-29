@@ -233,8 +233,8 @@ describe('EventEmitter', () => {
 		});
 
 		it('listener removing another listener during dispatch may or may not affect that listener', () => {
-			const a = vi.fn(() => emitter.off('tick', b));
 			const b = vi.fn();
+			const a = vi.fn(() => emitter.off('tick', b));
 			emitter.on('tick', a);
 			emitter.on('tick', b);
 			emitter.emit('tick', { time: 1 });
