@@ -603,14 +603,14 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	private resolvePreset(target: EqPreset | string): EqPreset | undefined {
 		if (typeof target === 'string') {
 			// Built-in by name first.
-			const builtin = BUILTIN_PRESETS.find(p => p.name === target);
+			const builtin = BUILTIN_PRESETS.find(preset => preset.name === target);
 			if (builtin)
 				return builtin;
 			const custom = this.customPresets.get(target);
 			if (custom)
 				return custom;
 			// Consumer-supplied option presets.
-			const fromOpts = this.opts?.presets?.find(p => p.name === target);
+			const fromOpts = this.opts?.presets?.find(preset => preset.name === target);
 			if (fromOpts)
 				return fromOpts;
 			// JSON-string fallback (Fillz parity).

@@ -52,7 +52,6 @@ export function parseLrc(text: string): CueList<LrcPayload> {
 		TIMESTAMP_RE.lastIndex = 0;
 		let lastEnd = 0;
 
-		// exec() in a for-loop avoids the no-cond-assign lint rule.
 		for (
 			let match = TIMESTAMP_RE.exec(trimmed);
 			match !== null;
@@ -137,8 +136,7 @@ function parseBodyForWords(body: string): LrcPayload {
 		plainText += trailing;
 	}
 
-	// Conditional inside trim() keeps chain depth ≤ 2 — satisfies newline-per-chained-call.
-	const source = words.length > 0 ? words.map(w => w.text).join(' ') : plainText;
+	const source = words.length > 0 ? words.map(word => word.text).join(' ') : plainText;
 	const text = source.trim();
 
 	return words.length > 0

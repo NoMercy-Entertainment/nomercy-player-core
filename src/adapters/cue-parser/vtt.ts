@@ -97,10 +97,10 @@ interface RawCue {
 /** Low-level: returns cues whose payload is the raw text body (no inline-tag stripping). */
 export function parseVtt(text: string): CueList<string> {
 	const raw = parseRaw(text);
-	return createCueList(raw.map(c => ({
-		start: c.start,
-		end: c.end,
-		payload: c.body,
+	return createCueList(raw.map(cue => ({
+		start: cue.start,
+		end: cue.end,
+		payload: cue.body,
 	})));
 }
 
@@ -113,20 +113,18 @@ export function parseVtt(text: string): CueList<string> {
  */
 export function parseVttSubtitles(text: string): CueList<VTTSubtitlePayload> {
 	const raw = parseRaw(text);
-	return createCueList<VTTSubtitlePayload>(raw.map((c) => {
-		const cleaned = c.body.replace(TAG_STRIP_RE, '').trim();
-		// Markup keeps `<i>` / `<b>` / `<u>` for the renderer; everything else
-		// is dropped at parse time so consumers never need to re-sanitise.
-		const markup = c.body
+	return createCueList<VTTSubtitlePayload>(raw.map((cue) => {
+		const cleaned = cue.body.replace(TAG_STRIP_RE, '').trim();
+		const markup = cue.body
 			.replace(TIMESTAMP_TAG_RE, '')
 			.replace(UNRECOGNISED_TAG_RE, '')
 			.trim();
 		const styles: VTTSubtitlePayload['styles'] = {};
-		if (/<b>/.test(c.body))
+		if (/<b>/.test(cue.body))
 			styles.bold = true;
-		if (/<i>/.test(c.body))
+		if (/<i>/.test(cue.body))
 			styles.italic = true;
-		const colorClassMatch = c.body.match(/<c\.([\w-]+)>/);
+		const colorClassMatch = cue.body.match(/<c\.([\w-]+)>/);
 		if (colorClassMatch)
 			styles.color = colorClassMatch[1];
 		const payload: VTTSubtitlePayload = { text: cleaned };
@@ -136,15 +134,15 @@ export function parseVttSubtitles(text: string): CueList<VTTSubtitlePayload> {
 			payload.markup = cleaned;
 		if (Object.keys(styles).length > 0)
 			payload.styles = styles;
-		if (c.settings.linePosition !== undefined)
-			payload.linePosition = c.settings.linePosition;
-		if (c.settings.alignment !== undefined)
-			payload.alignment = c.settings.alignment;
-		if (c.settings.size !== undefined)
-			payload.size = c.settings.size;
+		if (cue.settings.linePosition !== undefined)
+			payload.linePosition = cue.settings.linePosition;
+		if (cue.settings.alignment !== undefined)
+			payload.alignment = cue.settings.alignment;
+		if (cue.settings.size !== undefined)
+			payload.size = cue.settings.size;
 		return {
-			start: c.start,
-			end: c.end,
+			start: cue.start,
+			end: cue.end,
 			payload,
 		};
 	}));

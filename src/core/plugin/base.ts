@@ -545,7 +545,6 @@ export class Plugin<
 		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
 		const timeoutMs = opts?.timeoutMs ?? config.beforeEventTimeoutMs ?? 10_000;
 
-		// P extends DispatchTarget so this.player satisfies runDispatchBefore's parameter directly.
 		return runDispatchBefore<TData>(this.player, namespaced, data, { timeoutMs });
 	}
 
