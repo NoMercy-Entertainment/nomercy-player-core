@@ -1,0 +1,64 @@
+name: Node.js Package
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Create Release
+    types:
+      - completed
+
+jobs:
+  publish-npm:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build package
+        run: npm run build
+
+      - name: Check if version is already published
+        id: version-check
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+          PUBLISHED_VERSION=$(npm view "$PACKAGE_NAME" version 2>/dev/null || echo "0.0.0")
+          if [ "$LOCAL_VERSION" = "$PUBLISHED_VERSION" ]; then
+            echo "Version $LOCAL_VERSION is already published. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Publishing $LOCAL_VERSION (current on npm: $PUBLISHED_VERSION)"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish package
+        if: steps.version-check.outputs.skip != 'true'
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
