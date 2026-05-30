@@ -178,6 +178,10 @@
 			"types": "./dist/vite-plugin.d.ts",
 			"import": "./dist/vite-plugin.js"
 		},
+		"./compat": {
+			"types": "./dist/compat.d.ts",
+			"import": "./dist/compat.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",

@@ -1,9 +1,11 @@
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { AddClasses, CreateElement } from '../adapters/element-factory';
+import type { IPlatform } from '../adapters/platform/browser';
 import type { DispatchTarget } from '../core/dispatch';
 
 import type { Chapter } from './chapter';
 import type { AuthConfig } from './config';
+import type { BaseEventMap } from './events';
 import type { PlayerExperimental } from './experimental';
 import type { PluginCtorWithId } from './plugin';
 import type {
@@ -11,6 +13,7 @@ import type {
 	BufferState,
 	NetworkState,
 	QualityState,
+	SetupState,
 	VisibilityState,
 } from './state';
 import type { CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection } from './tracks';
@@ -172,13 +175,23 @@ export type PlayerConstructorId = string | number;
  * `BaseEventMap` while still satisfying this constraint; most consumers can
  * leave it at its default.
  */
-export interface IPlayer<E extends import('./events').BaseEventMap = import('./events').BaseEventMap>
+export interface IPlayer<E extends BaseEventMap = BaseEventMap>
 	extends DispatchTarget {
 
 	/**
-	 * Phantom field — present only for TypeScript's `PlayerEventMap<P>` inference.
-	 * Never read or written at runtime. Allows `Plugin<IPlayer<E>>` to resolve the
-	 * correct event map without requiring the concrete class.
+	 * Phantom type brand — never assigned or read at runtime.
+	 *
+	 * Required for TypeScript's `PlayerEventMap<P>` generic to infer the
+	 * concrete event map `E` from a `Plugin<P>` parameter without walking the
+	 * full `EventEmitter` inheritance chain (which stalls in conditional-type
+	 * inference for complex class hierarchies). Removing this field from the
+	 * interface causes `Plugin<IPlayer<E>>` inference to degrade to
+	 * `BaseEventMap` across the board.
+	 *
+	 * Do not read, write, or index this field in application code.
+	 * It will never appear at runtime — only in type positions.
+	 *
+	 * @internal
 	 */
 	readonly __eventMap__: E;
 
@@ -275,6 +288,22 @@ export interface IPlayer<E extends import('./events').BaseEventMap = import('./e
 	 * handler" — works for core events AND plugin-defined custom events.
 	 */
 	dispatching(): ReadonlyArray<string>;
+
+	/**
+	 * Active platform abstraction bundle. Default is `browserPlatform`. Native-shell
+	 * consumers (Capacitor, Tauri, Electron) inject a custom bundle at `setup()`.
+	 * Plugins call this to access `fullscreen`, `pip`, `wakeLock`, etc. without
+	 * reaching into the browser globals directly.
+	 */
+	platform(): IPlatform;
+
+	/**
+	 * High-level setup status. Coarser than `phase()`: returns `NOT_SETUP`
+	 * before `setup()` has been called, `SETTING_UP` while setup is in flight,
+	 * `READY` once the player has fully initialised, and `DISPOSED` after
+	 * `dispose()` completes.
+	 */
+	setupState(): SetupState;
 
 	/**
 	 * Translate a key against the active language. Player-scoped — plugins

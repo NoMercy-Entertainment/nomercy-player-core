@@ -150,9 +150,6 @@ export interface CastConfig {
  * adds `octopus`).
  */
 export interface BasePlayerConfig {
-	/** @deprecated — use `logLevel`. Maps to `'debug'` when true. */
-	debug?: boolean;
-
 	/** Logger verbosity. Controls output from the player and all registered plugins. */
 	logLevel?: LogLevel;
 
@@ -167,9 +164,6 @@ export interface BasePlayerConfig {
 
 	/** Initial volume on the public 0-100 scale (matches v1). Default `100`. */
 	defaultVolume?: number;
-
-	/** @deprecated — use `auth.bearerToken`. Kept for migration compatibility. */
-	accessToken?: string | (() => string);
 
 	/** Auth pipeline applied to every kit-internal fetch. */
 	auth?: AuthConfig;

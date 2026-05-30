@@ -88,8 +88,9 @@ export interface BaseEventMap {
 	 * Fires when the backend confirms media is actively rendering — equivalent
 	 * to the HTML `playing` event (fires after buffering resolves, not just on
 	 * `play()` call). Emitted by per-library backend wiring, not by kit transport.
+	 * Carries no payload — the signal itself is the notification.
 	 */
-	'playing': ActionOptions;
+	'playing': void;
 	'playPrevented': { reason: PreventedReason; cause?: unknown };
 	'beforePause': BeforeEvent<ActionOptions>;
 	'pausePrevented': { reason: PreventedReason; cause?: unknown };

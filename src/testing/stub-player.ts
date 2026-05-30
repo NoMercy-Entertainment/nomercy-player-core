@@ -1,5 +1,6 @@
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { AddClasses, CreateElement } from '../adapters/element-factory';
+import type { IPlatform } from '../adapters/platform/browser';
 import type {
 	ActionOptions,
 	AuthConfig,
@@ -19,12 +20,14 @@ import type {
 	UrlResolverContext,
 } from '../types';
 import { EventEmitter } from '../adapters/event-bus/default';
+import { browserPlatform } from '../adapters/platform/browser';
 import { buildResolvedUrl } from '../core/resolved-url';
 import {
 	AudioTrackState,
 	BufferState,
 	NetworkState,
 	QualityState,
+	SetupState,
 	VisibilityState,
 } from '../types';
 
@@ -114,6 +117,29 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	 */
 	dispatching(): ReadonlyArray<string> {
 		return [...this._dispatchStack];
+	}
+
+	/**
+	 * Returns `browserPlatform` — the stub does not need injectable platform
+	 * overrides. Tests that need custom platform behaviour should use the real
+	 * `NMMusicPlayer` / `NMVideoPlayer` with `setup({ platform: ... })`.
+	 */
+	platform(): IPlatform {
+		return browserPlatform;
+	}
+
+	/**
+	 * Returns `SetupState.READY` when the phase is `'ready'` or later;
+	 * `NOT_SETUP` when still `'idle'`; `SETTING_UP` when `'setup'`;
+	 * `DISPOSED` when `'disposed'`.
+	 */
+	setupState(): SetupState {
+		switch (this._phase) {
+			case 'idle': return SetupState.NOT_SETUP;
+			case 'setup': return SetupState.SETTING_UP;
+			case 'disposed': return SetupState.DISPOSED;
+			default: return SetupState.READY;
+		}
 	}
 
 	/** Test-only: push a dispatching event name onto the stack. */
