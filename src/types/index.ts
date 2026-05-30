@@ -17,10 +17,12 @@ export type {
 	ActionOptions,
 	ActionSource,
 	IPlayer,
+	IPlayerBackend,
 	LoadOptions,
 	PlayerConstructorId,
 	PlayerPhase,
 	PreventedReason,
+	WithCurrentItem,
 } from './player';
 export type { BasePlaylistItem } from './playlist';
 export type { PluginAdvisory, PluginCtorWithId, RequireSpec } from './plugin';

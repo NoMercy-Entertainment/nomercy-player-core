@@ -380,11 +380,8 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 
 	/** Best-effort lookup of the backend's media element. Returns null if no backend / no element. */
 	private resolveMediaElement(): HTMLMediaElement | null {
-		const player = this.player as unknown as {
-			backend?: () => { mediaElement?: () => HTMLMediaElement | null | undefined } | null | undefined;
-		};
 		try {
-			const backend = player.backend?.();
+			const backend = this.player.backend?.();
 			const el = backend?.mediaElement?.();
 			return el ?? null;
 		}
@@ -407,11 +404,8 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	 *  - any access throws
 	 */
 	private resolveBackendOutputNode(ctx: AudioContext): AudioNode | null {
-		const player = this.player as unknown as {
-			backend?: () => { outputNode?: (ctx: AudioContext) => AudioNode } | null | undefined;
-		};
 		try {
-			const backend = player.backend?.();
+			const backend = this.player.backend?.();
 			if (backend?.outputNode && typeof backend.outputNode === 'function') {
 				return backend.outputNode(ctx);
 			}

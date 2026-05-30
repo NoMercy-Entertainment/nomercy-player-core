@@ -32,7 +32,11 @@ When the beta period ends and 2.0.0 is ready for general availability:
 During beta, video and music declare:
 
 ```json
-"@nomercy-entertainment/nomercy-player-core": "^2.0.0-beta.0"
+{
+	"dependencies": {
+		"@nomercy-entertainment/nomercy-player-core": "^2.0.0-beta.0"
+	}
+}
 ```
 
 `^2.0.0-beta.0` matches `>=2.0.0-beta.0 <3.0.0-0`, which covers every `2.0.0-beta.x`

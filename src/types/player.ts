@@ -7,6 +7,7 @@ import type { Chapter } from './chapter';
 import type { AuthConfig } from './config';
 import type { BaseEventMap } from './events';
 import type { PlayerExperimental } from './experimental';
+import type { BasePlaylistItem } from './playlist';
 import type { PluginCtorWithId } from './plugin';
 import type {
 	AudioTrackState,
@@ -19,6 +20,52 @@ import type {
 import type { CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection } from './tracks';
 import type { Translations } from './translations';
 import type { IUrlResolver, ResolvedUrl, UrlCategory } from './url';
+
+/**
+ * Minimal backend shape the kit and kit plugins depend on. Both `IAudioBackend`
+ * (music) and `IVideoBackend` (video) satisfy this interface structurally — no
+ * explicit `implements` needed. Kit code that needs the full per-library backend
+ * contract should import from the per-library package; code that only needs
+ * element access or the audio-graph output node uses this narrower type.
+ *
+ * All members are optional: backends that do not expose a particular capability
+ * (e.g. a headless audio backend without a `<video>` element) simply omit the
+ * field and callers probe with `?.`.
+ */
+export interface IPlayerBackend {
+	/** The underlying `HTMLMediaElement` (`<audio>` or `<video>`), when available. */
+	mediaElement?(): HTMLMediaElement | null | undefined;
+
+	/**
+	 * The tail `AudioNode` of the backend's internal gain chain
+	 * (e.g. `AudioElementBackend`'s `outputGain`). When present, the
+	 * `AudioGraphPlugin` reuses this node as its chain source instead of
+	 * creating a second `MediaElementAudioSourceNode`.
+	 */
+	outputNode?(ctx: AudioContext): AudioNode;
+}
+
+/**
+ * Capability interface for players that expose a `current()` item accessor.
+ *
+ * `IPlayer<E>` is intentionally item-type-agnostic so the kit compiles without
+ * per-library knowledge. Plugins that need to read the active playlist item
+ * constrain their player generic with this interface:
+ *
+ * ```ts
+ * class MyPlugin<
+ *   P extends IPlayer<BaseEventMap> & WithCurrentItem<MyItem>,
+ *   I extends MyItem = MyItem,
+ * > extends Plugin<P, ...> { ... }
+ * ```
+ *
+ * Both `NMMusicPlayer<T>` and `NMVideoPlayer<T>` satisfy `WithCurrentItem<T>`
+ * structurally — no `implements` required.
+ */
+export interface WithCurrentItem<T extends BasePlaylistItem = BasePlaylistItem> {
+	/** Returns the active playlist item, or `undefined` when no item is loaded. */
+	current(): T | undefined;
+}
 
 export const ACTION_SOURCE = {
 	USER: 'user',
@@ -264,6 +311,13 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap>
 
 	/** Tier-4 override namespace — see `PlayerExperimental` for full contract. */
 	readonly experimental: PlayerExperimental;
+
+	/**
+	 * The active playback backend, when one exists. Optional because a player
+	 * may be queried before `setup()` wires a backend, and headless/test players
+	 * may have none. Plugins probe with `?.`. See {@link IPlayerBackend}.
+	 */
+	backend?(): IPlayerBackend | undefined;
 
 	/**
 	 * Current coarse playback phase (`idle` / `setup` / `ready` / `playing` /
