@@ -42,13 +42,7 @@ The kit ships 28 named ports. Each port is an interface you can swap end-to-end.
 |------|-----------|-----------------|-------------|----------------|
 | storage | `IStorage` | `LocalStorageBackend`, `MemoryStorageBackend`, `IndexedDBBackend` | Key-value persistence for plugin state and preferences | `@nomercy-entertainment/nomercy-player-core/adapters/storage` |
 | stream | `IStreamSource`, `IStreamRegistry` | HLS.js-backed, native MediaSource-passthrough | Streaming protocol abstraction — swap HLS.js for Shaka, dash.js, or a custom source | `@nomercy-entertainment/nomercy-player-core/adapters/stream` |
-| platform | `IPlatform` | `browserPlatform` (full bundle) | Bundles 6 sub-ports; swap individual controllers without replacing the whole bundle | `@nomercy-entertainment/nomercy-player-core/adapters/platform` |
-| platform/wake-lock | `IWakeLock` | included in `browserPlatform` | Prevents display sleep while media is playing | `@nomercy-entertainment/nomercy-player-core/adapters/platform/wake-lock` |
-| platform/network | `INetworkMonitor` | included in `browserPlatform` | Reports connection type and online/offline state | `@nomercy-entertainment/nomercy-player-core/adapters/platform/network` |
-| platform/visibility | `IVisibilityMonitor` | included in `browserPlatform` | Reports page/tab visibility state | `@nomercy-entertainment/nomercy-player-core/adapters/platform/visibility` |
-| platform/capabilities | `ICapabilitiesProbe` | included in `browserPlatform` | Queries `MediaCapabilities` / `isTypeSupported` for codec decisions | `@nomercy-entertainment/nomercy-player-core/adapters/platform/capabilities` |
-| platform/fullscreen | `IFullscreenController` | included in `browserPlatform` | Requests and exits fullscreen; video player only | `@nomercy-entertainment/nomercy-player-core/adapters/platform/fullscreen` |
-| platform/pip | `IPipController` | included in `browserPlatform` | Requests and exits Picture-in-Picture; video player only | `@nomercy-entertainment/nomercy-player-core/adapters/platform/pip` |
+| platform | `IPlatform` | `browserPlatform` (full bundle) | Bundles 6 sub-ports (wake-lock, network, visibility, capabilities, fullscreen, pip); swap the full bundle or individual controllers via the `IPlatform` interface | `@nomercy-entertainment/nomercy-player-core/adapters/platform` |
 | realtime | `IRealtimeChannel` | `nativeWebSocketAdapter` | WebSocket / SignalR / Socket.IO abstraction for sync and group features | `@nomercy-entertainment/nomercy-player-core/adapters/realtime` |
 | translator | `ITranslator`, `ITranslationLoader` | `DefaultTranslator`, `createNetworkTranslationLoader`, `translationsFromGlob` | i18n engine — swap for i18next, FormatJS, or a custom backend | `@nomercy-entertainment/nomercy-player-core/adapters/translator` |
 | language-matcher | `ILanguageMatcher` | `bcp47FallbackChain` | BCP-47 locale matching and fallback chain resolution | `@nomercy-entertainment/nomercy-player-core/adapters/language-matcher` |
@@ -144,14 +138,14 @@ import { LocalStorageBackend, AudioGraphPlugin } from '@nomercy-entertainment/no
 // Subpath imports (tree-shakeable, preferred for production bundles):
 import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core/adapters/storage';
 import { AudioGraphPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/audio-graph';
-import { parseVtt } from '@nomercy-entertainment/nomercy-player-core/cues/parsers/vtt';
-import { parseLrc } from '@nomercy-entertainment/nomercy-player-core/cues/parsers/lrc';
+import { parseVtt } from '@nomercy-entertainment/nomercy-player-core/adapters/cue-parser/vtt';
+import { parseLrc } from '@nomercy-entertainment/nomercy-player-core/adapters/cue-parser/lrc';
 ```
 
 Testing utilities live in their own subpath and never land in production bundles:
 
 ```ts
-import { } from '@nomercy-entertainment/nomercy-player-core/testing';
+import { StubPlayer, describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
 ```
 
 ---

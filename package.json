@@ -10,7 +10,7 @@
 		"url": "https://nomercy.tv"
 	},
 	"contributors": [
-		"Stoney Eagle <stoney@nomercy.tv>"
+		"Stoney Eagle <45034970+StoneyEagle@users.noreply.github.com>"
 	],
 	"license": "Apache-2.0",
 	"homepage": "https://docs.nomercy.tv/player/",
@@ -110,6 +110,10 @@
 			"types": "./dist/adapters/url-resolver/index.d.ts",
 			"import": "./dist/adapters/url-resolver/index.js"
 		},
+		"./plugins/cast-sender": {
+			"types": "./dist/plugins/cast-sender/index.d.ts",
+			"import": "./dist/plugins/cast-sender/index.js"
+		},
 		"./plugins/tab-leader": {
 			"types": "./dist/plugins/tab-leader/index.d.ts",
 			"import": "./dist/plugins/tab-leader/index.js"
@@ -192,6 +196,7 @@
 		"CODE_OF_CONDUCT.md",
 		"CONTRIBUTING.md",
 		"MIGRATION.md",
+		"RELEASING.md",
 		"SECURITY.md",
 		"dist"
 	],
@@ -213,7 +218,7 @@
 		"prepublishOnly": "npm run build"
 	},
 	"dependencies": {
-		"hls.js": ">=1.6.0"
+		"hls.js": "^1.6.0"
 	},
 	"devDependencies": {
 		"@antfu/eslint-config": "^9.0.0",

@@ -1,6 +1,6 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
-## [2.0.0-beta.1] — 2026-05-16
+## [2.0.0-beta.1] — 2026-05-30
 
 ### Breaking
 
@@ -19,10 +19,16 @@
 - `ICapabilitiesProbe.supportedCodecs()` implemented in `browserPlatform` via a
   `MediaSource.isTypeSupported` sweep (H.264 baseline/main/high, H.265, VP8, VP9,
   AV1, AAC, Opus, Vorbis, FLAC).
+- `./plugins/cast-sender` added to the `exports` map (was built but not exported).
 
 ### Fixed
 
 - `KIT_VERSION` bumped to `2.0.0-beta.1` to reflect the breaking change above.
+- `hls.js` dependency pinned to `^1.6.0` (was `>=1.6.0` — would have accepted a future 2.x).
+- README subpath examples corrected: `cues/parsers/vtt` → `adapters/cue-parser/vtt`;
+  platform sub-port subpaths that do not exist as individual exports removed from the table;
+  empty `testing` import example replaced with real named exports.
+- `contributors` email updated to GitHub noreply address.
 
 ---
 
