@@ -269,43 +269,13 @@ function _guardSetup(self: Internals): void {
 }
 
 /**
- * Shape of the v1 compat fields that may arrive at runtime even though they
- * were removed from `BasePlayerConfig`. Read-only here; the compat shim owns
- * the write side.
- */
-interface V1ConfigCompat {
-	debug?: boolean;
-	accessToken?: string | (() => string);
-}
-
-/**
- * Snapshot the config onto `self.options` and apply back-compat shims for
- * older option shapes:
- *  - `debug: true` upgrades to `logLevel: 'debug'` (only when logLevel is unset).
- *  - top-level `accessToken` folds into `auth.bearerToken` (only when bearerToken
- *    is unset). Explicit auth always wins.
+ * Snapshot the config onto `self.options`. The v1 legacy fields (`debug`,
+ * `accessToken`) are normalised at the library boundary — inside each
+ * per-library factory's `setup()` wrapper — before reaching here, so core
+ * only ever sees the canonical `BasePlayerConfig` surface.
  */
 function _normalizeOptions(self: Internals, config: BasePlayerConfig): void {
 	self.options = { ...config };
-
-	// Read legacy compat fields that may arrive from a v1 consumer or the
-	// compat shim. They are not on BasePlayerConfig but may be present at
-	// runtime — access via the narrowed V1ConfigCompat view.
-	const compat = self.options as unknown as V1ConfigCompat;
-
-	if (compat.debug === true && self.options.logLevel === undefined) {
-		self.options.logLevel = 'debug';
-	}
-
-	if (compat.accessToken !== undefined) {
-		const existing = self.options.auth ?? {};
-		if (existing.bearerToken === undefined) {
-			self.options.auth = {
-				...existing,
-				bearerToken: compat.accessToken,
-			};
-		}
-	}
 }
 
 /** Copy options that runtime methods read directly into their `self._*` slots. */
