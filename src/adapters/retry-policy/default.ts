@@ -4,7 +4,8 @@ export type { IRetryPolicy, RetryConfig } from './IRetryPolicy';
 
 /**
  * Built-in retry defaults. Covers the common HTTP + media error codes out of the
- * box. Consumers override individual entries via `setup({ retryPolicy })`.
+ * box. Pass entries from this map to per-call `retry` options on `Plugin.fetch()`
+ * to override the default for a specific call site.
  * All defaults err on the side of fewer retries — noisy retries are worse than
  * a fast failure for debugging.
  */

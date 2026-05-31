@@ -38,23 +38,10 @@ export interface TabLeaderEvents {
 	'leader-acquired': void;
 
 	/**
-	 * Fired when this tab voluntarily releases the lock — either via
-	 * `releaseLock()` or when the plugin disposes.
+	 * Fired when this tab releases the lock — either via `releaseLock()` / `dispose()`,
+	 * or via the `visibilitychange` handoff path.
 	 */
 	'leader-released': void;
-
-	/**
-	 * Fired when leadership is lost involuntarily.
-	 *
-	 * - `'visibility'` — a `visibilitychange` event triggered a handoff.
-	 * - `'request'` — another tab called `requestLock()` while this tab held it.
-	 * - `'browser'` — the browser released the lock (tab closed, navigated away,
-	 *   or crashed).
-	 */
-	'leader-lost': { reason: 'visibility' | 'request' | 'browser' };
-
-	/** Fired when `requestLock()` is called and a lock-acquire attempt begins. */
-	'leader-requested': void;
 
 	/**
 	 * Fired when the Web Locks API is not available in the current environment.
@@ -123,16 +110,6 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			this.emit('unsupported' as keyof TabLeaderEvents);
 			return;
 		}
-
-		this.on(TabLeaderPlugin, 'leader-lost', (_data) => {
-			const action = this.opts?.onLost ?? 'pause';
-			if (action === 'mute') {
-				this.player.mute?.();
-			}
-			else {
-				void this.player.pause?.();
-			}
-		});
 
 		if (typeof document !== 'undefined') {
 			this.listen(document, 'visibilitychange', () => {
@@ -235,6 +212,13 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 
 		if (wasLeader) {
 			this.emit('leader-released' as keyof TabLeaderEvents);
+			const action = this.opts?.onLost ?? 'pause';
+			if (action === 'mute') {
+				this.player.mute?.();
+			}
+			else {
+				void this.player.pause?.();
+			}
 		}
 	}
 

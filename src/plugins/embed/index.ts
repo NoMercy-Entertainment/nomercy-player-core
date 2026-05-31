@@ -1,6 +1,23 @@
-import type { BaseEventMap, IPlayer } from '../../types';
+import type { ActionOptions, BaseEventMap, IPlayer } from '../../types';
+import type { PlayerErrorEvent } from '../../errors';
+import type { ErrorScope } from '../../errors/code';
+import type { Severity } from '../../errors/severity';
 
 import { Plugin } from '../../core/plugin';
+
+/**
+ * Plain, structured-clone-safe representation of a player error forwarded to
+ * the host page. All fields are primitives or plain objects — no class instances,
+ * no functions — so `window.parent.postMessage` never throws `DataCloneError`.
+ */
+export interface EmbedSerializedError {
+	code: string;
+	message?: string;
+	severity: Severity;
+	scope: ErrorScope;
+	suggestion?: string;
+	context?: Record<string, unknown>;
+}
 
 /** Commands the host page can send INTO the embedded player via `postMessage`. */
 export type EmbedCommand
@@ -15,15 +32,29 @@ export type EmbedCommand
 		| { type: 'nm:command'; action: 'previous' };
 
 /** Events the embedded player emits OUT to the host page via `postMessage`. */
-export type EmbedEventMessage
-	= | { type: 'nm:event'; name: 'ready' }
-		| { type: 'nm:event'; name: 'play' }
-		| { type: 'nm:event'; name: 'pause' }
-		| { type: 'nm:event'; name: 'ended' }
-		| { type: 'nm:event'; name: 'time'; time: number; duration: number }
-		| { type: 'nm:event'; name: 'volume'; level: number }
-		| { type: 'nm:event'; name: 'mute'; muted: boolean }
-		| { type: 'nm:event'; name: 'error'; code: string; severity: string; message?: string };
+export type EmbedEventMessage = {
+	type: 'nm:event';
+	name: EmbedForwardedEvent['name'];
+	data: unknown;
+};
+
+/**
+ * Discriminated union for the payload shapes carried in `EmbedEventMessage.data`.
+ *
+ * Every arm is structured-clone-safe: all values are primitives or plain objects.
+ * `'error'` uses `EmbedSerializedError` (not the live `PlayerErrorEvent`) because
+ * `PlayerErrorEvent` carries closure-bound methods and a `PlayerError` class
+ * instance — both of which cause `DataCloneError` when passed to `postMessage`.
+ */
+export type EmbedForwardedEvent
+	= | { name: 'ready'; data: Record<string, never> }
+		| { name: 'play'; data: ActionOptions }
+		| { name: 'pause'; data: ActionOptions }
+		| { name: 'ended'; data: Record<string, never> }
+		| { name: 'time'; data: { time: number } }
+		| { name: 'volume'; data: { level: number } }
+		| { name: 'mute'; data: { muted: boolean } }
+		| { name: 'error'; data: EmbedSerializedError };
 
 /** Options for {@link EmbedPlugin}. */
 export interface EmbedOptions {
@@ -123,6 +154,11 @@ export class EmbedPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 
 		if (typeof window === 'undefined')
 			return;
+
+		const applyTweaks = this.opts?.applyIframeTweaks ?? this.inIframe();
+		if (applyTweaks) {
+			this.player.container?.classList.add('nm-embed');
+		}
 
 		const onMessage = (event: MessageEvent): void => {
 			if (!this.isOriginAllowed(event.origin))
@@ -314,14 +350,42 @@ export class EmbedPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 	 * the payload as `{ type: 'nm:event', name, data }` so the host page can
 	 * switch on `name` and read `data` uniformly.
 	 *
+	 * `'error'` events are serialized through `serializeError()` before posting
+	 * because `PlayerErrorEvent` carries closure-bound methods and a `PlayerError`
+	 * class instance — both throw `DataCloneError` in `postMessage`. All other
+	 * forwarded events (`ready`, `play`, `pause`, `ended`, `time`, `volume`,
+	 * `mute`) are already plain objects and pass structured clone as-is.
+	 *
 	 * Override to change the envelope shape or filter specific events.
 	 */
 	protected formatEvent(name: EmbedEventMessage['name'], data: unknown): EmbedEventMessage | null {
+		const payload = name === 'error'
+			? this.serializeError(data as PlayerErrorEvent)
+			: (data ?? {});
+
 		return {
 			type: 'nm:event',
 			name,
-			data: data ?? {},
-		} as unknown as EmbedEventMessage;
+			data: payload,
+		};
+	}
+
+	/**
+	 * Convert a live `PlayerErrorEvent` (which contains class instances and
+	 * closure-bound methods) into a plain `EmbedSerializedError` that is safe to
+	 * pass through `postMessage`'s structured clone algorithm.
+	 *
+	 * Override to include additional fields (e.g. `context.httpStatus`).
+	 */
+	protected serializeError(event: PlayerErrorEvent): EmbedSerializedError {
+		return {
+			code: event.error.code,
+			message: event.error.message,
+			severity: event.severity,
+			scope: event.scope,
+			suggestion: event.error.suggestion,
+			context: event.error.context,
+		};
 	}
 
 	/**

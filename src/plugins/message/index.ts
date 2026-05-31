@@ -63,7 +63,15 @@ export class MessagePlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Pl
 	 * `role="status"` and `aria-live="polite"`. The element is hidden initially.
 	 */
 	override use(): void {
-		const el = this.mount('toast');
+		const selector = this.opts?.mountSelector;
+		let el: HTMLDivElement;
+		if (selector) {
+			const found = document.querySelector<HTMLDivElement>(selector);
+			el = found ?? this.mount('toast');
+		}
+		else {
+			el = this.mount('toast');
+		}
 		el.setAttribute('role', 'status');
 		el.setAttribute('aria-live', 'polite');
 		el.style.display = 'none';

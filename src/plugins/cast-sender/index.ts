@@ -64,8 +64,6 @@ export interface CastSenderOptions {
 
 /** Events emitted by {@link CastSenderPlugin}. */
 export interface CastSenderEvents {
-	'cast:available': { devices: number };
-	'cast:connecting': { deviceName: string };
 	'cast:connected': { deviceName: string };
 	'cast:disconnected': void;
 	'cast:error': { error: Error };

@@ -13,6 +13,8 @@ import {
 	playerCoreMethods,
 	resolvePlayerConstructor,
 } from '../../index';
+import { makePlayerErrorEvent, PlayerError } from '../../errors';
+import type { EmbedSerializedError } from '../../plugins/embed';
 import { EmbedPlugin } from '../../plugins/embed';
 import { TabLeaderPlugin } from '../../plugins/tab-leader';
 
@@ -87,7 +89,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('embed-1').setup({});
 			p.addPlugin(EmbedPlugin);
 			await p.ready();
-			const inst = p.getPluginById<EmbedPlugin>('embed')!;
+			const inst = p.getPlugin(EmbedPlugin)!;
 			expect((inst as any).inIframe()).toBe(false);
 		});
 
@@ -95,7 +97,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('embed-2').setup({});
 			p.addPlugin(EmbedPlugin, { allowedOrigins: ['https://trusted.example.com'] });
 			await p.ready();
-			const inst = p.getPluginById<EmbedPlugin>('embed')!;
+			const inst = p.getPlugin(EmbedPlugin)!;
 			// Surface the internal allow-list so the helper has data to compare against.
 			inst.allowedOrigins(['https://trusted.example.com']);
 			expect((inst as any).isOriginAllowed('https://trusted.example.com')).toBe(true);
@@ -107,9 +109,85 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('embed-3').setup({});
 			p.addPlugin(EmbedPlugin);
 			await p.ready();
-			const inst = p.getPluginById<EmbedPlugin>('embed')!;
+			const inst = p.getPlugin(EmbedPlugin)!;
 			const msg = (inst as any).formatEvent('play', {});
 			expect(msg).toEqual({ type: 'nm:event', name: 'play', data: {} });
+		});
+
+		it('applyIframeTweaks: true adds nm-embed class to the player container', async () => {
+			const p = makePlayer('embed-4').setup({});
+			p.addPlugin(EmbedPlugin, { applyIframeTweaks: true });
+			await p.ready();
+			expect(p.container.classList.contains('nm-embed')).toBe(true);
+		});
+
+		it('applyIframeTweaks: false does not add nm-embed class', async () => {
+			const p = makePlayer('embed-5').setup({});
+			p.addPlugin(EmbedPlugin, { applyIframeTweaks: false });
+			await p.ready();
+			expect(p.container.classList.contains('nm-embed')).toBe(false);
+		});
+
+		it('formatEvent("error", ...) returns a plain clone-safe object — structuredClone must not throw', async () => {
+			const p = makePlayer('embed-6').setup({});
+			p.addPlugin(EmbedPlugin);
+			await p.ready();
+			const inst = p.getPlugin(EmbedPlugin)!;
+
+			const error = new PlayerError({
+				code: 'core:network/timeout',
+				severity: 'error',
+				scope: { kind: 'core' },
+				message: 'Request timed out',
+				suggestion: 'Check your network connection.',
+				context: { url: 'https://example.com/stream.m3u8', httpStatus: 408 },
+				cause: new Error('underlying fetch error'),
+			});
+			const errorEvent = makePlayerErrorEvent(error, 'error', { kind: 'core' });
+
+			const msg = (inst as any).formatEvent('error', errorEvent) as { type: string; name: string; data: EmbedSerializedError };
+
+			expect(msg).not.toBeNull();
+			expect(msg.type).toBe('nm:event');
+			expect(msg.name).toBe('error');
+
+			// Must not throw — DataCloneError would surface here if methods/class instances leaked.
+			expect(() => structuredClone(msg)).not.toThrow();
+
+			const cloned = structuredClone(msg);
+			expect(cloned.data.code).toBe('core:network/timeout');
+			expect(cloned.data.severity).toBe('error');
+			expect(cloned.data.scope).toEqual({ kind: 'core' });
+			expect(cloned.data.message).toBe('Request timed out');
+			expect(cloned.data.suggestion).toBe('Check your network connection.');
+			expect(cloned.data.context).toEqual({ url: 'https://example.com/stream.m3u8', httpStatus: 408 });
+
+			// Methods must not be present on the serialized payload.
+			expect(typeof (cloned.data as any).markHandled).toBe('undefined');
+			expect(typeof (cloned.data as any).preventDefault).toBe('undefined');
+			expect(typeof (cloned.data as any).error).toBe('undefined');
+		});
+
+		it('formatEvent for non-error events passes structuredClone without throwing', async () => {
+			const p = makePlayer('embed-7').setup({});
+			p.addPlugin(EmbedPlugin);
+			await p.ready();
+			const inst = p.getPlugin(EmbedPlugin)!;
+
+			const cases: Array<[string, unknown]> = [
+				['ready', undefined],
+				['play', { source: 'user', silent: false }],
+				['pause', { source: 'embed' }],
+				['ended', undefined],
+				['time', { time: 42.5 }],
+				['volume', { level: 0.8 }],
+				['mute', { muted: true }],
+			];
+
+			for (const [name, data] of cases) {
+				const msg = (inst as any).formatEvent(name, data);
+				expect(() => structuredClone(msg), `structuredClone should not throw for '${name}'`).not.toThrow();
+			}
 		});
 	});
 
@@ -118,7 +196,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('lock-1').setup({});
 			p.addPlugin(TabLeaderPlugin);
 			await p.ready();
-			const inst = p.getPluginById<TabLeaderPlugin>('tab-leader')!;
+			const inst = p.getPlugin(TabLeaderPlugin)!;
 			expect(typeof inst.isLeader()).toBe('boolean');
 		});
 
@@ -126,7 +204,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('lock-2').setup({});
 			p.addPlugin(TabLeaderPlugin);
 			await p.ready();
-			const inst = p.getPluginById<TabLeaderPlugin>('tab-leader')!;
+			const inst = p.getPlugin(TabLeaderPlugin)!;
 			expect((inst as any).getLockKey()).toBe('nomercy-player-leader');
 		});
 
@@ -134,11 +212,11 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 			const p = makePlayer('lock-3').setup({});
 			p.addPlugin(TabLeaderPlugin, { getLockKey: () => 'custom-key' });
 			await p.ready();
-			const inst = p.getPluginById<TabLeaderPlugin>('tab-leader')!;
+			const inst = p.getPlugin(TabLeaderPlugin)!;
 			expect((inst as any).getLockKey()).toBe('custom-key');
 		});
 
-		it('onLost reads the LIVE opts — changing onLost after use() takes effect on the next leader-lost', async () => {
+		it('onLost reads the LIVE opts — changing onLost after use() takes effect on the next releaseLock()', async () => {
 			// JSDOM lacks Web Locks — stub navigator.locks so use() doesn't bail early.
 			const originalLocks = Object.getOwnPropertyDescriptor(navigator, 'locks');
 			const lockRequestFn = vi.fn((_key: string, cb: (lock: unknown) => Promise<void>) =>
@@ -158,7 +236,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 
 			p.addPlugin(TabLeaderPlugin, { onLost: 'pause' });
 			await p.ready();
-			const inst = p.getPluginById<TabLeaderPlugin>('tab-leader')!;
+			const inst = p.getPlugin(TabLeaderPlugin)!;
 
 			// Restore navigator.locks after setup.
 			if (originalLocks) {
@@ -169,14 +247,20 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 				delete (navigator as Record<string, unknown>).locks;
 			}
 
-			// Simulate losing leadership with current opt = 'pause'
-			p.emit('plugin:tab-leader:leader-lost' as any, { reason: 'request' });
+			// Force-grant leadership so releaseLock() has something to release.
+			(inst as any)._isLeader = true;
+			(inst as any)._release = (): void => { /* no-op — lock already resolved */ };
+
+			// Release with opt = 'pause' — should pause.
+			inst.releaseLock();
 			expect(pauseCalls).toHaveLength(1);
 			expect(muteCalls).toHaveLength(0);
 
-			// Mutate opt to 'mute' and simulate losing again
+			// Re-grant, change opt to 'mute', release again — should mute, not pause.
+			(inst as any)._isLeader = true;
+			(inst as any)._release = (): void => { /* no-op */ };
 			inst.options({ onLost: 'mute' });
-			p.emit('plugin:tab-leader:leader-lost' as any, { reason: 'request' });
+			inst.releaseLock();
 			expect(muteCalls).toHaveLength(1);
 			expect(pauseCalls).toHaveLength(1);
 		});
