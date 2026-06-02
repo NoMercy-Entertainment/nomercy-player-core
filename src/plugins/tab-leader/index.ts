@@ -138,9 +138,10 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	}
 
 	/**
-	 * Request the leader lock. Resolves once the lock-acquire callback fires
-	 * (which may be immediately if no other tab holds the lock, or after an
-	 * unknown wait if another tab is the current leader).
+	 * Request the leader lock. The returned promise stays pending while this
+	 * tab holds the lock and resolves only once the lock is released, not when
+	 * leadership is first acquired. Listen for `plugin:tab-leader:leader-acquired`
+	 * to know when the grant happens.
 	 *
 	 * Calling `requestLock()` while an election is already in progress returns
 	 * the existing pending promise rather than starting a second election.
