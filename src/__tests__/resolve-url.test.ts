@@ -11,7 +11,7 @@
  *  - `setUrlResolver` swaps the resolver at runtime; `undefined` reverts
  *    to the default.
  *  - Bad-shape resolver output falls back to the default (no crash).
- *  - `imageBasePath` poster/cast resolution — the fix for OS MediaSession
+ *  - `baseImageUrl` poster/cast resolution — the fix for OS MediaSession
  *    lock-screen artwork 404 when items carry relative paths.
  */
 
@@ -152,89 +152,89 @@ describe('StubPlayer.resolveUrl', () => {
 	});
 });
 
-describe('StubPlayer.resolveUrl — imageBasePath poster/cast resolution', () => {
-	// imageBasePath is a STRING PREFIX, not a URL base. Standard URL resolution
+describe('StubPlayer.resolveUrl — baseImageUrl poster/cast resolution', () => {
+	// baseImageUrl is a STRING PREFIX, not a URL base. Standard URL resolution
 	// semantics (new URL(path, base)) would strip the base path when `path`
 	// starts with `/`. The kit uses string concatenation so TMDB-style paths
-	// like imageBasePath='https://image.tmdb.org/t/p/w780' + '/q2bVM...jpg'
+	// like baseImageUrl='https://image.tmdb.org/t/p/w780' + '/q2bVM...jpg'
 	// produce the correct 'https://image.tmdb.org/t/p/w780/q2bVM...jpg'.
 
-	it('relative path + imageBasePath → absolute URL for category poster (TMDB pattern)', async () => {
+	it('relative path + baseImageUrl → absolute URL for category poster (TMDB pattern)', async () => {
 		const p = new StubPlayer();
-		p.imageBasePath('https://image.tmdb.org/t/p/w780');
+		p.baseImageUrl('https://image.tmdb.org/t/p/w780');
 		const r = await p.resolveUrl('/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg', 'poster');
 		expect(r.relative).toBe(false);
 		expect(r.href).toBe('https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg');
 	});
 
-	it('relative path + imageBasePath → absolute URL for category cast', async () => {
+	it('relative path + baseImageUrl → absolute URL for category cast', async () => {
 		const p = new StubPlayer();
-		p.imageBasePath('https://image.tmdb.org/t/p/w780');
+		p.baseImageUrl('https://image.tmdb.org/t/p/w780');
 		const r = await p.resolveUrl('/backdrop.jpg', 'cast');
 		expect(r.relative).toBe(false);
 		expect(r.href).toBe('https://image.tmdb.org/t/p/w780/backdrop.jpg');
 	});
 
-	it('absolute URL passthrough — imageBasePath not prepended when url already has scheme', async () => {
+	it('absolute URL passthrough — baseImageUrl not prepended when url already has scheme', async () => {
 		const p = new StubPlayer();
-		p.imageBasePath('https://image.tmdb.org/t/p/w780');
+		p.baseImageUrl('https://image.tmdb.org/t/p/w780');
 		const r = await p.resolveUrl('https://cdn.example.com/poster.jpg', 'poster');
 		expect(r.href).toBe('https://cdn.example.com/poster.jpg');
 		expect(r.relative).toBe(false);
 	});
 
-	it('https:// URL passthrough — scheme detected, imageBasePath not prepended', async () => {
+	it('https:// URL passthrough — scheme detected, baseImageUrl not prepended', async () => {
 		const p = new StubPlayer();
-		p.imageBasePath('https://image.tmdb.org/t/p/w780');
+		p.baseImageUrl('https://image.tmdb.org/t/p/w780');
 		const r = await p.resolveUrl('https://cdn.example.com/art.jpg', 'poster');
 		expect(r.href).toBe('https://cdn.example.com/art.jpg');
 		expect(r.relative).toBe(false);
 	});
 
-	it('imageBasePath with trailing slash + url with leading slash — raw concatenation produces double-slash-free path', async () => {
-		// imageBasePath ends with `/`, url starts with `/` — honest string concat
+	it('baseImageUrl with trailing slash + url with leading slash — raw concatenation produces double-slash-free path', async () => {
+		// baseImageUrl ends with `/`, url starts with `/` — honest string concat
 		// gives `//`. The resolved URL parses to `/poster.jpg` under the origin.
 		// Test documents the actual behavior so it is not accidentally "fixed"
 		// into standard URL resolution (which would break the no-trailing-slash case).
 		const p = new StubPlayer();
-		p.imageBasePath('https://img.example.com/base/');
+		p.baseImageUrl('https://img.example.com/base/');
 		const r = await p.resolveUrl('/poster.jpg', 'poster');
 		// 'https://img.example.com/base/' + '/poster.jpg' parses to origin + path
 		expect(r.relative).toBe(false);
 		expect(r.href).toBe('https://img.example.com/base//poster.jpg');
 	});
 
-	it('imageBasePath without trailing slash + url without leading slash concatenates with no separator', async () => {
+	it('baseImageUrl without trailing slash + url without leading slash concatenates with no separator', async () => {
 		const p = new StubPlayer();
-		p.imageBasePath('https://img.example.com/base');
+		p.baseImageUrl('https://img.example.com/base');
 		const r = await p.resolveUrl('poster.jpg', 'poster');
 		expect(r.href).toBe('https://img.example.com/baseposter.jpg');
 	});
 
-	it('imageBasePath with trailing slash + url without leading slash — correct join', async () => {
+	it('baseImageUrl with trailing slash + url without leading slash — correct join', async () => {
 		const p = new StubPlayer();
-		p.imageBasePath('https://img.example.com/prefix/');
+		p.baseImageUrl('https://img.example.com/prefix/');
 		const r = await p.resolveUrl('thumb.jpg', 'poster');
 		expect(r.href).toBe('https://img.example.com/prefix/thumb.jpg');
 	});
 
-	it('category !== poster/cast ignores imageBasePath and uses baseUrl', async () => {
+	it('category !== poster/cast ignores baseImageUrl and uses baseUrl', async () => {
 		const p = new StubPlayer();
-		p.imageBasePath('https://image.tmdb.org/t/p/w780');
+		p.baseImageUrl('https://image.tmdb.org/t/p/w780');
 		p.baseUrl('https://media.example.com/');
 		const r = await p.resolveUrl('sub.vtt', 'subtitle');
 		expect(r.href).toBe('https://media.example.com/sub.vtt');
 	});
 
-	it('category media ignores imageBasePath', async () => {
+	it('category media ignores baseImageUrl', async () => {
 		const p = new StubPlayer();
-		p.imageBasePath('https://image.tmdb.org/t/p/w780');
+		p.baseImageUrl('https://image.tmdb.org/t/p/w780');
 		p.baseUrl('https://media.example.com/');
 		const r = await p.resolveUrl('stream.m3u8', 'media');
 		expect(r.href).toBe('https://media.example.com/stream.m3u8');
 	});
 
-	it('no imageBasePath falls back to baseUrl for poster', async () => {
+	it('no baseImageUrl falls back to baseUrl for poster', async () => {
 		const p = new StubPlayer();
 		p.baseUrl('https://media.example.com/images/');
 		const r = await p.resolveUrl('poster.jpg', 'poster');
@@ -243,16 +243,16 @@ describe('StubPlayer.resolveUrl — imageBasePath poster/cast resolution', () =>
 
 	it('custom urlResolver overrides the default for poster', async () => {
 		const p = new StubPlayer();
-		p.imageBasePath('https://image.tmdb.org/t/p/w780');
+		p.baseImageUrl('https://image.tmdb.org/t/p/w780');
 		const resolver: IUrlResolver = url => buildResolvedUrl(url, `https://cdn.example.com/signed.jpg?signed=1`);
 		p.urlResolver(resolver);
 		const r = await p.resolveUrl('/poster.jpg', 'poster');
 		expect(r.href).toContain('signed=1');
 	});
 
-	it('custom urlResolver receives imageBasePath as ctx.baseUrl for poster category', async () => {
+	it('custom urlResolver receives baseImageUrl as ctx.baseUrl for poster category', async () => {
 		const p = new StubPlayer();
-		p.imageBasePath('https://image.tmdb.org/t/p/w780');
+		p.baseImageUrl('https://image.tmdb.org/t/p/w780');
 		const seenBaseUrls: Array<string | undefined> = [];
 		const resolver: IUrlResolver = (_url, ctx) => {
 			seenBaseUrls.push(ctx.baseUrl);

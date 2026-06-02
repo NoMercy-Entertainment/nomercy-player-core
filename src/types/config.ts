@@ -319,7 +319,7 @@ export interface BasePlayerConfig {
 	 * Consumers needing per-category signing use `urlResolver` with
 	 * `category: 'poster'` instead.
 	 */
-	imageBasePath?: string;
+	baseImageUrl?: string;
 
 	/** Initial playlist. Pass items directly, or a URL the player will fetch. */
 	playlist?: BasePlaylistItem[] | string;

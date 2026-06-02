@@ -82,13 +82,13 @@ export const authMethods = {
 		const resolvedCategory = category ?? 'media';
 
 		// Poster and cast artwork must be absolute so the OS MediaSession API and
-		// Cast receivers can fetch them without a page-origin anchor. `imageBasePath`
+		// Cast receivers can fetch them without a page-origin anchor. `baseImageUrl`
 		// is a string prefix (not a URL base) — matching the documented intent:
 		// "Base URL prepended to relative image / poster paths". Standard URL
 		// resolution semantics (`new URL(path, base)`) would strip the base path
 		// segment when the path starts with `/`, producing wrong TMDB-style URLs.
 		const isArtworkCategory = resolvedCategory === 'poster' || resolvedCategory === 'cast';
-		const imageBase = this.options?.imageBasePath;
+		const imageBase = this.options?.baseImageUrl;
 
 		const auth = this._authConfig;
 
@@ -96,7 +96,7 @@ export const authMethods = {
 			const transformer = auth?.transformUrl;
 			const transformed = transformer ? await transformer(rawUrl) : rawUrl;
 
-			// For artwork categories with imageBasePath: prepend as a string prefix
+			// For artwork categories with baseImageUrl: prepend as a string prefix
 			// when the transformed URL is not already absolute (no scheme present).
 			if (isArtworkCategory && imageBase) {
 				const isAbsolute = /^[a-z][a-z\d+\-.]*:/iu.test(transformed);
@@ -112,7 +112,7 @@ export const authMethods = {
 			if (result.relative) {
 				this.options?.logger?.warn(
 					`[resolveUrl] ${resolvedCategory} URL resolved to a relative path — the OS or receiver will 404. `
-					+ `Set imageBasePath in player config or supply a urlResolver. Raw: "${rawUrl}"`,
+					+ `Set baseImageUrl in player config or supply a urlResolver. Raw: "${rawUrl}"`,
 				);
 			}
 
@@ -123,7 +123,7 @@ export const authMethods = {
 		if (!resolver)
 			return defaultResolve(url);
 
-		// Custom resolvers receive the imageBasePath as `baseUrl` for artwork
+		// Custom resolvers receive the baseImageUrl as `baseUrl` for artwork
 		// categories so they can apply the same prefix logic or override it.
 		const ctxBaseUrl = (isArtworkCategory && imageBase) ? imageBase : (this._baseUrl ?? this.options?.baseUrl);
 		const ctx: UrlResolverContext = {

@@ -1,4 +1,4 @@
-import type { BaseEventMap, BasePlaylistItem, IPlayer } from '../../types';
+import type { BaseEventMap, BasePlaylistItem, IPlayer, WithCurrentItem } from '../../types';
 import { Plugin } from '../../core/plugin';
 
 /** MIME type inferred from a URL's lowercase file extension. */
@@ -90,8 +90,8 @@ type Action
  * instead of `navigator.mediaSession`.
  */
 export class MediaSessionPlugin<
-	P extends IPlayer<BaseEventMap> = IPlayer,
 	I extends BasePlaylistItem = BasePlaylistItem,
+	P extends IPlayer<BaseEventMap> & WithCurrentItem<I> = IPlayer<BaseEventMap> & WithCurrentItem<I>,
 > extends Plugin<P, MediaSessionOptions> {
 	static override readonly id: string = 'media-session';
 	static override readonly version: string = '2.0.0';
@@ -154,12 +154,9 @@ export class MediaSessionPlugin<
 		// a microtask), the initial `current` event lands before this listener
 		// is attached. Without this seed the OS lock screen / Now Playing
 		// widget stays empty until the user manually triggers a track change.
-		const currentFn = this._readCurrentFn();
-		if (currentFn) {
-			const existing = currentFn();
-			if (existing)
-				void this._pushMetadata(existing);
-		}
+		const existing = this._readItemFn()?.();
+		if (existing)
+			void this._pushMetadata(existing);
 	}
 
 	/**
@@ -190,16 +187,17 @@ export class MediaSessionPlugin<
 	}
 
 	/**
-	 * Return the player's `current()` method bound to the player, or `undefined`
-	 * when the player is a base `IPlayer` without a current-item accessor.
-	 * `current()` is a per-library method (not on `IPlayer`); this is the single
-	 * typed boundary for that access.
+	 * Return the player's `item()` accessor bound to the player, or `undefined`
+	 * when the player does not satisfy `WithCurrentItem<I>` at runtime.
+	 * `item()` is declared on the `WithCurrentItem<I>` capability interface and
+	 * satisfied structurally by both `NMMusicPlayer` and `NMVideoPlayer` via the
+	 * shared `withCurrentItemMixin`. This is the single typed boundary for seeding
+	 * initial metadata when the plugin attaches after the first `current` event.
 	 */
-	private _readCurrentFn(): (() => I | undefined) | undefined {
-		const playerWithCurrent = this.player as unknown as { current?: () => I | undefined };
-		if (typeof playerWithCurrent.current !== 'function')
+	private _readItemFn(): (() => I | undefined) | undefined {
+		if (typeof this.player.item !== 'function')
 			return undefined;
-		return playerWithCurrent.current.bind(this.player);
+		return (this.player.item as () => I | undefined).bind(this.player);
 	}
 
 	/**
