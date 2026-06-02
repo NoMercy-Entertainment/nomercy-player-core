@@ -1,4 +1,4 @@
-import type { CastConfig } from '../../types';
+import type { CastConfig, CastTarget } from '../../types';
 import type { Internals } from '../state';
 import { browserPolicyError } from '../../errors';
 
@@ -228,7 +228,7 @@ export const castMethods = {
 	 * target's API isn't available so consumers can surface a "device not
 	 * supported" UI instead of an opaque failure.
 	 */
-	async transferTo(this: Internals, target: 'cast' | 'airplay' | 'remote-playback' | 'local'): Promise<void> {
+	async transferTo(this: Internals, target: CastTarget): Promise<void> {
 		const setState = (s: _CastStateEnum): void => {
 			this._castState = s;
 			this.emit('castState', { state: s });

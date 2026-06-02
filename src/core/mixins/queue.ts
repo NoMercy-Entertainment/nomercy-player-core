@@ -63,7 +63,7 @@ function _wireQueue(self: Internals): void {
 		// The sidecar subtitle CueTracker is bound to the old item's time stream —
 		// disposing it here prevents stale cues from leaking into the new item.
 		// The renderer will get a fresh `subtitleCue` once the next subtitle
-		// selection fires via `currentSubtitle`.
+		// selection fires via `subtitle`.
 		self._disposeSidecarSubtitle();
 		self.emit('current', data);
 
@@ -216,14 +216,14 @@ export const queueMethods = {
 	/**
 	 * Read or write the active queue cursor.
 	 *
-	 * `current()` — returns the active playlist item, or `undefined` when the
+	 * `item()` — returns the active playlist item, or `undefined` when the
 	 * queue is empty.
 	 *
-	 * `current(target, opts?)` — move the cursor to `target` (item ref, id
+	 * `item(target, opts?)` — move the cursor to `target` (item ref, id
 	 * string, or index). Fires `beforeMutation` so advisory plugins can cancel
 	 * the change. Emits the `current` event when the cursor moves.
 	 */
-	current(this: Internals, target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: ActionOptions): BasePlaylistItem | undefined | void {
+	item(this: Internals, target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: ActionOptions): BasePlaylistItem | undefined | void {
 		if (target === undefined) {
 			return this._queueList.current();
 		}
@@ -233,7 +233,7 @@ export const queueMethods = {
 
 		// Bump the load epoch so any in-flight load()'s cursor-move continuation
 		// does not overwrite the position we're about to set. Without this,
-		// current(B) called while load(A) is still awaiting the backend would
+		// item(B) called while load(A) is still awaiting the backend would
 		// let load(A) snap the cursor back to A on resolution.
 		this._loadEpoch = (this._loadEpoch ?? 0) + 1;
 
@@ -241,7 +241,7 @@ export const queueMethods = {
 		// bumps _loadEpoch again (race-guard for its own continuation), so
 		// _loadEpoch at the call site is not a stable sentinel for the autoplay
 		// continuation below. _currentEpoch is only ever written here, making it
-		// a reliable "was a newer current() called?" check.
+		// a reliable "was a newer item() called?" check.
 		this._currentEpoch = (this._currentEpoch ?? 0) + 1;
 		const navigationEpoch = this._currentEpoch;
 
@@ -250,8 +250,8 @@ export const queueMethods = {
 		if (this._phase === 'idle' || this._phase === 'disposed' || this._phase === 'disposing')
 			return;
 
-		const item = this._queueList.current();
-		if (!item)
+		const activeItem = this._queueList.current();
+		if (!activeItem)
 			return;
 
 		const doLoad = (): void => {
@@ -285,7 +285,7 @@ export const queueMethods = {
 	 * Return the zero-based index of the currently active item, or `-1` when
 	 * the queue is empty.
 	 */
-	currentIndex(this: Internals): number {
+	index(this: Internals): number {
 		return this._queueList.currentIndex();
 	},
 
@@ -294,7 +294,7 @@ export const queueMethods = {
 	 *
 	 * `seekToIndex(1)` loads the first item, `seekToIndex(queueLength())` loads
 	 * the last. Out-of-range values are silently ignored (no cursor move).
-	 * Fires the same `beforeMutation` / `current` lifecycle as `current(target)`.
+	 * Fires the same `beforeMutation` / `current` lifecycle as `item(target)`.
 	 *
 	 * @throws {RangeError} when `position` is not a positive integer.
 	 */

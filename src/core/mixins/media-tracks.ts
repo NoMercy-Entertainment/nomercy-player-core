@@ -41,13 +41,13 @@ export interface SidecarSubtitleContext {
  * selections, the sidecar subtitle context, and the subtitle style cache.
  */
 export interface MediaTracksState {
-	/** Currently-selected subtitle index, or null when off. Written by `currentSubtitle(idx)`. */
+	/** Currently-selected subtitle index, or null when off. Written by `subtitle(idx)`. */
 	_currentSubtitleIdx: number | null;
 
-	/** Currently-selected audio track index, or null when no explicit selection. Written by `currentAudioTrack(idx)`. */
+	/** Currently-selected audio track index, or null when no explicit selection. Written by `audioTrack(idx)`. */
 	_currentAudioTrackIdx: number | null;
 
-	/** Currently-selected quality index or 'auto'. Written by `currentQuality(idx)`. */
+	/** Currently-selected quality index or 'auto'. Written by `quality(idx)`. */
 	_currentQualityIdx: number | 'auto';
 
 	/** Monotonic counter bumped on each `_resolveAndEmitChapters` call. Stale chapter fetches bail when epoch differs. */
@@ -147,7 +147,7 @@ function _resolveSidecarSubtitle(
 	self: Internals,
 	sidecarIdx: number,
 ): { url?: string; language?: string; label?: string; type?: string } | undefined {
-	const rawCur = self.current?.();
+	const rawCur = self.item?.();
 	const cur: ItemWithDefinedTracks | undefined = rawCur && hasTracksField(rawCur) ? rawCur : undefined;
 	const list = (cur?.tracks ?? []).filter((sidecarTrack: SidecarTrack) => sidecarTrack.kind === 'subtitles');
 	const sidecarTrack = list[sidecarIdx];
@@ -195,7 +195,7 @@ async function _startSidecarSubtitle(
 	}
 
 	// User may have switched tracks mid-fetch; bail if the slot was
-	// (re)populated by a later `currentSubtitle` while we were waiting.
+	// (re)populated by a later `subtitle` while we were waiting.
 	if (self._sidecarSubtitle)
 		return;
 
@@ -253,7 +253,7 @@ function _toSubtitleCue(p: VTTSubtitlePayload): SubtitleCuePayload {
 export const mediaTracksMethods = {
 	/**
 	 * Tear down the active sidecar subtitle tracker (if any) and clear the
-	 * `_sidecarSubtitle` slot. Called on `currentSubtitle(null)` or when
+	 * `_sidecarSubtitle` slot. Called on `subtitle(null)` or when
 	 * switching tracks so the prior cue stream stops emitting.
 	 */
 	_disposeSidecarSubtitle(this: Internals): void {
@@ -357,7 +357,7 @@ export const mediaTracksMethods = {
 	/**
 	 * The full subtitle track list — backend-managed tracks first, sidecar
 	 * VTT tracks appended after. Consumers render one flat list and use the
-	 * returned index with `currentSubtitle(idx)` regardless of origin.
+	 * returned index with `subtitle(idx)` regardless of origin.
 	 *
 	 * Backend-managed tracks come from HLS-in-manifest text tracks (via the
 	 * active backend's `subtitleTracks()`). Sidecar tracks come from the
@@ -380,7 +380,7 @@ export const mediaTracksMethods = {
 		})();
 
 		const fromItem: SubtitleTrack[] = (() => {
-			const rawCur = this.current?.();
+			const rawCur = this.item?.();
 			const cur: ItemWithDefinedTracks | undefined = rawCur && hasTracksField(rawCur) ? rawCur : undefined;
 			const tracks = cur?.tracks ?? [];
 			return tracks
@@ -398,21 +398,21 @@ export const mediaTracksMethods = {
 		})();
 
 		// Backend tracks first so their array positions match the indexes
-		// `currentSubtitle(idx)` writes to `hls.subtitleTrack`; sidecars trail.
+		// `subtitle(idx)` writes to `hls.subtitleTrack`; sidecars trail.
 		return [...fromBackend, ...fromItem];
 	},
 
 	/**
 	 * Read or write the active subtitle track.
 	 *
-	 * `currentSubtitle()` — returns `{ index, track }` for the currently-selected
+	 * `subtitle()` — returns `{ index, track }` for the currently-selected
 	 * subtitle track, or `null` when subtitles are off.
 	 *
-	 * `currentSubtitle(idx)` — select subtitle track at `idx`. Pass `null`
+	 * `subtitle(idx)` — select subtitle track at `idx`. Pass `null`
 	 * (or a negative number) to disable subtitles. Fires the `subtitle` event
 	 * with `{ track: idx | null }`.
 	 */
-	currentSubtitle(this: Internals, idx?: number | null): CurrentSubtitleSelection | null | void {
+	subtitle(this: Internals, idx?: number | null): CurrentSubtitleSelection | null | void {
 		if (idx === undefined) {
 			const storedIdx = this._currentSubtitleIdx;
 			if (storedIdx === null)
@@ -520,7 +520,7 @@ export const mediaTracksMethods = {
 	 * The active backend's audio tracks. Returns an empty list when no
 	 * backend is mounted or the backend doesn't expose multi-track audio
 	 * (audio-only, single-track sources). Use the returned indexes with
-	 * `currentAudioTrack(idx)`.
+	 * `audioTrack(idx)`.
 	 */
 	audioTracks(this: Internals): ReadonlyArray<AudioTrack> {
 		const backend = this._peekBackendTyped<_BackendWithAudioTracks>();
@@ -536,13 +536,13 @@ export const mediaTracksMethods = {
 	/**
 	 * Read or write the active audio track.
 	 *
-	 * `currentAudioTrack()` — returns `{ index, track }` for the currently-selected
+	 * `audioTrack()` — returns `{ index, track }` for the currently-selected
 	 * audio track, or `null` when no explicit selection has been made.
 	 *
-	 * `currentAudioTrack(idx)` — select the audio track at `idx`. Fires the
+	 * `audioTrack(idx)` — select the audio track at `idx`. Fires the
 	 * `audioTrack` event with `{ id: idx }`.
 	 */
-	currentAudioTrack(this: Internals, idx?: number): CurrentAudioTrackSelection | null | void {
+	audioTrack(this: Internals, idx?: number): CurrentAudioTrackSelection | null | void {
 		if (idx === undefined) {
 			const storedIdx = this._currentAudioTrackIdx;
 			if (storedIdx === null)
@@ -594,13 +594,13 @@ export const mediaTracksMethods = {
 	/**
 	 * Read or write the active quality level.
 	 *
-	 * `currentQuality()` — returns `{ index, track }` for the currently-selected
+	 * `quality()` — returns `{ index, track }` for the currently-selected
 	 * quality level, or `'auto'` when adaptive bitrate selection is active.
 	 *
-	 * `currentQuality(idx)` — lock to a specific quality level. Pass
+	 * `quality(idx)` — lock to a specific quality level. Pass
 	 * `'auto'` to restore adaptive selection.
 	 */
-	currentQuality(this: Internals, idx?: number | 'auto'): CurrentQualitySelection | 'auto' | void {
+	quality(this: Internals, idx?: number | 'auto'): CurrentQualitySelection | 'auto' | void {
 		if (idx === undefined) {
 			const storedIdx = this._currentQualityIdx;
 			if (storedIdx === 'auto')
@@ -617,7 +617,7 @@ export const mediaTracksMethods = {
 
 		this._currentQualityIdx = idx;
 
-		// Keep the quality-state token in sync so qualityState() always reflects
+		// Keep the quality-state token in sync so qualityMode() always reflects
 		// whether manual or auto selection is active.
 		this._qualityState = idx === 'auto' ? QualityState.AUTO : QualityState.MANUAL;
 		this.emit('qualityState', { state: this._qualityState });
@@ -636,7 +636,7 @@ export const mediaTracksMethods = {
 	 * event for the ready signal.
 	 */
 	chapters(this: Internals): ReadonlyArray<Chapter> {
-		const rawCurrent = this.current?.();
+		const rawCurrent = this.item?.();
 		const current: ItemWithDefinedTracks | undefined = rawCurrent && hasTracksField(rawCurrent) ? rawCurrent : undefined;
 		return current?.chapters ?? [];
 	},
@@ -644,7 +644,7 @@ export const mediaTracksMethods = {
 	/**
 	 * Seek to the start of the chapter at `idx`. Out-of-range indexes no-op.
 	 * Emits `chapter` with the resolved index and title after the seek is
-	 * dispatched. The underlying `currentTime` call is fire-and-forget — its
+	 * dispatched. The underlying `time` call is fire-and-forget — its
 	 * `seeked` event fires on the correct path regardless of any wired
 	 * `beforeSeek` handler.
 	 */
@@ -654,7 +654,7 @@ export const mediaTracksMethods = {
 		if (!chapter)
 			return;
 
-		const ret = this.currentTime(chapter.start, opts);
+		const ret = this.time(chapter.start, opts);
 		if (ret instanceof Promise)
 			void ret;
 
@@ -712,14 +712,14 @@ export const mediaTracksMethods = {
 	/**
 	 * Read or seek by chapter.
 	 *
-	 * `currentChapter()` — returns the `Chapter` whose time range contains
-	 * `currentTime`, or `null` when no chapter is active (before the first,
-	 * between chapters, or the chapter list is empty).
+	 * `chapter()` — returns the `Chapter` whose time range contains
+	 * the current playback time, or `null` when no chapter is active (before
+	 * the first, between chapters, or the chapter list is empty).
 	 *
-	 * `currentChapter(idx)` — jump to the chapter at `idx` (same as
+	 * `chapter(idx)` — jump to the chapter at `idx` (same as
 	 * `seekToChapter(idx)`). No-op when `idx` is out of range.
 	 */
-	currentChapter(this: Internals, idx?: number): Chapter | null | void {
+	chapter(this: Internals, idx?: number): Chapter | null | void {
 		if (idx === undefined) {
 			const list = this.chapters();
 			if (list.length === 0)

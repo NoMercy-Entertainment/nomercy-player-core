@@ -7,7 +7,7 @@ import { browserPolicyError } from '../../errors';
  * `PlayerCoreState`. Declared here, beside the method that writes it.
  */
 export interface AudioOutputState {
-	/** Currently-selected audio output device id, or null. Written by `currentAudioOutput(deviceId)`. */
+	/** Currently-selected audio output device id, or null. Written by `audioOutput(deviceId)`. */
 	_currentAudioOutputId: string | null;
 }
 
@@ -66,16 +66,16 @@ export const audioOutputMethods = {
 	/**
 	 * Read or write the active audio output device.
 	 *
-	 * `currentAudioOutput()` — returns the current `sinkId` (device id string),
+	 * `audioOutput()` — returns the current `sinkId` (device id string),
 	 * or `null` when using the system default output.
 	 *
-	 * `currentAudioOutput(deviceId)` — route audio to the device with the given
+	 * `audioOutput(deviceId)` — route audio to the device with the given
 	 * id. Calls `HTMLMediaElement.setSinkId(deviceId)` on the backend's media
 	 * element when available. Throws `BrowserPolicyError` when `setSinkId` is
 	 * not supported. Returns a `Promise<void>` that resolves once the switch
 	 * completes.
 	 */
-	async currentAudioOutput(this: Internals, deviceId?: string): Promise<string | null | void> {
+	async audioOutput(this: Internals, deviceId?: string): Promise<string | null | void> {
 		if (deviceId === undefined) {
 			return this._currentAudioOutputId;
 		}

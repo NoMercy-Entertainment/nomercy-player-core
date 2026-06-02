@@ -1,4 +1,14 @@
 /**
+ * ARIA live-region politeness level passed to `player.announce()`.
+ * Maps directly to the `aria-live` attribute values defined in ARIA 1.2.
+ *
+ * - `'polite'`    — screen reader waits for the current utterance to finish.
+ * - `'assertive'` — screen reader interrupts immediately (use sparingly).
+ */
+export type AriaLiveLevel = 'polite' | 'assertive';
+
+
+/**
  * Aggregated time state snapshot returned by `player.timeData()`. All values
  * are in seconds; `percentage` is in the range [0, 100].
  */

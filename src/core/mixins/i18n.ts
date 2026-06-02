@@ -162,6 +162,8 @@ export const i18nMethods = {
 					}
 				}
 			}
+
+			this.emit('language', { lang });
 		})();
 	},
 

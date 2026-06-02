@@ -56,7 +56,7 @@ export interface StateMutatorsState {
  * often to be worth guarding unless the consumer opts in via
  * `setup({ mutationGuards: 'all' })` or names them in a string array.
  */
-export const HOT_MUTATIONS: ReadonlyArray<string> = ['currentTime', 'volume', 'playbackRate', 'bandwidth', 'recordMetric'] as const;
+export const HOT_MUTATIONS: ReadonlyArray<string> = ['time', 'volume', 'playbackRate', 'bandwidth', 'recordMetric'] as const;
 
 /**
  * Decide whether a given mutation method should fire `beforeMutation` based on

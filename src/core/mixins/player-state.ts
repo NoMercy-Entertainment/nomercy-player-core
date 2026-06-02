@@ -219,7 +219,7 @@ export const playerStateMethods = {
 	 * - Called with `'auto'`: switches back to AUTO mode, forwards to
 	 *   `setQuality('auto')`, and emits `qualityState`.
 	 */
-	qualityState(this: Internals, target?: number | 'auto'): QualityState | void {
+	qualityMode(this: Internals, target?: number | 'auto'): QualityState | void {
 		if (target === undefined)
 			return this._qualityState;
 		this._qualityState = target === 'auto' ? QualityState.AUTO : QualityState.MANUAL;
@@ -235,7 +235,7 @@ export const playerStateMethods = {
 	 * - Called with an index: switches to MANUAL mode, forwards the index
 	 *   to the backend's `setAudioTrack()`, and emits `audioTrackState`.
 	 */
-	audioTrackState(this: Internals, idx?: number): AudioTrackState | void {
+	audioTrackMode(this: Internals, idx?: number): AudioTrackState | void {
 		if (idx === undefined)
 			return this._audioTrackState;
 		this._audioTrackState = AudioTrackState.MANUAL;

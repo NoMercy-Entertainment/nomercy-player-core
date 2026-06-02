@@ -113,8 +113,8 @@ export const loadingMethods = {
 			if (!isLatest())
 				return;
 
-			// Move cursor to the loaded item so consumer-facing `current()` reflects it.
-			// Use setCurrent directly — calling this.current() here would re-trigger load().
+			// Move cursor to the loaded item so consumer-facing `item()` reflects it.
+			// Use setCurrent directly — calling this.item() here would re-trigger load().
 			// Guard: skip when the cursor is already at this item to prevent a duplicate `current` event.
 			const alreadyCurrent = this._queueList.current()?.id === item2.id;
 			if (!alreadyCurrent) {
@@ -122,7 +122,7 @@ export const loadingMethods = {
 			}
 
 			if (typeof opts?.startAt === 'number' && opts.startAt > 0) {
-				const ret = this.currentTime(opts.startAt);
+				const ret = this.time(opts.startAt);
 				if (ret instanceof Promise)
 					await ret;
 				if (!isLatest())

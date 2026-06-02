@@ -3,7 +3,7 @@
  *
  * Verifies that:
  *  1. `hasAuth()` returns false when no auth is configured, true after `auth(config)`.
- *  2. `setAuth(null)` clears auth so `hasAuth()` returns false.
+ *  2. `auth(null)` clears auth so `hasAuth()` returns false.
  *  3. `auth()` returns a frozen snapshot — mutations to the returned object do not
  *     affect the internal state.
  *  4. The reactive getter pattern: `bearerToken: () => mutableRef.value` — the
@@ -39,9 +39,8 @@ class AuthMockPlayer extends EventEmitter<BaseEventMap> {
 	declare dispose: () => void;
 	declare phase: () => string;
 	declare dispatching: () => ReadonlyArray<string>;
-	declare auth: { (): Readonly<any> | undefined; (cfg: any): void };
+	declare auth: { (): Readonly<any> | undefined; (cfg: any): void; (clear: null): void };
 	declare hasAuth: () => boolean;
-	declare setAuth: (config: any | null) => void;
 
 	// Stub out the large declare surface so composeMixins doesn't fail.
 	declare baseUrl: any;
@@ -63,7 +62,7 @@ class AuthMockPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: any;
 	declare forward: any;
 	declare restart: any;
-	declare currentTime: any;
+	declare time: any;
 	declare duration: any;
 	declare buffered: any;
 	declare timeData: any;
@@ -93,8 +92,8 @@ class AuthMockPlayer extends EventEmitter<BaseEventMap> {
 	declare peekPrevious: any;
 	declare queueLength: any;
 	declare queueIndexOf: any;
-	declare current: any;
-	declare currentIndex: any;
+	declare item: any;
+	declare index: any;
 	declare backlog: any;
 	declare backlogAppend: any;
 	declare backlogRemove: any;
@@ -143,7 +142,7 @@ describe('auth-lock contract', () => {
 		document.body.innerHTML = '';
 	});
 
-	describe('hasAuth / setAuth', () => {
+	describe('hasAuth / auth(null)', () => {
 		it('hasAuth() returns false when no auth is configured', () => {
 			const player = setupPlayer();
 			expect(player.hasAuth()).toBe(false);
@@ -155,17 +154,17 @@ describe('auth-lock contract', () => {
 			expect(player.hasAuth()).toBe(true);
 		});
 
-		it('setAuth(null) clears auth so hasAuth() returns false', () => {
+		it('auth(null) clears auth so hasAuth() returns false', () => {
 			const player = setupPlayer();
 			player.auth({ bearerToken: 'tok' });
 			expect(player.hasAuth()).toBe(true);
-			player.setAuth(null);
+			player.auth(null);
 			expect(player.hasAuth()).toBe(false);
 		});
 
-		it('setAuth(config) sets auth so hasAuth() returns true', () => {
+		it('auth(config) sets auth so hasAuth() returns true', () => {
 			const player = setupPlayer();
-			player.setAuth({ bearerToken: 'tok2' });
+			player.auth({ bearerToken: 'tok2' });
 			expect(player.hasAuth()).toBe(true);
 		});
 	});

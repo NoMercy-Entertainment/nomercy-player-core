@@ -11,7 +11,7 @@ export interface TimeInternalState {
 	/**
 	 * Last-known current-time position in seconds. Written by `timeMethods`
 	 * on each `time` event from the backend, and by seek operations before the
-	 * backend confirms. Read by `currentTime()`.
+	 * backend confirms. Read by `time()`.
 	 */
 	_internalCurrentTime: number;
 
@@ -54,7 +54,7 @@ export const timeMethods = {
 	 * Negative values are clamped to 0. `opts.source` flows through to the
 	 * `seek` / `seeked` payloads so listeners can attribute the seek origin.
 	 */
-	currentTime(this: Internals, t?: number, opts: ActionOptions = {}): number | Promise<void> {
+	time(this: Internals, t?: number, opts: ActionOptions = {}): number | Promise<void> {
 		if (t === undefined)
 			return this._internalCurrentTime;
 		const target = Math.max(0, t);
@@ -120,7 +120,7 @@ export const timeMethods = {
 	/**
 	 * Snapshot of all time-related state in one call. Useful for consumers
 	 * that need to render a progress bar without individually calling
-	 * `currentTime()`, `duration()`, `buffered()`, and computing the rest.
+	 * `time()`, `duration()`, `buffered()`, and computing the rest.
 	 * All derived values (remaining, percentage) are computed from live
 	 * getters so the snapshot is consistent at the moment of the call.
 	 */
@@ -142,7 +142,7 @@ export const timeMethods = {
 	 *
 	 * `pct` is clamped to [0, 100]. No-op when duration is zero or
 	 * non-finite (metadata not yet loaded). Delegates to
-	 * `currentTime(duration * pct / 100)`, so `beforeSeek` fires and
+	 * `time(duration * pct / 100)`, so `beforeSeek` fires and
 	 * the full seek cycle applies.
 	 */
 	seekByPercentage(this: Internals, pct: number, opts?: ActionOptions): void {
@@ -150,7 +150,7 @@ export const timeMethods = {
 		const duration = this.duration();
 		if (!Number.isFinite(duration) || duration <= 0)
 			return;
-		const ret = this.currentTime(duration * clamped / 100, opts);
+		const ret = this.time(duration * clamped / 100, opts);
 		if (ret instanceof Promise)
 			void ret;
 	},

@@ -6,7 +6,7 @@
  * reaches a downstream library.
  */
 
-import type { BaseEventMap, BasePlaylistItem } from '../types';
+import type { BaseEventMap, BasePlaylistItem, PluginCtorWithId } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,
@@ -49,7 +49,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare experimental: any;
 	declare t: {
 		(key: string, vars?: Record<string, string>): string;
-		(PluginClass: import('../types').PluginCtorWithId, key: string, vars?: Record<string, string>): string;
+		(PluginClass: PluginCtorWithId, key: string, vars?: Record<string, string>): string;
 	};
 
 	declare language: { (): string; (lang: string): Promise<void> };
@@ -67,7 +67,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: any) => Promise<void>;
 	declare forward: (seconds?: number, opts?: any) => Promise<void>;
 	declare restart: (opts?: any) => Promise<void>;
-	declare currentTime: { (): number; (t: number, opts?: any): Promise<void> };
+	declare time: { (): number; (t: number, opts?: any): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => any;
@@ -97,8 +97,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare peekPrevious: () => any;
 	declare queueLength: () => number;
 	declare queueIndexOf: (id: any) => number;
-	declare current: { (): any; (target: any, opts?: any): void };
-	declare currentIndex: () => number;
+	declare item: { (): any; (target: any, opts?: any): void };
+	declare index: () => number;
 	declare backlog: { (): ReadonlyArray<any>; (items: any[]): void };
 	declare backlogAppend: (item: any) => void;
 	declare backlogRemove: (id: any) => void;
@@ -607,29 +607,29 @@ describe('player-core mixins (kit)', () => {
 	// ── Time ──
 
 	describe('time', () => {
-		it('currentTime read defaults to 0', () => {
-			expect(setupPlayer().currentTime()).toBe(0);
+		it('time() read defaults to 0', () => {
+			expect(setupPlayer().time()).toBe(0);
 		});
 
-		it('currentTime(t) round-trips and emits seek', async () => {
+		it('time(t) round-trips and emits seek', async () => {
 			const p = setupPlayer();
 			let seekTime: number | undefined;
 			p.on('seek' as any, (data: any) => {
 				seekTime = data.time;
 			});
-			await p.currentTime(15);
-			expect(p.currentTime()).toBe(15);
+			await p.time(15);
+			expect(p.time()).toBe(15);
 			expect(seekTime).toBe(15);
 		});
 
-		it('currentTime preventDefault leaves the value unchanged', async () => {
+		it('time(t) preventDefault leaves the value unchanged', async () => {
 			const p = setupPlayer();
-			await p.currentTime(7);
+			await p.time(7);
 			p.on('beforeSeek' as any, (e: any) => {
 				e.preventDefault();
 			});
-			await p.currentTime(99);
-			expect(p.currentTime()).toBe(7);
+			await p.time(99);
+			expect(p.time()).toBe(7);
 		});
 
 		it('playbackRate round-trips and emits backend:ratechange', () => {
@@ -645,7 +645,7 @@ describe('player-core mixins (kit)', () => {
 
 		it('timeData returns aggregated TimeState shape', async () => {
 			const p = setupPlayer();
-			await p.currentTime(3);
+			await p.time(3);
 			const data = p.timeData();
 			expect(data.position).toBe(3);
 			expect(data).toHaveProperty('duration');
@@ -797,8 +797,8 @@ describe('player-core mixins (kit)', () => {
 			p.on('current' as any, (data: any) => {
 				payload = data;
 			});
-			p.current('c');
-			expect(p.current()?.id).toBe('c');
+			p.item('c');
+			expect(p.item()?.id).toBe('c');
 			expect(payload?.index).toBe(2);
 		});
 

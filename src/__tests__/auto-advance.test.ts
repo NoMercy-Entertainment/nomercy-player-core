@@ -39,7 +39,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare next: (opts?: any) => Promise<void>;
 	declare previous: (opts?: any) => Promise<void>;
 	declare queue: { (): ReadonlyArray<any>; (items: any[], opts?: any): void };
-	declare current: { (): any; (target: any, opts?: any): void };
+	declare item: { (): any; (target: any, opts?: any): void };
 	declare repeatState: { (): string; (state: any): void };
 	declare load: (item: any, opts?: any) => Promise<void>;
 
@@ -152,7 +152,7 @@ describe('load cursor dedup', () => {
 			currentEvents.push(data);
 		});
 
-		player.current('b', { autoplay: false });
+		player.item('b', { autoplay: false });
 
 		await loadSpy.mock.results[0]?.value;
 		await new Promise(resolve => setTimeout(resolve, 10));

@@ -57,7 +57,7 @@ class RegistryTruthPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare forward: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare restart: (opts?: unknown) => Promise<void>;
-	declare currentTime: { (): number; (t: number, opts?: unknown): Promise<void> };
+	declare time: { (): number; (t: number, opts?: unknown): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare bufferedRanges: () => TimeRanges;
@@ -86,8 +86,8 @@ class RegistryTruthPlayer extends EventEmitter<BaseEventMap> {
 	declare peekPrevious: () => BasePlaylistItem | undefined;
 	declare queueLength: () => number;
 	declare queueIndexOf: (id: string | number) => number;
-	declare current: { (): BasePlaylistItem | undefined; (target: BasePlaylistItem | string | number, opts?: unknown): void };
-	declare currentIndex: () => number;
+	declare item: { (): BasePlaylistItem | undefined; (target: BasePlaylistItem | string | number, opts?: unknown): void };
+	declare index: () => number;
 	declare seekToIndex: (position: number, opts?: unknown) => void;
 	declare backlog: { (): ReadonlyArray<BasePlaylistItem>; (items: BasePlaylistItem[]): void };
 	declare backlogAppend: (item: BasePlaylistItem | BasePlaylistItem[]) => void;

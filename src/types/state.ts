@@ -58,7 +58,7 @@ export enum VisibilityState {
 }
 
 /**
- * Quality / bitrate selection mode. Returned by `player.qualityState()`.
+ * Quality / bitrate selection mode. Returned by `player.qualityMode()`.
  * Transitions from `AUTO` to `MANUAL` when the user or a plugin locks a
  * specific level; back to `AUTO` when they restore adaptive switching.
  */
@@ -70,7 +70,7 @@ export enum QualityState {
 }
 
 /**
- * Audio track selection mode. Returned by `player.audioTrackState()`.
+ * Audio track selection mode. Returned by `player.audioTrackMode()`.
  * Transitions from `DEFAULT` to `MANUAL` once the user or a plugin explicitly
  * selects a track.
  */

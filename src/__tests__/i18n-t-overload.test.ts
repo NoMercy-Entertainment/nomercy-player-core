@@ -7,7 +7,7 @@
  *  - vars are interpolated correctly in both forms
  */
 
-import type { BaseEventMap } from '../types';
+import type { BaseEventMap, PluginCtorWithId, Translations } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,
@@ -30,10 +30,10 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare setup: (config: Record<string, unknown>) => this;
 	declare ready: () => Promise<void>;
 	declare dispose: () => void;
-	declare addTranslations: (bundle: import('../types').Translations) => void;
+	declare addTranslations: (bundle: Translations) => void;
 	declare t: {
 		(key: string, vars?: Record<string, string>): string;
-		(PluginClass: import('../types').PluginCtorWithId, key: string, vars?: Record<string, string>): string;
+		(PluginClass: PluginCtorWithId, key: string, vars?: Record<string, string>): string;
 	};
 
 	constructor(id?: string | number) {

@@ -4,6 +4,7 @@ export type {
 	AuthHeaderValue,
 	BasePlayerConfig,
 	CastConfig,
+	CastTarget,
 	DrmConfig,
 } from './config';
 export type { CueEventPayload, SubtitleCue, SubtitleCueChange } from './cues';
@@ -12,7 +13,7 @@ export type { BaseEventMap, BeforeEvent } from './events';
 export type { PlayerExperimental } from './experimental';
 export type { LogLevel, LogSink } from './log';
 export type { PlaybackMetrics } from './metrics';
-export type { TimeState } from './playback';
+export type { AriaLiveLevel, TimeState } from './playback';
 export type {
 	ActionOptions,
 	ActionSource,

@@ -30,4 +30,7 @@ export {
 } from './leak-harness';
 export type { LeakAssertionResult } from './leak-harness';
 
-export { StubPlayer } from './stub-player';
+export { createStubPlayer, StubPlayer } from './stub-player';
+
+export { mockFetch } from './mock-fetch';
+export type { MockFetch, MockFetchCall, MockFetchResponse } from './mock-fetch';

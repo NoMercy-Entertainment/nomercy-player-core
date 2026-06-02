@@ -1,4 +1,4 @@
-import type { PlaybackMetrics } from '../../types';
+import type { AriaLiveLevel, PlaybackMetrics } from '../../types';
 
 import type { Internals } from '../state';
 
@@ -49,7 +49,7 @@ export const metricsMethods = {
 	 * container with `aria-live="polite"` (or `"assertive"` per the level arg)
 	 * and removes it on the next animation frame so the DOM doesn't grow.
 	 */
-	announce(this: Internals, text: string, level?: 'polite' | 'assertive'): void {
+	announce(this: Internals, text: string, level?: AriaLiveLevel): void {
 		if (typeof document === 'undefined' || !this.container)
 			return;
 		const node = document.createElement('div');

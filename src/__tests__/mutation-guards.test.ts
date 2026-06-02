@@ -3,7 +3,7 @@
  *
  * Spec §C: every state-mutating method (e.g. `current`, `volume`) emits
  * `beforeMutation` with `{ method, args, phase, dispatchStack }`. Hot-path
- * mutations (`volume`, `currentTime`, `playbackRate`, `bandwidth`,
+ * mutations (`volume`, `time`, `playbackRate`, `bandwidth`,
  * `recordMetric`) skip the guard by default; opt in via `mutationGuards`.
  *
  * Mirrors the MockPlayer pattern in `tier1-features.test.ts`.
@@ -42,8 +42,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		(items: any[]): void;
 	};
 
-	declare current: { (): any; (target: any): void };
-	declare currentIndex: () => number;
+	declare item: { (): any; (target: any): void };
+	declare index: () => number;
 
 	constructor(id?: string | number) {
 		super();
@@ -101,7 +101,7 @@ describe('mutationGuards config + beforeMutation event', () => {
 			seen.push(e.data.method);
 		});
 
-		p.current('a');
+		p.item('a');
 		p.volume(0.5);
 
 		expect(seen).toContain('current');
@@ -120,7 +120,7 @@ describe('mutationGuards config + beforeMutation event', () => {
 			seen.push(e.data.method);
 		});
 
-		p.current('a');
+		p.item('a');
 		p.volume(0.5);
 
 		expect(seen).toEqual([]);
@@ -138,7 +138,7 @@ describe('mutationGuards config + beforeMutation event', () => {
 			seen.push(e.data.method);
 		});
 
-		p.current('a');
+		p.item('a');
 		p.volume(0.5);
 
 		expect(seen).toContain('current');
@@ -157,7 +157,7 @@ describe('mutationGuards config + beforeMutation event', () => {
 			seen.push(e.data.method);
 		});
 
-		p.current('a');
+		p.item('a');
 		p.volume(0.5);
 
 		expect(seen).toContain('current');
@@ -184,8 +184,8 @@ describe('mutationGuards config + beforeMutation event', () => {
 		const p = makePlayer('mg-prevent').setup({});
 		await p.ready();
 		seedQueue(p);
-		p.current('a');
-		const before = p.currentIndex();
+		p.item('a');
+		const before = p.index();
 
 		let preventedPayload: { method: string; reason: string } | undefined;
 		p.on('beforeMutation' as any, (e: any) => {
@@ -196,10 +196,10 @@ describe('mutationGuards config + beforeMutation event', () => {
 			preventedPayload = data;
 		});
 
-		p.current('c');
+		p.item('c');
 
 		expect(preventedPayload).toEqual({ method: 'current', reason: 'listener-prevented' });
-		expect(p.currentIndex()).toBe(before);
+		expect(p.index()).toBe(before);
 	});
 
 	it('preventDefault() on volume (mutationGuards:all) cancels the volume change', async () => {

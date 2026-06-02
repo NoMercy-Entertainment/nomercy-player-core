@@ -2,10 +2,17 @@ import type { EventEmitter } from '../adapters/event-bus/default';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { ITransitionStrategy } from '../adapters/preload/default';
 import type {
+	ActionOptions,
 	BaseEventMap,
 	BasePlayerConfig,
 	BasePlaylistItem,
+	Chapter,
+	CurrentAudioTrackSelection,
+	CurrentQualitySelection,
+	CurrentSubtitleSelection,
 	PlayerPhase,
+	PluginCtorWithId,
+	Translations,
 } from '../types';
 import type { AbrState } from './mixins/abr';
 import type { AudioOutputState } from './mixins/audio-output';
@@ -17,7 +24,8 @@ import type { ExperimentalState } from './mixins/experimental';
 import type { I18nState } from './mixins/i18n';
 import type { MediaTracksState, SidecarSubtitleContext } from './mixins/media-tracks';
 import type { MetricsState } from './mixins/metrics';
-import type { PlayerPhaseState } from './mixins/player-state';
+import type { BeforeDispatchOutcome } from './dispatch';
+import type { BackendShape, PlayerPhaseState } from './mixins/player-state';
 import type { PluginRegistrationState } from './mixins/plugin-registration';
 import type { PreloadStrategyState } from './mixins/preload-strategy-mixin';
 import type { QueueState } from './mixins/queue';
@@ -131,10 +139,10 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 
 	// ── Track selection mode (co-written by player-state + media-tracks) ───────
 
-	/** Quality selection mode. Written by `qualityState(target)` and `currentQuality(idx)`. Defaults to `QualityState.AUTO`. */
+	/** Quality selection mode. Written by `qualityMode(target)` and `quality(idx)`. Defaults to `QualityState.AUTO`. */
 	_qualityState: QualityState;
 
-	/** Audio track selection mode. Written by `audioTrackState(idx)` and `currentAudioTrack(idx)`. Defaults to `AudioTrackState.DEFAULT`. */
+	/** Audio track selection mode. Written by `audioTrackMode(idx)` and `audioTrack(idx)`. Defaults to `AudioTrackState.DEFAULT`. */
 	_audioTrackState: AudioTrackState;
 
 	// ── Platform ──────────────────────────────────────────────────────────────
@@ -206,13 +214,17 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
  */
 export interface MixinSurface {
 
-	// playerStateMethods (see mixins/player-state.ts) — backend access + phase + guards
+	// playerStateMethods (see mixins/player-state.ts) — backend access + phase + guards + mode reads
+	qualityMode(): QualityState;
+	qualityMode(target: number | 'auto'): void;
+	audioTrackMode(): AudioTrackState;
+	audioTrackMode(idx: number): void;
 	_transitionPhase(next: PlayerPhase): void;
-	_resolveBackend(): import('./mixins/player-state').BackendShape | undefined;
+	_resolveBackend(): BackendShape | undefined;
 	_peekBackend(): unknown;
 	_peekBackendTyped<S extends object>(): S | undefined;
 	_assertReady(): void;
-	_dispatchBefore<TData>(beforeEvent: string, data: TData): Promise<import('./dispatch').BeforeDispatchOutcome<TData>>;
+	_dispatchBefore<TData>(beforeEvent: string, data: TData): Promise<BeforeDispatchOutcome<TData>>;
 
 	// mediaTracksMethods (see mixins/media-tracks.ts) — sidecar + chapter helpers
 	_disposeSidecarSubtitle(): void;
@@ -225,12 +237,12 @@ export interface MixinSurface {
 	// pluginRegistrationMethods (see mixins/plugin-registration.ts) — lang loaded tracking
 	_pluginLangLoadedSet(): Set<string> | undefined;
 	_markPluginLangLoaded(pluginId: string, lang: string): void;
-	_registerPlugin(ctor: import('../types').PluginCtorWithId, opts: unknown, timeoutMs: number): Promise<void>;
+	_registerPlugin(ctor: PluginCtorWithId, opts: unknown, timeoutMs: number): Promise<void>;
 
 	// transportMethods (see mixins/transport.ts)
 	_seekingTransition(doSeek: () => void): void;
-	play(opts?: import('../types').ActionOptions): Promise<void>;
-	pause(opts?: import('../types').ActionOptions): Promise<void>;
+	play(opts?: ActionOptions): Promise<void>;
+	pause(opts?: ActionOptions): Promise<void>;
 
 	// volumeMethods (see mixins/volume.ts)
 	mute(): void;
@@ -238,32 +250,44 @@ export interface MixinSurface {
 	volume(v?: number): number | void;
 
 	// timeMethods (see mixins/time.ts)
+	time(): number;
+	time(t: number, opts?: ActionOptions): Promise<void>;
 	duration(): number;
 	buffered(): number;
-	seekByPercentage(pct: number, opts?: import('../types').ActionOptions): void;
+	seekByPercentage(pct: number, opts?: ActionOptions): void;
 
 	// queueMethods (see mixins/queue.ts)
-	queue(items?: BasePlaylistItem[], opts?: import('../types').ActionOptions): ReadonlyArray<BasePlaylistItem> | void;
+	queue(items?: BasePlaylistItem[], opts?: ActionOptions): ReadonlyArray<BasePlaylistItem> | void;
 	queueLength(): number;
-	currentIndex(): number;
-	seekToIndex(position: number, opts?: import('../types').ActionOptions): void;
-	next(opts?: import('../types').ActionOptions): Promise<void>;
+	index(): number;
+	seekToIndex(position: number, opts?: ActionOptions): void;
+	next(opts?: ActionOptions): Promise<void>;
 
 	// loadingMethods — per-library mixin; kit transport methods call it cross-mixin
-	load(item: BasePlaylistItem, opts?: import('../types').ActionOptions): Promise<void>;
+	load(item: BasePlaylistItem, opts?: ActionOptions): Promise<void>;
 
 	// mediaTracksMethods (see mixins/media-tracks.ts)
-	chapters(): ReadonlyArray<import('../types').Chapter>;
-	seekToChapter(idx: number, opts?: import('../types').ActionOptions): void;
-	current(target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: import('../types').ActionOptions): BasePlaylistItem | undefined | void;
-	currentTime(): number;
-	currentTime(t: number, opts?: import('../types').ActionOptions): Promise<void>;
+	chapters(): ReadonlyArray<Chapter>;
+	seekToChapter(idx: number, opts?: ActionOptions): void;
+	item(target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: ActionOptions): BasePlaylistItem | undefined | void;
+	subtitle(): CurrentSubtitleSelection | null;
+	subtitle(idx: number | null): void;
+	audioTrack(): CurrentAudioTrackSelection | null;
+	audioTrack(idx: number): void;
+	quality(): CurrentQualitySelection | 'auto';
+	quality(idx: number | 'auto'): void;
+	chapter(): Chapter | null;
+	chapter(idx: number): void;
+
+	// audioOutputMethods (see mixins/audio-output.ts)
+	audioOutput(): Promise<string | null>;
+	audioOutput(deviceId: string): Promise<void>;
 
 	// pluginRegistrationMethods (see mixins/plugin-registration.ts)
 	removePluginById(id: string, opts?: { cascade?: boolean }): void;
 
 	// i18nMethods (see mixins/i18n.ts)
-	addTranslations(bundle: import('../types').Translations): void;
+	addTranslations(bundle: Translations): void;
 	removeTranslations(prefix: string, lang?: string): void;
 
 	// playerCoreMethods (see mixins/player-core.ts) — runtime platform resolution

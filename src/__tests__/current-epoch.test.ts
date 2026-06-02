@@ -43,12 +43,12 @@ class EpochPlayer extends EventEmitter<BaseEventMap> {
 		(items: BasePlaylistItem[]): void;
 	};
 
-	declare current: {
+	declare item: {
 		(): BasePlaylistItem | undefined;
 		(target: string | number | BasePlaylistItem, opts?: { source?: string; autoplay?: boolean }): void;
 	};
 
-	declare currentIndex: () => number;
+	declare index: () => number;
 	declare load: (item: BasePlaylistItem & { url?: string }, opts?: Record<string, unknown>) => Promise<void>;
 
 	constructor(id?: string | number) {
@@ -141,8 +141,8 @@ describe('current() — _currentEpoch autoplay race guard', () => {
 		(player as unknown as { _phase: string })._phase = 'playing';
 
 		// Rapid navigation — ep2 then ep3 before either load resolves.
-		player.current('ep2', { autoplay: true });
-		player.current('ep3', { autoplay: true });
+		player.item('ep2', { autoplay: true });
+		player.item('ep3', { autoplay: true });
 
 		// Resolve ep2 first (stale navigation) then ep3 (winner).
 		loadEp2.resolve();
@@ -167,7 +167,7 @@ describe('current() — _currentEpoch autoplay race guard', () => {
 
 		(player as unknown as { _phase: string })._phase = 'playing';
 
-		player.current('ep1', { autoplay: true });
+		player.item('ep1', { autoplay: true });
 
 		loadDone.resolve();
 		await drainMicrotasks();
@@ -187,7 +187,7 @@ describe('current() — _currentEpoch autoplay race guard', () => {
 
 		(player as unknown as { _phase: string })._phase = 'playing';
 
-		player.current('ep1');
+		player.item('ep1');
 
 		loadDone.resolve();
 		await drainMicrotasks();
@@ -204,16 +204,16 @@ describe('current() — _currentEpoch autoplay race guard', () => {
 
 		// Read call — must not bump epoch.
 		player.queue(items);
-		player.current();
+		player.item();
 		const afterRead = (player as unknown as { _currentEpoch?: number })._currentEpoch;
 		expect(afterRead).toBeUndefined();
 
 		// Write call — must bump epoch.
-		player.current('ep1');
+		player.item('ep1');
 		const afterFirst = (player as unknown as { _currentEpoch?: number })._currentEpoch;
 		expect(afterFirst).toBe(1);
 
-		player.current('ep2');
+		player.item('ep2');
 		const afterSecond = (player as unknown as { _currentEpoch?: number })._currentEpoch;
 		expect(afterSecond).toBe(2);
 	});

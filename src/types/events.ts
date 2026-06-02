@@ -155,6 +155,12 @@ export interface BaseEventMap {
 	'time': { time: number };
 	'dispose': void;
 
+	// ── Language change ───────────────────────────────────────────────────────
+	// Fires after all plugin translation bundles for the new language have
+	// settled. `lang` is the BCP-47 tag passed to `player.language(tag)`.
+
+	'language': { lang: string };
+
 	// ── Volume + mode state ───────────────────────────────────────────────────
 	// Library event maps (MusicEventMap, VideoEventMap) narrow the `state`
 	// typing on `repeat` / `shuffle` with their concrete enum values.
@@ -265,7 +271,7 @@ export interface BaseEventMap {
 	'subtitle': { track: number | null };
 
 	// ── Audio track selection ─────────────────────────────────────────────────
-	// Emitted by `currentAudioTrack(idx)`. `id` follows the kit's
+	// Emitted by `audioTrack(idx)`. `id` follows the kit's
 	// `audioTracks()` index space so consumers don't need to re-resolve.
 
 	'audioTrack': { id: number | null };

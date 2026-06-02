@@ -178,7 +178,6 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	 *
 	 * ```ts
 	 * keyHandler.bind('shift+ArrowLeft', (player) => player.rewind(30));
-	 * keyHandler.bind('f', (player) => player.requestFullscreen?.());
 	 * ```
 	 *
 	 * Registering the same combo again replaces the previous handler. Combo

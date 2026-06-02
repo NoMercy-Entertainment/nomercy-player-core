@@ -26,7 +26,7 @@ export interface QualityLevel {
 	width?: number;
 	/** Human-readable label (e.g. `'1080p'`). */
 	label: string;
-	/** Zero-based index in the manifest's level list. Pass to `currentQuality(idx)`. */
+	/** Zero-based index in the manifest's level list. Pass to `quality(idx)`. */
 	index: number;
 	/**
 	 * Set when `qualityLevels({ includeUnsupported: true })` is called.
@@ -47,7 +47,7 @@ export interface QualityLevel {
  * active backend from the manifest's audio rendition list.
  */
 export interface AudioTrack {
-	/** Stable track identifier within this manifest. Pass to `currentAudioTrack(id)`. */
+	/** Stable track identifier within this manifest. Pass to `audioTrack(id)`. */
 	id: string;
 	/** BCP-47 language tag, if the manifest provides one (e.g. `'en'`, `'nl-NL'`). */
 	language?: string;
@@ -65,7 +65,7 @@ export interface AudioTrack {
  * any sidecar tracks the consumer registered on the playlist item.
  */
 export interface SubtitleTrack {
-	/** Stable track identifier within this manifest. Pass to `currentSubtitle(id)`. */
+	/** Stable track identifier within this manifest. Pass to `subtitle(id)`. */
 	id: string;
 	/** BCP-47 language tag, if provided (e.g. `'en'`, `'nl-NL'`). */
 	language?: string;
@@ -86,8 +86,8 @@ export interface SubtitleTrack {
 }
 
 /**
- * Selection object returned by `player.currentSubtitle()`. Carries both the
- * zero-based index (usable in `currentSubtitle(idx)`) and the full track
+ * Selection object returned by `player.subtitle()`. Carries both the
+ * zero-based index (usable in `subtitle(idx)`) and the full track
  * metadata so callers don't need a separate `player.subtitles()[idx]` lookup.
  * `null` when subtitles are off.
  */
@@ -99,7 +99,7 @@ export interface CurrentSubtitleSelection {
 }
 
 /**
- * Selection object returned by `player.currentAudioTrack()`. Carries both the
+ * Selection object returned by `player.audioTrack()`. Carries both the
  * zero-based index and the full track metadata.
  * `null` when no explicit selection has been made.
  */
@@ -111,7 +111,7 @@ export interface CurrentAudioTrackSelection {
 }
 
 /**
- * Selection object returned by `player.currentQuality()`. Carries both the
+ * Selection object returned by `player.quality()`. Carries both the
  * level index and the full quality-level metadata.
  * `'auto'` when adaptive bitrate selection is active.
  */

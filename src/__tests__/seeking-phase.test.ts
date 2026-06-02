@@ -1,7 +1,7 @@
 /**
  * Locks the `seeking` phase round-trip per spec §D.
  *
- * Every seek action — `currentTime(t)`, `rewind`, `forward`, `restart` — must
+ * Every seek action — `time(t)`, `rewind`, `forward`, `restart` — must
  * transition `priorPhase → seeking → priorPhase` when the prior phase is one of
  * `playing` / `paused` / `starting`. Seeks during `ready` (pre-play) skip the
  * round-trip. `beforeSeek.preventDefault()` cancels both the seek AND the phase
@@ -34,7 +34,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare phase: () => string;
 	declare play: (opts?: any) => Promise<void>;
 	declare pause: (opts?: any) => Promise<void>;
-	declare currentTime: { (): number; (t: number, opts?: any): Promise<void> };
+	declare time: { (): number; (t: number, opts?: any): Promise<void> };
 	declare rewind: (s?: number, opts?: any) => Promise<void>;
 	declare forward: (s?: number, opts?: any) => Promise<void>;
 	declare restart: (opts?: any) => Promise<void>;
@@ -85,7 +85,7 @@ describe('seeking phase round-trip (spec §D)', () => {
 
 	// ── 1. paused → seeking → paused ──
 
-	it('currentTime(t) from paused: [paused→seeking, seeking→paused]', async () => {
+	it('time(t) from paused: [paused→seeking, seeking→paused]', async () => {
 		const p = makePlayer('sp-paused').setup({});
 		await p.ready();
 		await p.play();
@@ -93,7 +93,7 @@ describe('seeking phase round-trip (spec §D)', () => {
 		expect(p.phase()).toBe('paused');
 
 		const trace = phaseTrace(p);
-		await (p as any).currentTime(10);
+		await (p as any).time(10);
 
 		expect(trace).toEqual([
 			{ from: 'paused', to: 'seeking' },
@@ -106,7 +106,7 @@ describe('seeking phase round-trip (spec §D)', () => {
 	// directly set the internal field to simulate a backend that has begun
 	// rendering. This mirrors what a backend would do via _transitionPhase.
 
-	it('currentTime(t) from playing: [playing→seeking, seeking→playing]', async () => {
+	it('time(t) from playing: [playing→seeking, seeking→playing]', async () => {
 		const p = makePlayer('sp-playing').setup({});
 		await p.ready();
 		await p.play();
@@ -114,7 +114,7 @@ describe('seeking phase round-trip (spec §D)', () => {
 		(p as any)._phase = 'playing';
 
 		const trace = phaseTrace(p);
-		await (p as any).currentTime(10);
+		await (p as any).time(10);
 
 		expect(trace).toEqual([
 			{ from: 'playing', to: 'seeking' },
@@ -124,14 +124,14 @@ describe('seeking phase round-trip (spec §D)', () => {
 
 	// ── 3. starting → seeking → starting ──
 
-	it('currentTime(t) from starting: [starting→seeking, seeking→starting]', async () => {
+	it('time(t) from starting: [starting→seeking, seeking→starting]', async () => {
 		const p = makePlayer('sp-starting').setup({});
 		await p.ready();
 		await p.play();
 		expect(p.phase()).toBe('starting');
 
 		const trace = phaseTrace(p);
-		await (p as any).currentTime(10);
+		await (p as any).time(10);
 
 		expect(trace).toEqual([
 			{ from: 'starting', to: 'seeking' },
@@ -141,13 +141,13 @@ describe('seeking phase round-trip (spec §D)', () => {
 
 	// ── 4. ready → no phase event ──
 
-	it('currentTime(t) from ready: NO phase event (skip the round-trip)', async () => {
+	it('time(t) from ready: NO phase event (skip the round-trip)', async () => {
 		const p = makePlayer('sp-ready').setup({});
 		await p.ready();
 		expect(p.phase()).toBe('ready');
 
 		const trace = phaseTrace(p);
-		await (p as any).currentTime(10);
+		await (p as any).time(10);
 
 		expect(trace).toEqual([]);
 	});
@@ -213,7 +213,7 @@ describe('seeking phase round-trip (spec §D)', () => {
 		});
 
 		const trace = phaseTrace(p);
-		await (p as any).currentTime(10);
+		await (p as any).time(10);
 
 		expect(trace).toEqual([]);
 		expect(p.phase()).toBe('paused');

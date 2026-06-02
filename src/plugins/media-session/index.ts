@@ -61,7 +61,7 @@ type Action
  * Bluetooth remote controls, and OS Now Playing widgets.
  *
  * **What it wires automatically on `use()`:**
- * - `current` → calls `getMetadata(item)` and pushes the result to the OS.
+ * - `current` item event → calls `getMetadata(item)` and pushes the result to the OS.
  * - `play` / `pause` / `ended` → updates `navigator.mediaSession.playbackState`.
  * - `time` + `seek` → calls `setPositionState` so the lock-screen scrubber
  *   tracks the current position.
@@ -402,7 +402,7 @@ export class MediaSessionPlugin<
 	 *
 	 * `seekbackward` / `seekforward` use `details.seekOffset` when provided by
 	 * the browser, falling back to `5` seconds. `seekto` passes `details.seekTime`
-	 * directly to the player's `currentTime` setter.
+	 * directly to the player's `time` setter.
 	 */
 	protected addSeekActions(): void {
 		this.registerAction('seekbackward', (details: MediaSessionActionDetails) => {
@@ -417,9 +417,9 @@ export class MediaSessionPlugin<
 			const time = details?.seekTime;
 			if (typeof time !== 'number')
 				return;
-			if (typeof this.player.currentTime === 'function') {
+			if (typeof this.player.time === 'function') {
 				try {
-					this.player.currentTime(time);
+					this.player.time(time);
 				}
 				catch {
 					// Player may not support the setter form — drop silently.

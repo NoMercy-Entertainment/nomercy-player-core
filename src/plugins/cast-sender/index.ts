@@ -178,9 +178,9 @@ export class CastSenderPlugin<
 	 * typed boundary for that access.
 	 */
 	private _readCurrentItem(): TItem | undefined {
-		const playerWithCurrent = this.player as unknown as { current?: () => TItem | undefined };
-		return typeof playerWithCurrent.current === 'function'
-			? playerWithCurrent.current()
+		const playerWithCurrent = this.player as unknown as { item?: () => TItem | undefined };
+		return typeof playerWithCurrent.item === 'function'
+			? playerWithCurrent.item()
 			: undefined;
 	}
 
@@ -485,8 +485,8 @@ export class CastSenderPlugin<
 
 		if (resume) {
 			try {
-				if (typeof this.player.currentTime === 'function' && lastTime > 0) {
-					this.player.currentTime(lastTime, { source: 'cast' });
+				if (typeof this.player.time === 'function' && lastTime > 0) {
+					this.player.time(lastTime, { source: 'cast' });
 				}
 				if (wasPaused)
 					void this.player.pause?.({ source: 'cast' });

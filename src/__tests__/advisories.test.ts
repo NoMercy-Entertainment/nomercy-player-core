@@ -40,6 +40,10 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	};
 
 	declare current: (target: any) => void;
+	declare item: {
+		(): any;
+		(target: any, opts?: any): void;
+	};
 
 	constructor(id?: string | number) {
 		super();
@@ -95,7 +99,7 @@ describe('static advisories — declarative phase-aware advisories', () => {
 		const warnings: any[] = [];
 		p.on('warning' as any, (data: any) => warnings.push(data));
 
-		p.current(0);
+		p.item(0);
 
 		expect(warnings.length).toBe(1);
 		expect(warnings[0].error.code).toBe('plugin:advisor/cursor-mutation');
@@ -122,12 +126,12 @@ describe('static advisories — declarative phase-aware advisories', () => {
 		p.on('warning' as any, (data: any) => warnings.push(data));
 
 		// Phase is 'ready', not 'playing' — advisory should NOT fire.
-		p.current(0);
+		p.item(0);
 		expect(warnings.length).toBe(0);
 
 		// Force phase to 'playing' to prove the constraint.
 		(p as any)._phase = 'playing';
-		p.current(0);
+		p.item(0);
 		expect(warnings.length).toBe(1);
 	});
 
@@ -152,7 +156,7 @@ describe('static advisories — declarative phase-aware advisories', () => {
 		p.on('info' as any, (d: any) => infos.push(d));
 		p.on('error' as any, (d: any) => errors.push(d));
 
-		p.current(0);
+		p.item(0);
 
 		expect(infos.length).toBe(1);
 		expect(infos[0].error.code).toBe('plugin:multi-sev/info-reason');
@@ -180,7 +184,7 @@ describe('static advisories — declarative phase-aware advisories', () => {
 
 		// Disable, then mutate — advisory should NOT fire.
 		(p as any).getPluginById('disabled-advisor').disable();
-		p.current(0);
+		p.item(0);
 		expect(warnings.length).toBe(0);
 	});
 
@@ -206,13 +210,13 @@ describe('static advisories — declarative phase-aware advisories', () => {
 		p.on('warning' as any, (data: any) => warnings.push(data));
 
 		// No event in flight — advisory does NOT fire.
-		p.current(0);
+		p.item(0);
 		expect(warnings.length).toBe(0);
 
 		// Simulate `beforePlay` in flight via push/pop instance methods.
 		(p as any).pushDispatch('beforePlay');
 		try {
-			p.current(0);
+			p.item(0);
 		}
 		finally {
 			(p as any).popDispatch();

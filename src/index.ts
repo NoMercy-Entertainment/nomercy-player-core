@@ -48,6 +48,7 @@ export {
 	GaplessTransitionStrategy,
 } from './adapters/preload/default';
 export type {
+	CrossfadeCurve,
 	IPreloadStrategy,
 	ITransitionBackend,
 	ITransitionStrategy,
@@ -217,6 +218,7 @@ export type { VisualizationFrame, VisualizationOptions } from './plugins/visuali
 export type {
 	ActionOptions,
 	ActionSource,
+	AriaLiveLevel,
 	AudioTrack,
 	AuthConfig,
 	AuthHeaderValue,
@@ -225,6 +227,8 @@ export type {
 	BasePlaylistItem,
 	BeforeEvent,
 	CanPlayResult,
+	CastConfig,
+	CastTarget,
 	Chapter,
 	CueEventPayload,
 	CurrentAudioTrackSelection,
@@ -233,6 +237,7 @@ export type {
 	DeviceCapabilities,
 	DrmConfig,
 	IPlayer,
+	IPlayerBackend,
 	IUrlResolver,
 	LoadOptions,
 	LogLevel,
@@ -256,6 +261,7 @@ export type {
 	Translations,
 	UrlCategory,
 	UrlResolverContext,
+	WithCurrentItem,
 } from './types';
 export {
 	AudioTrackState,

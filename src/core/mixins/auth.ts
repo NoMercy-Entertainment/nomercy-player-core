@@ -39,12 +39,19 @@ export const authMethods = {
 	 *
 	 * `auth(partial)` — shallow-merge updates onto the current auth config;
 	 * fields not specified are retained. Emits `auth:refreshed`.
+	 *
+	 * `auth(null)` — clear the auth config entirely. Emits `auth:refreshed`.
 	 */
-	auth(this: Internals, configOrPartial?: AuthConfig | Partial<AuthConfig>): Readonly<AuthConfig> | undefined | void {
+	auth(this: Internals, configOrPartial?: AuthConfig | Partial<AuthConfig> | null): Readonly<AuthConfig> | undefined | void {
 		if (configOrPartial === undefined) {
 			if (!this._authConfig)
 				return undefined;
 			return Object.freeze({ ...this._authConfig });
+		}
+		if (configOrPartial === null) {
+			this._authConfig = undefined;
+			this.emit('auth:refreshed', { tokenAcquiredAt: Date.now() });
+			return;
 		}
 		const next: AuthConfig = {
 			...(this._authConfig ?? {}),
@@ -57,16 +64,6 @@ export const authMethods = {
 	/** Returns `true` when an auth config is present, `false` otherwise. Does not expose the token. */
 	hasAuth(this: Internals): boolean {
 		return this._authConfig !== undefined;
-	},
-
-	/**
-	 * Replace the active auth config wholesale, or pass `null` to clear it.
-	 * Emits `auth:refreshed` so listeners re-resolve. Prefer `auth(config)` for
-	 * partial updates; use `setAuth` when you need an explicit `null` clear.
-	 */
-	setAuth(this: Internals, config: AuthConfig | null): void {
-		this._authConfig = config ?? undefined;
-		this.emit('auth:refreshed', { tokenAcquiredAt: Date.now() });
 	},
 
 	/**

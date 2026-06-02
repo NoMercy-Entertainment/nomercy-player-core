@@ -12,7 +12,7 @@
  * away in one pass.
  */
 
-import type { BaseEventMap, Translations } from '../types';
+import type { BaseEventMap, PluginCtorWithId, Translations } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	composeMixins,
@@ -40,7 +40,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare removePlugin: (PluginClass: any) => void;
 	declare t: {
 		(key: string, vars?: Record<string, string>): string;
-		(PluginClass: import('../types').PluginCtorWithId, key: string, vars?: Record<string, string>): string;
+		(PluginClass: PluginCtorWithId, key: string, vars?: Record<string, string>): string;
 	};
 
 	declare language: (lang: string) => Promise<void>;

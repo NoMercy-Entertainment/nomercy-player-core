@@ -241,6 +241,16 @@ export class DefaultPreloadStrategy implements IPreloadStrategy {
 // ─── CrossfadeTransitionStrategy ─────────────────────────────────────────────
 
 /**
+ * Volume-gain curve applied during a crossfade transition.
+ *
+ * - `'linear'`      — simple linear ramp; mirrors v1 behaviour.
+ * - `'equal-power'` — cosine-based constant-power fade; perceptually smoother,
+ *                     avoids the volume dip at the midpoint of a linear cross.
+ */
+export type CrossfadeCurve = 'linear' | 'equal-power';
+
+
+/**
  * Crossfade transition: outgoing fades to silence while incoming fades in over
  * the overlap window (`leadSeconds` before end + `tailSeconds` after incoming start).
  *
@@ -254,9 +264,9 @@ export class DefaultPreloadStrategy implements IPreloadStrategy {
 export class CrossfadeTransitionStrategy implements ITransitionStrategy {
 	private readonly _leadSeconds: number;
 	private readonly _tailSeconds: number;
-	private readonly _curve: 'linear' | 'equal-power';
+	private readonly _curve: CrossfadeCurve;
 
-	constructor(opts: { leadSeconds?: number; tailSeconds?: number; curve?: 'linear' | 'equal-power' } = {}) {
+	constructor(opts: { leadSeconds?: number; tailSeconds?: number; curve?: CrossfadeCurve } = {}) {
 		this._leadSeconds = opts.leadSeconds ?? 3;
 		this._tailSeconds = opts.tailSeconds ?? 3;
 		this._curve = opts.curve ?? 'equal-power';

@@ -1,6 +1,7 @@
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { ILogger } from '../adapters/logger/ILogger';
 import type { IPlatform } from '../adapters/platform/browser';
+import type { IPreloadStrategy, ITransitionStrategy } from '../adapters/preload/default';
 import type { RealtimeFactory } from '../adapters/realtime/IRealtimeChannel';
 import type { IStorage } from '../adapters/storage/IStorage';
 import type { ITranslator } from '../adapters/translator/translator';
@@ -93,6 +94,16 @@ export interface DrmConfig {
 	/** Optional per-request signing override — same contract as `AuthConfig.signRequest`. */
 	customSignRequest?: (request: Request) => Request | Promise<Request>;
 }
+
+/**
+ * The set of playback targets accepted by `transferTo()`.
+ *
+ *  - `'cast'` — Google Cast / Chromecast. Requires the Cast Web Sender SDK.
+ *  - `'airplay'` — Safari / WebKit AirPlay picker. Opens on the bound `<video>` element.
+ *  - `'remote-playback'` — W3C RemotePlayback API (Chrome desktop / Android).
+ *  - `'local'` — Return playback to the local element (end an active cast/handoff session).
+ */
+export type CastTarget = 'cast' | 'airplay' | 'remote-playback' | 'local';
 
 /**
  * Cast / Chromecast configuration for `transferTo('cast')`. All fields
@@ -291,7 +302,7 @@ export interface BasePlayerConfig {
 	 *
 	 *  - `false` — disable entirely. Fastest path, no advisory checking.
 	 *  - `'all'` — guard every mutating method including hot-path ones
-	 *    (`currentTime`, `volume`, `playbackRate`, etc.). Use for dev/debug.
+	 *    (`time`, `volume`, `playbackRate`, etc.). Use for dev/debug.
 	 *  - `string[]` — guard only the named hot methods, in addition to the
 	 *    always-on normal-mutation list.
 	 *  - `undefined` (default) — guard only normal mutations
@@ -354,14 +365,14 @@ export interface BasePlayerConfig {
 	 * The strategy is stateless — a single instance is reused across items.
 	 * Call `strategy.cancel()` before navigating away if you hold a reference.
 	 */
-	preloadStrategy?: import('../adapters/preload/default').IPreloadStrategy;
+	preloadStrategy?: IPreloadStrategy;
 
 	/**
 	 * Custom transition strategy. When supplied, replaces the per-library default
 	 * (`CrossfadeTransitionStrategy` for music, `GaplessTransitionStrategy` for
 	 * video). Inject this to implement custom fades, cuts, or creative transitions.
 	 */
-	transitionStrategy?: import('../adapters/preload/default').ITransitionStrategy;
+	transitionStrategy?: ITransitionStrategy;
 
 	/**
 	 * Attach the player instance to `window.player` for console debugging.

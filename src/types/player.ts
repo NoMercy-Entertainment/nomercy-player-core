@@ -1,25 +1,42 @@
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { AddClasses, CreateElement } from '../adapters/element-factory';
 import type { IPlatform } from '../adapters/platform/browser';
+import type { IStreamFactory } from '../adapters/stream/IStreamSource';
 import type { DispatchTarget } from '../core/dispatch';
+import type { Plugin } from '../core/plugin';
 
 import type { Chapter } from './chapter';
 import type { AuthConfig } from './config';
 import type { BaseEventMap } from './events';
 import type { PlayerExperimental } from './experimental';
+import type { PlaybackMetrics } from './metrics';
+import type { AriaLiveLevel, TimeState } from './playback';
 import type { BasePlaylistItem } from './playlist';
 import type { PluginCtorWithId } from './plugin';
 import type {
 	AudioTrackState,
 	BufferState,
+	CastState,
 	NetworkState,
 	QualityState,
 	SetupState,
 	VisibilityState,
 } from './state';
-import type { CurrentAudioTrackSelection, CurrentQualitySelection, CurrentSubtitleSelection } from './tracks';
+import type { DeviceCapabilities } from './device';
+import type {
+	AudioTrack,
+	CanPlayResult,
+	CurrentAudioTrackSelection,
+	CurrentQualitySelection,
+	CurrentSubtitleSelection,
+	QualityLevel,
+	SubtitleTrack,
+} from './tracks';
 import type { Translations } from './translations';
+import type { CastTarget } from './config';
 import type { IUrlResolver, ResolvedUrl, UrlCategory } from './url';
+import type { RepeatStateToken, ShuffleStateToken } from '../core/mixins/state-mutators';
+import type { PlayStateToken, VolumeStateToken } from '../core/state';
 
 /**
  * Minimal backend shape the kit and kit plugins depend on. Both `IAudioBackend`
@@ -46,7 +63,7 @@ export interface IPlayerBackend {
 }
 
 /**
- * Capability interface for players that expose a `current()` item accessor.
+ * Capability interface for players that expose an `item()` cursor accessor.
  *
  * `IPlayer<E>` is intentionally item-type-agnostic so the kit compiles without
  * per-library knowledge. Plugins that need to read the active playlist item
@@ -56,15 +73,28 @@ export interface IPlayerBackend {
  * class MyPlugin<
  *   P extends IPlayer<BaseEventMap> & WithCurrentItem<MyItem>,
  *   I extends MyItem = MyItem,
- * > extends Plugin<P, ...> { ... }
+ * > extends Plugin<P, BaseEventMap, MyItem> {
+ *   onPlay(): void {
+ *     const activeItem = this.player.item(); // typed as MyItem
+ *   }
+ * }
  * ```
  *
  * Both `NMMusicPlayer<T>` and `NMVideoPlayer<T>` satisfy `WithCurrentItem<T>`
- * structurally — no `implements` required.
+ * structurally — no `implements` required. Plugins that do NOT need item access
+ * should omit the constraint and type against plain `IPlayer<E>`.
  */
 export interface WithCurrentItem<T extends BasePlaylistItem = BasePlaylistItem> {
 	/** Returns the active playlist item, or `undefined` when no item is loaded. */
-	current(): T | undefined;
+	item(): T | undefined;
+
+	/**
+	 * Moves the queue cursor to `target` (item reference, string id, numeric
+	 * index, or a predicate) and begins loading the resolved item.  Fires
+	 * `beforeMutation` so advisory plugins can cancel the navigation.  Emits
+	 * the `current` event when the cursor moves.
+	 */
+	item(target: T | string | number | ((candidate: T) => boolean), opts?: ActionOptions): void;
 }
 
 export const ACTION_SOURCE = {
@@ -254,16 +284,34 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap>
 	/** The root `<div>` element the player was mounted into. */
 	readonly container: HTMLElement;
 
-	/** Subscribe to an event by name. The handler receives the typed payload. */
+	/** Subscribe to a typed event by name. The handler receives the narrowed payload. */
 	on<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
-	/** Unsubscribe a previously-registered handler. */
+	/**
+	 * Subscribe to a plugin event by its full string name (`plugin:<id>:<event>`).
+	 * The kit cannot know plugin payload shapes, so the handler receives `any`.
+	 * Consumers use this form; plugins emit via `this.emit` on the plugin instance.
+	 */
+	on(event: string, fn: (data: any) => void): void;
+
+	/** Unsubscribe a previously-registered typed handler. */
 	off<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
-	/** Subscribe for a single firing then automatically unsubscribe. */
+	/** Unsubscribe all handlers for a string-keyed event (plugin events). */
+	off(event: string, fn?: (data: any) => void): void;
+
+	/** Subscribe for a single typed firing then automatically unsubscribe. */
 	once<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
-	/** Emit an event, invoking all registered handlers synchronously. */
+	/** Subscribe once for a string-keyed event (plugin events). */
+	once(event: string, fn: (data: any) => void): void;
+
+	/** Emit a typed event, invoking all registered handlers synchronously. */
 	emit<K extends keyof E>(event: K, data?: E[K]): void;
-	/** `true` when at least one handler is registered for `event`. */
+	/** Emit a string-keyed event (used internally by the plugin runtime). */
+	emit(event: string, data?: unknown): void;
+
+	/** `true` when at least one handler is registered for the typed event. */
 	hasListeners<K extends keyof E>(event: K): boolean;
+	/** `true` when at least one handler is registered for a string-keyed event. */
+	hasListeners(event: string): boolean;
 
 	/**
 	 * Runtime base URL. Read with no args; write with a string. Mirrors
@@ -420,37 +468,39 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap>
 	 * `auth()` — frozen snapshot of the current config, or `undefined`.
 	 * `auth(config)` — replace wholesale; emits `auth:refreshed`.
 	 * `auth(partial)` — shallow-merge; emits `auth:refreshed`.
+	 * `auth(null)` — clear the auth config; emits `auth:refreshed`.
 	 */
 	auth(): Readonly<AuthConfig> | undefined;
 	auth(config: AuthConfig): void;
 	auth(partial: Partial<AuthConfig>): void;
+	auth(clear: null): void;
 
 	/**
 	 * Read or write the active subtitle track.
 	 *
-	 * `currentSubtitle()` — `{ index, track }` of the selected track, or `null` when off.
-	 * `currentSubtitle(idx)` — select track; pass `null` to disable. Fires `subtitle`.
+	 * `subtitle()` — `{ index, track }` of the selected track, or `null` when off.
+	 * `subtitle(idx)` — select track; pass `null` to disable. Fires `subtitle`.
 	 */
-	currentSubtitle(): CurrentSubtitleSelection | null;
-	currentSubtitle(idx: number | null): void;
+	subtitle(): CurrentSubtitleSelection | null;
+	subtitle(idx: number | null): void;
 
 	/**
 	 * Read or write the active audio track.
 	 *
-	 * `currentAudioTrack()` — `{ index, track }` of the selected track, or `null` when unset.
-	 * `currentAudioTrack(idx)` — select track. Fires `audioTrack`.
+	 * `audioTrack()` — `{ index, track }` of the selected track, or `null` when unset.
+	 * `audioTrack(idx)` — select track. Fires `audioTrack`.
 	 */
-	currentAudioTrack(): CurrentAudioTrackSelection | null;
-	currentAudioTrack(idx: number): void;
+	audioTrack(): CurrentAudioTrackSelection | null;
+	audioTrack(idx: number): void;
 
 	/**
 	 * Read or write the active quality level.
 	 *
-	 * `currentQuality()` — `{ index, level }` of selected quality, or `'auto'` for ABR.
-	 * `currentQuality(idx)` — lock to a level or pass `'auto'` to restore ABR.
+	 * `quality()` — `{ index, track }` of selected quality, or `'auto'` for ABR.
+	 * `quality(idx)` — lock to a level or pass `'auto'` to restore ABR.
 	 */
-	currentQuality(): CurrentQualitySelection | 'auto';
-	currentQuality(idx: number | 'auto'): void;
+	quality(): CurrentQualitySelection | 'auto';
+	quality(idx: number | 'auto'): void;
 
 	/**
 	 * The chapter list for the active item. Returns `[]` when no item is
@@ -463,29 +513,29 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap>
 	/**
 	 * Read or seek by chapter.
 	 *
-	 * `currentChapter()` — the `Chapter` whose range contains `currentTime`,
+	 * `chapter()` — the `Chapter` whose range contains the current position,
 	 * or `null` when none is active.
 	 *
-	 * `currentChapter(idx)` — jump to that chapter (same as `seekToChapter(idx)`).
+	 * `chapter(idx)` — jump to that chapter (same as `seekToChapter(idx)`).
 	 */
-	currentChapter(): Chapter | null;
-	currentChapter(idx: number): void;
+	chapter(): Chapter | null;
+	chapter(idx: number): void;
 
 	/**
 	 * Read or write the active audio output device.
 	 *
-	 * `currentAudioOutput()` — current `sinkId`, or `null` for system default.
-	 * `currentAudioOutput(deviceId)` — route audio to `deviceId` via `setSinkId`.
+	 * `audioOutput()` — current `sinkId`, or `null` for system default.
+	 * `audioOutput(deviceId)` — route audio to `deviceId` via `setSinkId`.
 	 * Returns `Promise<void>`. Throws `BrowserPolicyError` when unsupported.
 	 */
-	currentAudioOutput(): Promise<string | null>;
-	currentAudioOutput(deviceId: string): Promise<void>;
+	audioOutput(): Promise<string | null>;
+	audioOutput(deviceId: string): Promise<void>;
 
 	/**
 	 * Seek to a position expressed as a percentage of the total duration.
 	 *
 	 * `pct` is clamped to [0, 100]. No-op when duration is not yet known
-	 * (zero or non-finite). Delegates to `currentTime(duration * pct / 100)`.
+	 * (zero or non-finite). Delegates to `time(duration * pct / 100)`.
 	 */
 	seekByPercentage(pct: number, opts?: ActionOptions): void;
 
@@ -516,20 +566,20 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap>
 	/**
 	 * Quality selection mode.
 	 *
-	 * `qualityState()` — `QualityState.AUTO` (ABR) or `QualityState.MANUAL`.
-	 * `qualityState(target)` — switch mode and delegate to the backend.
+	 * `qualityMode()` — `QualityState.AUTO` (ABR) or `QualityState.MANUAL`.
+	 * `qualityMode(target)` — switch mode and delegate to the backend.
 	 */
-	qualityState(): QualityState;
-	qualityState(target: number | 'auto'): void;
+	qualityMode(): QualityState;
+	qualityMode(target: number | 'auto'): void;
 
 	/**
 	 * Audio track selection mode.
 	 *
-	 * `audioTrackState()` — `AudioTrackState.DEFAULT` or `AudioTrackState.MANUAL`.
-	 * `audioTrackState(idx)` — select track by index and mark as MANUAL.
+	 * `audioTrackMode()` — `AudioTrackState.DEFAULT` or `AudioTrackState.MANUAL`.
+	 * `audioTrackMode(idx)` — select track by index and mark as MANUAL.
 	 */
-	audioTrackState(): AudioTrackState;
-	audioTrackState(idx: number): void;
+	audioTrackMode(): AudioTrackState;
+	audioTrackMode(idx: number): void;
 
 	/**
 	 * DOM construction helpers — fluent builders re-exposed on the player so
@@ -556,70 +606,399 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap>
 	 */
 	getPluginById<P extends object = object>(id: string): P | undefined;
 
-	// ── Transport — shared by both NMMusicPlayer and NMVideoPlayer ──
+	/**
+	 * Snapshot of current playback metrics. Spreads the running counters tracked
+	 * by the backend (`ttfb`, `avgBitrate`, `droppedFrames`, ...) and appends a
+	 * live `sessionDurationMs` derived from when the current item started.
+	 *
+	 * The same shape is emitted periodically as the `'playback:metrics'` event.
+	 * Use the event for continuous monitoring; call `metrics()` for a one-shot
+	 * snapshot (e.g. on `ended` for session telemetry).
+	 */
+	metrics(): PlaybackMetrics;
+
+	// ── Lifecycle ──
+
+	/**
+	 * Configure the player and start the async setup pipeline. Returns the
+	 * player for chaining. Throws `core:lifecycle/already-setup` on re-entry.
+	 */
+	setup(config: Record<string, unknown>): this;
+
+	/** Promise that resolves when the setup pipeline reaches `ready`. */
+	ready(): Promise<void>;
+
+	/**
+	 * Tear down the player. Idempotent — a second call is a no-op. After this
+	 * the instance is permanently dead.
+	 */
+	dispose(): void;
+
+	// ── Transport ──
 
 	/**
 	 * Start or resume playback.
 	 * `opts.source` defaults to `'user'`. `opts.silent` skips lifecycle events.
 	 */
-	play?(opts?: ActionOptions): Promise<void> | void;
+	play(opts?: ActionOptions): Promise<void>;
 
 	/** Pause playback. */
-	pause?(opts?: ActionOptions): Promise<void> | void;
+	pause(opts?: ActionOptions): Promise<void>;
 
-	/** Stop playback and reset position. */
-	stop?(opts?: ActionOptions): Promise<void> | void;
+	/** Stop playback and release the source. */
+	stop(opts?: ActionOptions): Promise<void>;
 
 	/** Toggle between play and pause. */
-	togglePlayback?(opts?: ActionOptions): Promise<void> | void;
+	togglePlayback(opts?: ActionOptions): Promise<void>;
 
 	/** Seek backward by `seconds` (default 5). */
-	rewind?(seconds?: number, opts?: ActionOptions): void;
+	rewind(seconds?: number, opts?: ActionOptions): Promise<void>;
 
 	/** Seek forward by `seconds` (default 5). */
-	forward?(seconds?: number, opts?: ActionOptions): void;
+	forward(seconds?: number, opts?: ActionOptions): Promise<void>;
+
+	/** Seek to time 0 and play. */
+	restart(opts?: ActionOptions): Promise<void>;
 
 	/** Advance to the next item in the queue. */
-	next?(opts?: ActionOptions): Promise<void> | void;
+	next(opts?: ActionOptions): Promise<void>;
 
 	/** Go to the previous item in the queue. */
-	previous?(opts?: ActionOptions): Promise<void> | void;
+	previous(opts?: ActionOptions): Promise<void>;
 
 	// ── Volume ──
 
-	/** Increase volume by `step` (default 0.1). */
-	volumeUp?(step?: number): void;
+	/** Read the current volume (0–100). Returns 0 when muted. */
+	volume(): number;
+	/** Set the volume (0–100). Unmutes if currently muted. */
+	volume(level: number): void;
 
-	/** Decrease volume by `step` (default 0.1). */
-	volumeDown?(step?: number): void;
+	/** Increase volume by `step` percentage points (default 5). */
+	volumeUp(step?: number): void;
 
-	/** Mute the player. */
-	mute?(opts?: ActionOptions): void;
+	/** Decrease volume by `step` percentage points (default 5). */
+	volumeDown(step?: number): void;
 
-	/** Unmute the player. */
-	unmute?(opts?: ActionOptions): void;
+	/** Silence output without discarding the stored level. */
+	mute(): void;
 
-	/** Toggle mute state. */
-	toggleMute?(): void;
+	/** Restore output after a mute. */
+	unmute(): void;
 
-	// ── Playback state accessors ──
+	/** Toggle between muted and unmuted. */
+	toggleMute(): void;
+
+	// ── Time ──
+
+	/** Returns the current playback position in seconds. */
+	time(): number;
+	/** Seek to `seconds`. Returns a Promise that resolves once the seek cycle completes. */
+	time(seconds: number, opts?: ActionOptions): Promise<void>;
+
+	/** Total duration of the current item in seconds. `0` when metadata not loaded. */
+	duration(): number;
+
+	/** Snapshot of all time-related state (position, duration, buffered, remaining, percentage). */
+	timeData(): TimeState;
+
+	/** Supported playback-rate values for UI speed-selector controls. */
+	playbackRates(): number[];
+
+	/** Returns the current playback rate. */
+	playbackRate(): number;
+	/** Set the playback rate. `1.0` = normal speed. */
+	playbackRate(rate: number): void;
+
+	// ── Queue ──
+
+	/** Returns the current playlist as a read-only array. */
+	queue(): ReadonlyArray<BasePlaylistItem>;
+	/** Replace the entire playlist with `items`. */
+	queue(items: BasePlaylistItem[], opts?: ActionOptions): void;
+
+	/** Append one item or an array of items to the end of the queue. */
+	queueAppend(item: BasePlaylistItem | BasePlaylistItem[], opts?: ActionOptions): void;
 
 	/**
-	 * Read or write the current playback position in seconds.
-	 * `currentTime()` — returns the current position.
-	 * `currentTime(seconds, opts?)` — seek to `seconds`.
+	 * Sort the queue in-place using `compare`. Same contract as
+	 * `Array.prototype.sort`. Emits `queue:sort`.
 	 */
-	currentTime?(): number;
-	currentTime?(seconds: number, opts?: ActionOptions): void;
+	queueSort(compare: (a: BasePlaylistItem, b: BasePlaylistItem) => number, opts?: ActionOptions): void;
 
-	/** Total duration of the current item in seconds. `0` when unknown. */
-	duration?(): number;
+	/** Returns the backlog as a read-only array. */
+	backlog(): ReadonlyArray<BasePlaylistItem>;
+	/** Replace the backlog with `items`. */
+	backlog(items: BasePlaylistItem[]): void;
+
+	/** Append one item or an array of items to the backlog. */
+	backlogAppend(item: BasePlaylistItem | BasePlaylistItem[]): void;
 
 	/**
-	 * Read or write the playback rate.
-	 * `1.0` = normal speed; `0.5` = half speed; `2.0` = double speed.
+	 * Fetch a remote playlist URL and replace the current queue with the
+	 * parsed result.
 	 */
-	playbackRate?(): number;
-	playbackRate?(rate: number): void;
+	loadQueue(url: string, parser?: (raw: string) => BasePlaylistItem[]): Promise<void>;
+
+	/**
+	 * Navigate to a playlist item by 1-based ordinal position. Fires
+	 * `beforeMutation` / `current`. Throws `RangeError` for non-positive integers.
+	 */
+	seekToIndex(position: number, opts?: ActionOptions): void;
+
+	// ── Repeat / shuffle ──
+
+	/** Returns the current repeat mode token (`'off'` / `'one'` / `'all'`). */
+	repeatState(): RepeatStateToken;
+	/** Set the repeat mode and emit `repeat`. */
+	repeatState(state: RepeatStateToken): void;
+
+	/** Returns the current shuffle mode token (`'off'` / `'on'`). */
+	shuffleState(): ShuffleStateToken;
+	/** Set the shuffle mode and emit `shuffle`. Accepts a boolean shorthand. */
+	shuffleState(state: ShuffleStateToken | boolean): void;
+
+	// ── Load ──
+
+	/**
+	 * Load a single playlist item into the player. Dispatches `beforeLoad`;
+	 * a listener may `preventDefault()` to cancel.
+	 */
+	load(item: BasePlaylistItem & { url?: string }, opts?: LoadOptions): Promise<void>;
+
+	// ── Media tracks ──
+
+	/** Full subtitle track list (backend tracks first, sidecar VTT tracks appended). */
+	subtitles(): ReadonlyArray<SubtitleTrack>;
+
+	/** The active backend's quality levels. */
+	qualityLevels(): ReadonlyArray<QualityLevel>;
+	/** Pass `opts.includeUnsupported: true` to include all manifest-declared levels. */
+	qualityLevels(opts: { includeUnsupported: true }): ReadonlyArray<QualityLevel>;
+
+	/** The active backend's audio tracks. */
+	audioTracks(): ReadonlyArray<AudioTrack>;
+
+	// ── Audio output ──
+
+	/**
+	 * Enumerate audio output devices via `navigator.mediaDevices.enumerateDevices()`.
+	 */
+	audioOutputs(): Promise<MediaDeviceInfo[]>;
+
+	/**
+	 * Open the browser audio-output picker (Chrome ≥105). Returns the selected
+	 * device or `null` when the user cancels. Throws `BrowserPolicyError` on
+	 * unsupported browsers.
+	 */
+	selectAudioOutput(): Promise<MediaDeviceInfo | null>;
+
+	// ── Cast / handoff ──
+
+	/**
+	 * Coarse handoff state. Returns `'unavailable'` when no remote-playback
+	 * APIs are present.
+	 */
+	castState(): CastState;
+
+	/**
+	 * Hand playback off to a remote target (`'cast'` / `'airplay'` /
+	 * `'remote-playback'` / `'local'`).
+	 */
+	transferTo(target: CastTarget): Promise<void>;
+
+	// ── Plugins ──
+
+	/**
+	 * Register a plugin with the player. Pre-setup calls are queued; post-setup
+	 * runs inline. Returns the player for chaining.
+	 */
+	addPlugin<P extends Plugin<any, any, any>>(PluginClass: PluginCtorWithId & (new () => P), opts?: P['opts']): this;
+
+	// ── Stream registration ──
+
+	/**
+	 * Register a custom stream factory. Most-recently-registered wins resolution.
+	 * Returns the player for chaining.
+	 */
+	registerStream(factory: IStreamFactory, prepend?: boolean): this;
+
+	// ── Device / ABR ──
+
+	/** Full device-capabilities snapshot (UA classification + platform API probes). */
+	device(): DeviceCapabilities;
+
+	/** Last-known throughput estimate in bits per second. Returns 0 until a stream loads. */
+	bandwidth(): number;
+
+	/** Returns the current bandwidth estimator function, or `undefined`. */
+	bandwidthEstimator(): (() => number) | undefined;
+	/** Override the bandwidth estimator used by ABR. */
+	bandwidthEstimator(fn: () => number): void;
+
+	/**
+	 * Probe whether a media profile can be decoded smoothly. Delegates to
+	 * `platform.capabilities.canDecode`.
+	 */
+	canPlay(profile: { contentType: string; width?: number; height?: number; bitrate?: number; framerate?: number }): Promise<CanPlayResult>;
+
+	// ── Accessibility ──
+
+	/**
+	 * Post a message to the player's ARIA live region. `level` defaults to
+	 * `'polite'`. Noop when no live region is mounted.
+	 */
+	announce(text: string, level?: AriaLiveLevel): void;
+
+	// ── Metrics ──
+
+	/**
+	 * Write a single named counter into the live metrics store. Backends call
+	 * this to update their instrumented values; plugins may also use it for
+	 * custom counters that appear in `metrics()` snapshots.
+	 */
+	recordMetric(name: string, value: number): void;
+
+	/**
+	 * Distributed-clock timestamp source. Returns `options.clockSource()` when
+	 * configured, else `Date.now()`. Use this in plugins that coordinate
+	 * timestamps across machines (group-listening, realtime sync) so the clock
+	 * is injectable in tests.
+	 */
+	now(): number;
+
+	// ── Buffered / seekable ranges ──
+
+	/**
+	 * How many seconds of media are buffered ahead of the current position.
+	 * Returns 0 when no backend is registered.
+	 */
+	buffered(): number;
+
+	/**
+	 * Full buffered `TimeRanges` from the backend, mirroring
+	 * `HTMLMediaElement.buffered`. Returns an empty range set when no backend
+	 * is registered or the backend does not expose `bufferedRanges`.
+	 */
+	bufferedRanges(): TimeRanges;
+
+	/**
+	 * Seekable `TimeRanges` for the current source, mirroring
+	 * `HTMLMediaElement.seekable`. Returns an empty range set when no backend
+	 * is mounted or the backend does not implement `seekable()`.
+	 */
+	seekable(): TimeRanges;
+
+	// ── Coarse state tokens ──
+
+	/**
+	 * Coarse play-state token (`'idle'` / `'loading'` / `'playing'` /
+	 * `'paused'` / `'stopped'` / `'error'`). Read-only snapshot — subscribe
+	 * to `play` / `pause` / `stop` events to track changes reactively.
+	 */
+	playState(): PlayStateToken;
+
+	/**
+	 * Mute-state token (`'unmuted'` or `'muted'`). Read-only snapshot —
+	 * subscribe to the `mute` event to track changes reactively.
+	 */
+	volumeState(): VolumeStateToken;
+
+	// ── Chapter navigation ──
+
+	/**
+	 * Jump directly to the chapter at zero-based `idx`. No-op when `idx` is
+	 * out of range. Fires the same seek lifecycle as `time()`.
+	 */
+	seekToChapter(idx: number, opts?: ActionOptions): void;
+
+	/**
+	 * Advance to the next chapter. No-op when already in the last chapter or
+	 * when no chapters are loaded.
+	 */
+	nextChapter(opts?: ActionOptions): void;
+
+	/**
+	 * Go back to the previous chapter. No-op when already at or before the
+	 * first chapter boundary.
+	 */
+	previousChapter(opts?: ActionOptions): void;
+
+	// ── Queue mutations (additive) ──
+
+	/**
+	 * Prepend one item or an array of items to the start of the queue.
+	 * Emits `queue:prepend`.
+	 */
+	queuePrepend(item: BasePlaylistItem | BasePlaylistItem[], opts?: ActionOptions): void;
+
+	/**
+	 * Insert one item or an array of items at zero-based `index`. Items at
+	 * and after that position shift right. Emits `queue:insert`.
+	 */
+	queueInsert(item: BasePlaylistItem | BasePlaylistItem[], index: number, opts?: ActionOptions): void;
+
+	/**
+	 * Remove the item with the given `id` from the queue. No-op when the id
+	 * is not found. Emits `queue:remove`.
+	 */
+	queueRemove(id: string | number, opts?: ActionOptions): void;
+
+	/**
+	 * Remove the item at zero-based `index`. No-op when `index` is out of
+	 * range. Emits `queue:remove`.
+	 */
+	queueRemoveAt(index: number, opts?: ActionOptions): void;
+
+	/**
+	 * Move the item at position `from` to position `to` (both zero-based).
+	 * No-op when either index is out of range. Emits `queue:move`.
+	 */
+	queueMove(from: number, to: number, opts?: ActionOptions): void;
+
+	/** Remove all items from the queue. Emits `queue:clear`. */
+	queueClear(opts?: ActionOptions): void;
+
+	/** Randomly reorder all items in the queue in-place. Emits `queue:shuffle`. */
+	queueShuffle(opts?: ActionOptions): void;
+
+	/**
+	 * Return the item that would become active if `next()` were called now,
+	 * without moving the cursor. Returns `undefined` when the queue is
+	 * exhausted.
+	 */
+	peekNext(): BasePlaylistItem | undefined;
+
+	/**
+	 * Return the item that would become active if `previous()` were called
+	 * now, without moving the cursor. Returns `undefined` when already at
+	 * the start.
+	 */
+	peekPrevious(): BasePlaylistItem | undefined;
+
+	/** Total number of items in the queue. */
+	queueLength(): number;
+
+	/**
+	 * Zero-based index of the item with the given `id`, or `-1` when not
+	 * found.
+	 */
+	queueIndexOf(id: string | number): number;
+
+	/**
+	 * Zero-based index of the currently active item, or `-1` when the queue
+	 * is empty.
+	 */
+	index(): number;
+
+	// ── Backlog mutations ──
+
+	/**
+	 * Remove the item with the given `id` from the backlog. No-op when not
+	 * found. Emits `backlog:remove`.
+	 */
+	backlogRemove(id: string | number): void;
+
+	/** Remove all items from the backlog. Emits `backlog:clear`. */
+	backlogClear(): void;
 
 }

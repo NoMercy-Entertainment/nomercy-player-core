@@ -302,7 +302,7 @@ export class EmbedPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 			play?: (opts?: unknown) => Promise<void>;
 			pause?: (opts?: unknown) => Promise<void>;
 			stop?: (opts?: unknown) => Promise<void>;
-			currentTime?: (t?: number) => unknown;
+			time?: (t?: number) => unknown;
 			volume?: (v?: number) => unknown;
 			mute?: () => void;
 			unmute?: () => void;
@@ -321,7 +321,7 @@ export class EmbedPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plug
 				void player.stop?.({ source: 'embed' });
 				break;
 			case 'seek':
-				player.currentTime?.((msg as { time: number }).time);
+				player.time?.((msg as { time: number }).time);
 				break;
 			case 'volume':
 				player.volume?.((msg as { level: number }).level);

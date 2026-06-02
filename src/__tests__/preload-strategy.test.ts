@@ -43,12 +43,12 @@ class PreloadTestPlayer extends EventEmitter<BaseEventMap> {
 	declare setup: (config: any) => this;
 	declare dispose: () => void;
 	declare phase: () => string;
-	declare current: { (): any; (target: any, opts?: any): void };
+	declare item: { (): any; (target: any, opts?: any): void };
 	declare queue: { (): ReadonlyArray<any>; (items: any[], opts?: any): void };
 	declare queueAppend: (item: any, opts?: any) => void;
 	declare queueLength: () => number;
 	declare peekNext: () => any;
-	declare currentTime: { (): number; (t: number, opts?: any): Promise<void> };
+	declare time: { (): number; (t: number, opts?: any): Promise<void> };
 	declare duration: () => number;
 	declare play: (opts?: any) => Promise<void>;
 	declare pause: (opts?: any) => Promise<void>;
@@ -109,7 +109,7 @@ class PreloadTestPlayer extends EventEmitter<BaseEventMap> {
 	declare queueShuffle: (opts?: any) => void;
 	declare queueSort: (compare: any, opts?: any) => void;
 	declare peekPrevious: () => any;
-	declare currentIndex: () => number;
+	declare index: () => number;
 	declare queueIndexOf: (id: any) => number;
 	declare backlog: { (): ReadonlyArray<any>; (items: any[]): void };
 	declare backlogAppend: (item: any) => void;
@@ -240,7 +240,7 @@ describe('preload orchestration', () => {
 		const player = setupPlayer({ preloadLeadSeconds: 10 });
 		const nextItem = makeItem('next-1');
 		player.queue([makeItem('a'), nextItem]);
-		player.current('a');
+		player.item('a');
 
 		const events: string[] = [];
 		player.on('preloadStart', () => events.push('preloadStart'));
@@ -265,7 +265,7 @@ describe('preload orchestration', () => {
 		const player = setupPlayer({ preloadLeadSeconds: 10 });
 		const nextItem = makeItem('next-2');
 		player.queue([makeItem('b'), nextItem]);
-		player.current('b');
+		player.item('b');
 
 		let startCount = 0;
 		player.on('preloadStart', () => { startCount++; });
@@ -288,7 +288,7 @@ describe('preload orchestration', () => {
 		const itemB = makeItem('cursor-b');
 		const itemC = makeItem('cursor-c');
 		player.queue([itemA, itemB, itemC]);
-		player.current('cursor-a');
+		player.item('cursor-a');
 
 		let startCount = 0;
 		player.on('preloadStart', () => { startCount++; });
@@ -302,7 +302,7 @@ describe('preload orchestration', () => {
 		expect(startCount).toBe(1);
 
 		// Cursor change resets flag — next preload should fire again
-		player.current('cursor-b');
+		player.item('cursor-b');
 		internals._internalDuration = 60;
 
 		player.emit('time', { time: 50 });
@@ -326,7 +326,7 @@ describe('transition orchestration', () => {
 		const player = setupPlayer({ crossfadeEnabled: false, crossfadeLeadSeconds: 3 });
 		const nextItem = makeItem('trans-next-1');
 		player.queue([makeItem('trans-a'), nextItem]);
-		player.current('trans-a');
+		player.item('trans-a');
 
 		let transitionStartFired = false;
 		player.on('transitionStart', () => { transitionStartFired = true; });
@@ -349,7 +349,7 @@ describe('transition orchestration', () => {
 		});
 		const nextItem = makeItem('trans-next-2');
 		player.queue([makeItem('trans-b'), nextItem]);
-		player.current('trans-b');
+		player.item('trans-b');
 
 		let transitionStartPayload: unknown = null;
 		player.on('transitionStart', (data) => { transitionStartPayload = data; });
@@ -374,7 +374,7 @@ describe('transition orchestration', () => {
 			transitionStrategy: new CrossfadeTransitionStrategy({ leadSeconds: 3 }),
 		});
 		player.queue([makeItem('trans-c'), makeItem('trans-c-next')]);
-		player.current('trans-c');
+		player.item('trans-c');
 
 		let startCount = 0;
 		player.on('transitionStart', () => { startCount++; });
