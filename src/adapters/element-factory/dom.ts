@@ -4,6 +4,8 @@ export interface CreateElement<T extends Element> {
 	addClasses: (names: string[]) => AddClasses<T>;
 	appendTo: (parent: Element) => AppendTo<T>;
 	prependTo: (parent: Element) => AppendTo<T>;
+	setAttribute: (name: string, value: string) => AddClasses<T>;
+	setProperty: (name: string, value: string) => AddClasses<T>;
 }
 
 export interface AddClasses<T extends Element> {
@@ -52,6 +54,15 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
 		prependTo: (parent: Element) => {
 			parent.insertBefore(el, parent.firstChild);
 			return makeAppendTo(el);
+		},
+		setAttribute: (name: string, value: string) => {
+			el.setAttribute(name, value);
+			return makeAddClasses(el);
+		},
+		setProperty: (name: string, value: string) => {
+			if (el instanceof HTMLElement)
+				el.style.setProperty(name, value);
+			return makeAddClasses(el);
 		},
 	};
 }

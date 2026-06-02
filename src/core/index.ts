@@ -54,7 +54,7 @@ export { experimentalDescriptor } from './mixins/experimental';
 export { i18nMethods } from './mixins/i18n';
 export { lifecycleMethods } from './mixins/lifecycle';
 export { loadingMethods } from './mixins/loading';
-export { mediaTracksMethods } from './mixins/media-tracks';
+export { mediaTracksMethods, normalizeLanguage } from './mixins/media-tracks';
 export type { ItemWithDefinedTracks, ItemWithTracks, SidecarTrack } from './mixins/media-tracks';
 export { metricsMethods } from './mixins/metrics';
 export { playerStateMethods } from './mixins/player-state';

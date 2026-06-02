@@ -28,7 +28,7 @@ export { experimentalDescriptor } from './core/mixins/experimental';
 export { i18nMethods } from './core/mixins/i18n';
 export { lifecycleMethods } from './core/mixins/lifecycle';
 export { loadingMethods } from './core/mixins/loading';
-export { mediaTracksMethods } from './core/mixins/media-tracks';
+export { mediaTracksMethods, normalizeLanguage } from './core/mixins/media-tracks';
 export { metricsMethods } from './core/mixins/metrics';
 export { playerStateMethods } from './core/mixins/player-state';
 export { pluginRegistrationMethods } from './core/mixins/plugin-registration';

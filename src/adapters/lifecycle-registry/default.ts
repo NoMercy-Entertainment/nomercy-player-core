@@ -155,18 +155,25 @@ export class LifecycleRegistry {
 	 * so it does not kill the loop or the player. The loop stops cleanly on
 	 * `dispose()`.
 	 *
-	 * Silent no-op in environments without `requestAnimationFrame` (Node, SSR).
+	 * Returns a cancel disposer `() => void` that stops this specific loop
+	 * without affecting other active frame loops or disposing the registry.
+	 * The auto-dispose-on-teardown behaviour is preserved: `dispose()` cancels
+	 * all outstanding loops regardless of whether the individual cancel was called.
+	 *
+	 * Silent no-op (returns a no-op disposer) in environments without
+	 * `requestAnimationFrame` (Node, SSR).
 	 */
-	frame(fn: (deltaMs: number, time: number) => void): void {
+	frame(fn: (deltaMs: number, time: number) => void): () => void {
 		if (this.disposed)
-			return;
+			return () => { /* already disposed */ };
 		if (typeof requestAnimationFrame === 'undefined')
-			return;
+			return () => { /* no RAF in this environment */ };
 
+		let cancelled = false;
 		let lastTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
 		const tick = (now: number): void => {
-			if (this.disposed)
+			if (this.disposed || cancelled)
 				return;
 			const delta = now - lastTime;
 			lastTime = now;
@@ -176,7 +183,7 @@ export class LifecycleRegistry {
 			catch (err) {
 				this.logHandlerError('frame', err);
 			}
-			if (!this.disposed) {
+			if (!this.disposed && !cancelled) {
 				const nextId = requestAnimationFrame(tick);
 				this.rafs.add(nextId);
 			}
@@ -184,6 +191,12 @@ export class LifecycleRegistry {
 
 		const initialId = requestAnimationFrame(tick);
 		this.rafs.add(initialId);
+
+		return (): void => {
+			cancelled = true;
+			cancelAnimationFrame(initialId);
+			this.rafs.delete(initialId);
+		};
 	}
 
 	/**

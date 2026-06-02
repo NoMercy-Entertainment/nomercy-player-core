@@ -916,9 +916,14 @@ export class Plugin<
 	 * Auto-cancelled requestAnimationFrame loop. Pass a render callback;
 	 * the kit handles the RAF loop, deltaMs accounting, and cancellation
 	 * on `dispose()`. Visualization plugins use this exclusively.
+	 *
+	 * Returns a cancel disposer `() => void` that stops this specific loop
+	 * without tearing down the whole plugin. The loop is also cancelled
+	 * automatically on `dispose()` — the disposer is only needed for early
+	 * cancellation of one loop while keeping others running.
 	 */
-	protected frame(fn: (deltaMs: number, time: number) => void): void {
-		this.lifecycle.frame(fn);
+	protected frame(fn: (deltaMs: number, time: number) => void): () => void {
+		return this.lifecycle.frame(fn);
 	}
 
 	/**
