@@ -7,7 +7,6 @@
  */
 export type AriaLiveLevel = 'polite' | 'assertive';
 
-
 /**
  * Aggregated time state snapshot returned by `player.timeData()`. All values
  * are in seconds; `percentage` is in the range [0, 100].

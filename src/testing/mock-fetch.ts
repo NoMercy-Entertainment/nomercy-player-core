@@ -65,7 +65,10 @@ export function mockFetch(): MockFetch {
 	const queue: unknown[] = [];
 
 	const fetch = <T = string>(url: string, options?: FetchOptions<T>): Promise<T> => {
-		calls.push({ url, options: options as FetchOptions<unknown> | undefined });
+		calls.push({
+			url,
+			options: options as FetchOptions<unknown> | undefined,
+		});
 		const response = queue.length > 0 ? queue.shift() : undefined;
 		return Promise.resolve(response as T);
 	};

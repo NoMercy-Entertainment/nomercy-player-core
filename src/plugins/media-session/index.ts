@@ -1,4 +1,9 @@
-import type { BaseEventMap, BasePlaylistItem, IPlayer, WithCurrentItem } from '../../types';
+import type {
+	BaseEventMap,
+	BasePlaylistItem,
+	IPlayer,
+	WithCurrentItem,
+} from '../../types';
 import { Plugin } from '../../core/plugin';
 
 /** MIME type inferred from a URL's lowercase file extension. */

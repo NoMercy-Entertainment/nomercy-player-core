@@ -27,7 +27,7 @@ function makeInternals(opts: {
 		language?: string;
 		label?: string;
 	}>;
-}): Parameters<typeof mediaTracksMethods.subtitles>[0] {
+}): ThisParameterType<typeof mediaTracksMethods.subtitles> {
 	return {
 		_peekBackendTyped<S extends object>(): S | undefined {
 			if (!opts.backendTracks)
@@ -41,7 +41,7 @@ function makeInternals(opts: {
 				return undefined;
 			return { tracks: opts.sidecarTracks };
 		},
-	} as unknown as Parameters<typeof mediaTracksMethods.subtitles>[0];
+	} as unknown as ThisParameterType<typeof mediaTracksMethods.subtitles>;
 }
 
 function callSubtitles(opts: {

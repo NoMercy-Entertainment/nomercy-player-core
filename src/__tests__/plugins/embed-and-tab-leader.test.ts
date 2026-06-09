@@ -4,8 +4,10 @@
  * MockPlayer built on the kit's shared mixins.
  */
 
+import type { EmbedSerializedError } from '../../plugins/embed';
 import type { BaseEventMap } from '../../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { makePlayerErrorEvent, PlayerError } from '../../errors';
 import {
 	composeMixins,
 	EventEmitter,
@@ -13,8 +15,6 @@ import {
 	playerCoreMethods,
 	resolvePlayerConstructor,
 } from '../../index';
-import { makePlayerErrorEvent, PlayerError } from '../../errors';
-import type { EmbedSerializedError } from '../../plugins/embed';
 import { EmbedPlugin } from '../../plugins/embed';
 import { TabLeaderPlugin } from '../../plugins/tab-leader';
 

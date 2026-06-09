@@ -2,8 +2,8 @@ import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { AddClasses, CreateElement } from '../adapters/element-factory';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { IStreamFactory } from '../adapters/stream/IStreamSource';
-import type { Plugin } from '../core/plugin';
 import type { RepeatStateToken, ShuffleStateToken } from '../core/mixins/state-mutators';
+import type { Plugin } from '../core/plugin';
 import type { PlayStateToken, VolumeStateToken } from '../core/state';
 import type {
 	ActionOptions,
@@ -666,7 +666,11 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	shuffleState(state?: ShuffleStateToken | boolean): ShuffleStateToken | void {
 		if (state === undefined)
 			return this._shuffleState;
-		this._shuffleState = state === true ? 'on' : state === false ? 'off' : state;
+		if (typeof state === 'boolean') {
+			this._shuffleState = state ? 'on' : 'off';
+			return;
+		}
+		this._shuffleState = state;
 	}
 
 	// ── Load ──
@@ -744,7 +748,11 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	}
 
 	canPlay(_profile: { contentType: string; width?: number; height?: number; bitrate?: number; framerate?: number }): Promise<CanPlayResult> {
-		return Promise.resolve({ supported: true, smooth: true, powerEfficient: true });
+		return Promise.resolve({
+			supported: true,
+			smooth: true,
+			powerEfficient: true,
+		});
 	}
 
 	// ── Accessibility ──

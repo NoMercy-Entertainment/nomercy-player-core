@@ -14,6 +14,7 @@ import type {
 	PluginCtorWithId,
 	Translations,
 } from '../types';
+import type { BeforeDispatchOutcome } from './dispatch';
 import type { AbrState } from './mixins/abr';
 import type { AudioOutputState } from './mixins/audio-output';
 import type { AuthState } from './mixins/auth';
@@ -24,7 +25,6 @@ import type { ExperimentalState } from './mixins/experimental';
 import type { I18nState } from './mixins/i18n';
 import type { MediaTracksState, SidecarSubtitleContext } from './mixins/media-tracks';
 import type { MetricsState } from './mixins/metrics';
-import type { BeforeDispatchOutcome } from './dispatch';
 import type { BackendShape, PlayerPhaseState } from './mixins/player-state';
 import type { PluginRegistrationState } from './mixins/plugin-registration';
 import type { PreloadStrategyState } from './mixins/preload-strategy-mixin';

@@ -249,7 +249,6 @@ export class DefaultPreloadStrategy implements IPreloadStrategy {
  */
 export type CrossfadeCurve = 'linear' | 'equal-power';
 
-
 /**
  * Crossfade transition: outgoing fades to silence while incoming fades in over
  * the overlap window (`leadSeconds` before end + `tailSeconds` after incoming start).

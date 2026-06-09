@@ -97,7 +97,7 @@ class TestPlugin extends Plugin<StubPlayer, Options> {
 
 	publicTimeout(fn: () => void, ms: number): number { return this.timeout(fn, ms); }
 	publicInterval(fn: () => void, ms: number): number { return this.interval(fn, ms); }
-	publicFrame(fn: any): void { return this.frame(fn); }
+	publicFrame(fn: (deltaMs: number, time: number) => void): () => void { return this.frame(fn); }
 	publicAbortable(): AbortController { return this.abortable(); }
 	publicMount(name: string): HTMLDivElement { return this.mount(name); }
 	publicT(key: string, vars?: Record<string, string>): string { return this.t(key, vars); }

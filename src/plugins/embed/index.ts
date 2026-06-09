@@ -1,7 +1,7 @@
-import type { ActionOptions, BaseEventMap, IPlayer } from '../../types';
 import type { PlayerErrorEvent } from '../../errors';
 import type { ErrorScope } from '../../errors/code';
 import type { Severity } from '../../errors/severity';
+import type { ActionOptions, BaseEventMap, IPlayer } from '../../types';
 
 import { Plugin } from '../../core/plugin';
 
@@ -32,11 +32,11 @@ export type EmbedCommand
 		| { type: 'nm:command'; action: 'previous' };
 
 /** Events the embedded player emits OUT to the host page via `postMessage`. */
-export type EmbedEventMessage = {
+export interface EmbedEventMessage {
 	type: 'nm:event';
 	name: EmbedForwardedEvent['name'];
 	data: unknown;
-};
+}
 
 /**
  * Discriminated union for the payload shapes carried in `EmbedEventMessage.data`.
