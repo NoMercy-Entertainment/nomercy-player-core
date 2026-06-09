@@ -186,8 +186,9 @@ export type {
 	Severity,
 } from './errors';
 
-// i18n — default English bundle (audit I7)
+// i18n — default English bundle + Dutch bundle (audit I7)
 export { defaultTranslations, enTranslations } from './i18n/en';
+export { nlTranslations } from './i18n/nl';
 
 // Audio-graph + canvas plugins (opt-in, layered) — every Web Audio / canvas
 // plugin builds on these. Apps that don't add them pay zero AudioContext /
