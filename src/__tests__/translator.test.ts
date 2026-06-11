@@ -165,12 +165,22 @@ describe('DefaultTranslator', () => {
 			expect(t.t('hi')).toBe('Bonjour');
 		});
 
-		it('addTranslations marks the language as loaded (skips loader on switch)', async () => {
-			const loader = vi.fn(async () => ({ hi: 'X' }));
+		it('addTranslations does not satisfy the loader — switch still loads and merges', async () => {
+			// A plugin merging its static bundle at registration must not
+			// suppress the consumer's loadTranslations for that language —
+			// that conflation left the configured loader permanently unfired.
+			const loader = vi.fn(async () => ({ bye: 'Au revoir' }));
 			const t = new DefaultTranslator({ loadTranslations: loader });
 			t.addTranslations({ fr: { hi: 'Bonjour' } });
 			await t.language('fr');
-			expect(loader).not.toHaveBeenCalled();
+
+			expect(loader).toHaveBeenCalledWith('fr');
+			expect(t.t('hi')).toBe('Bonjour');
+			expect(t.t('bye')).toBe('Au revoir');
+
+			// Second switch to the same tag stays cached — loader fires once.
+			await t.language('fr');
+			expect(loader).toHaveBeenCalledTimes(1);
 		});
 	});
 

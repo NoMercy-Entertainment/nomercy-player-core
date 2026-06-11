@@ -133,7 +133,10 @@ export class DefaultTranslator implements ITranslator {
 				...(this.bundles[lang] ?? {}),
 				...keys,
 			};
-			this.loaded.add(lang);
+			// Deliberately NOT marked in `loaded`: merging keys (e.g. a plugin's
+			// static bundle at registration) must not satisfy the loader
+			// contract — `language(lang)` still owes the configured
+			// `loadTranslations` a call for this tag.
 		}
 	}
 
