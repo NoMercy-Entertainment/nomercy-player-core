@@ -269,8 +269,11 @@ export class HlsStreamSource implements IStreamSource {
 }
 
 function canPlayNativeHls(element: HTMLMediaElement): boolean {
+	// Chromium answers 'maybe' for HLS but cannot actually demux it. Trust
+	// 'maybe' only where MSE is absent (iOS Safari) — hls.js cannot run there
+	// anyway, so native is the only option.
 	const probe = element.canPlayType('application/vnd.apple.mpegurl');
-	return probe === 'maybe' || probe === 'probably';
+	return probe === 'probably' || (probe === 'maybe' && typeof MediaSource === 'undefined');
 }
 
 /** Narrow view of hls.js's static `DefaultConfig` — only the loader field we use. */
