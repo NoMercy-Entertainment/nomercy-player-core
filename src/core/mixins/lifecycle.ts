@@ -13,6 +13,7 @@ import { makePlayerErrorEvent, stateError, StateError } from '../../errors';
 
 import { SetupState } from '../../types';
 import { authFetch } from '../auth-fetch';
+import { ensureBaseStyles } from '../base-styles';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Playlist URL resolver
@@ -665,10 +666,11 @@ function _wireWindowExpose(self: Internals): void {
 	});
 }
 
-/** Seed the container element with the player's baseline classes. */
+/** Seed the container element with the player's baseline classes + structural styles. */
 function _initContainerClass(self: Internals): void {
 	if (self.container && typeof self.container.classList !== 'undefined') {
 		self.container.classList.add('nomercyplayer', 'paused');
+		ensureBaseStyles(self.container);
 	}
 }
 
