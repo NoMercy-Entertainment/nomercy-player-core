@@ -808,6 +808,29 @@ export class Plugin<
 	}
 
 	/**
+	 * Inject CSS text into `document.head` as a `<style>` element, exactly once
+	 * per `id`. Same dedupe contract as `appendStyles`, but synchronous — the
+	 * rules apply before the next paint instead of after a network round-trip,
+	 * so plugin UIs never render an unstyled frame.
+	 *
+	 * Published dist builds are rewritten to this form by
+	 * `scripts/inline-css-assets.mjs`: the `appendStyles(new URL(...))` call in
+	 * source becomes `appendInlineStyles('<embedded css>', id)` in dist. Source
+	 * builds (dev server, testbed, vitest) keep the URL form, which Vite serves
+	 * directly.
+	 */
+	protected appendInlineStyles(cssText: string, styleId: string): void {
+		if (typeof document === 'undefined')
+			return;
+		if (document.getElementById(styleId))
+			return;
+		const style = document.createElement('style');
+		style.id = styleId;
+		style.textContent = cssText;
+		document.head.appendChild(style);
+	}
+
+	/**
 	 * Claim a `<div>` mount point on the player container. Idempotent per
 	 * plugin instance — same `name` returns the same node. Auto-removed on
 	 * `dispose()`.

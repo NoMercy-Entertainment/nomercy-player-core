@@ -100,6 +100,7 @@ class TestPlugin extends Plugin<StubPlayer, Options> {
 	publicFrame(fn: (deltaMs: number, time: number) => void): () => void { return this.frame(fn); }
 	publicAbortable(): AbortController { return this.abortable(); }
 	publicMount(name: string): HTMLDivElement { return this.mount(name); }
+	publicAppendInlineStyles(cssText: string, styleId: string): void { return this.appendInlineStyles(cssText, styleId); }
 	publicT(key: string, vars?: Record<string, string>): string { return this.t(key, vars); }
 	publicDispatchBefore(name: string, data: any, opts?: any): Promise<any> { return this.dispatchBefore(name, data, opts); }
 	publicWebsocket(url: string, opts?: any): unknown { return this.websocket(url, opts); }
@@ -133,6 +134,32 @@ describe('Plugin base class', () => {
 	afterEach(() => {
 		lifecycle.dispose();
 		player.reset();
+	});
+
+	// ─────────────────────────────────────────────────────────────────────
+	// appendInlineStyles()
+	// ─────────────────────────────────────────────────────────────────────
+
+	describe('appendInlineStyles()', () => {
+		afterEach(() => {
+			document.getElementById('inline-style-test')?.remove();
+		});
+
+		it('injects a <style> with the given id and css text', () => {
+			plugin.publicAppendInlineStyles('.a { color: red; }', 'inline-style-test');
+
+			const el = document.getElementById('inline-style-test');
+			expect(el?.tagName).toBe('STYLE');
+			expect(el?.textContent).toBe('.a { color: red; }');
+		});
+
+		it('is a no-op when the id already exists', () => {
+			plugin.publicAppendInlineStyles('.a { color: red; }', 'inline-style-test');
+			plugin.publicAppendInlineStyles('.b { color: blue; }', 'inline-style-test');
+
+			expect(document.querySelectorAll('#inline-style-test')).toHaveLength(1);
+			expect(document.getElementById('inline-style-test')?.textContent).toBe('.a { color: red; }');
+		});
 	});
 
 	// ─────────────────────────────────────────────────────────────────────
