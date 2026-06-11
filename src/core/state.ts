@@ -1,4 +1,5 @@
 import type { EventEmitter } from '../adapters/event-bus/default';
+import type { ILogger } from '../adapters/logger/ILogger';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { ITransitionStrategy } from '../adapters/preload/default';
 import type {
@@ -189,6 +190,9 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 
 	/** Monotonic counter bumped on each `load()` call; stale continuations bail when epoch mismatches. Bumped by both `loadingMethods` and `queueMethods`. */
 	_loadEpoch?: number;
+
+	/** Root logger built from `options.logger` / `options.logLevel` at setup. Written by `_wireLogger`; core failures and (at debug+) the event firehose log through it. */
+	_logger?: ILogger;
 
 	// ── Preload epoch + transition RAF (setup-orchestrator-written) ────────────
 

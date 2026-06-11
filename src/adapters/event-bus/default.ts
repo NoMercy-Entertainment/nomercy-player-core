@@ -29,6 +29,8 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	declare readonly __eventMap__: E;
 
 	private readonly listeners = new Map<string, Set<AnyHandler>>();
+	/** Firehose listeners — called for EVERY emit with `(event, data)`. Registered via `on('all', fn)`. */
+	private readonly anyListeners = new Set<(event: string, data: any) => void>();
 	private readonly onceWrappers = new WeakMap<AnyHandler, AnyHandler>();
 	private readonly _lcPending = new Set<string>();
 
@@ -57,11 +59,20 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	 * The string overload accepts any event name and is intended for dynamic
 	 * event names inside plugin internals. Prefer the typed `K` overload in
 	 * application code so TypeScript catches event-name typos.
+	 *
+	 * `on('all', fn)` registers a firehose listener called for EVERY emit with
+	 * `(event, data)` — the debugging hook v1 consumers rely on
+	 * (`player.on('all', console.log)`). Remove with `off('all', fn)`.
 	 */
+	on(_event: 'all', _fn: (event: string, data: unknown) => void): void;
 	on<K extends keyof E>(_event: K, _fn: (data: E[K]) => void): void;
 	on(_event: string, _fn: AnyHandler): void;
-	on(event: any, fn: AnyHandler): void {
+	on(event: any, fn: (...args: any[]) => void): void {
 		const key = String(event);
+		if (key === 'all') {
+			this.anyListeners.add(fn as (event: string, data: any) => void);
+			return;
+		}
 		let set = this.listeners.get(key);
 		if (!set) {
 			set = new Set();
@@ -83,9 +94,10 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	once<K extends keyof E>(_event: K, _fn: (data: E[K]) => void): void;
 	once(_event: string, _fn: AnyHandler): void;
 	once(event: any, fn: AnyHandler): void {
-		const wrapper: AnyHandler = (data) => {
+		// Spread-through so firehose listeners receive both (event, data) args.
+		const wrapper = (...args: unknown[]): void => {
 			this.off(event, fn);
-			fn(data);
+			(fn as (...a: unknown[]) => void)(...args);
 		};
 		this.onceWrappers.set(fn, wrapper);
 		this.on(event, wrapper);
@@ -98,15 +110,28 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	 *   and `once` registrations; pass the original handler reference in both
 	 *   cases.
 	 * - `off(event)` — remove all listeners for that event.
-	 * - `off('all')` — remove every listener across all events. Used during
-	 *   player disposal to prevent leaks.
+	 * - `off('all', fn)` — remove a firehose listener registered via `on('all', fn)`.
+	 * - `off('all')` — remove every listener across all events (firehose
+	 *   included). Used during player disposal to prevent leaks.
 	 */
 	off<K extends keyof E>(_event: K, _fn?: (data: E[K]) => void): void;
-	off(_event: 'all'): void;
+	off(_event: 'all', _fn?: (event: string, data: unknown) => void): void;
 	off(_event: string, _fn?: AnyHandler): void;
-	off(event: any, fn?: AnyHandler): void {
+	off(event: any, fn?: (...args: any[]) => void): void {
 		if (event === 'all') {
+			if (fn) {
+				const wrapper = this.onceWrappers.get(fn);
+				if (wrapper) {
+					this.anyListeners.delete(wrapper as (event: string, data: any) => void);
+					this.onceWrappers.delete(fn);
+				}
+				else {
+					this.anyListeners.delete(fn as (event: string, data: any) => void);
+				}
+				return;
+			}
 			this.listeners.clear();
+			this.anyListeners.clear();
 			return;
 		}
 
@@ -155,10 +180,10 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	emit(event: any, data?: any): void {
 		const key = String(event);
 		const set = this.listeners.get(key);
-		if (!set || set.size === 0)
+		if ((!set || set.size === 0) && this.anyListeners.size === 0)
 			return;
 
-		const snapshot = Array.from(set);
+		const snapshot = set ? Array.from(set) : [];
 		for (const fn of snapshot) {
 			try {
 				fn(data);
@@ -169,6 +194,20 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 				// consumer listeners surface here so devs see the throw in dev tools.
 				if (typeof console !== 'undefined' && console.error) {
 					console.error(`[EventEmitter] listener for "${key}" threw:`, err);
+				}
+			}
+		}
+
+		if (this.anyListeners.size > 0) {
+			const anySnapshot = Array.from(this.anyListeners);
+			for (const fn of anySnapshot) {
+				try {
+					fn(key, data);
+				}
+				catch (err) {
+					if (typeof console !== 'undefined' && console.error) {
+						console.error(`[EventEmitter] 'all' listener threw on "${key}":`, err);
+					}
 				}
 			}
 		}
@@ -193,7 +232,7 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	 * use → dispose cycles.
 	 */
 	listenerCount(): number {
-		let total = 0;
+		let total = this.anyListeners.size;
 		for (const set of this.listeners.values()) total += set.size;
 		return total;
 	}

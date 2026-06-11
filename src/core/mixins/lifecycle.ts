@@ -9,6 +9,8 @@ import { hlsFactory } from '../../adapters/stream/hls';
 import { nativeFactory } from '../../adapters/stream/native';
 import { StreamRegistry } from '../../adapters/stream/registry';
 import { DefaultTranslator } from '../../adapters/translator/translator';
+import { Logger } from '../../adapters/logger/default';
+import { LEVEL_RANK } from '../../adapters/logger/ILogger';
 import { makePlayerErrorEvent, stateError, StateError } from '../../errors';
 
 import { SetupState } from '../../types';
@@ -97,6 +99,7 @@ export const lifecycleMethods = {
 
 		_normalizeOptions(this, config);
 		_seedFromOptions(this);
+		_wireLogger(this);
 		_initTranslator(this);
 		_registerCueParsers(this);
 		_resolvePlatform(this);
@@ -456,6 +459,36 @@ function _wireWakeLockPolicy(self: Internals): void {
  * refreshed). All listeners and the interval timer are released on dispose
  * via the cleanup queue.
  */
+/**
+ * Build the player's root logger from config (`logger` instance wins over
+ * `logLevel`) and wire the console output `logLevel` promises:
+ *
+ *  - `error` / `<stage>Error` events always log at error rank — a codec or
+ *    stream failure must be visible without any consumer wiring.
+ *  - At `debug`, every event except the high-frequency clock (`time`,
+ *    `progress`) is logged. At `trace`, everything is.
+ *
+ * Without this, `logLevel` only fed plugin child-loggers and the core was
+ * mute — failures surfaced as events with no listener and vanished.
+ */
+function _wireLogger(self: Internals): void {
+	const logger = self.options.logger ?? new Logger({ level: self.options.logLevel, prefix: 'nmplayer' });
+	self._logger = logger;
+
+	self.on('all', (event: string, data: unknown) => {
+		if (event === 'error' || event.endsWith('Error')) {
+			const payload = data as { error?: unknown } | undefined;
+			logger.error(event, payload?.error ?? data);
+			return;
+		}
+		if (LEVEL_RANK[logger.level()] < LEVEL_RANK.debug)
+			return;
+		if ((event === 'time' || event === 'progress') && logger.level() !== 'trace')
+			return;
+		logger.debug(event, data);
+	});
+}
+
 function _wireMetrics(self: Internals): void {
 	self._metricsStartedAt = Date.now();
 
