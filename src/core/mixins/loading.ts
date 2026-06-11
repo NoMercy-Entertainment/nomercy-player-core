@@ -67,17 +67,17 @@ export const loadingMethods = {
 			return;
 		}
 
-		// `item.url` is the canonical field; `auth.transformUrl` rewrites it
-		// (e.g. for custom-scheme streams or pre-signed URLs).
+		// `item.url` is the canonical field. The full resolution pipeline
+		// (`auth.transformUrl`, custom `urlResolver`, `baseUrl` for relative
+		// paths) applies to the MAIN media URL exactly like it does to track
+		// URLs — a bare transformUrl here left relative item URLs anchored to
+		// the page origin, where an SPA fallback answers 200 with HTML.
 		const item2 = beforeResult.data.item;
-		let url = (item2 as { url?: string }).url;
-		if (!url) {
+		const rawUrl = (item2 as { url?: string }).url;
+		if (!rawUrl) {
 			throw mediaFormatError('core:media/missing-url', 'load(item) requires `item.url` to be present.', { id: item2.id });
 		}
-		const transformer = this._authConfig?.transformUrl;
-		if (transformer) {
-			url = await transformer(url);
-		}
+		const url = (await this.resolveUrl(rawUrl, 'media')).href;
 
 		const resolvedItem = await this.resolveItemTrackUrls(item2);
 		if (resolvedItem !== item2) {

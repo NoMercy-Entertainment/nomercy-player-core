@@ -12,7 +12,9 @@ import type {
 	CurrentSubtitleSelection,
 	PlayerPhase,
 	PluginCtorWithId,
+	ResolvedUrl,
 	Translations,
+	UrlCategory,
 } from '../types';
 import type { BeforeDispatchOutcome } from './dispatch';
 import type { AbrState } from './mixins/abr';
@@ -225,6 +227,9 @@ export interface MixinSurface {
 	_peekBackendTyped<S extends object>(): S | undefined;
 	_assertReady(): void;
 	_dispatchBefore<TData>(beforeEvent: string, data: TData): Promise<BeforeDispatchOutcome<TData>>;
+
+	// authMethods (see mixins/auth.ts) — full URL resolution pipeline
+	resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl>;
 
 	// mediaTracksMethods (see mixins/media-tracks.ts) — sidecar + chapter helpers
 	_disposeSidecarSubtitle(): void;
