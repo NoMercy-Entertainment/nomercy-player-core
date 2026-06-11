@@ -682,24 +682,26 @@ export const mediaTracksMethods = {
 		// same language.
 		//
 		// Sidecar (consumer-supplied) wins over manifest-embedded when both cover
-		// the same language + kind combination. Sidecar entries are also deduped
-		// within their own list (first occurrence wins) so a playlist with two
-		// identical sidecar tracks for the same language never produces a duplicate
-		// menu entry.
+		// the same language + kind combination. Within the sidecar list itself,
+		// dedupe by URL only: two sidecars sharing language + kind but pointing
+		// at different files are distinct variants (e.g. `type: 'full'` vs
+		// `type: 'sign'`) and must BOTH survive — collapsing them by language
+		// would silently drop every variant after the first.
 		const trackKey = (lang: string | undefined, kind: string | undefined): string =>
 			`${normalizeLanguage(lang) ?? ''}:${kind ?? 'subtitles'}`;
 
-		const sidecarKeys = new Set<string>();
+		const sidecarLangKeys = new Set<string>();
+		const sidecarUrls = new Set<string>();
 		const dedupedSidecar = fromItem.filter((track) => {
-			const key = trackKey(track.language, track.kind);
-			if (sidecarKeys.has(key))
+			if (sidecarUrls.has(track.url))
 				return false;
-			sidecarKeys.add(key);
+			sidecarUrls.add(track.url);
+			sidecarLangKeys.add(trackKey(track.language, track.kind));
 			return true;
 		});
 
 		const dedupedBackend = fromBackend.filter(
-			track => !sidecarKeys.has(trackKey(track.language, track.kind)),
+			track => !sidecarLangKeys.has(trackKey(track.language, track.kind)),
 		);
 
 		// Deduped backend tracks first so their array positions still match HLS

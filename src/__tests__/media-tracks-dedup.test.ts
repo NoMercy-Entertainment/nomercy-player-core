@@ -203,6 +203,32 @@ describe('subtitles() dedup', () => {
 		expect(labels).not.toContain('English (manifest)');
 	});
 
+	it('regression: same-language variants with distinct files both survive — eng full + eng sign', () => {
+		const result = callSubtitles({
+			sidecarTracks: [
+				{ kind: 'subtitles', file: '/eng.full.ass', language: 'eng', label: 'full' },
+				{ kind: 'subtitles', file: '/eng.sign.ass', language: 'eng', label: 'sign' },
+			],
+		});
+
+		expect(result).toHaveLength(2);
+		expect(result.map(t => t.label)).toEqual(['full', 'sign']);
+	});
+
+	it('variant sidecars still displace the backend track for that language', () => {
+		const result = callSubtitles({
+			backendTracks: [
+				{ id: 'b0', language: 'en', kind: 'subtitles', label: 'English (manifest)', url: '' },
+			],
+			sidecarTracks: [
+				{ kind: 'subtitles', file: '/eng.full.ass', language: 'eng', label: 'full' },
+				{ kind: 'subtitles', file: '/eng.sign.ass', language: 'eng', label: 'sign' },
+			],
+		});
+
+		expect(result.map(t => t.label)).toEqual(['full', 'sign']);
+	});
+
 	it('drops sidecar tracks with no file URL', () => {
 		const result = callSubtitles({
 			sidecarTracks: [
