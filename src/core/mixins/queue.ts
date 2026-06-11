@@ -79,6 +79,25 @@ function _wireQueue(self: Internals): void {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// Ingest pipeline — every item entering the queue passes through the
+// package-supplied normalizer (wire-format adaptation), then the consumer's
+// `transformPlaylistItem` config callback. Both optional; both idempotent
+// by contract, so re-queuing already-processed items is safe.
+// ──────────────────────────────────────────────────────────────────────────
+
+function _ingestOne(self: Internals, item: BasePlaylistItem): BasePlaylistItem {
+	const normalized = self.normalizePlaylistItem ? self.normalizePlaylistItem(item) : item;
+	const transform = self.options?.transformPlaylistItem;
+	return transform ? transform(normalized) : normalized;
+}
+
+function _ingest(self: Internals, item: BasePlaylistItem | BasePlaylistItem[]): BasePlaylistItem | BasePlaylistItem[] {
+	return Array.isArray(item)
+		? item.map(entry => _ingestOne(self, entry))
+		: _ingestOne(self, item);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Mixin: queue + cursor + backlog (delegates to MediaList<T>)
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -97,7 +116,7 @@ export const queueMethods = {
 		_wireQueue(this);
 		if (items === undefined)
 			return this._queueList.get();
-		this._queueList.set(items);
+		this._queueList.set(_ingest(this, items) as BasePlaylistItem[]);
 	},
 
 	/**
@@ -106,7 +125,7 @@ export const queueMethods = {
 	 */
 	queueAppend(this: Internals, item: BasePlaylistItem | BasePlaylistItem[], _opts?: ActionOptions): void {
 		_wireQueue(this);
-		this._queueList.append(item);
+		this._queueList.append(_ingest(this, item));
 	},
 
 	/**
@@ -115,7 +134,7 @@ export const queueMethods = {
 	 */
 	queuePrepend(this: Internals, item: BasePlaylistItem | BasePlaylistItem[], _opts?: ActionOptions): void {
 		_wireQueue(this);
-		this._queueList.prepend(item);
+		this._queueList.prepend(_ingest(this, item));
 	},
 
 	/**
@@ -125,7 +144,7 @@ export const queueMethods = {
 	 */
 	queueInsert(this: Internals, item: BasePlaylistItem | BasePlaylistItem[], index: number, _opts?: ActionOptions): void {
 		_wireQueue(this);
-		this._queueList.insert(item, index);
+		this._queueList.insert(_ingest(this, item), index);
 	},
 
 	/**

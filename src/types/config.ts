@@ -324,6 +324,16 @@ export interface BasePlayerConfig {
 	/** Initial playlist. Pass items directly, or a URL the player will fetch. */
 	playlist?: BasePlaylistItem[] | string;
 
+	/**
+	 * Reshape every playlist item as it enters the queue — the playlist
+	 * counterpart of `transformUrl`. Runs AFTER the player's built-in format
+	 * normalization, on every entry path (`playlist` config array, `playlist`
+	 * URL responses, `queue()` / `queueAppend()` / `queuePrepend()` /
+	 * `queueInsert()`). Return the (new or same) item; keep it synchronous
+	 * and pure — async enrichment belongs in plugins.
+	 */
+	transformPlaylistItem?: (item: BasePlaylistItem) => BasePlaylistItem;
+
 	// ── Preload + transition ──────────────────────────────────────────────────
 
 	/**

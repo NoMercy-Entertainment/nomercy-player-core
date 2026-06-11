@@ -236,6 +236,15 @@ export interface MixinSurface {
 	resolveItemTrackUrls<T extends BasePlaylistItem>(item: T): Promise<T>;
 	_resolveAndEmitChapters(itemId: string | number | undefined): Promise<void>;
 
+	/**
+	 * Package-supplied playlist-item normalizer. Player classes override this
+	 * to accept their legacy / server wire format gracefully; the queue runs
+	 * it on every item BEFORE the consumer's `transformPlaylistItem` config
+	 * callback. Synchronous and idempotent — canonical items pass through
+	 * unchanged.
+	 */
+	normalizePlaylistItem?: (item: BasePlaylistItem) => BasePlaylistItem;
+
 	// stateMutatorsMethods (see mixins/state-mutators.ts) — mutation guard
 	_emitBeforeMutation(method: string, args: ReadonlyArray<unknown>): boolean;
 
