@@ -243,7 +243,7 @@ export class DefaultPreloadStrategy implements IPreloadStrategy {
 /**
  * Volume-gain curve applied during a crossfade transition.
  *
- * - `'linear'`      — simple linear ramp; mirrors v1 behaviour.
+ * - `'linear'`      — simple linear ramp.
  * - `'equal-power'` — cosine-based constant-power fade; perceptually smoother,
  *                     avoids the volume dip at the midpoint of a linear cross.
  */
@@ -257,7 +257,7 @@ export type CrossfadeCurve = 'linear' | 'equal-power';
  * but can opt in to audio crossfade by configuring this strategy explicitly.
  *
  * Volume curves:
- *  - `'linear'`       — simple linear ramp (equal to v1 behaviour).
+ *  - `'linear'`       — simple linear ramp.
  *  - `'equal-power'`  — cosine-based constant-power fade (perceptually smoother).
  */
 export class CrossfadeTransitionStrategy implements ITransitionStrategy {

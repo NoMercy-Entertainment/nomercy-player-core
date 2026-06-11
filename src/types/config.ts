@@ -173,7 +173,7 @@ export interface BasePlayerConfig {
 	 */
 	baseUrl?: string;
 
-	/** Initial volume on the public 0-100 scale (matches v1). Default `100`. */
+	/** Initial volume on the public 0–100 scale. Default `100`. */
 	defaultVolume?: number;
 
 	/** Auth pipeline applied to every kit-internal fetch. */

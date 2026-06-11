@@ -2,8 +2,8 @@
  * Equalizer presets, default band layout, and slider ranges.
  *
  * Frequency layout, preset values, and slider ranges are ported verbatim
- * from Fillz's reference plugin (NoMercy v1, MIT) so the v2 plugin gives
- * consumers the same audio feel he hand-tuned.
+ * from Fillz's reference equalizer plugin (MIT) so the kit gives consumers
+ * the same audio feel he hand-tuned.
  */
 
 /** Marker used by the pre-gain pseudo-band (always at index 0 of `EqBand[]`). */
