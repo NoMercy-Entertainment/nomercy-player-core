@@ -41,10 +41,6 @@ const BASE_STYLES = `
 	pointer-events: none;
 }
 
-.nomercyplayer .libassjs-canvas {
-	position: unset !important;
-}
-
 .nomercyplayer .nmplayer-canvas-surface {
 	position: absolute;
 	inset: 0;
