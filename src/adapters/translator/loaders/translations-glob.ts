@@ -77,8 +77,8 @@ export function translationsFromGlob(
 			code: 'core:state/vite-plugin-not-configured',
 			severity: 'fatal',
 			scope: { kind: 'core' },
-			message: `translationsFromGlob('${input}') was called with a literal string — the kit's Vite plugin (\`nomercyTranslationsPlugin\`) is not configured.`,
-			suggestion: 'Add it to your vite.config / vitest.config: import { nomercyTranslationsPlugin } from \'@nomercy-entertainment/nomercy-player-core/vite-plugin\'; plugins: [nomercyTranslationsPlugin()].',
+			message: `translationsFromGlob('${input}') was called with a literal string at runtime. This call should have been rewritten to a static lazy import map at build time.`,
+			suggestion: 'If you are building from source: add nomercyTranslationsPlugin() to your vite.config / vitest.config. If you are consuming a published dist: the package dist should already contain the rewritten form — check that the package was built with its post-build resolver (scripts/resolve-translation-globs.mjs).',
 			context: { pattern: input },
 		});
 	}

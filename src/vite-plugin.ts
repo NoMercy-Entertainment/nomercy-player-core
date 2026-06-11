@@ -50,7 +50,7 @@ function buildPattern(helperName: string): RegExp {
  * detects this and only fetches the bundle for the active language and its
  * BCP-47 parents — Chinese never loads when the user wants Dutch.
  *
- * **Wire it in** `vite.config.ts` and `vitest.config.ts`:
+ * **Wire it in** `vite.config.ts` and `vitest.config.ts` when building from source:
  *
  * ```ts
  * import { defineConfig } from 'vitest/config';
@@ -60,6 +60,12 @@ function buildPattern(helperName: string): RegExp {
  *   plugins: [nomercyTranslationsPlugin()],
  * });
  * ```
+ *
+ * **Published dists are self-contained.** The post-build resolver
+ * (`scripts/resolve-translation-globs.mjs`) rewrites all literal glob calls
+ * to static lazy import maps before the tarball is packed. Consumers of the
+ * published packages do NOT need this plugin, and do NOT need to exclude the
+ * packages from `optimizeDeps` — esbuild pre-bundling works without it.
  *
  * The plugin only touches files that call `translationsFromGlob` with a
  * literal string — every other file passes through untouched.
