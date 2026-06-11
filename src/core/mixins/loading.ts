@@ -116,9 +116,12 @@ export const loadingMethods = {
 			// Move cursor to the loaded item so consumer-facing `item()` reflects it.
 			// Use setCurrent directly — calling this.item() here would re-trigger load().
 			// Guard: skip when the cursor is already at this item to prevent a duplicate `current` event.
+			// Pass the ITEM, never its id: setCurrent treats an integer as an
+			// INDEX, so a numeric id resolved as a wildly out-of-range index
+			// and silently left the cursor behind on every load.
 			const alreadyCurrent = this._queueList.current()?.id === item2.id;
 			if (!alreadyCurrent) {
-				this._queueList.setCurrent(item2.id ?? item2);
+				this._queueList.setCurrent(item2);
 			}
 
 			if (typeof opts?.startAt === 'number' && opts.startAt > 0) {
