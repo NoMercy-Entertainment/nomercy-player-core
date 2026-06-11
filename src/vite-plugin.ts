@@ -82,16 +82,25 @@ export function nomercyTranslationsPlugin(opts: NomercyTranslationsPluginOptions
 		enforce: 'pre' as const,
 
 		transform(code: string, id: string) {
-			if (!include.test(id))
+			// Dev-served dep modules carry ?v=<hash> / #fragment suffixes; strip
+			// them or the extension-anchored filter skips node_modules dists.
+			const cleanId = id.replace(/[?#].*$/u, '');
+			if (!include.test(cleanId))
 				return null;
 			if (!code.includes(`${helperName}(`))
 				return null;
 
 			pattern.lastIndex = 0;
 			const next = code.replace(pattern, (_, quote: string, glob: string) => {
+				// Widen *.ts to *.{ts,js}: the same literal survives into package
+				// dists where the bundle files are .js — a bare .ts glob there
+				// silently matches nothing.
+				const widened = glob.endsWith('.ts')
+					? `${glob.slice(0, -3)}.{ts,js}`
+					: glob;
 				// No `eager: true` — the runtime helper stamps lazy markers so only
 				// the active language bundle is fetched.
-				return `${helperName}(import.meta.glob(${quote}${glob}${quote}))`;
+				return `${helperName}(import.meta.glob(${quote}${widened}${quote}))`;
 			});
 
 			if (next === code)
