@@ -93,7 +93,7 @@ export interface WithCurrentItem<T extends BasePlaylistItem = BasePlaylistItem> 
 	 * `beforeMutation` so advisory plugins can cancel the navigation.  Emits
 	 * the `current` event when the cursor moves.
 	 */
-	item(target: T | string | number | ((candidate: T) => boolean), opts?: ActionOptions): void;
+	item(target: T | string | number | ((candidate: T) => boolean), opts?: LoadOptions): void;
 }
 
 export const ACTION_SOURCE = {
@@ -659,11 +659,11 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap>
 	/** Seek to time 0 and play. */
 	restart(opts?: ActionOptions): Promise<void>;
 
-	/** Advance to the next item in the queue. */
-	next(opts?: ActionOptions): Promise<void>;
+	/** Advance to the next item in the queue. `opts.startAt` begins the incoming item at an offset (seconds). */
+	next(opts?: LoadOptions): Promise<void>;
 
-	/** Go to the previous item in the queue. */
-	previous(opts?: ActionOptions): Promise<void>;
+	/** Go to the previous item in the queue. `opts.startAt` begins the incoming item at an offset (seconds). */
+	previous(opts?: LoadOptions): Promise<void>;
 
 	// ── Volume ──
 

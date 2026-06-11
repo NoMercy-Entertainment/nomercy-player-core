@@ -10,6 +10,7 @@ import type {
 	CurrentAudioTrackSelection,
 	CurrentQualitySelection,
 	CurrentSubtitleSelection,
+	LoadOptions,
 	PlayerPhase,
 	PluginCtorWithId,
 	ResolvedUrl,
@@ -275,15 +276,15 @@ export interface MixinSurface {
 	queueLength(): number;
 	index(): number;
 	seekToIndex(position: number, opts?: ActionOptions): void;
-	next(opts?: ActionOptions): Promise<void>;
+	next(opts?: LoadOptions): Promise<void>;
 
 	// loadingMethods — per-library mixin; kit transport methods call it cross-mixin
-	load(item: BasePlaylistItem, opts?: ActionOptions): Promise<void>;
+	load(item: BasePlaylistItem, opts?: LoadOptions): Promise<void>;
 
 	// mediaTracksMethods (see mixins/media-tracks.ts)
 	chapters(): ReadonlyArray<Chapter>;
 	seekToChapter(idx: number, opts?: ActionOptions): void;
-	item(target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: ActionOptions): BasePlaylistItem | undefined | void;
+	item(target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: LoadOptions): BasePlaylistItem | undefined | void;
 	subtitle(): CurrentSubtitleSelection | null;
 	subtitle(idx: number | null): void;
 	audioTrack(): CurrentAudioTrackSelection | null;

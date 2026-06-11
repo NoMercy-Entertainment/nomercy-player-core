@@ -31,9 +31,13 @@ export const loadingMethods = {
 	 * before the setup pipeline has completed, to avoid a `loading→paused`
 	 * flash during initial auto-load.
 	 *
-	 * `opts.startAt` — seek to this timestamp (seconds) once metadata is
-	 * available. `opts.fadeIn` — ramp volume from 0 to the current level over
-	 * this many seconds. Both are optional.
+	 * `opts.startAt` — begin playback at this timestamp (seconds). Forwarded
+	 * to the backend as a load hint so engines that support it (hls.js
+	 * `startPosition`) fetch the first fragment AT the offset instead of
+	 * downloading the start of the stream and seeking away from it. Backends
+	 * that declare `canStartAt: true` consume the hint natively; for all
+	 * others the kit falls back to a post-load seek. `opts.fadeIn` — ramp
+	 * volume from 0 to the current level over this many seconds.
 	 *
 	 * Emits `mediaReady` after a successful load. On failure the error
 	 * propagates via the `error` event AND re-throws.
@@ -102,13 +106,15 @@ export const loadingMethods = {
 		this._loadEpoch = epoch;
 		const isLatest = (): boolean => this._loadEpoch === epoch;
 
+		const startAt = typeof opts?.startAt === 'number' && opts.startAt > 0 ? opts.startAt : undefined;
+
 		try {
 			const backend = this._resolveBackend();
 			if (!backend || typeof backend.load !== 'function') {
 				throw stateError('core:player/backend-missing', 'No backend wired — backend() returned null/undefined.');
 			}
 			performance.mark('nm:kit:backend.load:start');
-			await backend.load(url);
+			await backend.load(url, startAt !== undefined ? { startTime: startAt } : undefined);
 			performance.mark('nm:kit:backend.load:end');
 			if (!isLatest())
 				return;
@@ -124,8 +130,9 @@ export const loadingMethods = {
 				this._queueList.setCurrent(item2);
 			}
 
-			if (typeof opts?.startAt === 'number' && opts.startAt > 0) {
-				const ret = this.time(opts.startAt);
+			// Seek fallback for backends that can't start at an offset natively.
+			if (startAt !== undefined && backend.canStartAt !== true) {
+				const ret = this.time(startAt);
 				if (ret instanceof Promise)
 					await ret;
 				if (!isLatest())

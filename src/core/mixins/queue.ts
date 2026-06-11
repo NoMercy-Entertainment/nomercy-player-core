@@ -1,5 +1,5 @@
 import type { MediaList } from '../../adapters/media-list/default';
-import type { ActionOptions, BasePlaylistItem } from '../../types';
+import type { ActionOptions, BasePlaylistItem, LoadOptions } from '../../types';
 
 import type { Internals } from '../state';
 
@@ -242,7 +242,7 @@ export const queueMethods = {
 	 * string, or index). Fires `beforeMutation` so advisory plugins can cancel
 	 * the change. Emits the `current` event when the cursor moves.
 	 */
-	item(this: Internals, target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: ActionOptions): BasePlaylistItem | undefined | void {
+	item(this: Internals, target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: LoadOptions): BasePlaylistItem | undefined | void {
 		if (target === undefined) {
 			return this._queueList.current();
 		}
@@ -281,7 +281,7 @@ export const queueMethods = {
 			if (!currentItem)
 				return;
 
-			void this.load(currentItem as BasePlaylistItem & { url?: string }, { source: opts?.source }).then(() => {
+			void this.load(currentItem as BasePlaylistItem & { url?: string }, { source: opts?.source, startAt: opts?.startAt }).then(() => {
 				if (this._currentEpoch !== navigationEpoch)
 					return;
 				if (opts?.autoplay) {

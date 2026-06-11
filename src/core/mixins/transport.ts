@@ -1,4 +1,4 @@
-import type { ActionOptions } from '../../types';
+import type { ActionOptions, LoadOptions } from '../../types';
 
 import type { Internals } from '../state';
 
@@ -209,9 +209,9 @@ export const transportMethods = {
 	 *               instead of emitting `queue:exhausted`.
 	 *  - `'off'`  — emit `queue:exhausted` when there is no next item (default).
 	 */
-	async next(this: Internals, opts: ActionOptions = {}): Promise<void> {
+	async next(this: Internals, opts: LoadOptions = {}): Promise<void> {
 		this._assertReady();
-		const result = await this._dispatchBefore<ActionOptions>('beforeNext', { ...opts });
+		const result = await this._dispatchBefore<LoadOptions>('beforeNext', { ...opts });
 		if (result.prevented) {
 			this.emit('nextPrevented', {
 				reason: result.reason ?? 'listener-prevented',
@@ -229,7 +229,7 @@ export const transportMethods = {
 				return;
 			}
 			this.emit('next', result.data);
-			await this.load(currentItem, { source: result.data?.source });
+			await this.load(currentItem, { source: result.data?.source, startAt: result.data?.startAt });
 			void this.play({ source: result.data?.source });
 			return;
 		}
@@ -246,7 +246,7 @@ export const transportMethods = {
 				}
 				this.emit('next', result.data);
 				this._queueList.setCurrent(0);
-				await this.load(firstItem, { source: result.data?.source });
+				await this.load(firstItem, { source: result.data?.source, startAt: result.data?.startAt });
 				void this.play({ source: result.data?.source });
 				return;
 			}
@@ -261,7 +261,7 @@ export const transportMethods = {
 		// `current` fires immediately and the UI (title, poster, playlist
 		// highlight) reflects the incoming item while its media still loads.
 		this._queueList.setCurrent(nextItem);
-		await this.load(nextItem, { source: result.data?.source });
+		await this.load(nextItem, { source: result.data?.source, startAt: result.data?.startAt });
 		void this.play({ source: result.data?.source });
 	},
 
@@ -272,9 +272,9 @@ export const transportMethods = {
 	 * (no `queue:exhausted` symmetric event — going past the start is a
 	 * common gesture, not an error worth announcing).
 	 */
-	async previous(this: Internals, opts: ActionOptions = {}): Promise<void> {
+	async previous(this: Internals, opts: LoadOptions = {}): Promise<void> {
 		this._assertReady();
-		const result = await this._dispatchBefore<ActionOptions>('beforePrevious', { ...opts });
+		const result = await this._dispatchBefore<LoadOptions>('beforePrevious', { ...opts });
 		if (result.prevented) {
 			this.emit('previousPrevented', {
 				reason: result.reason ?? 'listener-prevented',
@@ -292,7 +292,7 @@ export const transportMethods = {
 
 		// Cursor moves before the media switch — see next().
 		this._queueList.setCurrent(prevItem);
-		await this.load(prevItem, { source: result.data?.source });
+		await this.load(prevItem, { source: result.data?.source, startAt: result.data?.startAt });
 		void this.play({ source: result.data?.source });
 	},
 

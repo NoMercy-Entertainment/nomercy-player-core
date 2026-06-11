@@ -39,11 +39,23 @@ interface _BackendWithSetAudioTrack { setAudioTrack?: (idx: number) => void }
 // Declared here so callers can narrow via `_resolveBackend` / `_peekBackend`.
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Hints forwarded to `backend.load()`. `startTime` lets the backend begin
+ * playback at an offset natively (hls.js `startPosition`, element
+ * `currentTime` at metadata) instead of the kit seeking after the fact —
+ * which downloads and decodes the start of the stream just to discard it.
+ */
+export interface BackendLoadHints {
+	startTime?: number;
+}
+
 export interface BackendShape {
 	play?: () => Promise<void> | void;
 	pause?: () => void;
 	stop?: () => void;
-	load?: (url: string) => Promise<void>;
+	load?: (url: string, hints?: BackendLoadHints) => Promise<void>;
+	/** `true` when the backend consumes `BackendLoadHints.startTime` natively — the kit then skips its post-load seek fallback. */
+	canStartAt?: boolean;
 	currentTime?: (t: number) => void;
 	buffered?: () => number;
 	bufferedRanges?: () => TimeRanges;

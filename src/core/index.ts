@@ -58,7 +58,7 @@ export { mediaTracksMethods, normalizeLanguage } from './mixins/media-tracks';
 export type { ItemWithDefinedTracks, ItemWithTracks, SidecarTrack } from './mixins/media-tracks';
 export { metricsMethods } from './mixins/metrics';
 export { playerStateMethods } from './mixins/player-state';
-export type { BackendShape } from './mixins/player-state';
+export type { BackendLoadHints, BackendShape } from './mixins/player-state';
 export { pluginRegistrationMethods } from './mixins/plugin-registration';
 export { preloadStrategyMethods } from './mixins/preload-strategy-mixin';
 export { queueMethods } from './mixins/queue';
