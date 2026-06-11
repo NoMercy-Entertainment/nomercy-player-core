@@ -257,6 +257,10 @@ export const transportMethods = {
 
 		this.emit('next', result.data);
 
+		// Cursor moves BEFORE the media switch — same order as item() — so
+		// `current` fires immediately and the UI (title, poster, playlist
+		// highlight) reflects the incoming item while its media still loads.
+		this._queueList.setCurrent(nextItem);
 		await this.load(nextItem, { source: result.data?.source });
 		void this.play({ source: result.data?.source });
 	},
@@ -286,6 +290,8 @@ export const transportMethods = {
 
 		this.emit('previous', result.data);
 
+		// Cursor moves before the media switch — see next().
+		this._queueList.setCurrent(prevItem);
 		await this.load(prevItem, { source: result.data?.source });
 		void this.play({ source: result.data?.source });
 	},
