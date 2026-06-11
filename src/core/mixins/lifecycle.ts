@@ -716,6 +716,23 @@ function _runSetupPipeline(self: Internals): void {
 				}
 			});
 			await _runStage(self, 'pluginsRegistered', 'pluginsRegisteredError', () => {});
+
+			// Load the initial language through the full language() pipeline —
+			// the translator only invokes `loadTranslations` on a language
+			// SWITCH, so without this the configured loader (and every
+			// plugin's lazy bundle) never fires for the startup language.
+			// Resolution: config.language → browser language → 'en'.
+			try {
+				const initialLanguage = self.options.language
+					?? (typeof navigator !== 'undefined' ? navigator.language : undefined)
+					?? 'en';
+				await self.language(initialLanguage);
+			}
+			catch {
+				// Bundle load failure must not block setup — t() falls back
+				// to the key / fallback-language chain.
+			}
+
 			await _runStage(self, 'streamsReady', 'streamsReadyError', () => {
 				// Native registered first so HLS (registered after) wins resolution
 				// when a URL matches both — the registry walks newest-first.
