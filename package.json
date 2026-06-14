@@ -1,7 +1,7 @@
 {
 	"name": "@nomercy-entertainment/nomercy-player-core",
 	"type": "module",
-	"version": "2.0.0-rc.2",
+	"version": "2.0.0-rc.3",
 	"description": "NoMercy player core — shared spine for nomercy-music-player and nomercy-video-player. Plugin runtime, event system, lifecycle helpers, streams, cues, errors, auth.",
 	"author": {
 		"name": "NoMercy Entertainment",
@@ -207,7 +207,7 @@
 		"tag": "rc"
 	},
 	"scripts": {
-		"build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node scripts/resolve-translation-globs.mjs",
+		"build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && node scripts/resolve-translation-globs.mjs",
 		"dev": "tsc -p tsconfig.build.json --watch",
 		"typecheck": "tsc --noEmit",
 		"lint": "eslint .",
@@ -225,6 +225,7 @@
 		"@vitest/ui": "^4.1.6",
 		"eslint": "^10.4.0",
 		"happy-dom": "^20.9.0",
+		"tsc-alias": "^1.8.17",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.13",
 		"vite-plugin-dts": "^5.0.0",
