@@ -203,15 +203,14 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		});
 
 		// Insert as a 'post' effect so EQ output flows into MixerPlugin if present.
-		// Insert preGain first; the audio-graph rebuild reconnects from source.
-		// Filters are wired in series internally and patched on chain rebuilds.
+		// Insert preGain first; AudioGraphPlugin's rebuildChain reconnects the full
+		// postEffects array in order — preGain → f0 → … → f9 — on every insert.
+		// No separate relinkInternalChain call is needed: rebuildChain already wires
+		// all postEffects sequentially and disconnects old edges before reconnecting,
+		// so a secondary link pass would create duplicate fan-out edges and amplify
+		// the signal at each filter stage.
 		graph.insertEffect(preGain, 'post');
 		for (const f of this.filterNodes) graph.insertEffect(f, 'post');
-		this.relinkInternalChain();
-
-		// Re-link internal chain after every audio-graph rebuild (e.g. when a
-		// downstream plugin inserts a new effect between us and destination).
-		this.on(AudioGraphPlugin, 'chain:rebuilt', () => this.relinkInternalChain());
 
 		// Restore persisted state if `persistKey` is set.
 		const persistKey = this.opts?.persistKey;

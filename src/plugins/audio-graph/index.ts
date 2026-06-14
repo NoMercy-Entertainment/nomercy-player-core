@@ -131,17 +131,38 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 			});
 		}
 
-		// Reuse an existing player-owned context when present.
+		// Reuse an existing player-owned context when present. When the backend
+		// is a WebAudioBackend, the player already has its context registered via
+		// _wireBackend before any plugin's use() runs — so `existing` is the
+		// backend's context. This is the single-context invariant: backend
+		// context === player context === plugin context.
 		const existing = this.player.audioContext?.();
-		const ctx = existing ?? this.createContext();
+		let ctx = existing ?? this.createContext();
 
 		// Write the context back onto the player so other plugins / accessors see it.
 		setPlayerAudioContext(this.player, ctx);
 		this.ctx = ctx;
 
-		// Source: try the active backend's mediaElement, else use a silent
-		// placeholder gain node (lets effects-only chains work in tests).
+		// Source: try the active backend's output node (preferred — avoids a
+		// second createMediaElementSource call on the same element), else try
+		// the backend's mediaElement directly, else use a silent placeholder
+		// gain node (lets effects-only chains work in tests).
+		//
+		// IMPORTANT: resolveMediaElement() may lazily initialise the backend,
+		// which registers its own AudioContext on the player via _wireBackend /
+		// setPlayerAudioContext. If that happens, `ctx` is now stale (it was
+		// created before the backend existed and belongs to a different
+		// AudioContext). Re-read the player's context after the backend call so
+		// that `this.source` and `this.destination` are always in the SAME
+		// AudioContext instance.
 		const element = this.resolveMediaElement();
+		const ctxAfterBackend = this.player.audioContext?.();
+		if (ctxAfterBackend && ctxAfterBackend !== ctx) {
+			ctx = ctxAfterBackend;
+			this.ctx = ctx;
+			setPlayerAudioContext(this.player, ctx);
+		}
+
 		this.source = element
 			? this.mountSource(ctx, element)
 			: ctx.createGain();
@@ -153,13 +174,39 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		// Resume on the first player 'play' event — that event fires inside or
 		// immediately after a user-gesture callback, satisfying the browser's
 		// activation requirement. Without this, the graph is wired but silent.
+		// Reference this.ctx rather than the closed-over ctx so the correct
+		// context is resumed even when ctx was updated by backend lazy-init above.
 		const resumeOnPlay = (): void => {
-			if (ctx.state === 'suspended') {
-				ctx.resume().catch(() => { /* best-effort — policy blocks are silent */ });
+			if (this.ctx && this.ctx.state === 'suspended') {
+				this.ctx.resume().catch(() => { /* best-effort — policy blocks are silent */ });
 			}
 		};
 		this.player.on('play', resumeOnPlay);
 		this.lifecycle.addCleanup(() => this.player.off('play', resumeOnPlay));
+
+		// Bug 3 fix — crossfade source-swap remount:
+		// After a crossfade, WebAudioBackend promotes the secondary element to
+		// primary and emits 'backend:sourceswap' with the new source node. If
+		// this plugin's source still references the old (now-disconnected) node,
+		// the EQ / mixer chain is fed by a dead source. Re-mount on the new node.
+		const onSourceSwap = (payload: { sourceNode: AudioNode }): void => {
+			this.source = payload.sourceNode;
+			this.rebuildChain();
+		};
+
+		try {
+			const backend = this.player.backend?.() as
+				| { on?: (event: string, fn: (p: { sourceNode: AudioNode }) => void) => void; off?: (event: string, fn: (p: { sourceNode: AudioNode }) => void) => void }
+				| undefined;
+
+			if (typeof backend?.on === 'function') {
+				backend.on('backend:sourceswap', onSourceSwap);
+				this.lifecycle.addCleanup(() => {
+					backend.off?.('backend:sourceswap', onSourceSwap);
+				});
+			}
+		}
+		catch { /* player may have no backend in test environments — safe to ignore */ }
 
 		this.lifecycle.addCleanup(() => this.tearDownGraph());
 
