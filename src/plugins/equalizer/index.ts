@@ -672,24 +672,6 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		}
 	}
 
-	private relinkInternalChain(): void {
-		// Audio-graph's rebuild only rewires the head of each effect; the tail
-		// of our internal chain (preGain → filter[0] → filter[1] → …) is ours
-		// to maintain. Reconnect each link in series.
-		if (!this.preGainNode || this.filterNodes.length === 0)
-			return;
-		try {
-			this.preGainNode.connect(this.filterNodes[0]!);
-		}
-		catch { /* swallow — happy-dom mocks may not implement connect */ }
-		for (let i = 0; i < this.filterNodes.length - 1; i++) {
-			try {
-				this.filterNodes[i]!.connect(this.filterNodes[i + 1]!);
-			}
-			catch { /* swallow */ }
-		}
-	}
-
 	private autoSave(): void {
 		const enabled = this.opts?.autoSave ?? !!this.opts?.persistKey;
 		if (enabled && this.opts?.persistKey)
