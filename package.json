@@ -1,7 +1,7 @@
 {
 	"name": "@nomercy-entertainment/nomercy-player-core",
 	"type": "module",
-	"version": "2.0.0-rc.4",
+	"version": "2.0.0-rc.5",
 	"description": "NoMercy player core — shared spine for nomercy-music-player and nomercy-video-player. Plugin runtime, event system, lifecycle helpers, streams, cues, errors, auth.",
 	"author": {
 		"name": "NoMercy Entertainment",
@@ -12,7 +12,7 @@
 		"Stoney Eagle <45034970+StoneyEagle@users.noreply.github.com>"
 	],
 	"license": "Apache-2.0",
-	"homepage": "https://docs.nomercy.tv/player/",
+	"homepage": "https://docs.nomercy.tv/nomercy-player-core/",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/NoMercy-Entertainment/nomercy-player-core.git"
