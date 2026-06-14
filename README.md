@@ -2,7 +2,7 @@
 [![license](https://img.shields.io/npm/l/@nomercy-entertainment/nomercy-player-core)](./LICENSE)
 [![bundlephobia](https://img.shields.io/bundlephobia/minzip/@nomercy-entertainment/nomercy-player-core)](https://bundlephobia.com/package/@nomercy-entertainment/nomercy-player-core)
 
-Full documentation: https://docs.nomercy.tv/player/
+Full documentation: https://docs.nomercy.tv/nomercy-player-core/
 
 # nomercy-player-core
 
@@ -43,11 +43,11 @@ player.on('ready', () => {
 
 ## Documentation
 
-The [docs site](https://docs.nomercy.tv/player/) is the full reference and the home for everything that used to live in the wiki:
+The [docs site](https://docs.nomercy.tv/nomercy-player-core/) is the full reference and the home for everything that used to live in the wiki:
 
-- [Quick Start](https://docs.nomercy.tv/player/quickstart) and the [adapter ports](https://docs.nomercy.tv/player/kit/adapters)
-- [Event system](https://docs.nomercy.tv/player/kit/event-system), [lifecycle](https://docs.nomercy.tv/player/kit/lifecycle), and [auth and fetch](https://docs.nomercy.tv/player/kit/auth-fetch)
-- [Built-in plugins](https://docs.nomercy.tv/player/kit/plugins), [plugin authoring](https://docs.nomercy.tv/player/plugin-authoring), and the full type reference
+- [Quick Start](https://docs.nomercy.tv/nomercy-player-core/quickstart) and the [adapter ports](https://docs.nomercy.tv/nomercy-player-core/adapters)
+- [Event system](https://docs.nomercy.tv/nomercy-player-core/event-system), [lifecycle](https://docs.nomercy.tv/nomercy-player-core/lifecycle), and [auth and fetch](https://docs.nomercy.tv/nomercy-player-core/auth-fetch)
+- [Built-in plugins](https://docs.nomercy.tv/nomercy-player-core/plugins), [plugin authoring](https://docs.nomercy.tv/nomercy-player-core/plugin-authoring), and the full type reference
 
 ## License
 
