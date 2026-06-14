@@ -9,8 +9,8 @@
 
 import type { BasePlaylistItem } from '../types';
 import { describe, expect, it } from 'vitest';
-import { queueMethods } from '../core/mixins/queue';
 import { MediaList } from '../adapters/media-list/default';
+import { queueMethods } from '../core/mixins/queue';
 
 interface IngestTestItem extends BasePlaylistItem {
 	normalized?: boolean;

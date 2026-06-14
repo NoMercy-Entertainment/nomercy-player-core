@@ -5,8 +5,8 @@ import type { IStorage } from '../../adapters/storage/IStorage';
 import type { Severity } from '../../errors';
 import type {
 	BaseEventMap,
-	BasePlaylistItem,
 	BasePlayerConfig,
+	BasePlaylistItem,
 	IPlayer,
 	PluginAdvisory,
 	RequireSpec,

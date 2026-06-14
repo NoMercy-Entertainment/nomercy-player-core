@@ -6,8 +6,8 @@
  * + `duringEvent` constraints all match.
  */
 
-import type { BaseEventMap, PluginAdvisory } from '../types';
 import type { PlayerTestInternals } from '../testing/player-test-internals';
+import type { BaseEventMap, PluginAdvisory } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,
@@ -45,6 +45,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		(): any;
 		(target: any, opts?: any): void;
 	};
+
 	declare getPluginById: (id: string) => { disable(): void; enable(): void } | undefined;
 
 	constructor(id?: string | number) {
@@ -103,7 +104,7 @@ describe('static advisories — declarative phase-aware advisories', () => {
 
 		p.item(0);
 
-		type Advisory = { error: { code: string; message: string; severity: string } };
+		interface Advisory { error: { code: string; message: string; severity: string } }
 		expect(warnings.length).toBe(1);
 		expect((warnings[0] as Advisory).error.code).toBe('plugin:advisor/cursor-mutation');
 		expect((warnings[0] as Advisory).error.message).toBe('plugin:advisor/cursor-mutation: Be careful');
@@ -161,7 +162,7 @@ describe('static advisories — declarative phase-aware advisories', () => {
 
 		p.item(0);
 
-		type Advisory = { error: { code: string } };
+		interface Advisory { error: { code: string } }
 		expect(infos.length).toBe(1);
 		expect((infos[0] as Advisory).error.code).toBe('plugin:multi-sev/info-reason');
 		expect(errors.length).toBe(1);

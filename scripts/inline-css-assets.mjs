@@ -22,8 +22,18 @@
  * distDir defaults to ./dist relative to cwd.
  */
 
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import {
+	readdirSync,
+	readFileSync,
+	statSync,
+	writeFileSync,
+} from 'node:fs';
+import {
+	dirname,
+	join,
+	relative,
+	resolve,
+} from 'node:path';
 
 // Matches: this.appendStyles(new URL('./styles.css', import.meta.url).href, 'style-id')
 const CALL_RE = /this\.appendStyles\(\s*new URL\(\s*(['"])([^'"]+\.css)\1\s*,\s*import\.meta\.url\s*\)\.href\s*,\s*(['"])([^'"]+)\3\s*\)/g;
@@ -61,11 +71,14 @@ function processFile(filePath) {
 
 	CALL_RE.lastIndex = 0;
 	let rewritten = original;
-	let match;
 	const matches = [];
 
-	while ((match = CALL_RE.exec(original)) !== null) {
-		matches.push({ full: match[0], cssPath: match[2], styleId: match[4] });
+	for (let match = CALL_RE.exec(original); match !== null; match = CALL_RE.exec(original)) {
+		matches.push({
+			full: match[0],
+			cssPath: match[2],
+			styleId: match[4],
+		});
 	}
 
 	if (matches.length === 0)

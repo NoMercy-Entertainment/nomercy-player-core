@@ -23,9 +23,18 @@
  * distDir defaults to ./dist relative to cwd.
  */
 
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {
+	readdirSync,
+	readFileSync,
+	statSync,
+	writeFileSync,
+} from 'node:fs';
+import {
+	dirname,
+	join,
+	relative,
+	resolve,
+} from 'node:path';
 
 const HELPER_NAME = 'translationsFromGlob';
 
@@ -135,11 +144,10 @@ function processFile(filePath) {
 		return false;
 
 	LITERAL_CALL_RE.lastIndex = 0;
-	let match;
 	let rewritten = original;
 	const matches = [];
 
-	while ((match = LITERAL_CALL_RE.exec(original)) !== null) {
+	for (let match = LITERAL_CALL_RE.exec(original); match !== null; match = LITERAL_CALL_RE.exec(original)) {
 		// Skip occurrences inside string literals (error messages, template literals).
 		// A real static field initialiser is preceded by `=` or whitespace.
 		// An embedded occurrence inside a string is preceded by a quote character.
@@ -157,7 +165,11 @@ function processFile(filePath) {
 			continue;
 		}
 
-		matches.push({ full: match[0], pattern: match[2], index: match.index });
+		matches.push({
+			full: match[0],
+			pattern: match[2],
+			index: match.index,
+		});
 	}
 
 	if (matches.length === 0)

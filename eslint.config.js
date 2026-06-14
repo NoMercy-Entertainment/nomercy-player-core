@@ -101,6 +101,19 @@ export default antfu({
 		'antfu/consistent-chaining': 'off',
 	},
 }, {
+	// Build scripts run in Node.js — process, __dirname etc. are genuine globals,
+	// not src code. Scoping to scripts/** keeps the rule active everywhere else.
+	files: ['scripts/**/*.mjs', 'scripts/**/*.js'],
+	languageOptions: {
+		globals: {
+			process: 'readonly',
+		},
+	},
+	rules: {
+		'node/prefer-global/process': 'off',
+		'no-console': 'off',
+	},
+}, {
 	// Logger is the one place that must call console directly.
 	files: ['src/adapters/logger/default.ts'],
 	rules: {

@@ -230,7 +230,10 @@ export const transportMethods = {
 				return;
 			}
 			this.emit('next', result.data);
-			await this.load(currentItem, { source: result.data?.source, startAt: result.data?.startAt });
+			await this.load(currentItem, {
+				source: result.data?.source,
+				startAt: result.data?.startAt,
+			});
 			void this.play({ source: result.data?.source });
 			return;
 		}
@@ -247,7 +250,10 @@ export const transportMethods = {
 				}
 				this.emit('next', result.data);
 				this._queueList.setCurrent(0);
-				await this.load(firstItem, { source: result.data?.source, startAt: result.data?.startAt });
+				await this.load(firstItem, {
+					source: result.data?.source,
+					startAt: result.data?.startAt,
+				});
 				void this.play({ source: result.data?.source });
 				return;
 			}
@@ -262,7 +268,10 @@ export const transportMethods = {
 		// `current` fires immediately and the UI (title, poster, playlist
 		// highlight) reflects the incoming item while its media still loads.
 		this._queueList.setCurrent(nextItem);
-		await this.load(nextItem, { source: result.data?.source, startAt: result.data?.startAt });
+		await this.load(nextItem, {
+			source: result.data?.source,
+			startAt: result.data?.startAt,
+		});
 		void this.play({ source: result.data?.source });
 	},
 
@@ -293,7 +302,10 @@ export const transportMethods = {
 
 		// Cursor moves before the media switch — see next().
 		this._queueList.setCurrent(prevItem);
-		await this.load(prevItem, { source: result.data?.source, startAt: result.data?.startAt });
+		await this.load(prevItem, {
+			source: result.data?.source,
+			startAt: result.data?.startAt,
+		});
 		void this.play({ source: result.data?.source });
 	},
 

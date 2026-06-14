@@ -159,8 +159,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare setup: (config: object) => this;
 	declare ready: () => Promise<void>;
 	declare dispose: () => void;
-	declare addPlugin: <P>(PluginClass: unknown, opts?: unknown) => this;
-	declare getPlugin: <P extends object>(PluginClass: { new(): P }) => P | undefined;
+	declare addPlugin: <_P>(PluginClass: unknown, opts?: unknown) => this;
+	declare getPlugin: <_P extends object>(PluginClass: { new(): _P }) => _P | undefined;
 	declare getPluginById: (id: string) => object | undefined;
 	declare removePlugin: (PluginClass: unknown) => void;
 	declare audioContext: () => AudioContext | undefined;
@@ -200,8 +200,8 @@ class MockPlayerLazyBackend extends EventEmitter<BaseEventMap> {
 	declare setup: (config: object) => this;
 	declare ready: () => Promise<void>;
 	declare dispose: () => void;
-	declare addPlugin: <P>(PluginClass: unknown, opts?: unknown) => this;
-	declare getPlugin: <P extends object>(PluginClass: { new(): P }) => P | undefined;
+	declare addPlugin: <_P>(PluginClass: unknown, opts?: unknown) => this;
+	declare getPlugin: <_P extends object>(PluginClass: { new(): _P }) => _P | undefined;
 	declare getPluginById: (id: string) => object | undefined;
 	declare removePlugin: (PluginClass: unknown) => void;
 	declare audioContext: () => AudioContext | undefined;
@@ -263,10 +263,7 @@ composeMixins(MockPlayerLazyBackend.prototype, ...playerCoreMethods);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-let installedCtx: MockAudioContext | null = null;
-
 function installAudioContext(ctx: MockAudioContext): void {
-	installedCtx = ctx;
 	const Ctor = class {
 		state = ctx.state;
 		currentTime = ctx.currentTime;
@@ -284,7 +281,6 @@ function installAudioContext(ctx: MockAudioContext): void {
 }
 
 function removeAudioContext(): void {
-	installedCtx = null;
 	delete (globalThis as unknown as { AudioContext?: unknown }).AudioContext;
 }
 
@@ -309,11 +305,6 @@ function reachableLabels(node: MockAudioNode): Set<string> {
 /** Returns true when `node` is connected (directly or transitively) to `target`. */
 function reachesDestination(node: MockAudioNode, target: MockAudioNode): boolean {
 	return reachableLabels(node).has(target.label);
-}
-
-/** Count how many connections exist from `node` to `target`. */
-function connectionCount(node: MockAudioNode, target: MockAudioNode): number {
-	return node._connections.filter(n => n === target).length;
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

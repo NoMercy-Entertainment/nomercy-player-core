@@ -283,8 +283,7 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			// A warning must have been emitted. console.warn is called as:
 			// console.warn(prefix, ...args) — prefix is call[0], message is call[1].
 			const warned = warnSpy.mock.calls.some(call =>
-				call.some(arg => String(arg).includes('#this-does-not-exist')),
-			);
+				call.some(arg => String(arg).includes('#this-does-not-exist')));
 			expect(warned).toBe(true);
 
 			warnSpy.mockRestore();

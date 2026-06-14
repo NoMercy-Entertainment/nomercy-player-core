@@ -26,10 +26,6 @@ export type { ILogger, LoggerOptions } from './adapters/logger/ILogger';
 export { MediaList } from './adapters/media-list/default';
 
 export type { MediaListEvent } from './adapters/media-list/default';
-// Shuffle strategy (pluggable queue permutation — swap via setup({ shuffleStrategy }))
-export { FisherYatesShuffle, fisherYatesShuffle } from './adapters/shuffle-strategy/default';
-
-export type { IShuffleStrategy } from './adapters/shuffle-strategy/IShuffleStrategy';
 // Platform bundle (wake-lock, network, visibility, capabilities, fullscreen, pip)
 export { browserPlatform } from './adapters/platform/browser';
 
@@ -51,6 +47,7 @@ export {
 	DefaultPreloadStrategy,
 	GaplessTransitionStrategy,
 } from './adapters/preload/default';
+
 export type {
 	CrossfadeCurve,
 	IPreloadStrategy,
@@ -63,6 +60,9 @@ export type {
 export type { IRealtimeChannel, RealtimeFactory, RealtimeFactoryOptions } from './adapters/realtime/IRealtimeChannel';
 // Realtime channel abstraction (WebSocket / SignalR / Socket.IO via factory)
 export { nativeWebSocketAdapter } from './adapters/realtime/websocket';
+// Shuffle strategy (pluggable queue permutation — swap via setup({ shuffleStrategy }))
+export { FisherYatesShuffle, fisherYatesShuffle } from './adapters/shuffle-strategy/default';
+export type { IShuffleStrategy } from './adapters/shuffle-strategy/IShuffleStrategy';
 export { IndexedDBBackend, LocalStorageBackend, MemoryStorageBackend } from './adapters/storage';
 
 export type { IStorage } from './adapters/storage';
@@ -130,22 +130,20 @@ export type {
 } from './base-player';
 export { preloadStrategyMethods } from './base-player';
 
-// Auth-aware fetch (shared between Plugin.fetch and the player core's setup-time loads)
-export { authFetch, isAuthError, isNetworkError } from './core/auth-fetch';
-
-export type { AuthFetchOptions } from './core/auth-fetch';
 // URL-param auth helper for non-HLS / native-HLS-fallback element.src paths
 export { appendAuthTokenParam } from './core/append-auth-token-param';
-// Perceptual volume curve — maps linear 0..1 slider position to gain amplitude
-export { perceptualGain } from './core/volume-curve';
+
+// Auth-aware fetch (shared between Plugin.fetch and the player core's setup-time loads)
+export { authFetch, isAuthError, isNetworkError } from './core/auth-fetch';
+export type { AuthFetchOptions } from './core/auth-fetch';
 // Mixin + factory
 export { composeMixins } from './core/compose';
-
 export { mergeConfig } from './core/config-merge';
+
 // Cues
 export { createCueList, createMutableCueList } from './core/cues/cue';
-
 export type { Cue, CueList, MutableCueList } from './core/cues/cue';
+
 export { CueTracker } from './core/cues/tracker';
 export type { CueTrackerOptions } from './core/cues/tracker';
 // Shared cancellable-event dispatcher (used by both kit transport mixins and Plugin.dispatchBefore)
@@ -153,7 +151,6 @@ export { runDispatchBefore } from './core/dispatch';
 export type { BeforeDispatchOutcome, DispatchBeforeOpts, DispatchTarget } from './core/dispatch';
 // Plugin runtime
 export { Plugin, PluginThrow } from './core/plugin';
-
 export type {
 	BeforeDispatchResult,
 	DispatchBeforeOptions,
@@ -162,7 +159,10 @@ export type {
 	PluginState,
 	ThrowPayload,
 } from './core/plugin';
+
 export { buildResolvedUrl } from './core/resolved-url';
+// Perceptual volume curve — maps linear 0..1 slider position to gain amplitude
+export { perceptualGain } from './core/volume-curve';
 
 // Errors
 export {

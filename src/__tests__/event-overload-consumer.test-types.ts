@@ -23,9 +23,8 @@
  *   the untyped escape hatch — bivariance is intentional.
  */
 
+import type { EventEmitter } from '../adapters/event-bus/default';
 import type { ActionOptions, BaseEventMap, IPlayer } from '../types';
-import { EventEmitter } from '../adapters/event-bus/default';
-
 
 // ─── Concrete payload type used by a hypothetical plugin ─────────────────────
 
@@ -37,7 +36,6 @@ interface EqChangePayload {
 interface PanChangedPayload {
 	pan: number;
 }
-
 
 // ─── Proof 1: typed overload gives concrete payload ──────────────────────────
 
@@ -55,7 +53,6 @@ type PlayPayload = BaseEventMap['play'];
 declare const _badPlay: { notSource: number };
 // @ts-expect-error — { notSource: number } is not assignable to ActionOptions
 const _playProof: PlayPayload = _badPlay;
-
 
 // ─── Proof 2: string-fallback accepts an annotated typed callback ─────────────
 //
@@ -80,7 +77,6 @@ typedPlayer.off('plugin:some-plugin:ready', (data: { version: string }) => {
 	void data.version;
 });
 
-
 // ─── Proof 3: EventEmitter.on() has the same guarantees ──────────────────────
 
 declare const emitter: EventEmitter<BaseEventMap>;
@@ -88,7 +84,6 @@ declare const emitter: EventEmitter<BaseEventMap>;
 emitter.on('plugin:foo:bar', (data: EqChangePayload) => {
 	void data.bands;
 });
-
 
 // ─── Proof 4: 'all' firehose receives (event: string, data: unknown) ─────────
 
@@ -104,7 +99,6 @@ typedPlayer.on('all', (event, data) => {
 		void Object.keys(data);
 	}
 });
-
 
 // ─── Silence unused-variable noise ───────────────────────────────────────────
 

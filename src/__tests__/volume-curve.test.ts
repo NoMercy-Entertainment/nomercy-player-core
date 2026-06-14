@@ -37,7 +37,7 @@ describe('perceptualGain', () => {
 	});
 
 	it('position 0.5 produces gain close to 10^(-1.5) ≈ 0.0316 (−30 dB)', () => {
-		expect(perceptualGain(0.5)).toBeCloseTo(Math.pow(10, -1.5), 5);
+		expect(perceptualGain(0.5)).toBeCloseTo(10 ** -1.5, 5);
 	});
 
 	it('is monotonically non-decreasing across the [0, 1] range', () => {

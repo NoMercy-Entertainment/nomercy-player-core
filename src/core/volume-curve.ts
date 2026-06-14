@@ -54,5 +54,5 @@ export function perceptualGain(position01: number): number {
 		return 0;
 	}
 
-	return Math.pow(10, 3 * (clamped - 1));
+	return 10 ** (3 * (clamped - 1));
 }

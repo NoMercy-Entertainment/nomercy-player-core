@@ -34,7 +34,6 @@ import type { PluginRegistrationState } from './mixins/plugin-registration';
 import type { PreloadStrategyState } from './mixins/preload-strategy-mixin';
 import type { QueueState } from './mixins/queue';
 import type { StateMutatorsState } from './mixins/state-mutators';
-import { RepeatState, ShuffleState } from './mixins/state-mutators';
 import type { StreamRegistrationState } from './mixins/stream-registration';
 import type { TimeInternalState } from './mixins/time';
 import type { PlayStateToken, TransportState } from './mixins/transport';
@@ -43,6 +42,7 @@ import { CueParserRegistry } from '../adapters/cue-parser/registry';
 import { MediaList } from '../adapters/media-list/default';
 import { DefaultPreloadStrategy } from '../adapters/preload/default';
 import { AudioTrackState, QualityState } from '../types';
+import { RepeatState, ShuffleState } from './mixins/state-mutators';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Re-exported state slices + tokens

@@ -8,8 +8,8 @@
  * round-trip.
  */
 
-import type { BaseEventMap, PlayerPhase } from '../types';
 import type { PlayerTestInternals } from '../testing/player-test-internals';
+import type { BaseEventMap, PlayerPhase } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,

@@ -6,10 +6,10 @@
  * @vitest-environment node
  */
 
+import { execSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { join, resolve } from 'node:path';
 
 // ── Import the resolver logic under test ──────────────────────────────────────
 // The script is a plain .mjs with a `main` block that runs on import.
@@ -23,8 +23,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 // The integration test at the bottom spawns the script as a child process to
 // verify the real entry point works end-to-end.
 
-import { execSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -14,8 +14,18 @@
  * srcDir defaults to ./src, distDir to ./dist relative to cwd.
  */
 
-import { copyFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import {
+	copyFileSync,
+	mkdirSync,
+	readdirSync,
+	statSync,
+} from 'node:fs';
+import {
+	dirname,
+	join,
+	relative,
+	resolve,
+} from 'node:path';
 
 const ASSET_EXTENSIONS = [
 	'.css',

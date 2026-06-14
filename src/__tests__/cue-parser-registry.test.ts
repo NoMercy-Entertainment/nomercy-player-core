@@ -8,8 +8,8 @@
  */
 
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
-import type { BaseEventMap } from '../types';
 import type { PlayerTestInternals } from '../testing/player-test-internals';
+import type { BaseEventMap } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EventEmitter } from '../adapters/event-bus/default';
 import {
