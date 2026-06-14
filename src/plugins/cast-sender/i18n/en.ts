@@ -14,7 +14,7 @@
  * dropping a sibling `<tag>.ts` file (`fr.ts`, `de.ts`, `pt-BR.ts`, …) —
  * the glob in the plugin file picks them up at build time.
  */
-export default {
+const translations = {
 	'plugin.cast-sender.unavailable': 'Casting is not available on this device.',
 	'plugin.cast-sender.connecting': 'Connecting to {device}…',
 	'plugin.cast-sender.connected': 'Casting to {device}',
@@ -27,4 +27,9 @@ export default {
 	'plugin.cast-sender.state.buffering': 'Buffering…',
 	'plugin.cast-sender.state.playing': 'Playing on {device}',
 	'plugin.cast-sender.state.paused': 'Paused on {device}',
-} satisfies Record<string, string>;
+};
+
+/** Canonical translation key set for the shared cast-sender plugin, derived from English. */
+export type CastSenderTranslationKey = keyof typeof translations;
+
+export default translations;

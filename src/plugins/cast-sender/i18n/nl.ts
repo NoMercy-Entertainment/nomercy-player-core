@@ -6,9 +6,8 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-/**
- * Dutch translations for the shared `CastSenderPlugin`. Mirrors `en.ts`.
- */
+import type { CastSenderTranslationKey } from './en';
+
 export default {
 	'plugin.cast-sender.unavailable': 'Casten is niet beschikbaar op dit apparaat.',
 	'plugin.cast-sender.connecting': 'Verbinden met {device}…',
@@ -22,4 +21,4 @@ export default {
 	'plugin.cast-sender.state.buffering': 'Bufferen…',
 	'plugin.cast-sender.state.playing': 'Speelt op {device}',
 	'plugin.cast-sender.state.paused': 'Gepauzeerd op {device}',
-} satisfies Record<string, string>;
+} satisfies Record<CastSenderTranslationKey, string>;
