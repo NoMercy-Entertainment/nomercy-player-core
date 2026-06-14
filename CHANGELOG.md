@@ -1,5 +1,25 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.1] — 2026-06-14
+
+### Changed
+
+- API-unification consolidation. `url` is now a field on the `BasePlaylistItem`
+  base type as the canonical media source, so `load()` no longer needs an
+  intersection constraint and call sites no longer cast to read it.
+- The base event map is generic over the item type; the queue-item selection
+  event is shared across both player libraries.
+
+### Added
+
+- Perceptual volume curve, the `play-queue` and `shuffle-strategy` adapters, and
+  the auth-token URL helper.
+
+### Fixed
+
+- The audio-graph reconciles a single shared `AudioContext`; the analyser tap is
+  wired correctly across backends.
+
 ## [2.0.0-beta.1] — 2026-05-30
 
 ### Breaking
