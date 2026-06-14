@@ -15,10 +15,10 @@
 	"homepage": "https://docs.nomercy.tv/player/",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/NoMercy-Entertainment/nomercy-player-kit.git"
+		"url": "git+https://github.com/NoMercy-Entertainment/nomercy-player-core.git"
 	},
 	"bugs": {
-		"url": "https://github.com/NoMercy-Entertainment/nomercy-player-kit/issues"
+		"url": "https://github.com/NoMercy-Entertainment/nomercy-player-core/issues"
 	},
 	"keywords": [
 		"player",
