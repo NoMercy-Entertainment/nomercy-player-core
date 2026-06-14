@@ -251,7 +251,7 @@ export type PlayerConstructorId = string | number;
  * `BaseEventMap` while still satisfying this constraint; most consumers can
  * leave it at its default.
  */
-export interface IPlayer<E extends BaseEventMap = BaseEventMap>
+export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	extends DispatchTarget {
 
 	/**
@@ -285,15 +285,20 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap>
 
 	/** Subscribe to a typed event by name. The handler receives the narrowed payload. */
 	on<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
+	/** Firehose: called for every emit with `(eventName, payload)`. */
+	on(event: 'all', fn: (event: string, data: unknown) => void): void;
 	/**
-	 * Subscribe to a plugin event by its full string name (`plugin:<id>:<event>`).
-	 * The kit cannot know plugin payload shapes, so the handler receives `any`.
-	 * Consumers use this form; plugins emit via `this.emit` on the plugin instance.
+	 * Escape hatch for plugin-namespaced events (`plugin:<id>:<event>`) and other
+	 * dynamic event names. The `any` parameter type is bivariant, so consumers may
+	 * annotate the callback with the concrete plugin-event type without a cast.
+	 * For all events declared in the event map, prefer the typed `K` overload.
 	 */
-	on(event: string, fn: (data: any) => void): void;
+	on(event: string, fn: (data: any) => void): void; // bivariant escape hatch for plugin events
 
 	/** Unsubscribe a previously-registered typed handler. */
 	off<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
+	/** Remove a firehose listener. */
+	off(event: 'all', fn?: (event: string, data: unknown) => void): void;
 	/** Unsubscribe all handlers for a string-keyed event (plugin events). */
 	off(event: string, fn?: (data: any) => void): void;
 
@@ -743,6 +748,38 @@ export interface IPlayer<E extends BaseEventMap = BaseEventMap>
 	 * `beforeMutation` / `current`. Throws `RangeError` for non-positive integers.
 	 */
 	seekToIndex(position: number, opts?: ActionOptions): void;
+
+	/**
+	 * Move the cursor to `target` and play AFTER the item finishes loading.
+	 *
+	 * Race-free alternative to `item(target); play()`. Delegates to
+	 * `item(target, { autoplay: true, ...opts })` so playback only begins once
+	 * the backend has set `element.src` and the load promise resolves.
+	 *
+	 * `opts.source` threads through every emitted event for NoMercy Connect
+	 * echo-prevention. `opts.startAt` seeks to an offset inside the load
+	 * pipeline (no extra seek round-trip when the backend supports `startTime`).
+	 */
+	playItem(
+		target: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean),
+		opts?: LoadOptions,
+	): void;
+
+	/**
+	 * Replace the queue with `items` and begin playing from `start`.
+	 *
+	 * When `start` is omitted the first item in `items` is played. `start`
+	 * accepts the same target union as `item()`: item reference, string id,
+	 * numeric index, or a predicate.
+	 *
+	 * Silently no-ops when `items` is empty. `opts.source` and `opts.startAt`
+	 * thread through identically to `playItem()`.
+	 */
+	playNow(
+		items: BasePlaylistItem[],
+		start?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean),
+		opts?: LoadOptions,
+	): void;
 
 	// ── Repeat / shuffle ──
 

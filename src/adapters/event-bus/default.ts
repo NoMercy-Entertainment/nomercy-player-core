@@ -1,4 +1,14 @@
+/**
+ * Handler type for string-keyed (untyped) events. Consumers that subscribe to
+ * plugin-namespaced events (`plugin:<id>:<event>`) or other dynamic event names
+ * via the string fallback overload may annotate the callback parameter with the
+ * concrete plugin-event type — TypeScript permits this because `any` is bivariant
+ * at function parameters. Typed-event consumers should use the `K extends keyof E`
+ * overload; this type is the escape hatch, not the default path.
+ */
 type AnyHandler = (data: any) => void;
+/** Internal impl-signature handler: accepts any so overload implementations compile. */
+type ImplHandler = (data: any) => void;
 
 /**
  * Typed event emitter. Both player classes extend this; plugins consume it
@@ -30,7 +40,7 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 
 	private readonly listeners = new Map<string, Set<AnyHandler>>();
 	/** Firehose listeners — called for EVERY emit with `(event, data)`. Registered via `on('all', fn)`. */
-	private readonly anyListeners = new Set<(event: string, data: any) => void>();
+	private readonly anyListeners = new Set<(event: string, data: unknown) => void>();
 	private readonly onceWrappers = new WeakMap<AnyHandler, AnyHandler>();
 	private readonly _lcPending = new Set<string>();
 
@@ -70,7 +80,7 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	on(event: any, fn: (...args: any[]) => void): void {
 		const key = String(event);
 		if (key === 'all') {
-			this.anyListeners.add(fn as (event: string, data: any) => void);
+			this.anyListeners.add(fn as (event: string, data: unknown) => void);
 			return;
 		}
 		let set = this.listeners.get(key);
@@ -93,7 +103,7 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	 */
 	once<K extends keyof E>(_event: K, _fn: (data: E[K]) => void): void;
 	once(_event: string, _fn: AnyHandler): void;
-	once(event: any, fn: AnyHandler): void {
+	once(event: any, fn: ImplHandler): void {
 		// Spread-through so firehose listeners receive both (event, data) args.
 		const wrapper = (...args: unknown[]): void => {
 			this.off(event, fn);
@@ -122,11 +132,11 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 			if (fn) {
 				const wrapper = this.onceWrappers.get(fn);
 				if (wrapper) {
-					this.anyListeners.delete(wrapper as (event: string, data: any) => void);
+					this.anyListeners.delete(wrapper as (event: string, data: unknown) => void);
 					this.onceWrappers.delete(fn);
 				}
 				else {
-					this.anyListeners.delete(fn as (event: string, data: any) => void);
+					this.anyListeners.delete(fn as (event: string, data: unknown) => void);
 				}
 				return;
 			}
@@ -176,7 +186,7 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	 * inside a handler take effect on the next emit, not the current one.
 	 */
 	emit<K extends keyof E>(_event: K, _data?: E[K]): void;
-	emit(_event: string, _data?: any): void;
+	emit(_event: string, _data?: unknown): void;
 	emit(event: any, data?: any): void {
 		const key = String(event);
 		const set = this.listeners.get(key);
@@ -250,7 +260,7 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	 */
 	listenersOf<K extends keyof E>(event: K): ReadonlyArray<(data: E[K]) => void>;
 	listenersOf(event: string): ReadonlyArray<AnyHandler>;
-	listenersOf(event: any): ReadonlyArray<AnyHandler> {
+	listenersOf(event: any): ReadonlyArray<ImplHandler> {
 		const set = this.listeners.get(String(event));
 		if (!set)
 			return [];
