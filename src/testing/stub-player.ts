@@ -2,7 +2,6 @@ import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { AddClasses, CreateElement } from '../adapters/element-factory';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { IStreamFactory } from '../adapters/stream/IStreamSource';
-import type { RepeatStateToken, ShuffleStateToken } from '../core/mixins/state-mutators';
 import type { Plugin } from '../core/plugin';
 import type { PlayStateToken, VolumeStateToken } from '../core/state';
 import type {

@@ -24,7 +24,7 @@
  */
 
 import type { EventEmitter } from '../adapters/event-bus/default';
-import type { ActionOptions, BaseEventMap, IPlayer } from '../types';
+import type { BaseEventMap, IPlayer } from '../types';
 
 // ─── Concrete payload type used by a hypothetical plugin ─────────────────────
 
