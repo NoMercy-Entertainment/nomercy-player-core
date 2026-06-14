@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 // Barrel — re-exports every public name from the plugin concern split.
 // Internal consumers that import `from './plugin'` or `from '../plugin'` resolve
 // here; the public `src/index.ts` re-exports from here so the kit's external API

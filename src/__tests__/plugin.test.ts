@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * Plugin base class tests — every method that has a real body. Stubs
  * (`mount`, `t`, `dispatchBefore`, `websocket`, `loadTranslations`, `derive`,

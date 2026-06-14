@@ -1,5 +1,10 @@
-// SPDX-License-Identifier: GPL-3.0-only
-// NoMercy Entertainment — nomercy-player-kit
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
 
 import type { ActionOptions, BasePlaylistItem, LoadOptions } from '../../types';
 

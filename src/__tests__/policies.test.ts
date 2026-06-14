@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * Locks the platform-policy wires (`pauseWhenHidden`, `onOffline`, `wakeLock`)
  * and the `now()` clock source per spec §G. Builds a custom in-memory IPlatform

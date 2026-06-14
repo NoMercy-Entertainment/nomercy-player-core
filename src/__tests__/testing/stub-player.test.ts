@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * StubPlayer behavior tests — beyond the contract suite (which only checks
  * shape). Verifies the test-driver methods (setPhase, pushDispatch, etc.) and

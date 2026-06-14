@@ -1,4 +1,4 @@
-[![npm](https://img.shields.io/npm/v/@nomercy-entertainment/nomercy-player-core/beta?label=beta)](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-player-core)
+[![npm](https://img.shields.io/npm/v/@nomercy-entertainment/nomercy-player-core/rc?label=rc)](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-player-core)
 [![license](https://img.shields.io/npm/l/@nomercy-entertainment/nomercy-player-core)](./LICENSE)
 [![bundlephobia](https://img.shields.io/bundlephobia/minzip/@nomercy-entertainment/nomercy-player-core)](https://bundlephobia.com/package/@nomercy-entertainment/nomercy-player-core)
 
@@ -53,4 +53,4 @@ The [docs site](https://docs.nomercy.tv/player/) is the full reference and the h
 
 Apache-2.0
 
-Repository: [github.com/NoMercy-Entertainment/nomercy-player-kit](https://github.com/NoMercy-Entertainment/nomercy-player-kit)
+Repository: [github.com/NoMercy-Entertainment/nomercy-player-core](https://github.com/NoMercy-Entertainment/nomercy-player-core)

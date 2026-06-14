@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * authFetch tests — mocked-fetch unit tests covering the auth pipeline,
  * 401-refresh-retry, 403-propagate, retry-on-5xx, scope-aware event routing,

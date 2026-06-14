@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 import type { MediaList } from '../../adapters/media-list/default';
 import type { ActionOptions, BasePlaylistItem, LoadOptions } from '../../types';
 

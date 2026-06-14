@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * CueTracker tests — time-driven cue dispatcher used by lyrics, subtitles,
  * sprite previews. Subscribes to a player's `time` and `seek` events; emits

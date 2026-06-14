@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * Post-build static-asset copier.
  *
@@ -9,7 +17,7 @@
  * Copies every static asset under src/ into dist/ at the same relative path.
  *
  * Usage (from a package root):
- *   node ../nomercy-player-kit/scripts/copy-dist-assets.mjs [srcDir] [distDir]
+ *   node ../nomercy-player-core/scripts/copy-dist-assets.mjs [srcDir] [distDir]
  *
  * srcDir defaults to ./src, distDir to ./dist relative to cwd.
  */

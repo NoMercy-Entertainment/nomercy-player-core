@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * Post-build CSS inliner for plugin stylesheets.
  *
@@ -17,7 +25,7 @@
  * server, testbed, vitest) keep the URL form, which Vite serves directly.
  *
  * Usage (from a package root):
- *   node ../nomercy-player-kit/scripts/inline-css-assets.mjs [distDir]
+ *   node ../nomercy-player-core/scripts/inline-css-assets.mjs [distDir]
  *
  * distDir defaults to ./dist relative to cwd.
  */

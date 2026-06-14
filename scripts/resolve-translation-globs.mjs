@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * Post-build glob resolver for `translationsFromGlob`.
  *
@@ -18,7 +26,7 @@
  * src/adapters/translator/loaders/translations-glob.ts.
  *
  * Usage (from a package root):
- *   node ../nomercy-player-kit/scripts/resolve-translation-globs.mjs [distDir]
+ *   node ../nomercy-player-core/scripts/resolve-translation-globs.mjs [distDir]
  *
  * distDir defaults to ./dist relative to cwd.
  */

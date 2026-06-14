@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * LifecycleRegistry tests — every plugin gets one of these. Records listeners,
  * timers, observers, AbortControllers, RAFs, custom cleanups; one `dispose()`

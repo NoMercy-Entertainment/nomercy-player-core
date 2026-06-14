@@ -43,5 +43,5 @@ During beta, video and music declare:
 prerelease AND the eventual `2.0.0` stable — so no range change is required at stable flip
 (step 3 above is cosmetic/conventional, not mechanical).
 
-In the yarn classic workspace the range resolves to the local `packages/nomercy-player-kit`
+In the yarn classic workspace the range resolves to the local `packages/nomercy-player-core`
 workspace package regardless, so local development is unaffected.

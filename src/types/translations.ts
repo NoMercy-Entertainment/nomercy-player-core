@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * Translation bundle map. Outer key is a BCP-47 language tag; inner map is
  * key → translated string. Example: `{ en: { 'core.network.timeout': 'Connection timed out' }, nl: { ... } }`.

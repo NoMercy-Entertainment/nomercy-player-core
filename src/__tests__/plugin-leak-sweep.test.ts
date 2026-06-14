@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * Per-plugin leak-harness sweep — every kit plugin gets `addPlugin → ready →
  * removePlugin` exercised; the listener-count delta must be ≤ 0 (i.e., no

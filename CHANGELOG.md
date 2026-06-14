@@ -1,5 +1,19 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.4] — 2026-06-14
+
+### Changed
+
+- The GitHub repository was renamed from `nomercy-player-kit` to
+  `nomercy-player-core` to match the published package name. Repository URLs,
+  contributing/releasing docs, and the README point at the new location.
+
+### Fixed
+
+- Every source file now carries the correct `Apache-2.0` license header. One
+  file previously declared `GPL-3.0-only`, which contradicted the package
+  license; the header tool gained Apache-2.0 support to stamp the house header.
+
 ## [2.0.0-rc.3] — 2026-06-14
 
 ### Fixed

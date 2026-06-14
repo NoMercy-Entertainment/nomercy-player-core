@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * Where an error came from. Discriminated union — TS narrows `id` based on
  * `kind`. Plugin ids are vendored: bare names (`'lyrics'`) are kit-implicit

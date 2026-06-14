@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 import type { ITranslator } from '../../adapters/translator/translator';
 import type { PluginCtorWithId, Translations } from '../../types';
 import type { Internals } from '../state';

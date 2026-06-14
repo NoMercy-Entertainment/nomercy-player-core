@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Entertainment
+//
+//  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+//
+//  SPDX-License-Identifier: Apache-2.0
+// -----------------------------------------------------------------------------
+
 /**
  * Shared player core — the **logic** that both NMMusicPlayer and NMVideoPlayer
  * exhibit. Lives in the kit so neither library can drift from the spec, and so
