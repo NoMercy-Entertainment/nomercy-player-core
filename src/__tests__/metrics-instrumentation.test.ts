@@ -76,9 +76,9 @@ describe('metrics instrumentation', () => {
 
 		expect(p.metrics().ttff).toBe(0);
 
-		(p as any).emit('play', {});
+		p.emit('play', {});
 		await new Promise(r => setTimeout(r, 30));
-		(p as any).emit('firstFrame');
+		p.emit('firstFrame');
 
 		const ttff = p.metrics().ttff;
 		expect(ttff).toBeGreaterThan(0);
@@ -89,15 +89,15 @@ describe('metrics instrumentation', () => {
 		const p = make('m2', { metricsIntervalMs: 0 });
 		await p.ready();
 
-		(p as any).emit('play', {});
+		p.emit('play', {});
 		await new Promise(r => setTimeout(r, 20));
-		(p as any).emit('firstFrame');
+		p.emit('firstFrame');
 		const firstTtff = p.metrics().ttff;
 
 		// Second play+frame — should NOT reset TTFF.
-		(p as any).emit('play', {});
+		p.emit('play', {});
 		await new Promise(r => setTimeout(r, 50));
-		(p as any).emit('firstFrame');
+		p.emit('firstFrame');
 
 		expect(p.metrics().ttff).toBe(firstTtff);
 	});
@@ -108,9 +108,9 @@ describe('metrics instrumentation', () => {
 
 		expect(p.metrics().joinTime).toBe(0);
 
-		(p as any).emit('play', {});
+		p.emit('play', {});
 		await new Promise(r => setTimeout(r, 25));
-		(p as any).emit('firstFrame');
+		p.emit('firstFrame');
 
 		expect(p.metrics().joinTime).toBeGreaterThan(0);
 	});
@@ -122,14 +122,14 @@ describe('metrics instrumentation', () => {
 		expect(p.metrics().rebufferRatio).toBe(0);
 
 		// Stall 1
-		(p as any).emit('backend:waiting');
+		p.emit('backend:waiting');
 		await new Promise(r => setTimeout(r, 30));
-		(p as any).emit('backend:loaded');
+		p.emit('backend:loaded');
 
 		// Stall 2
-		(p as any).emit('backend:waiting');
+		p.emit('backend:waiting');
 		await new Promise(r => setTimeout(r, 30));
-		(p as any).emit('play', {});
+		p.emit('play', {});
 
 		const ratio = p.metrics().rebufferRatio;
 		expect(ratio).toBeGreaterThan(0);
@@ -160,7 +160,7 @@ describe('metrics instrumentation', () => {
 		await p.ready();
 
 		const seen: any[] = [];
-		(p as any).on('playback:metrics', (data: any) => seen.push(data));
+		p.on('playback:metrics', (data: unknown) => seen.push(data));
 
 		await new Promise(r => setTimeout(r, 130));
 
@@ -172,7 +172,7 @@ describe('metrics instrumentation', () => {
 		await p.ready();
 
 		const seen: any[] = [];
-		(p as any).on('playback:metrics', (data: any) => seen.push(data));
+		p.on('playback:metrics', (data: unknown) => seen.push(data));
 
 		await new Promise(r => setTimeout(r, 100));
 

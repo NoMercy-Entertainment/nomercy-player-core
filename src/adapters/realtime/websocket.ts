@@ -13,9 +13,9 @@ import type { RealtimeFactory } from './IRealtimeChannel';
  */
 export const nativeWebSocketAdapter: RealtimeFactory = (url, opts) => {
 	const ws = new WebSocket(url, opts?.protocols);
-	const handlers = new Map<string, Set<(data?: any) => void>>();
+	const handlers = new Map<string, Set<(data?: unknown) => void>>();
 
-	const dispatch = (event: string, data?: any): void => {
+	const dispatch = (event: string, data?: unknown): void => {
 		const set = handlers.get(event);
 		if (!set)
 			return;

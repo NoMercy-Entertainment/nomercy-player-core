@@ -6,34 +6,38 @@ import type {
 } from '../state';
 
 import { makePlayerErrorEvent, pluginError } from '../../errors';
+import { RepeatState, ShuffleState } from '../../types/state';
 
+export { RepeatState, ShuffleState };
+
+/**
+ * @deprecated Use `RepeatState` enum from `nomercy-player-core`. Kept for one
+ * beta cycle so existing imports resolve. Will be removed in the next major release.
+ */
 export const REPEAT_STATE = {
-	OFF: 'off',
-	ALL: 'all',
-	ONE: 'one',
+	OFF: RepeatState.OFF,
+	ALL: RepeatState.ALL,
+	ONE: RepeatState.ONE,
 } as const;
 
 /**
- * Repeat mode token. Written by `stateMutatorsMethods.repeatState()`.
- * Read by `queueMethods.next()` / `queueMethods.previous()` to decide
- * whether to wrap or stop at the end of the queue.
- *
- * - `'off'` — no repeat.
- * - `'all'` — loop the whole queue.
- * - `'one'` — loop only the current item.
+ * @deprecated Use `RepeatState` from `nomercy-player-core` instead.
  */
-export type RepeatStateToken = typeof REPEAT_STATE[keyof typeof REPEAT_STATE];
+export type RepeatStateToken = RepeatState;
 
+/**
+ * @deprecated Use `ShuffleState` enum from `nomercy-player-core`. Kept for one
+ * beta cycle so existing imports resolve. Will be removed in the next major release.
+ */
 export const SHUFFLE_STATE = {
-	OFF: 'off',
-	ON: 'on',
+	OFF: ShuffleState.OFF,
+	ON: ShuffleState.ON,
 } as const;
 
 /**
- * Shuffle mode token. Written by `stateMutatorsMethods.shuffleState()`.
- * Read by `queueMethods` when picking the next item.
+ * @deprecated Use `ShuffleState` from `nomercy-player-core` instead.
  */
-export type ShuffleStateToken = typeof SHUFFLE_STATE[keyof typeof SHUFFLE_STATE];
+export type ShuffleStateToken = ShuffleState;
 
 /**
  * The state-mutators mixin's slice of player state — composed into
@@ -41,10 +45,10 @@ export type ShuffleStateToken = typeof SHUFFLE_STATE[keyof typeof SHUFFLE_STATE]
  */
 export interface StateMutatorsState {
 	/** Repeat mode. Written by `stateMutatorsMethods.repeatState()`; read by queue advancement logic. */
-	_repeatState: RepeatStateToken;
+	_repeatState: RepeatState;
 
 	/** Shuffle mode. Written by `stateMutatorsMethods.shuffleState()`; read by queue advancement logic. */
-	_shuffleState: ShuffleStateToken;
+	_shuffleState: ShuffleState;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -118,7 +122,7 @@ export const stateMethods = {
 	 * new token. The transport mixin honours this token inside `next()` to
 	 * decide whether to loop the current item or advance.
 	 */
-	repeatState(this: Internals, state?: RepeatStateToken): RepeatStateToken | void {
+	repeatState(this: Internals, state?: RepeatState): RepeatState | void {
 		if (state === undefined)
 			return this._repeatState;
 		this._repeatState = state;
@@ -143,18 +147,18 @@ export const stateMethods = {
 	 * Accepts a `ShuffleStateToken` or a plain boolean (`true` → `'on'`,
 	 * `false` → `'off'`).
 	 */
-	shuffleState(this: Internals, state?: ShuffleStateToken | boolean): ShuffleStateToken | void {
+	shuffleState(this: Internals, state?: ShuffleState | boolean): ShuffleState | void {
 		if (state === undefined)
 			return this._shuffleState;
 
-		let next: ShuffleStateToken;
+		let next: ShuffleState;
 		if (typeof state === 'boolean')
-			next = state ? 'on' : 'off';
+			next = state ? ShuffleState.ON : ShuffleState.OFF;
 		else
 			next = state;
 		this._shuffleState = next;
 
-		if (next === 'on') {
+		if (next === ShuffleState.ON) {
 			this._queueList.shuffle();
 		}
 

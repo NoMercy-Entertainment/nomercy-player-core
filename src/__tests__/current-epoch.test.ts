@@ -49,7 +49,7 @@ class EpochPlayer extends EventEmitter<BaseEventMap> {
 	};
 
 	declare index: () => number;
-	declare load: (item: BasePlaylistItem & { url?: string }, opts?: Record<string, unknown>) => Promise<void>;
+	declare load: (item: BasePlaylistItem, opts?: Record<string, unknown>) => Promise<void>;
 
 	constructor(id?: string | number) {
 		super();

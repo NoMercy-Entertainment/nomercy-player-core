@@ -1,5 +1,7 @@
 import type { BasePlaylistItem } from '../../types';
+import type { IShuffleStrategy } from '../shuffle-strategy/IShuffleStrategy';
 import { EventEmitter } from '../event-bus/default';
+import { fisherYatesShuffle } from '../shuffle-strategy/default';
 
 export type { MediaListEvent } from './IMediaList';
 
@@ -34,6 +36,7 @@ interface MediaListEventMap<T> {
 export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaListEventMap<T>> {
 	private items: T[] = [];
 	private cursor = -1;
+	private shuffleStrategy: IShuffleStrategy = fisherYatesShuffle;
 
 	// ── Read ──
 
@@ -338,8 +341,18 @@ export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaLis
 	}
 
 	/**
-	 * Shuffle the list in place using Fisher-Yates. The cursor follows the
-	 * current item to its new position. Fires `shuffle` then `change`.
+	 * Replace the active shuffle strategy. Takes effect on the next `shuffle()`
+	 * call. Inject via `setup({ shuffleStrategy })` rather than calling this
+	 * directly — the lifecycle mixin calls it for you.
+	 */
+	setShuffleStrategy(strategy: IShuffleStrategy): void {
+		this.shuffleStrategy = strategy;
+	}
+
+	/**
+	 * Shuffle the list in place using the active `IShuffleStrategy` (default:
+	 * Fisher-Yates). The cursor follows the current item to its new position.
+	 * Fires `shuffle` then `change`.
 	 */
 	shuffle(): void {
 		if (this.items.length <= 1)
@@ -347,14 +360,10 @@ export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaLis
 
 		const currentItem = this.cursor >= 0 ? this.items[this.cursor] : undefined;
 
-		// Fisher-Yates
-		for (let i = this.items.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[this.items[i], this.items[j]] = [this.items[j]!, this.items[i]!];
-		}
+		this.items = this.shuffleStrategy.order(this.items, this.cursor);
 
 		if (currentItem) {
-			const newIdx = this.items.findIndex(i => i.id === currentItem.id);
+			const newIdx = this.items.findIndex(entry => entry.id === currentItem.id);
 			if (newIdx >= 0)
 				this.cursor = newIdx;
 		}

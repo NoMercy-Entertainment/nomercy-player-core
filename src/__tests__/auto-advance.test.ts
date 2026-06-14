@@ -148,7 +148,7 @@ describe('load cursor dedup', () => {
 		const loadSpy = vi.spyOn(player, 'load').mockResolvedValue(undefined);
 
 		const currentEvents: unknown[] = [];
-		player.on('current' as any, (data: unknown) => {
+		player.on('item' as any, (data: unknown) => {
 			currentEvents.push(data);
 		});
 

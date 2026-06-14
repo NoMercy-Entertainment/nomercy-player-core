@@ -9,7 +9,7 @@
  * Mirrors the MockPlayer pattern in `tier1-features.test.ts`.
  */
 
-import type { BaseEventMap } from '../types';
+import type { BaseEventMap, BeforeEvent } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,
@@ -44,6 +44,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 
 	declare item: { (): any; (target: any): void };
 	declare index: () => number;
+	declare playbackRate: { (): number; (rate: number): void };
 
 	constructor(id?: string | number) {
 		super();
@@ -72,7 +73,7 @@ function makePlayer(divId: string): MockPlayer {
 }
 
 function seedQueue(p: MockPlayer): void {
-	(p as any).queue([
+	p.queue([
 		{ id: 'a' },
 		{ id: 'b' },
 		{ id: 'c' },
@@ -97,7 +98,7 @@ describe('mutationGuards config + beforeMutation event', () => {
 		seedQueue(p);
 
 		const seen: string[] = [];
-		p.on('beforeMutation' as any, (e: any) => {
+		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
 			seen.push(e.data.method);
 		});
 
@@ -116,7 +117,7 @@ describe('mutationGuards config + beforeMutation event', () => {
 		seedQueue(p);
 
 		const seen: string[] = [];
-		p.on('beforeMutation' as any, (e: any) => {
+		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
 			seen.push(e.data.method);
 		});
 
@@ -134,7 +135,7 @@ describe('mutationGuards config + beforeMutation event', () => {
 		seedQueue(p);
 
 		const seen: string[] = [];
-		p.on('beforeMutation' as any, (e: any) => {
+		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
 			seen.push(e.data.method);
 		});
 
@@ -153,7 +154,7 @@ describe('mutationGuards config + beforeMutation event', () => {
 		seedQueue(p);
 
 		const seen: string[] = [];
-		p.on('beforeMutation' as any, (e: any) => {
+		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
 			seen.push(e.data.method);
 		});
 
@@ -169,11 +170,11 @@ describe('mutationGuards config + beforeMutation event', () => {
 		await p.ready();
 
 		const seen: string[] = [];
-		p.on('beforeMutation' as any, (e: any) => {
+		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
 			seen.push(e.data.method);
 		});
 
-		(p as any).playbackRate(1.5);
+		p.playbackRate(1.5);
 
 		expect(seen).not.toContain('playbackRate');
 	});
@@ -188,11 +189,11 @@ describe('mutationGuards config + beforeMutation event', () => {
 		const before = p.index();
 
 		let preventedPayload: { method: string; reason: string } | undefined;
-		p.on('beforeMutation' as any, (e: any) => {
+		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
 			if (e.data.method === 'current')
 				e.preventDefault();
 		});
-		p.on('mutationPrevented' as any, (data: any) => {
+		p.on('mutationPrevented', (data: { method: string; reason: string }) => {
 			preventedPayload = data;
 		});
 
@@ -208,11 +209,11 @@ describe('mutationGuards config + beforeMutation event', () => {
 		const before = p.volume();
 
 		let preventedPayload: { method: string; reason: string } | undefined;
-		p.on('beforeMutation' as any, (e: any) => {
+		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
 			if (e.data.method === 'volume')
 				e.preventDefault();
 		});
-		p.on('mutationPrevented' as any, (data: any) => {
+		p.on('mutationPrevented', (data: { method: string; reason: string }) => {
 			preventedPayload = data;
 		});
 
@@ -228,8 +229,8 @@ describe('mutationGuards config + beforeMutation event', () => {
 		const p = makePlayer('mg-payload').setup({ mutationGuards: 'all' });
 		await p.ready();
 
-		let captured: any;
-		p.on('beforeMutation' as any, (e: any) => {
+		let captured: { method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> } | undefined;
+		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
 			if (e.data.method === 'volume')
 				captured = e.data;
 		});
@@ -237,12 +238,12 @@ describe('mutationGuards config + beforeMutation event', () => {
 		p.volume(0.42);
 
 		expect(captured).toBeDefined();
-		expect(captured.method).toBe('volume');
-		expect(Array.isArray(captured.args)).toBe(true);
-		expect(captured.args).toEqual([0.42]);
-		expect(typeof captured.phase).toBe('string');
-		expect(captured.phase).toBe('ready');
-		expect(Array.isArray(captured.dispatchStack)).toBe(true);
+		expect(captured!.method).toBe('volume');
+		expect(Array.isArray(captured!.args)).toBe(true);
+		expect(captured!.args).toEqual([0.42]);
+		expect(typeof captured!.phase).toBe('string');
+		expect(captured!.phase).toBe('ready');
+		expect(Array.isArray(captured!.dispatchStack)).toBe(true);
 	});
 
 	it('beforeMutation.dispatchStack is populated when called inside another event handler', async () => {
@@ -250,11 +251,11 @@ describe('mutationGuards config + beforeMutation event', () => {
 		await p.ready();
 
 		let captured: ReadonlyArray<string> | undefined;
-		p.on('beforeMutation' as any, (e: any) => {
+		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
 			if (e.data.method === 'volume')
 				captured = e.data.dispatchStack;
 		});
-		p.on('beforePlay' as any, () => {
+		p.on('beforePlay', () => {
 			p.volume(0.3);
 		});
 

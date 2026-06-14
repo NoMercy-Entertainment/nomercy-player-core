@@ -7,6 +7,7 @@
  */
 
 import type { BaseEventMap, PluginAdvisory } from '../types';
+import type { PlayerTestInternals } from '../testing/player-test-internals';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,
@@ -44,6 +45,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		(): any;
 		(target: any, opts?: any): void;
 	};
+	declare getPluginById: (id: string) => { disable(): void; enable(): void } | undefined;
 
 	constructor(id?: string | number) {
 		super();
@@ -95,16 +97,17 @@ describe('static advisories — declarative phase-aware advisories', () => {
 		p.setup({});
 		await p.ready();
 
-		(p as any).queue([{ id: 'x' }, { id: 'y' }]);
-		const warnings: any[] = [];
-		p.on('warning' as any, (data: any) => warnings.push(data));
+		p.queue([{ id: 'x' }, { id: 'y' }]);
+		const warnings: unknown[] = [];
+		p.on('warning', (data: unknown) => warnings.push(data));
 
 		p.item(0);
 
+		type Advisory = { error: { code: string; message: string; severity: string } };
 		expect(warnings.length).toBe(1);
-		expect(warnings[0].error.code).toBe('plugin:advisor/cursor-mutation');
-		expect(warnings[0].error.message).toBe('plugin:advisor/cursor-mutation: Be careful');
-		expect(warnings[0].error.severity).toBe('warning');
+		expect((warnings[0] as Advisory).error.code).toBe('plugin:advisor/cursor-mutation');
+		expect((warnings[0] as Advisory).error.message).toBe('plugin:advisor/cursor-mutation: Be careful');
+		expect((warnings[0] as Advisory).error.severity).toBe('warning');
 	});
 
 	it('skips advisory when `duringPhase` does not include current phase', async () => {
@@ -121,16 +124,16 @@ describe('static advisories — declarative phase-aware advisories', () => {
 		p.setup({});
 		await p.ready();
 
-		(p as any).queue([{ id: 'x' }]);
-		const warnings: any[] = [];
-		p.on('warning' as any, (data: any) => warnings.push(data));
+		p.queue([{ id: 'x' }]);
+		const warnings: unknown[] = [];
+		p.on('warning', (data: unknown) => warnings.push(data));
 
 		// Phase is 'ready', not 'playing' — advisory should NOT fire.
 		p.item(0);
 		expect(warnings.length).toBe(0);
 
 		// Force phase to 'playing' to prove the constraint.
-		(p as any)._phase = 'playing';
+		(p as unknown as PlayerTestInternals)._phase = 'playing';
 		p.item(0);
 		expect(warnings.length).toBe(1);
 	});
@@ -150,18 +153,19 @@ describe('static advisories — declarative phase-aware advisories', () => {
 		p.setup({});
 		await p.ready();
 
-		(p as any).queue([{ id: 'x' }]);
-		const infos: any[] = [];
-		const errors: any[] = [];
-		p.on('info' as any, (d: any) => infos.push(d));
-		p.on('error' as any, (d: any) => errors.push(d));
+		p.queue([{ id: 'x' }]);
+		const infos: unknown[] = [];
+		const errors: unknown[] = [];
+		p.on('info', (d: unknown) => infos.push(d));
+		p.on('error', (d: unknown) => errors.push(d));
 
 		p.item(0);
 
+		type Advisory = { error: { code: string } };
 		expect(infos.length).toBe(1);
-		expect(infos[0].error.code).toBe('plugin:multi-sev/info-reason');
+		expect((infos[0] as Advisory).error.code).toBe('plugin:multi-sev/info-reason');
 		expect(errors.length).toBe(1);
-		expect(errors[0].error.code).toBe('plugin:multi-sev/error-reason');
+		expect((errors[0] as Advisory).error.code).toBe('plugin:multi-sev/error-reason');
 	});
 
 	it('skips advisories when the plugin is disabled', async () => {
@@ -178,12 +182,12 @@ describe('static advisories — declarative phase-aware advisories', () => {
 		p.setup({});
 		await p.ready();
 
-		(p as any).queue([{ id: 'x' }]);
-		const warnings: any[] = [];
-		p.on('warning' as any, (data: any) => warnings.push(data));
+		p.queue([{ id: 'x' }]);
+		const warnings: unknown[] = [];
+		p.on('warning', (data: unknown) => warnings.push(data));
 
 		// Disable, then mutate — advisory should NOT fire.
-		(p as any).getPluginById('disabled-advisor').disable();
+		p.getPluginById('disabled-advisor')?.disable();
 		p.item(0);
 		expect(warnings.length).toBe(0);
 	});
@@ -205,21 +209,22 @@ describe('static advisories — declarative phase-aware advisories', () => {
 		p.setup({});
 		await p.ready();
 
-		(p as any).queue([{ id: 'x' }]);
-		const warnings: any[] = [];
-		p.on('warning' as any, (data: any) => warnings.push(data));
+		p.queue([{ id: 'x' }]);
+		const warnings: unknown[] = [];
+		p.on('warning', (data: unknown) => warnings.push(data));
 
 		// No event in flight — advisory does NOT fire.
 		p.item(0);
 		expect(warnings.length).toBe(0);
 
 		// Simulate `beforePlay` in flight via push/pop instance methods.
-		(p as any).pushDispatch('beforePlay');
+		const pInternals = p as unknown as PlayerTestInternals;
+		pInternals.pushDispatch('beforePlay');
 		try {
 			p.item(0);
 		}
 		finally {
-			(p as any).popDispatch();
+			pInternals.popDispatch();
 		}
 		expect(warnings.length).toBe(1);
 	});

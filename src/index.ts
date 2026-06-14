@@ -26,6 +26,10 @@ export type { ILogger, LoggerOptions } from './adapters/logger/ILogger';
 export { MediaList } from './adapters/media-list/default';
 
 export type { MediaListEvent } from './adapters/media-list/default';
+// Shuffle strategy (pluggable queue permutation — swap via setup({ shuffleStrategy }))
+export { FisherYatesShuffle, fisherYatesShuffle } from './adapters/shuffle-strategy/default';
+
+export type { IShuffleStrategy } from './adapters/shuffle-strategy/IShuffleStrategy';
 // Platform bundle (wake-lock, network, visibility, capabilities, fullscreen, pip)
 export { browserPlatform } from './adapters/platform/browser';
 
@@ -103,6 +107,7 @@ export {
 	lifecycleMethods,
 	playerCoreMethods,
 	playerStateMethods,
+	playQueueMethods,
 	pluginError,
 	pluginRegistrationMethods,
 	queueMethods,
@@ -129,6 +134,10 @@ export { preloadStrategyMethods } from './base-player';
 export { authFetch, isAuthError, isNetworkError } from './core/auth-fetch';
 
 export type { AuthFetchOptions } from './core/auth-fetch';
+// URL-param auth helper for non-HLS / native-HLS-fallback element.src paths
+export { appendAuthTokenParam } from './core/append-auth-token-param';
+// Perceptual volume curve — maps linear 0..1 slider position to gain amplitude
+export { perceptualGain } from './core/volume-curve';
 // Mixin + factory
 export { composeMixins } from './core/compose';
 
@@ -270,6 +279,8 @@ export {
 	CastState,
 	NetworkState,
 	QualityState,
+	RepeatState,
 	SetupState,
+	ShuffleState,
 	VisibilityState,
 } from './types';

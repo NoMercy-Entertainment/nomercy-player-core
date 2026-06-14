@@ -790,11 +790,11 @@ describe('player-core mixins (kit)', () => {
 			expect(p.queue()).toEqual([]);
 		});
 
-		it('current() moves the cursor and emits "current"', () => {
+		it('item() moves the cursor and emits "item"', () => {
 			const p = setupPlayer();
 			p.queue([t('a'), t('b'), t('c')]);
 			let payload: { index: number } | undefined;
-			p.on('current' as any, (data: any) => {
+			p.on('item' as any, (data: any) => {
 				payload = data;
 			});
 			p.item('c');

@@ -2,6 +2,7 @@ import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { AddClasses, CreateElement } from '../adapters/element-factory';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { IStreamFactory } from '../adapters/stream/IStreamSource';
+import { RepeatState, ShuffleState } from '../core/mixins/state-mutators';
 import type { RepeatStateToken, ShuffleStateToken } from '../core/mixins/state-mutators';
 import type { Plugin } from '../core/plugin';
 import type { PlayStateToken, VolumeStateToken } from '../core/state';
@@ -96,7 +97,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	private _language: string = 'en';
 	private _translations: Translations = { en: {} };
 	private _registeredParsers: ICueParser[] = [];
-	private _overrides = new Map<string, { fn: (...args: any[]) => any; by: string }>();
+	private _overrides = new Map<string, { fn: (...args: unknown[]) => unknown; by: string }>();
 
 	constructor(opts?: { id?: string; container?: HTMLElement; phase?: PlayerPhase; translations?: Translations }) {
 		super();
@@ -415,7 +416,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	get experimental(): PlayerExperimental {
 		const overrides = this._overrides;
 		return {
-			override: <K extends string>(method: K, fn: (...args: any[]) => any): (() => void) => {
+			override: <K extends string>(method: K, fn: (...args: unknown[]) => unknown): (() => void) => {
 				overrides.set(method, {
 					fn,
 					by: 'consumer',
@@ -622,8 +623,8 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	private _queue: ReadonlyArray<BasePlaylistItem> = [];
 	private _backlog: ReadonlyArray<BasePlaylistItem> = [];
-	private _repeatState: RepeatStateToken = 'off';
-	private _shuffleState: ShuffleStateToken = 'off';
+	private _repeatState: RepeatState = RepeatState.OFF;
+	private _shuffleState: ShuffleState = ShuffleState.OFF;
 
 	queue(): ReadonlyArray<BasePlaylistItem>;
 	queue(items: BasePlaylistItem[], opts?: ActionOptions): void;
@@ -653,21 +654,32 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	seekToIndex(_position: number, _opts?: ActionOptions): void {}
 
-	repeatState(): RepeatStateToken;
-	repeatState(state: RepeatStateToken): void;
-	repeatState(state?: RepeatStateToken): RepeatStateToken | void {
+	playItem(
+		_target: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean),
+		_opts?: LoadOptions,
+	): void {}
+
+	playNow(
+		_items: BasePlaylistItem[],
+		_start?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean),
+		_opts?: LoadOptions,
+	): void {}
+
+	repeatState(): RepeatState;
+	repeatState(state: RepeatState): void;
+	repeatState(state?: RepeatState): RepeatState | void {
 		if (state === undefined)
 			return this._repeatState;
 		this._repeatState = state;
 	}
 
-	shuffleState(): ShuffleStateToken;
-	shuffleState(state: ShuffleStateToken | boolean): void;
-	shuffleState(state?: ShuffleStateToken | boolean): ShuffleStateToken | void {
+	shuffleState(): ShuffleState;
+	shuffleState(state: ShuffleState | boolean): void;
+	shuffleState(state?: ShuffleState | boolean): ShuffleState | void {
 		if (state === undefined)
 			return this._shuffleState;
 		if (typeof state === 'boolean') {
-			this._shuffleState = state ? 'on' : 'off';
+			this._shuffleState = state ? ShuffleState.ON : ShuffleState.OFF;
 			return;
 		}
 		this._shuffleState = state;
@@ -675,7 +687,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	// ── Load ──
 
-	load(_item: BasePlaylistItem & { url?: string }, _opts?: LoadOptions): Promise<void> {
+	load(_item: BasePlaylistItem, _opts?: LoadOptions): Promise<void> {
 		return Promise.resolve();
 	}
 

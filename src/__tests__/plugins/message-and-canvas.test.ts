@@ -193,7 +193,7 @@ describe('MessagePlugin + CanvasPlugin', () => {
 	// ── CanvasPlugin ────────────────────────────────────────────────────────
 
 	describe('CanvasPlugin', () => {
-		it('canvas() returns an HTMLCanvasElement under the player container', async () => {
+		it('canvas() returns an HTMLCanvasElement under the player container by default', async () => {
 			const p = makePlayer('cnv-get').setup({});
 			p.addPlugin(CanvasPlugin);
 			await p.ready();
@@ -202,10 +202,92 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			const canvas = inst.canvas();
 			expect(canvas).toBeInstanceOf(HTMLCanvasElement);
 			// Canvas lives inside the namespaced surface div, which is itself
-			// under the player container.
+			// under the player container when opts.mount is absent.
 			const surface = p.container.querySelector('.nmplayer-canvas-surface');
 			expect(surface).toBeTruthy();
 			expect(surface!.contains(canvas)).toBe(true);
+		});
+
+		it('surface and canvas default to pointer-events: none', async () => {
+			const p = makePlayer('cnv-pe-default').setup({});
+			p.addPlugin(CanvasPlugin);
+			await p.ready();
+
+			const surface = p.container.querySelector<HTMLDivElement>('.nmplayer-canvas-surface')!;
+			const canvas = p.container.querySelector<HTMLCanvasElement>('canvas')!;
+			expect(surface.style.pointerEvents).toBe('none');
+			expect(canvas.style.pointerEvents).toBe('none');
+		});
+
+		it('opts.pointerEvents: "auto" is applied to surface and canvas', async () => {
+			const p = makePlayer('cnv-pe-auto').setup({});
+			p.addPlugin(CanvasPlugin, { pointerEvents: 'auto' });
+			await p.ready();
+
+			const surface = p.container.querySelector<HTMLDivElement>('.nmplayer-canvas-surface')!;
+			const canvas = p.container.querySelector<HTMLCanvasElement>('canvas')!;
+			expect(surface.style.pointerEvents).toBe('auto');
+			expect(canvas.style.pointerEvents).toBe('auto');
+		});
+
+		it('opts.mount HTMLElement routes the surface into that element, not the player container', async () => {
+			// Create a separate mount target outside the player container.
+			const mountTarget = document.createElement('div');
+			mountTarget.id = 'visualizer-mount';
+			document.body.appendChild(mountTarget);
+
+			const p = makePlayer('cnv-mount-el').setup({});
+			p.addPlugin(CanvasPlugin, { mount: mountTarget });
+			await p.ready();
+
+			// Surface must be inside mountTarget.
+			const surface = mountTarget.querySelector('.nmplayer-canvas-surface');
+			expect(surface).toBeTruthy();
+
+			// Surface must NOT be inside the player container.
+			const surfaceInContainer = p.container.querySelector('.nmplayer-canvas-surface');
+			expect(surfaceInContainer).toBeNull();
+
+			// Canvas is inside the surface inside mountTarget.
+			const inst = p.getPluginById<CanvasPlugin>('canvas')!;
+			expect(mountTarget.contains(inst.canvas())).toBe(true);
+		});
+
+		it('opts.mount CSS selector routes the surface into the resolved element', async () => {
+			const mountTarget = document.createElement('div');
+			mountTarget.id = 'cnv-selector-target';
+			document.body.appendChild(mountTarget);
+
+			const p = makePlayer('cnv-mount-sel').setup({});
+			p.addPlugin(CanvasPlugin, { mount: '#cnv-selector-target' });
+			await p.ready();
+
+			const surface = mountTarget.querySelector('.nmplayer-canvas-surface');
+			expect(surface).toBeTruthy();
+
+			const surfaceInContainer = p.container.querySelector('.nmplayer-canvas-surface');
+			expect(surfaceInContainer).toBeNull();
+		});
+
+		it('unresolvable opts.mount selector falls back to player container and logs a warning', async () => {
+			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+			const p = makePlayer('cnv-mount-bad').setup({});
+			p.addPlugin(CanvasPlugin, { mount: '#this-does-not-exist' });
+			await p.ready();
+
+			// Falls back to container — surface must be there.
+			const surface = p.container.querySelector('.nmplayer-canvas-surface');
+			expect(surface).toBeTruthy();
+
+			// A warning must have been emitted. console.warn is called as:
+			// console.warn(prefix, ...args) — prefix is call[0], message is call[1].
+			const warned = warnSpy.mock.calls.some(call =>
+				call.some(arg => String(arg).includes('#this-does-not-exist')),
+			);
+			expect(warned).toBe(true);
+
+			warnSpy.mockRestore();
 		});
 
 		it('addRenderer(fn) runs fn on the next RAF tick', async () => {

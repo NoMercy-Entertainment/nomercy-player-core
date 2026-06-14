@@ -60,15 +60,10 @@ function _wireQueue(self: Internals): void {
 	self._queueList.on('shuffle', () => self.emit('queue:shuffle'));
 	self._queueList.on('sort', () => self.emit('queue:sort'));
 	self._queueList.on('current', (data) => {
-		// The sidecar subtitle CueTracker is bound to the old item's time stream —
-		// disposing it here prevents stale cues from leaking into the new item.
-		// The renderer will get a fresh `subtitleCue` once the next subtitle
-		// selection fires via `subtitle`.
 		self._disposeSidecarSubtitle();
+		self.emit('item', data);
+		// Deprecated alias — kept for one beta cycle; remove in the next major release.
 		self.emit('current', data);
-
-		// For cursor-only switches (current(i), next, previous) where load() was
-		// not called for that item, this is the only trigger for chapter data.
 		void self._resolveAndEmitChapters(data.item?.id);
 	});
 
@@ -240,7 +235,7 @@ export const queueMethods = {
 	 *
 	 * `item(target, opts?)` — move the cursor to `target` (item ref, id
 	 * string, or index). Fires `beforeMutation` so advisory plugins can cancel
-	 * the change. Emits the `current` event when the cursor moves.
+	 * the change. Emits the `item` event when the cursor moves.
 	 */
 	item(this: Internals, target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: LoadOptions): BasePlaylistItem | undefined | void {
 		if (target === undefined) {
@@ -281,7 +276,10 @@ export const queueMethods = {
 			if (!currentItem)
 				return;
 
-			void this.load(currentItem as BasePlaylistItem & { url?: string }, { source: opts?.source, startAt: opts?.startAt }).then(() => {
+			void this.load(currentItem, {
+				source: opts?.source,
+				startAt: opts?.startAt,
+			}).then(() => {
 				if (this._currentEpoch !== navigationEpoch)
 					return;
 				if (opts?.autoplay) {

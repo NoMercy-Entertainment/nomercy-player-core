@@ -82,6 +82,33 @@ export enum AudioTrackState {
 }
 
 /**
+ * Repeat mode. Returned by `player.repeatState()` and carried on the `repeat`
+ * event. String values are identical to the v1 tokens so no runtime migration
+ * is needed; only the type changes from a string union to a proper enum.
+ *
+ * - `OFF`  — no repeat.
+ * - `ALL`  — loop the entire queue.
+ * - `ONE`  — loop only the current item.
+ */
+export enum RepeatState {
+	OFF = 'off',
+	ALL = 'all',
+	ONE = 'one',
+}
+
+/**
+ * Shuffle mode. Returned by `player.shuffleState()` and carried on the
+ * `shuffle` event.
+ *
+ * - `OFF` — linear playback order.
+ * - `ON`  — randomised queue order.
+ */
+export enum ShuffleState {
+	OFF = 'off',
+	ON = 'on',
+}
+
+/**
  * Cast / handoff state for the active Cast session. Returned by
  * `player.castState()` and carried on the `castState` event.
  */

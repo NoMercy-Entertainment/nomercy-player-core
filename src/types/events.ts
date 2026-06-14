@@ -11,7 +11,7 @@ import type {
 	PreventedReason,
 } from './player';
 import type { BasePlaylistItem } from './playlist';
-import type { CastState } from './state';
+import type { CastState, RepeatState, ShuffleState } from './state';
 import type { SubtitleStyle } from './tracks';
 
 /**
@@ -47,8 +47,12 @@ export interface BeforeEvent<TData> {
  * Every `before*` event is cancellable (`preventDefault()`), delayable
  * (`delay(promise)`), and stops propagation on request
  * (`stopImmediatePropagation()`). See `BeforeEvent<T>` for the full contract.
+ *
+ * The generic `I` parameter threads the concrete playlist-item type into every
+ * item-bearing event payload. Defaults to `BasePlaylistItem` so existing code
+ * that references `BaseEventMap` without a type argument is unchanged.
  */
-export interface BaseEventMap {
+export interface BaseEventMap<I extends BasePlaylistItem = BasePlaylistItem> {
 	// ── Setup lifecycle ───────────────────────────────────────────────────────
 	// Ordered sequence: beforeSetup → setupStart → configResolved →
 	// pluginsRegistering → pluginsRegistered → streamsReady → authReady →
@@ -102,7 +106,7 @@ export interface BaseEventMap {
 	'previousPrevented': { reason: PreventedReason; cause?: unknown };
 	'beforeSeek': BeforeEvent<{ time: number; source?: ActionSource }>;
 	'seekPrevented': { reason: PreventedReason; cause?: unknown };
-	'beforeLoad': BeforeEvent<{ item: BasePlaylistItem; source?: ActionSource }>;
+	'beforeLoad': BeforeEvent<{ item: I; source?: ActionSource }>;
 	'loadPrevented': { reason: PreventedReason; cause?: unknown };
 
 	// ── Phase-aware mutation contract ─────────────────────────────────────────
@@ -162,13 +166,11 @@ export interface BaseEventMap {
 	'language': { lang: string };
 
 	// ── Volume + mode state ───────────────────────────────────────────────────
-	// Library event maps (MusicEventMap, VideoEventMap) narrow the `state`
-	// typing on `repeat` / `shuffle` with their concrete enum values.
 
 	'volume': { level: number };
 	'mute': { muted: boolean };
-	'repeat': { state: 'off' | 'all' | 'one' };
-	'shuffle': { state: 'off' | 'on' };
+	'repeat': { state: RepeatState };
+	'shuffle': { state: ShuffleState };
 
 	// ── Error severity tiers ──────────────────────────────────────────────────
 	// `fatal` = unrecoverable, player is shutting down.
@@ -182,19 +184,28 @@ export interface BaseEventMap {
 
 	// ── Cursor / item change ──────────────────────────────────────────────────
 	// Fires every time the active item pointer moves (load, next, previous,
-	// setCurrent). `item` is `undefined` when the queue is empty after a clear.
+	// item(target)). `item` is `undefined` when the queue is empty after a clear.
+	//
+	// `'current'` is kept as a DEPRECATED alias that will be removed in the next
+	// major release. Prefer `'item'` in all new code.
 
-	'current': { item: BasePlaylistItem | undefined; index: number };
+	'item': { item: I | undefined; index: number };
+
+	/**
+	 * @deprecated Use `'item'` instead. Emitted alongside `'item'` for one beta
+	 * cycle to prevent silent breakage. Will be removed in the next major release.
+	 */
+	'current': { item: I | undefined; index: number };
 
 	// ── Queue mutation events ─────────────────────────────────────────────────
 	// Re-emitted from the internal MediaList<T> instance whenever the queue
 	// structure changes. Subscribe to these for reactive queue UI.
 
-	'queue': BasePlaylistItem[];
-	'queue:append': { items: BasePlaylistItem[]; from: number };
-	'queue:prepend': { items: BasePlaylistItem[] };
-	'queue:insert': { items: BasePlaylistItem[]; index: number };
-	'queue:remove': { id: string | number; index: number; item: BasePlaylistItem };
+	'queue': I[];
+	'queue:append': { items: I[]; from: number };
+	'queue:prepend': { items: I[] };
+	'queue:insert': { items: I[]; index: number };
+	'queue:remove': { id: string | number; index: number; item: I };
 	'queue:move': { from: number; to: number };
 	'queue:clear': { previousLength: number };
 	'queue:shuffle': void;
@@ -212,9 +223,9 @@ export interface BaseEventMap {
 	// pushes the current item onto the backlog before advancing; `previous()`
 	// pops the backlog top back to current.
 
-	'backlog': BasePlaylistItem[];
-	'backlog:append': { items: BasePlaylistItem[] };
-	'backlog:remove': { id: string | number; index: number; item: BasePlaylistItem };
+	'backlog': I[];
+	'backlog:append': { items: I[] };
+	'backlog:remove': { id: string | number; index: number; item: I };
 	'backlog:clear': { previousLength: number };
 
 	// ── Duration ──────────────────────────────────────────────────────────────
@@ -358,30 +369,30 @@ export interface BaseEventMap {
 	// Emitted by the generic preload orchestration in `preloadMethods`.
 
 	/** The player began prefetching assets for the next item. */
-	'preloadStart': { item: BasePlaylistItem; assets: ReadonlyArray<{ url: string; category: string }> };
+	'preloadStart': { item: I; assets: ReadonlyArray<{ url: string; category: string }> };
 
 	/** An individual preload asset completed or failed — progress update. */
-	'preloadProgress': { item: BasePlaylistItem; loaded: number; total: number };
+	'preloadProgress': { item: I; loaded: number; total: number };
 
 	/** All queued preload assets have been fetched successfully. */
-	'preloadComplete': { item: BasePlaylistItem };
+	'preloadComplete': { item: I };
 
 	/** One or more preload assets could not be fetched (non-fatal). */
-	'preloadError': { item: BasePlaylistItem; error: unknown };
+	'preloadError': { item: I; error: unknown };
 
 	// ── Transition lifecycle ──────────────────────────────────────────────────
 
 	/** The transition window has begun (outgoing fading, incoming starting). */
-	'transitionStart': { outgoing: BasePlaylistItem; incoming: BasePlaylistItem };
+	'transitionStart': { outgoing: I; incoming: I };
 
 	/**
 	 * Per-frame progress during the transition window.
 	 * `fraction` is [0..1] — 0 at transition start, 1 at completion.
 	 */
-	'transitionProgress': { outgoing: BasePlaylistItem; incoming: BasePlaylistItem; fraction: number };
+	'transitionProgress': { outgoing: I; incoming: I; fraction: number };
 
 	/** The transition completed — incoming is now primary. */
-	'transitionComplete': { from: BasePlaylistItem; to: BasePlaylistItem };
+	'transitionComplete': { from: I; to: I };
 
 	/** The transition was aborted before it could complete. */
 	'transitionCancelled': { reason: string };

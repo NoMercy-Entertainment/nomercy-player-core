@@ -35,6 +35,10 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare ready: () => Promise<void>;
 	declare dispose: () => void;
 	declare phase: () => string;
+	declare queue: {
+		(): ReadonlyArray<unknown>;
+		(items: unknown[]): void;
+	};
 
 	constructor(id?: string | number) {
 		super();
@@ -82,7 +86,7 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 			'ready',
 		] as const;
 		for (const name of stages) {
-			p.on(name as any, () => events.push(name));
+			p.on(name, () => events.push(name));
 		}
 
 		p.setup({});
@@ -107,8 +111,8 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		);
 
 		const order: string[] = [];
-		p.on('playlistResolving' as any, (data: any) => order.push(`resolving:${data.url}`));
-		p.on('playlistReady' as any, () => order.push('ready'));
+		p.on('playlistResolving', (data: { url: string }) => order.push(`resolving:${data.url}`));
+		p.on('playlistReady', () => order.push('ready'));
 
 		p.setup({ playlist: 'https://example.test/list.json' } as any);
 		await p.ready();
@@ -136,13 +140,13 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		);
 
 		let readyLength: number | undefined;
-		p.on('playlistReady' as any, (data: any) => { readyLength = data.length; });
+		p.on('playlistReady', (data: { length: number }) => { readyLength = data.length; });
 
 		p.setup({ playlist: 'https://example.test/list.json' } as any);
 		await p.ready();
 
 		expect(readyLength).toBe(2);
-		expect((p as any).queue()).toHaveLength(2);
+		expect(p.queue()).toHaveLength(2);
 
 		vi.restoreAllMocks();
 	});
@@ -157,8 +161,8 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 
 		let errFired: unknown;
 		let readyLength: number | undefined;
-		p.on('playlistError' as any, (data: any) => { errFired = data; });
-		p.on('playlistReady' as any, (data: any) => { readyLength = data.length; });
+		p.on('playlistError', (data: unknown) => { errFired = data; });
+		p.on('playlistReady', (data: { length: number }) => { readyLength = data.length; });
 
 		p.setup({ playlist: 'https://example.test/list.json' } as any);
 		await p.ready();
@@ -183,7 +187,7 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		);
 
 		let errFired: unknown;
-		p.on('playlistError' as any, (data: any) => { errFired = data; });
+		p.on('playlistError', (data: unknown) => { errFired = data; });
 
 		p.setup({ playlist: 'https://example.test/list.json' } as any);
 		await p.ready();
@@ -200,7 +204,7 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		const p = new MockPlayer('pl-none');
 
 		let length: number | undefined;
-		p.on('playlistReady' as any, (data: any) => { length = data.length; });
+		p.on('playlistReady', (data: { length: number }) => { length = data.length; });
 
 		p.setup({});
 		await p.ready();

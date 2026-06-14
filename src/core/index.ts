@@ -22,6 +22,7 @@ import { mediaTracksMethods } from './mixins/media-tracks';
 import { metricsMethods } from './mixins/metrics';
 import { playerStateMethods } from './mixins/player-state';
 import { pluginRegistrationMethods } from './mixins/plugin-registration';
+import { playQueueMethods } from './mixins/play-queue';
 import { preloadStrategyMethods } from './mixins/preload-strategy-mixin';
 import { queueMethods } from './mixins/queue';
 import { stateMethods } from './mixins/state-mutators';
@@ -60,10 +61,11 @@ export { metricsMethods } from './mixins/metrics';
 export { playerStateMethods } from './mixins/player-state';
 export type { BackendLoadHints, BackendShape } from './mixins/player-state';
 export { pluginRegistrationMethods } from './mixins/plugin-registration';
+export { playQueueMethods } from './mixins/play-queue';
 export { preloadStrategyMethods } from './mixins/preload-strategy-mixin';
 export { queueMethods } from './mixins/queue';
 export { stateMethods } from './mixins/state-mutators';
-export { HOT_MUTATIONS } from './mixins/state-mutators';
+export { HOT_MUTATIONS, RepeatState, ShuffleState } from './mixins/state-mutators';
 export { streamRegistrationMethods } from './mixins/stream-registration';
 export { timeMethods } from './mixins/time';
 export { transportMethods } from './mixins/transport';
@@ -105,6 +107,7 @@ export const playerCoreMethods = [
 	stateMethods,
 	playerStateMethods,
 	queueMethods,
+	playQueueMethods,
 	pluginRegistrationMethods,
 	authMethods,
 	streamRegistrationMethods,

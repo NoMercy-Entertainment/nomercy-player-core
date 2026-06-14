@@ -29,7 +29,7 @@ type InternalFetchOptions<T> = AuthFetchOptions<T> & {
 };
 
 /** Structural view of the player state `pluginFetch` reads. */
-type PluginFetchPlayer = IPlayer<any> & {
+type PluginFetchPlayer = IPlayer & {
 	options?: BasePlayerConfig;
 	auth?: () => AuthConfig | undefined;
 	emit: (event: string, data?: unknown) => void;

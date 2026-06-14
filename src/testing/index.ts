@@ -34,3 +34,4 @@ export { mockFetch } from './mock-fetch';
 
 export type { MockFetch, MockFetchCall, MockFetchResponse } from './mock-fetch';
 export { createStubPlayer, StubPlayer } from './stub-player';
+export type { PlayerTestInternals } from './player-test-internals';

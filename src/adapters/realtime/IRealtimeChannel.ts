@@ -28,10 +28,10 @@ export interface IRealtimeChannel {
 	 * Multiple listeners on the same event are all called. Register the
 	 * matching `off()` call when the consumer is disposed.
 	 */
-	on(event: 'open' | 'message' | 'close' | 'error', fn: (data?: any) => void): void;
+	on(event: 'open' | 'message' | 'close' | 'error', fn: (data?: unknown) => void): void;
 
 	/** Remove a listener previously registered with `on()`. */
-	off(event: 'open' | 'message' | 'close' | 'error', fn: (data?: any) => void): void;
+	off(event: 'open' | 'message' | 'close' | 'error', fn: (data?: unknown) => void): void;
 
 	/** Current transport state. Mirrors the WebSocket `readyState` constants. */
 	readonly readyState: 'connecting' | 'open' | 'closing' | 'closed';

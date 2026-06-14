@@ -3,19 +3,18 @@ import type { IPreloadStrategy, ITransitionBackend, PreloadAsset } from '../../a
 import type { BasePlayerConfig, BasePlaylistItem, PlayerPhase } from '../../types';
 import type { Internals } from '../state';
 import { builtInCueParsers } from '../../adapters/cue-parser/built-ins';
+import { Logger } from '../../adapters/logger/default';
+import { LEVEL_RANK } from '../../adapters/logger/ILogger';
 import { browserPlatform } from '../../adapters/platform/browser';
 import { DefaultPreloadStrategy } from '../../adapters/preload/default';
 import { hlsFactory } from '../../adapters/stream/hls';
 import { nativeFactory } from '../../adapters/stream/native';
 import { StreamRegistry } from '../../adapters/stream/registry';
 import { DefaultTranslator } from '../../adapters/translator/translator';
-import { Logger } from '../../adapters/logger/default';
-import { LEVEL_RANK } from '../../adapters/logger/ILogger';
 import { makePlayerErrorEvent, stateError, StateError } from '../../errors';
 
 import { SetupState } from '../../types';
 import { authFetch } from '../auth-fetch';
-import { ensureBaseStyles } from '../base-styles';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Playlist URL resolver
@@ -112,7 +111,6 @@ export const lifecycleMethods = {
 		_wireProgressEmit(this);
 		_wirePreloadAndTransition(this);
 		_wireWindowExpose(this);
-		_initContainerClass(this);
 
 		this.emit('beforeSetup');
 		this._transitionPhase('setup');
@@ -297,6 +295,9 @@ function _seedFromOptions(self: Internals): void {
 		self._internalVolume = Math.max(0, Math.min(100, self.options.defaultVolume));
 		self._volumeBeforeMute = self._internalVolume;
 	}
+
+	if (self.options.shuffleStrategy)
+		self._queueList.setShuffleStrategy(self.options.shuffleStrategy);
 }
 
 /**
@@ -472,7 +473,10 @@ function _wireWakeLockPolicy(self: Internals): void {
  * mute — failures surfaced as events with no listener and vanished.
  */
 function _wireLogger(self: Internals): void {
-	const logger = self.options.logger ?? new Logger({ level: self.options.logLevel, prefix: 'nmplayer' });
+	const logger = self.options.logger ?? new Logger({
+		level: self.options.logLevel,
+		prefix: 'nmplayer',
+	});
 	self._logger = logger;
 
 	self.on('all', (event: string, data: unknown) => {
@@ -648,9 +652,9 @@ function _wirePreloadAndTransition(self: Internals): void {
 			self._transitionRafHandle = undefined;
 		}
 	};
-	self.on('current', onCurrentChange);
+	self.on('item', onCurrentChange);
 	self._policyCleanup.push(() => {
-		self.off('current', onCurrentChange);
+		self.off('item', onCurrentChange);
 	});
 
 	const onTimeOrchestration = ({ time }: { time: number }): void => {
@@ -697,14 +701,6 @@ function _wireWindowExpose(self: Internals): void {
 			Reflect.deleteProperty(window, 'player');
 		}
 	});
-}
-
-/** Seed the container element with the player's baseline classes + structural styles. */
-function _initContainerClass(self: Internals): void {
-	if (self.container && typeof self.container.classList !== 'undefined') {
-		self.container.classList.add('nomercyplayer', 'paused');
-		ensureBaseStyles(self.container);
-	}
 }
 
 // ──────────────────────────────────────────────────────────────────────────

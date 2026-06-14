@@ -3,6 +3,7 @@ import type {
 	BasePlaylistItem,
 	IPlayer,
 	Translations,
+	WithCurrentItem,
 } from '../../types';
 import { Plugin } from '../../core/plugin';
 import { BrowserPolicyError } from '../../errors';
@@ -154,7 +155,7 @@ interface ChromeCastGlobal {
  * media-specific hooks; everything else is taken care of.
  */
 export class CastSenderPlugin<
-	TPlayer extends IPlayer<any> = IPlayer<any>,
+	TPlayer extends IPlayer<BaseEventMap> = IPlayer,
 	TItem extends BasePlaylistItem = BasePlaylistItem,
 > extends Plugin<TPlayer, CastSenderOptions, CastSenderEvents> {
 	static override readonly id: string = 'cast-sender';
@@ -174,25 +175,23 @@ export class CastSenderPlugin<
 
 	/**
 	 * Return the current playlist item from the player, or `undefined`.
-	 * `current()` is a per-library method not on `IPlayer`; this is the single
-	 * typed boundary for that access.
+	 * Uses `WithCurrentItem<TItem>` to type the access narrowly; the cast is
+	 * `unknown` (not `any`) and breaks at compile time if the interface changes.
 	 */
 	private _readCurrentItem(): TItem | undefined {
-		const playerWithCurrent = this.player as unknown as { item?: () => TItem | undefined };
-		return typeof playerWithCurrent.item === 'function'
-			? playerWithCurrent.item()
-			: undefined;
+		const playerWithItem = this.player as unknown as WithCurrentItem<TItem>;
+		return playerWithItem.item();
 	}
 
 	/**
 	 * Called by the plugin system when the plugin is mounted to a player.
-	 * Subscribes to `current`, `play`, `pause`, `stop`, `seek`, `volume`, and
+	 * Subscribes to `item`, `play`, `pause`, `stop`, `seek`, `volume`, and
 	 * `mute` player events, forwarding each to the active Cast session via the
 	 * RemotePlayerController. Events tagged `{source: 'cast'}` are skipped to
 	 * prevent re-broadcast loops when the bridge mirrors receiver state back.
 	 */
 	override use(): void {
-		this.on('current', (_data) => {
+		this.on('item', (_data) => {
 			if (!this.isConnected() || this.applyingFromRemote)
 				return;
 			void this.forwardCurrent();

@@ -3,6 +3,7 @@ import type { ILogger } from '../adapters/logger/ILogger';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { IPreloadStrategy, ITransitionStrategy } from '../adapters/preload/default';
 import type { RealtimeFactory } from '../adapters/realtime/IRealtimeChannel';
+import type { IShuffleStrategy } from '../adapters/shuffle-strategy/IShuffleStrategy';
 import type { IStorage } from '../adapters/storage/IStorage';
 import type { ITranslator } from '../adapters/translator/translator';
 
@@ -366,6 +367,17 @@ export interface BasePlayerConfig {
 	 *  - Video: `false`
 	 */
 	crossfadeEnabled?: boolean;
+
+	/**
+	 * Custom shuffle strategy. When supplied, replaces the default
+	 * `FisherYatesShuffle`. Inject this to implement cursor-aware ordering,
+	 * upcoming-only shuffle, weighted randomisation, or deterministic sequences.
+	 *
+	 * The strategy must return a permutation of the same items — no drops, no
+	 * duplicates. Cursor-follow (keeping the playing item selected after a
+	 * shuffle) is handled by `MediaList` automatically for any strategy.
+	 */
+	shuffleStrategy?: IShuffleStrategy;
 
 	/**
 	 * Custom preload strategy. When supplied, replaces the default

@@ -120,7 +120,7 @@ export class MediaSessionPlugin<
 		if (typeof navigator === 'undefined' || !('mediaSession' in navigator))
 			return;
 
-		this.on('current' as keyof BaseEventMap, ((data: BaseEventMap['current']) => {
+		this.on('item' as keyof BaseEventMap, ((data: BaseEventMap['item']) => {
 			if (!data?.item) {
 				this.clearMetadata();
 				return;

@@ -9,6 +9,7 @@
 
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { BaseEventMap } from '../types';
+import type { PlayerTestInternals } from '../testing/player-test-internals';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EventEmitter } from '../adapters/event-bus/default';
 import {
@@ -69,7 +70,7 @@ describe('Cue parser registry — kit defaults', () => {
 		await p.ready();
 		// Indirect check: registry's `_cueParsers` field is internal but we can
 		// resolve URL patterns to confirm a parser claims them.
-		const reg = (p as any)._cueParsers as { resolve: (url: string, ct?: string) => ICueParser | undefined };
+		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('lyrics.lrc')?.id).toBe('lrc');
 		expect(reg.resolve('subs.vtt')?.id).toBe('vtt');
 		expect(reg.resolve('thumbs.sprite.vtt')?.id).toBe('sprite-vtt');
@@ -78,7 +79,7 @@ describe('Cue parser registry — kit defaults', () => {
 	it('matches by content-type when extension is ambiguous', async () => {
 		const p = make('p2');
 		await p.ready();
-		const reg = (p as any)._cueParsers;
+		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('https://x/lyrics', 'application/x-lrc')?.id).toBe('lrc');
 		expect(reg.resolve('https://x/subs', 'text/vtt')?.id).toBe('vtt');
 	});
@@ -91,14 +92,14 @@ describe('Cue parser registry — kit defaults', () => {
 		};
 		const p = make('p3', { cueParsers: [customLrc] });
 		await p.ready();
-		const reg = (p as any)._cueParsers;
+		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('lyrics.lrc')?.id).toBe('custom-lrc');
 	});
 
 	it('unrecognized URL returns undefined (caller decides whether absence is an error)', async () => {
 		const p = make('p4');
 		await p.ready();
-		const reg = (p as any)._cueParsers;
+		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('https://x/something.xyz')).toBeUndefined();
 	});
 
@@ -111,14 +112,14 @@ describe('Cue parser registry — kit defaults', () => {
 			parse: () => ({ get: () => [], at: () => undefined, after: () => undefined, before: () => undefined } as any),
 		};
 		p.registerCueParser(customVtt);
-		const reg = (p as any)._cueParsers;
+		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('subs.vtt')?.id).toBe('late-vtt');
 	});
 
 	it('unregisterCueParser removes by id', async () => {
 		const p = make('p6');
 		await p.ready();
-		const reg = (p as any)._cueParsers;
+		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('lyrics.lrc')?.id).toBe('lrc');
 		p.unregisterCueParser('lrc');
 		expect(reg.resolve('lyrics.lrc')).toBeUndefined();

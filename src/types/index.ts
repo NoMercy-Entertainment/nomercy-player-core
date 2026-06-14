@@ -33,7 +33,9 @@ export {
 	CastState,
 	NetworkState,
 	QualityState,
+	RepeatState,
 	SetupState,
+	ShuffleState,
 	VisibilityState,
 } from './state';
 export type {

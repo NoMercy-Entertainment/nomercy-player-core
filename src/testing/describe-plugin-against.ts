@@ -31,12 +31,12 @@ function getGlobals(): VitestGlobals {
 	return g as VitestGlobals;
 }
 
-export interface PluginAgainstTestContext<C extends typeof Plugin<any, any, any>, P extends IPlayer<any>> {
+export interface PluginAgainstTestContext<C extends typeof Plugin<any, any, any>, P extends IPlayer> {
 	player: P;
 	plugin: InstanceType<C>;
 }
 
-export interface DescribePluginAgainstOptions<C extends typeof Plugin<any, any, any>, P extends IPlayer<any>> {
+export interface DescribePluginAgainstOptions<C extends typeof Plugin<any, any, any>, P extends IPlayer> {
 	/** Factory producing a fresh real player per test. Required — there is no default. */
 	player: () => P | Promise<P>;
 
@@ -79,7 +79,7 @@ export interface DescribePluginAgainstOptions<C extends typeof Plugin<any, any, 
  * against the real player. Watch mode runs only the layer-1 (StubPlayer)
  * pass; CI runs both.
  */
-export function describePluginAgainst<C extends typeof Plugin<any, any, any>, P extends IPlayer<any>>(
+export function describePluginAgainst<C extends typeof Plugin<any, any, any>, P extends IPlayer>(
 	PluginClass: C,
 	fn: (ctx: PluginAgainstTestContext<C, P>) => void,
 	opts: DescribePluginAgainstOptions<C, P>,

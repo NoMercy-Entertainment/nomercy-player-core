@@ -96,6 +96,15 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 	private _currentFrame: VisualizationFrame | null = null;
 	private beatProviders: BeatProvider[] = [];
 
+	/**
+	 * When `true`, the AnalyserNode is bypassed. Each RAF tick emits the frame
+	 * last supplied via `pushFrame()` instead of reading FFT data. Cleared
+	 * automatically when `syntheticMode(false)` is called.
+	 */
+	private _syntheticMode: boolean = false;
+	/** The most recent synthetic frame supplied by the caller. */
+	private _syntheticFrame: VisualizationFrame | null = null;
+
 	/** Acquires the shared AnalyserNode from AudioGraphPlugin and starts the per-frame tick. */
 	override use(): void {
 		const graph = this.player.getPlugin?.(AudioGraphPlugin);
@@ -136,6 +145,8 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 	override dispose(): void {
 		this.beatProviders = [];
 		this._currentFrame = null;
+		this._syntheticFrame = null;
+		this._syntheticMode = false;
 		this._analyser = null;
 		this.graph = null;
 	}
@@ -234,6 +245,69 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 	 */
 	registerBeatProvider(fn: BeatProvider): void {
 		this.beatProviders.push(fn);
+	}
+
+	/**
+	 * Returns whether synthetic mode is currently active.
+	 *
+	 * In synthetic mode the AnalyserNode is bypassed and frames supplied via
+	 * `pushFrame()` are emitted instead — useful on passive NoMercy-Connect
+	 * devices that have no local audio stream.
+	 */
+	syntheticMode(): boolean;
+	/**
+	 * Enables or disables synthetic mode.
+	 *
+	 * - `true` — bypass the AnalyserNode; emit frames from `pushFrame()` instead.
+	 *   Call `pushFrame()` each time the server sends a progress/state event to
+	 *   supply the synthetic data. The visualizer RAF loop continues at its normal
+	 *   rate so the canvas stays live.
+	 * - `false` — restore real AnalyserNode analysis (device is now active).
+	 *   The last synthetic frame is discarded; the next RAF tick reads live FFT
+	 *   data from the AnalyserNode.
+	 */
+	syntheticMode(enabled: boolean): void;
+	syntheticMode(enabled?: boolean): boolean | void {
+		if (enabled === undefined) {
+			return this._syntheticMode;
+		}
+		this._syntheticMode = enabled;
+		if (!enabled) {
+			this._syntheticFrame = null;
+		}
+	}
+
+	/**
+	 * Supplies a synthetic `VisualizationFrame` for the next RAF tick.
+	 *
+	 * Only has an effect when `syntheticMode(true)` is active. Call this from
+	 * the app's NoMercy-Connect progress handler each time the server sends a
+	 * state update. The most recently pushed frame is held and re-emitted on
+	 * every canvas RAF tick until replaced or until `syntheticMode(false)` is
+	 * called.
+	 *
+	 * The `frame` is emitted verbatim — `time` and `deltaMs` are NOT overridden
+	 * by the canvas RAF clock (unlike real-analysis frames). Set them from the
+	 * server's progress payload for accurate seek-bar / time display.
+	 *
+	 * Example (app side):
+	 * ```ts
+	 * const spectrum = player.getPlugin(SpectrumPlugin);
+	 * spectrum.syntheticMode(true);
+	 *
+	 * musicSocket.on('state', (state) => {
+	 *   spectrum.pushFrame(buildSyntheticFrame(state));
+	 * });
+	 *
+	 * // When device becomes active:
+	 * spectrum.syntheticMode(false);
+	 * ```
+	 */
+	pushFrame(frame: VisualizationFrame): void {
+		if (!this._syntheticMode) {
+			return;
+		}
+		this._syntheticFrame = frame;
 	}
 
 	/**

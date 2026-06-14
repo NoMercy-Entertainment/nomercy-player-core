@@ -101,6 +101,13 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	private source: AudioNode | null = null;
 	private destination: AudioNode | null = null;
 	private analyser: AnalyserNode | null = null;
+	/**
+	 * The node whose output is tapped into the AnalyserNode. When the backend
+	 * exposes `analysisNode()`, this is the pre-volume raw source so spectrum
+	 * magnitudes are volume-independent. Falls back to `this.source` (the volume
+	 * GainNode) for backends that don't expose a separate pre-volume tap.
+	 */
+	private _analysisSource: AudioNode | null = null;
 	/** Insertion-ordered effect chains. `pre` sits between source and post; `post` sits between pre and destination. */
 	private preEffects: AudioNode[] = [];
 	private postEffects: AudioNode[] = [];
@@ -168,6 +175,13 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 			: ctx.createGain();
 		this.destination = ctx.destination;
 
+		// Resolve the pre-volume analysis tap. When the backend exposes
+		// `analysisNode(ctx)` we tap the AnalyserNode there — before the volume
+		// GainNode — so spectrum magnitudes are independent of the volume fader.
+		// Falls back to `this.source` for backends without a separate raw tap
+		// (AudioElementBackend, test mocks).
+		this._analysisSource = this.resolveBackendAnalysisNode(ctx) ?? this.source;
+
 		this.rebuildChain();
 
 		// Browser autoplay policy: AudioContext starts in 'suspended' state.
@@ -189,14 +203,19 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		// primary and emits 'backend:sourceswap' with the new source node. If
 		// this plugin's source still references the old (now-disconnected) node,
 		// the EQ / mixer chain is fed by a dead source. Re-mount on the new node.
-		const onSourceSwap = (payload: { sourceNode: AudioNode }): void => {
+		//
+		// The payload also carries `analysisNode` when the backend exposes a
+		// pre-volume raw source. We update `_analysisSource` from the payload so
+		// the AnalyserNode stays tapped pre-volume after the swap.
+		const onSourceSwap = (payload: { sourceNode: AudioNode; analysisNode?: AudioNode }): void => {
 			this.source = payload.sourceNode;
+			this._analysisSource = payload.analysisNode ?? payload.sourceNode;
 			this.rebuildChain();
 		};
 
 		try {
 			const backend = this.player.backend?.() as
-				| { on?: (event: string, fn: (p: { sourceNode: AudioNode }) => void) => void; off?: (event: string, fn: (p: { sourceNode: AudioNode }) => void) => void }
+				| { on?: (event: string, fn: (p: { sourceNode: AudioNode; analysisNode?: AudioNode }) => void) => void; off?: (event: string, fn: (p: { sourceNode: AudioNode; analysisNode?: AudioNode }) => void) => void }
 				| undefined;
 
 			if (typeof backend?.on === 'function') {
@@ -278,14 +297,20 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	}
 
 	/**
-	 * Returns the shared `AnalyserNode` tapped parallel to the chain source.
+	 * Returns the shared `AnalyserNode` tapped parallel to the pre-volume
+	 * analysis source.
 	 *
 	 * The analyser is created once and reused — multiple consumers (e.g.
 	 * `SpectrumPlugin`, custom visualisers) all read from the same node.
 	 * FFT size and smoothing are set from `AudioGraphOptions` on first call.
 	 *
-	 * The analyser is wired in parallel (source → analyser) so it never
-	 * interrupts the main signal path to `destination`.
+	 * When the backend exposes `analysisNode()`, the AnalyserNode is wired to
+	 * the raw `MediaElementAudioSourceNode` BEFORE the volume GainNode, making
+	 * spectrum/FFT magnitudes volume-independent. Backends without a dedicated
+	 * pre-volume node fall back to tapping `this.source` (the volume GainNode).
+	 *
+	 * The analyser is a parallel tap — it never interrupts the main signal path
+	 * to `destination`.
 	 */
 	analyserSource(): AnalyserNode {
 		if (this.analyser)
@@ -295,11 +320,13 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		analyser.fftSize = this.opts?.fftSize ?? 2048;
 		analyser.smoothingTimeConstant = this.opts?.smoothing ?? 0.8;
 		this.analyser = analyser;
-		// Tap the analyser parallel to the chain — connect source → analyser
-		// so the analyser sees signal but isn't part of the destination path.
-		if (this.source) {
+		// Tap the analyser to the pre-volume analysis source so FFT magnitudes
+		// are not scaled by the volume fader. Falls back to `this.source` when
+		// no dedicated pre-volume node is available.
+		const tapNode = this._analysisSource ?? this.source;
+		if (tapNode) {
 			try {
-				this.source.connect(analyser);
+				tapNode.connect(analyser);
 			}
 			catch { /* already connected — ignore */ }
 		}
@@ -464,6 +491,31 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	}
 
 	/**
+	 * Best-effort lookup of the backend's pre-volume analysis node.
+	 *
+	 * When the backend exposes `analysisNode(ctx)`, returns the raw audio source
+	 * node BEFORE the volume GainNode. AudioGraphPlugin taps the AnalyserNode
+	 * there so spectrum/FFT magnitudes are volume-independent.
+	 *
+	 * Returns `null` when:
+	 *  - the backend doesn't implement `analysisNode` (AudioElementBackend, mocks)
+	 *  - the player has no backend (test environments)
+	 *  - any access throws
+	 */
+	private resolveBackendAnalysisNode(ctx: AudioContext): AudioNode | null {
+		try {
+			const backend = this.player.backend?.();
+			if (backend && 'analysisNode' in backend && typeof (backend as { analysisNode: unknown }).analysisNode === 'function') {
+				return (backend as { analysisNode: (c: AudioContext) => AudioNode }).analysisNode(ctx);
+			}
+			return null;
+		}
+		catch {
+			return null;
+		}
+	}
+
+	/**
 	 * Reconnect the entire chain in canonical order:
 	 *  source → preEffects[0..n] → postEffects[0..n] → destination
 	 *
@@ -491,12 +543,17 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		}
 		catch { /* swallow */ }
 
-		// Reattach analyser tap (parallel from source) if present.
+		// Reattach analyser tap from the pre-volume analysis source (not this.source
+		// which is the volume GainNode). This keeps FFT magnitudes volume-independent.
+		// Falls back to this.source for backends without a dedicated pre-volume tap.
 		if (this.analyser) {
-			try {
-				this.source.connect(this.analyser);
+			const tapNode = this._analysisSource ?? this.source;
+			if (tapNode) {
+				try {
+					tapNode.connect(this.analyser);
+				}
+				catch { /* swallow */ }
 			}
-			catch { /* swallow */ }
 		}
 
 		// Reapply manual routes.
@@ -518,6 +575,17 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	}
 
 	private tearDownGraph(): void {
+		// Disconnect the analysis source tap when it differs from this.source
+		// (i.e. it's the pre-volume raw source node from the backend). The raw
+		// source node itself is owned by the backend — we must NOT call disconnect()
+		// on it globally, only disconnect the analyser connection from it.
+		if (this.analyser && this._analysisSource && this._analysisSource !== this.source) {
+			try {
+				this._analysisSource.disconnect(this.analyser);
+			}
+			catch { /* swallow */ }
+		}
+
 		for (const node of [this.source, this.analyser, ...this.preEffects, ...this.postEffects]) {
 			if (!node)
 				continue;
@@ -527,6 +595,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.postEffects = [];
 		this.routes = [];
 		this.analyser = null;
+		this._analysisSource = null;
 		this.source = null;
 		this.destination = null;
 

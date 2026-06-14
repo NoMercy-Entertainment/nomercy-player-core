@@ -112,7 +112,7 @@ export function describePlugin<C extends typeof Plugin<any, any, any>>(
 
 			lifecycle = new LifecycleRegistry();
 			ctx.plugin = new (PluginClass as unknown as new () => InstanceType<C>)();
-			ctx.plugin.initialize(ctx.player as unknown as IPlayer<any>, opts?.opts as InstanceType<C>['opts'], lifecycle);
+			ctx.plugin.initialize(ctx.player as unknown as IPlayer, opts?.opts as InstanceType<C>['opts'], lifecycle);
 
 			const useResult = ctx.plugin.use();
 			if (useResult instanceof Promise)

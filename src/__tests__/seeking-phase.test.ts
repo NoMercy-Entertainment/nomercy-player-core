@@ -8,7 +8,8 @@
  * round-trip.
  */
 
-import type { BaseEventMap } from '../types';
+import type { BaseEventMap, PlayerPhase } from '../types';
+import type { PlayerTestInternals } from '../testing/player-test-internals';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,
@@ -65,9 +66,9 @@ function makePlayer(divId: string): MockPlayer {
 	return new MockPlayer(divId);
 }
 
-function phaseTrace(p: MockPlayer): Array<{ from: string; to: string }> {
-	const trace: Array<{ from: string; to: string }> = [];
-	p.on('phase' as any, ({ from, to }: any) => {
+function phaseTrace(p: MockPlayer): Array<{ from: PlayerPhase; to: PlayerPhase }> {
+	const trace: Array<{ from: PlayerPhase; to: PlayerPhase }> = [];
+	p.on('phase', ({ from, to }) => {
 		trace.push({ from, to });
 	});
 	return trace;
@@ -93,7 +94,7 @@ describe('seeking phase round-trip (spec §D)', () => {
 		expect(p.phase()).toBe('paused');
 
 		const trace = phaseTrace(p);
-		await (p as any).time(10);
+		await p.time(10);
 
 		expect(trace).toEqual([
 			{ from: 'paused', to: 'seeking' },
@@ -111,10 +112,10 @@ describe('seeking phase round-trip (spec §D)', () => {
 		await p.ready();
 		await p.play();
 		// Force the phase machine into 'playing' as a backend would after firstFrame.
-		(p as any)._phase = 'playing';
+		(p as unknown as PlayerTestInternals)._phase = 'playing';
 
 		const trace = phaseTrace(p);
-		await (p as any).time(10);
+		await p.time(10);
 
 		expect(trace).toEqual([
 			{ from: 'playing', to: 'seeking' },
@@ -131,7 +132,7 @@ describe('seeking phase round-trip (spec §D)', () => {
 		expect(p.phase()).toBe('starting');
 
 		const trace = phaseTrace(p);
-		await (p as any).time(10);
+		await p.time(10);
 
 		expect(trace).toEqual([
 			{ from: 'starting', to: 'seeking' },
@@ -147,7 +148,7 @@ describe('seeking phase round-trip (spec §D)', () => {
 		expect(p.phase()).toBe('ready');
 
 		const trace = phaseTrace(p);
-		await (p as any).time(10);
+		await p.time(10);
 
 		expect(trace).toEqual([]);
 	});
@@ -208,12 +209,12 @@ describe('seeking phase round-trip (spec §D)', () => {
 		await p.play();
 		await p.pause();
 
-		p.on('beforeSeek' as any, (e: any) => {
+		p.on('beforeSeek', (e) => {
 			e.preventDefault();
 		});
 
 		const trace = phaseTrace(p);
-		await (p as any).time(10);
+		await p.time(10);
 
 		expect(trace).toEqual([]);
 		expect(p.phase()).toBe('paused');

@@ -7,6 +7,10 @@ export interface CanvasOptions {
 	/**
 	 * Where the canvas element is mounted. Accepts a CSS selector string or a
 	 * direct `HTMLElement` reference. Defaults to the player's container element.
+	 *
+	 * When a CSS selector string is provided and `document.querySelector` cannot
+	 * resolve it at plugin init time, the plugin logs a warning and falls back to
+	 * the player's container element.
 	 */
 	mount?: string | HTMLElement;
 
@@ -50,6 +54,14 @@ export interface CanvasOptions {
 	 * Default `'clear'`.
 	 */
 	compositeMode?: 'clear' | 'composite';
+
+	/**
+	 * CSS `pointer-events` value applied to the surface `<div>` and the canvas
+	 * inside it. Default `'none'` so a decorative visualizer never blocks app
+	 * interaction. Set to `'auto'` only when the canvas intentionally captures
+	 * pointer input (e.g. an interactive drawing surface).
+	 */
+	pointerEvents?: 'none' | 'auto';
 }
 
 /** Events emitted by {@link CanvasPlugin}. */
@@ -82,8 +94,10 @@ export type CanvasRenderFn = (ctx: CanvasRenderingContext2D, deltaMs: number, ti
  * no animation frame is requested — the player pays zero rendering cost.
  *
  * **What it owns:**
- * - A single `<canvas>` element mounted into the player container (or the
- *   element you point `opts.mount` at).
+ * - A single `<canvas>` element mounted into `opts.mount` (CSS selector or
+ *   `HTMLElement`), falling back to the player's container element.
+ * - `pointer-events: none` on the surface by default — override via
+ *   `opts.pointerEvents: 'auto'` only when the canvas must capture input.
  * - DPI scaling via `opts.pixelRatio` and a `ResizeObserver` that keeps the
  *   canvas in sync with its container.
  * - The RAF loop, frame timing, and `deltaMs` calculation.
@@ -124,22 +138,72 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 	 * to track container size changes (unless `opts.width` and `opts.height` are
 	 * both set), and starts the RAF render loop.
 	 *
+	 * The mount parent is resolved from `opts.mount` (CSS selector or
+	 * `HTMLElement`). When `opts.mount` is a selector string that cannot be
+	 * resolved, a warning is logged and the player container is used as the
+	 * fallback. `opts.mount` absent → player container.
+	 *
 	 * Emits `plugin:canvas:mounted` after the initial size is applied.
 	 */
 	override use(): void {
-		const surface = this.mount('surface');
+		const parent = this.resolveMountParent();
+
+		const surface = document.createElement('div');
+		surface.className = 'nmplayer-canvas-surface';
 		surface.style.position = 'relative';
 		surface.style.width = '100%';
 		surface.style.height = '100%';
+
+		const pointerEvents = this.opts?.pointerEvents ?? 'none';
+		surface.style.pointerEvents = pointerEvents;
+
+		parent.appendChild(surface);
 		this.surface = surface;
 
+		this.lifecycle.addCleanup(() => {
+			surface.remove();
+			this.surface = null;
+		});
+
 		const canvasEl = this.createCanvas(surface);
+		canvasEl.style.pointerEvents = pointerEvents;
 		surface.appendChild(canvasEl);
 		this._canvas = canvasEl;
 
 		this.applyInitialSize();
 		this.installResizeObserver();
 		this.startRenderLoop();
+	}
+
+	/**
+	 * Resolves `opts.mount` to an HTMLElement. Returns the player container when
+	 * `opts.mount` is absent, is an unresolvable CSS selector, or is not an
+	 * `HTMLElement`.
+	 */
+	private resolveMountParent(): HTMLElement {
+		const mountOpt = this.opts?.mount;
+
+		if (!mountOpt) {
+			return this.player.container;
+		}
+
+		if (mountOpt instanceof HTMLElement) {
+			return mountOpt;
+		}
+
+		const resolved = typeof document !== 'undefined'
+			? document.querySelector<HTMLElement>(mountOpt)
+			: null;
+
+		if (!resolved) {
+			this.logger.warn(
+				`CanvasPlugin: opts.mount selector "${mountOpt}" did not resolve to an element. `
+				+ 'Falling back to player container.',
+			);
+			return this.player.container;
+		}
+
+		return resolved;
 	}
 
 	/**

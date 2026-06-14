@@ -33,7 +33,8 @@ import type { BackendShape, PlayerPhaseState } from './mixins/player-state';
 import type { PluginRegistrationState } from './mixins/plugin-registration';
 import type { PreloadStrategyState } from './mixins/preload-strategy-mixin';
 import type { QueueState } from './mixins/queue';
-import type { RepeatStateToken, ShuffleStateToken, StateMutatorsState } from './mixins/state-mutators';
+import type { StateMutatorsState } from './mixins/state-mutators';
+import { RepeatState, ShuffleState } from './mixins/state-mutators';
 import type { StreamRegistrationState } from './mixins/stream-registration';
 import type { TimeInternalState } from './mixins/time';
 import type { PlayStateToken, TransportState } from './mixins/transport';
@@ -54,7 +55,12 @@ import { AudioTrackState, QualityState } from '../types';
 
 export type { SidecarSubtitleContext };
 export type { PlayStateToken, VolumeStateToken };
-export type { RepeatStateToken, ShuffleStateToken };
+export { RepeatState, ShuffleState };
+
+/** @deprecated Use `RepeatState` instead. */
+export type RepeatStateToken = RepeatState;
+/** @deprecated Use `ShuffleState` instead. */
+export type ShuffleStateToken = ShuffleState;
 
 // ──────────────────────────────────────────────────────────────────────────
 // PlayerCoreState — the shared internal field surface
@@ -379,8 +385,8 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._overrides = new Map();
 	target._playState = 'idle';
 	target._volumeState = 'unmuted';
-	target._repeatState = 'off';
-	target._shuffleState = 'off';
+	target._repeatState = RepeatState.OFF;
+	target._shuffleState = ShuffleState.OFF;
 	target._internalVolume = 100;
 	target._volumeBeforeMute = 100;
 	target._internalCurrentTime = 0;

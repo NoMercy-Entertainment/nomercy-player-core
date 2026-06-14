@@ -799,7 +799,7 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	 * Load a single playlist item into the player. Dispatches `beforeLoad`;
 	 * a listener may `preventDefault()` to cancel.
 	 */
-	load(item: BasePlaylistItem & { url?: string }, opts?: LoadOptions): Promise<void>;
+	load(item: BasePlaylistItem, opts?: LoadOptions): Promise<void>;
 
 	// ── Media tracks ──
 

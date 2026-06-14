@@ -5,6 +5,7 @@ import type { IStorage } from '../../adapters/storage/IStorage';
 import type { Severity } from '../../errors';
 import type {
 	BaseEventMap,
+	BasePlaylistItem,
 	BasePlayerConfig,
 	IPlayer,
 	PluginAdvisory,
@@ -41,7 +42,7 @@ import { PluginThrow } from './throw';
  */
 export type PlayerEventMap<P>
 	= P extends { readonly __eventMap__: infer E }
-		? (E extends BaseEventMap ? E : BaseEventMap)
+		? (E extends BaseEventMap<BasePlaylistItem> ? E : BaseEventMap)
 		: P extends IPlayer<infer E>
 			? E
 			: BaseEventMap;
@@ -134,7 +135,7 @@ export type PluginEventMap<C extends AnyPluginCtor> = InstanceType<C>['__events_
  * raw `Error` (use `this.throw`). The lint pack enforces all of these.
  */
 export class Plugin<
-	P extends IPlayer<any> & DispatchTarget = IPlayer & DispatchTarget,
+	P extends IPlayer<BaseEventMap> & DispatchTarget = IPlayer & DispatchTarget,
 	O = unknown,
 	E extends Record<string, any> = Record<string, never>,
 > {
@@ -281,7 +282,7 @@ export class Plugin<
 		this.opts = opts;
 		this.lifecycle = lifecycle;
 
-		const config = (player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
+		const config = (player as IPlayer & { options?: BasePlayerConfig }).options ?? {};
 
 		const rootLogger: ILogger = config.logger ?? new Logger({
 			prefix: 'nmplayer',
@@ -542,7 +543,7 @@ export class Plugin<
 	 */
 	protected async dispatchBefore<TData>(event: string, data: TData, opts?: DispatchBeforeOptions): Promise<BeforeDispatchResult<TData>> {
 		const namespaced = `plugin:${this.id}:${event}`;
-		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
+		const config = (this.player as IPlayer & { options?: BasePlayerConfig }).options ?? {};
 		const timeoutMs = opts?.timeoutMs ?? config.beforeEventTimeoutMs ?? 10_000;
 
 		return runDispatchBefore<TData>(this.player, namespaced, data, { timeoutMs });
@@ -754,7 +755,7 @@ export class Plugin<
 	 * override this method directly.
 	 */
 	protected websocket(url: string, opts?: RealtimeFactoryOptions): IRealtimeChannel {
-		const config = (this.player as IPlayer<any> & { options?: BasePlayerConfig }).options ?? {};
+		const config = (this.player as IPlayer & { options?: BasePlayerConfig }).options ?? {};
 		const factory = opts?.factory ?? config.websocketFactory ?? nativeWebSocketAdapter;
 		const channel = factory(url, opts);
 		// Auto-close on lifecycle dispose so plugin authors don't have to track
@@ -876,7 +877,7 @@ export class Plugin<
 	 */
 	protected t(key: string, vars?: Record<string, string>): string {
 		const namespaced = `plugin.${this.id}.${key}`;
-		const player = this.player as IPlayer<any> & { t?: (key: string, vars?: Record<string, string>) => string };
+		const player = this.player as IPlayer & { t?: (key: string, vars?: Record<string, string>) => string };
 		if (typeof player.t === 'function')
 			return player.t(namespaced, vars);
 		return namespaced;

@@ -19,7 +19,7 @@ export interface LeakAssertionResult {
  * which exposes `listenerCount()`. If the player object doesn't expose that
  * method, returns `0` and the harness reports zero leaks (no false positives).
  */
-export function countAllListeners(player: IPlayer<any>): number {
+export function countAllListeners(player: IPlayer): number {
 	const fn = (player as unknown as { listenerCount?: () => number }).listenerCount;
 	return typeof fn === 'function' ? fn.call(player) : 0;
 }
@@ -55,7 +55,7 @@ export function countAllListeners(player: IPlayer<any>): number {
  */
 export async function assertNoListenerLeak(opts: {
 	subjectId: string;
-	player: IPlayer<any>;
+	player: IPlayer;
 	setup: () => void | Promise<void>;
 	exercise?: () => void | Promise<void>;
 	teardown: () => void | Promise<void>;
@@ -109,7 +109,7 @@ export async function assertNoListenerLeak(opts: {
  */
 export async function assertNoListenerLeakOverCycles(opts: {
 	subjectId: string;
-	player: IPlayer<any>;
+	player: IPlayer;
 	setup: () => void | Promise<void>;
 	exercise?: () => void | Promise<void>;
 	teardown: () => void | Promise<void>;

@@ -31,6 +31,7 @@ export { loadingMethods } from './core/mixins/loading';
 export { mediaTracksMethods, normalizeLanguage } from './core/mixins/media-tracks';
 export { metricsMethods } from './core/mixins/metrics';
 export { playerStateMethods } from './core/mixins/player-state';
+export { playQueueMethods } from './core/mixins/play-queue';
 export { pluginRegistrationMethods } from './core/mixins/plugin-registration';
 export { preloadStrategyMethods } from './core/mixins/preload-strategy-mixin';
 export { queueMethods } from './core/mixins/queue';

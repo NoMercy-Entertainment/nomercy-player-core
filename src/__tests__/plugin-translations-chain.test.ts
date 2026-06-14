@@ -159,14 +159,15 @@ describe('Plugin lazy translation chain', () => {
 	});
 
 	/** addPlugin is fire-and-forget; wait for the install event before asserting. */
-	const waitForInstall = (p: any, id: string): Promise<void> => new Promise<void>((resolve) => {
-		const handler = (data: { id: string }): void => {
-			if (data.id !== id)
+	const waitForInstall = (p: MockPlayer, id: string): Promise<void> => new Promise<void>((resolve) => {
+		const handler = (data: unknown): void => {
+			const payload = data as { id: string };
+			if (payload.id !== id)
 				return;
-			(p as any).off('plugin:installed', handler);
+			p.off('plugin:installed', handler);
 			resolve();
 		};
-		(p as any).on('plugin:installed', handler);
+		p.on('plugin:installed', handler);
 	});
 
 	it('loads ONLY the active language at addPlugin time — Chinese stays untouched', async () => {

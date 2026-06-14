@@ -1,6 +1,7 @@
 import type { ActionOptions, LoadOptions } from '../../types';
 
 import type { Internals } from '../state';
+import { RepeatState } from '../state';
 
 export const PLAYER_STATE = {
 	IDLE: 'idle',
@@ -222,7 +223,7 @@ export const transportMethods = {
 
 		const repeatMode = this._repeatState;
 
-		if (repeatMode === 'one') {
+		if (repeatMode === RepeatState.ONE) {
 			const currentItem = this._queueList.current();
 			if (!currentItem) {
 				this.emit('queue:exhausted');
@@ -237,7 +238,7 @@ export const transportMethods = {
 		const nextItem = this._queueList.peekNext();
 
 		if (!nextItem) {
-			if (repeatMode === 'all') {
+			if (repeatMode === RepeatState.ALL) {
 				const allItems = this._queueList.get();
 				const firstItem = allItems[0];
 				if (!firstItem) {

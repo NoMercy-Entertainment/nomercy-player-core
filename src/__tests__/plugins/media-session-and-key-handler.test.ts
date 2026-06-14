@@ -47,6 +47,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare play: (opts?: any) => Promise<void>;
 	declare pause: (opts?: any) => Promise<void>;
 	declare stop: (opts?: any) => Promise<void>;
+	declare togglePlayback: (opts?: any) => Promise<void>;
 	declare t: (key: string, vars?: Record<string, string>) => string;
 	declare time: { (): number; (t: number, opts?: any): Promise<void> };
 	declare volume: { (): number; (v: number): void };
@@ -151,8 +152,8 @@ describe('MediaSessionPlugin', () => {
 		const inst = p.getPluginById('media-session');
 		expect(inst).toBeDefined();
 
-		// Push a current item so metadata gets set.
-		(p as any).emit('current', { item: { id: 1, title: 'Track A', artist: 'Band', album: 'LP' }, index: 0 });
+		// Push the current item so metadata gets set.
+		p.emit('item', { item: { id: 1, title: 'Track A', artist: 'Band', album: 'LP' }, index: 0 });
 		await flushMicrotasks();
 		expect((navigator.mediaSession as any).metadata).toBeTruthy();
 		expect(((navigator.mediaSession as any).metadata as { title: string }).title).toBe('Track A');
@@ -176,7 +177,7 @@ describe('MediaSessionPlugin', () => {
 		p.addPlugin(MediaSessionPlugin);
 		await p.ready();
 
-		(p as any).emit('current', {
+		p.emit('item', {
 			item: { id: 2, title: 'Movie', image: 'https://cdn.example.com/poster.jpg' },
 			index: 0,
 		});
@@ -195,7 +196,7 @@ describe('MediaSessionPlugin', () => {
 		p.addPlugin(MediaSessionPlugin);
 		await p.ready();
 
-		(p as any).emit('current', {
+		p.emit('item', {
 			item: { id: 3, title: 'Song', cover: 'https://cdn.example.com/album.png' },
 			index: 0,
 		});
@@ -213,7 +214,7 @@ describe('MediaSessionPlugin', () => {
 		p.addPlugin(MediaSessionPlugin);
 		await p.ready();
 
-		(p as any).emit('current', {
+		p.emit('item', {
 			item: {
 				id: 4,
 				title: 'Episode',
@@ -236,7 +237,7 @@ describe('MediaSessionPlugin', () => {
 		p.addPlugin(MediaSessionPlugin);
 		await p.ready();
 
-		(p as any).emit('current', {
+		p.emit('item', {
 			item: { id: 5, title: 'Track', artist: 'Artist' },
 			index: 0,
 		});
@@ -346,7 +347,7 @@ describe('KeyHandlerPlugin', () => {
 		p.addPlugin(KeyHandlerPlugin, { disableMediaControls: true });
 		await p.ready();
 
-		(p as any).togglePlayback = toggleFn;
+		p.togglePlayback = toggleFn;
 
 		const ev = new KeyboardEvent('keydown', { key: 'MediaPlayPause', bubbles: true, cancelable: true });
 		document.dispatchEvent(ev);

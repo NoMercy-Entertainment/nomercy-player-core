@@ -44,7 +44,7 @@ export const loadingMethods = {
 	 *
 	 * @throws when `item.url` is missing or the backend is not wired.
 	 */
-	async load<T extends BasePlaylistItem & { url?: string }>(
+	async load<T extends BasePlaylistItem>(
 		this: Internals,
 		item: T,
 		opts?: LoadOptions,
@@ -77,7 +77,7 @@ export const loadingMethods = {
 		// URLs — a bare transformUrl here left relative item URLs anchored to
 		// the page origin, where an SPA fallback answers 200 with HTML.
 		const item2 = beforeResult.data.item;
-		const rawUrl = (item2 as { url?: string }).url;
+		const rawUrl = item2.url;
 		if (!rawUrl) {
 			throw mediaFormatError('core:media/missing-url', 'load(item) requires `item.url` to be present.', { id: item2.id });
 		}
