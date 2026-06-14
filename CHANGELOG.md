@@ -1,5 +1,22 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.3] — 2026-06-14
+
+### Fixed
+
+- The published `dist` now carries explicit `.js` extensions on every relative
+  import and export. `tsc` under `moduleResolution: Bundler` emitted
+  extensionless specifiers, which resolve in bundlers but break Node's ESM
+  loader for consumers that pull the package from `node_modules`. A `tsc-alias`
+  post-build pass rewrites both `.js` and `.d.ts` specifiers.
+
+### Added
+
+- The build scripts (`resolve-translation-globs`, `copy-dist-assets`,
+  `inline-css-assets`) ship in the package so the music and video libraries can
+  run the shared post-build steps from the installed core instead of a sibling
+  checkout.
+
 ## [2.0.0-rc.2] — 2026-06-14
 
 ### Changed
