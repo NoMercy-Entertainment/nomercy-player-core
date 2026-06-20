@@ -6,7 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type { ActionOptions, LoadOptions } from '../../types';
+import type { ActionOptions, BasePlaylistItem, LoadOptions } from '../../types';
 
 import type { Internals } from '../state';
 import { RepeatState } from '../state';
@@ -86,6 +86,28 @@ async function _dispatchSeek(
 	self.emit('seeked', { time: targetTime });
 	return { proceeded: true };
 }
+
+/**
+ * Load `item` into the backend then begin playback. Used by `next()` and
+ * `previous()` — the repeat-mode branches all do the same two steps; this
+ * helper eliminates the triplication.
+ *
+ * `data` carries the (possibly mutated) `LoadOptions` from the `beforeNext` /
+ * `beforePrevious` dispatch outcome so `source` and `startAt` are forwarded
+ * consistently.
+ */
+async function _loadAndPlay(
+	self: Internals,
+	item: BasePlaylistItem,
+	data: LoadOptions,
+): Promise<void> {
+	await self.load(item, {
+		source: data.source,
+		startAt: data.startAt,
+	});
+	void self.play({ source: data.source });
+}
+
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: transport — play / pause / stop / seek / next / previous, the
@@ -238,11 +260,7 @@ export const transportMethods = {
 				return;
 			}
 			this.emit('next', result.data);
-			await this.load(currentItem, {
-				source: result.data?.source,
-				startAt: result.data?.startAt,
-			});
-			void this.play({ source: result.data?.source });
+			await _loadAndPlay(this, currentItem, result.data ?? {});
 			return;
 		}
 
@@ -258,11 +276,7 @@ export const transportMethods = {
 				}
 				this.emit('next', result.data);
 				this._queueList.setCurrent(0);
-				await this.load(firstItem, {
-					source: result.data?.source,
-					startAt: result.data?.startAt,
-				});
-				void this.play({ source: result.data?.source });
+				await _loadAndPlay(this, firstItem, result.data ?? {});
 				return;
 			}
 
@@ -276,11 +290,7 @@ export const transportMethods = {
 		// `current` fires immediately and the UI (title, poster, playlist
 		// highlight) reflects the incoming item while its media still loads.
 		this._queueList.setCurrent(nextItem);
-		await this.load(nextItem, {
-			source: result.data?.source,
-			startAt: result.data?.startAt,
-		});
-		void this.play({ source: result.data?.source });
+		await _loadAndPlay(this, nextItem, result.data ?? {});
 	},
 
 	/**
@@ -310,11 +320,7 @@ export const transportMethods = {
 
 		// Cursor moves before the media switch — see next().
 		this._queueList.setCurrent(prevItem);
-		await this.load(prevItem, {
-			source: result.data?.source,
-			startAt: result.data?.startAt,
-		});
-		void this.play({ source: result.data?.source });
+		await _loadAndPlay(this, prevItem, result.data ?? {});
 	},
 
 	/**
