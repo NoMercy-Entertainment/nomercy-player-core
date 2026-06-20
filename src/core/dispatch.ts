@@ -154,7 +154,6 @@ export async function runDispatchBefore<TData>(
 		}
 
 		if (delayedPromises.length > 0) {
-			let timedOut = false;
 			let rejectedCause: unknown;
 			let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 			const settled = await Promise.race([
@@ -168,7 +167,6 @@ export async function runDispatchBefore<TData>(
 				}),
 				new Promise<'timeout'>((resolve) => {
 					timeoutHandle = setTimeout(() => {
-						timedOut = true;
 						resolve('timeout');
 					}, timeoutMs);
 				}),
@@ -176,7 +174,6 @@ export async function runDispatchBefore<TData>(
 
 			if (timeoutHandle)
 				clearTimeout(timeoutHandle);
-			void timedOut;
 
 			if (settled === 'timeout') {
 				return {
