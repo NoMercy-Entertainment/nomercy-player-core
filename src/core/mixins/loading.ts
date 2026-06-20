@@ -8,7 +8,7 @@
 
 import type { BasePlaylistItem, LoadOptions } from '../../types';
 import type { Internals } from '../state';
-import { mediaFormatError, stateError } from '../../errors';
+import { makePlayerErrorEvent, mediaFormatError, PlayerError, resourceError, stateError } from '../../errors';
 
 import { authFetch } from '../auth-fetch';
 
@@ -20,6 +20,20 @@ import { authFetch } from '../auth-fetch';
 // A monotonic epoch guards against load-races when the consumer fires
 // multiple load() calls in quick succession.
 // ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Phases from which a `load()` call should transition through `loading`.
+ * Includes `'starting'` because a double-tap load (load while loading) needs
+ * the same visual transition path.
+ */
+const RESUMABLE_PHASES_FOR_LOAD = ['ready', 'playing', 'paused', 'starting', 'ended'] as const;
+
+/**
+ * Phases from which we should restore to `priorPhase` on a `load()` error.
+ * Excludes `'starting'` — an error during a start-from-cold should not restore
+ * to `starting`; the player is already moving toward `ready` or failed.
+ */
+const RESUMABLE_PHASES_FOR_ERROR = ['ready', 'playing', 'paused', 'ended'] as const;
 
 export const loadingMethods = {
 	/**
@@ -101,7 +115,7 @@ export const loadingMethods = {
 		// clean settled state once backend.load() completes. `'ended'` is
 		// included so auto-advance loads (which fire while the player is in
 		// `ended` phase) properly transition through `loading` → `ready`.
-		if (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused' || priorPhase === 'starting' || priorPhase === 'ended') {
+		if ((RESUMABLE_PHASES_FOR_LOAD as ReadonlyArray<string>).includes(priorPhase)) {
 			this._transitionPhase('loading');
 		}
 
@@ -171,7 +185,7 @@ export const loadingMethods = {
 			this.emit('mediaReady');
 		}
 		catch (err) {
-			if (this._phase === 'loading' && (priorPhase === 'ready' || priorPhase === 'playing' || priorPhase === 'paused' || priorPhase === 'ended')) {
+			if (this._phase === 'loading' && (RESUMABLE_PHASES_FOR_ERROR as ReadonlyArray<string>).includes(priorPhase)) {
 				this._transitionPhase(priorPhase);
 			}
 			throw err;
@@ -217,18 +231,13 @@ export const loadingMethods = {
 			this.emit('playlistReady', { length: items.length });
 		}
 		catch (err) {
-			const errorPayload = {
-				error: err instanceof Error ? err : new Error(String(err)),
-				severity: 'error' as const,
-				scope: { kind: 'core' as const },
-				timestamp: Date.now(),
-				markHandled: () => {},
-				isHandled: () => false,
-				stopImmediatePropagation: () => {},
-				isPropagationStopped: () => false,
-				preventDefault: () => {},
-				isDefaultPrevented: () => false,
-			};
+			const playerErr = err instanceof PlayerError
+				? err
+				: resourceError(
+					'core:resource/playlist-fetch-failed',
+					err instanceof Error ? err.message : String(err),
+				);
+			const errorPayload = makePlayerErrorEvent(playerErr, 'error', { kind: 'core' });
 			this.emit('playlistResolveError', errorPayload);
 			this.emit('error', errorPayload);
 			throw err;
