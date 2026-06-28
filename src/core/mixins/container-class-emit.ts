@@ -28,13 +28,15 @@ type ContainerClassRule
 		| { kind: 'phase' };
 
 /**
- * Tracks whether a given container has ever reached the `ready` phase. Once a
- * player becomes playable for the first time, a subsequent `loading` phase
- * transition represents a new-item load on an already-primed player and must
- * NOT regress the container to the `loading` CSS class — `buffering` is the
- * correct presentation for a transient data-starvation on an already-ready player.
+ * Tracks whether a given container has ever reached the `ready` phase.
  *
- * Keyed by the container element so multiple player instances remain independent.
+ * Once a player has been primed (first `ready`), a subsequent `phase=loading`
+ * is a background item-load on an idle player — not a user-visible stall and
+ * not the initial bootstrap. The resting class (`paused`, `playing`, etc.)
+ * must stay unchanged; only the `waiting`/`stalled` DOM events (already wired
+ * in `CONTAINER_CLASS_RULES`) produce a `buffering` class during live playback.
+ *
+ * Keyed by container element so independent player instances do not share state.
  */
 const _containerHasBeenReady = new WeakMap<HTMLElement, boolean>();
 
@@ -110,7 +112,10 @@ const CONTAINER_CLASS_RULES: ReadonlyMap<string, ContainerClassRule> = new Map<s
  * - `toggle` — boolean-toggle one class from a payload key.
  * - `binary` — apply one of two classes depending on a boolean payload key.
  * - `phase` — when entering a recognised play-state phase, swap the class;
- *   entering `ready` resets to `paused` as the initial resting state.
+ *   entering `ready` resets to `paused` as the resting state and marks the
+ *   container as "has been ready". A subsequent `loading` phase on an already-
+ *   ready container is a no-op — the resting class stays, because real stalls
+ *   arrive via `waiting`/`stalled` events, not phase transitions.
  *
  * No-ops silently when `container` is absent (player not mounted yet).
  */
@@ -160,18 +165,17 @@ function _applyContainerClassRule(container: HTMLElement | undefined, rule: Cont
 		if (PLAY_STATE_CLASSES.includes(phasePayload.to)) {
 			const hasBeenReady = _containerHasBeenReady.get(container) === true;
 
-			// Once the player has reached `ready` at least once, a `loading`
-			// phase transition represents a new-item load on an already-primed
-			// player. The container must NOT regress to `loading` — that class
-			// means "not yet playable". Map it to `buffering` instead, which
-			// correctly signals "temporarily stalled on a player that is still
-			// fundamentally ready".
-			const cssClass = (phasePayload.to === 'loading' && hasBeenReady)
-				? 'buffering'
-				: phasePayload.to;
+			// After the first `ready`, a `phase=loading` transition is a
+			// background item-load on an already-primed, idle player. It must
+			// not touch the container class at all — the resting class (`paused`,
+			// `playing`, etc.) is the correct presentation. Real mid-playback
+			// stalls arrive via `waiting`/`stalled` DOM events (already mapped to
+			// `buffering` above), never via a phase transition.
+			if (phasePayload.to === 'loading' && hasBeenReady)
+				return;
 
 			for (const cls of PLAY_STATE_CLASSES) container.classList.remove(cls);
-			container.classList.add(cssClass);
+			container.classList.add(phasePayload.to);
 		}
 	}
 }
