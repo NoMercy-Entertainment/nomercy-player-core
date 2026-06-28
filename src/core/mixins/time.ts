@@ -65,6 +65,7 @@ export const timeMethods = {
 	time(this: Internals, t?: number, opts: ActionOptions = {}): number | Promise<void> {
 		if (t === undefined)
 			return this._internalCurrentTime;
+		this._assertReady();
 		const target = Math.max(0, t);
 
 		return (async () => {
@@ -173,10 +174,12 @@ export const timeMethods = {
 	playbackRate(this: Internals, rate?: number): number | void {
 		if (rate === undefined)
 			return this._playbackRate;
-		this._playbackRate = rate;
-		this.emit('backend:ratechange', { rate });
 
-		this._resolveBackend()?.playbackRate?.(rate);
+		const clamped = Math.max(0.25, Math.min(2, rate));
+		this._playbackRate = clamped;
+		this.emit('backend:ratechange', { rate: clamped });
+
+		this._resolveBackend()?.playbackRate?.(clamped);
 	},
 
 	/**
