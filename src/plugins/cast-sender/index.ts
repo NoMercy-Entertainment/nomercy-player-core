@@ -552,13 +552,17 @@ export class CastSenderPlugin<
 	 * Calls `RemotePlayerController.playOrPause()` only when the receiver's
 	 * state differs from `wantPlaying` — avoids redundant toggles that can
 	 * confuse the Cast SDK state machine.
+	 *
+	 * Condition: `remote.isPaused === wantPlaying` means "receiver is paused
+	 * and we want to play, OR receiver is playing and we want to pause" — i.e.
+	 * the states differ and a toggle is needed.
 	 */
 	private forwardPlayPause(wantPlaying: boolean): void {
 		const remote = this.remotePlayer;
 		const ctrl = this.remoteController;
 		if (!remote || !ctrl)
 			return;
-		if (remote.isPaused === !wantPlaying) {
+		if (remote.isPaused === wantPlaying) {
 			try {
 				ctrl.playOrPause();
 			}

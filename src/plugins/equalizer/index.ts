@@ -554,14 +554,15 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	 * them immediately to the live audio nodes. No-op when `persistKey` is not
 	 * set or when storage contains nothing for the key.
 	 *
-	 * Use when `autoLoad` is disabled but you want to trigger a manual restore
-	 * at a specific moment (e.g. after the user logs in).
+	 * Unlike the automatic load that runs during `use()`, this method bypasses
+	 * the `autoLoad` option — it is the explicit manual trigger.
 	 */
 	restore(): void {
 		const persistKey = this.opts?.persistKey;
 		if (!persistKey)
 			return;
-		const restored = this.loadPersisted(persistKey);
+		// Skip autoLoad flag — restore() is always an explicit manual call.
+		const restored = this.loadPersisted(persistKey, true);
 		if (!restored)
 			return;
 		if (restored.customPresets) {
@@ -686,9 +687,9 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			this.save();
 	}
 
-	private loadPersisted(key: string): PersistedEqState | undefined {
+	private loadPersisted(key: string, force: boolean = false): PersistedEqState | undefined {
 		const autoLoad = this.opts?.autoLoad !== false;
-		if (!autoLoad)
+		if (!autoLoad && !force)
 			return undefined;
 		try {
 			const raw = this.storage?.get?.(key);
