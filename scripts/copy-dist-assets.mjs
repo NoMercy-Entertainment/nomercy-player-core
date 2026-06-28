@@ -44,7 +44,7 @@ const ASSET_EXTENSIONS = [
 /**
  * Walk a directory tree and return all asset file paths.
  * @param {string} dir
- * @returns {string[]}
+ * @returns {string[]} Absolute paths of every asset file found under `dir`.
  */
 function walkAssets(dir) {
 	const results = [];

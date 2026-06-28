@@ -53,7 +53,7 @@ const LITERAL_CALL_RE = /translationsFromGlob\s*\(\s*(['"`])([^'"`]+)\1\s*\)/g;
 /**
  * Walk a directory tree and return all .js file paths.
  * @param {string} dir
- * @returns {string[]}
+ * @returns {string[]} Absolute paths of every .js file found under `dir`.
  */
 function walkJs(dir) {
 	const results = [];
@@ -142,7 +142,7 @@ function buildReplacement(pattern, callerFile) {
  * (which would indicate it is embedded inside a string value).
  *
  * @param {string} filePath
- * @returns {boolean}
+ * @returns {boolean} True when the file was rewritten, false when left unchanged.
  */
 function processFile(filePath) {
 	const original = readFileSync(filePath, 'utf8');

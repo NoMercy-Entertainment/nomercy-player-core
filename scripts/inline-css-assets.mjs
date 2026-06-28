@@ -49,7 +49,7 @@ const CALL_RE = /this\.appendStyles\(\s*new URL\(\s*(['"])([^'"]+\.css)\1\s*,\s*
 /**
  * Walk a directory tree and return all .js file paths.
  * @param {string} dir
- * @returns {string[]}
+ * @returns {string[]} Absolute paths of every .js file found under `dir`.
  */
 function walkJs(dir) {
 	const results = [];
@@ -69,7 +69,7 @@ function walkJs(dir) {
 /**
  * Rewrite a single .js file in-place. Returns true when a change was made.
  * @param {string} filePath
- * @returns {boolean}
+ * @returns {boolean} True when the file was rewritten, false when left unchanged.
  */
 function processFile(filePath) {
 	const original = readFileSync(filePath, 'utf8');
