@@ -71,7 +71,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		super();
 		initPlayerCoreState(this, { className: 'MockPlayer' });
 		const resolved = resolvePlayerConstructor(id, _instances, 'MockPlayer');
-		if (resolved.kind === 'existing') return resolved.instance as unknown as this;
+		if (resolved.kind === 'existing')
+			return resolved.instance as unknown as this;
 		(this as { playerId: string }).playerId = resolved.id;
 		this.container = resolved.div;
 		_instances.set(resolved.id, this);
@@ -180,7 +181,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 			const inst = p.getPlugin(EmbedPlugin)!;
 
 			const timeCalls: number[] = [];
-			(p as MockPlayer & { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
+			(p as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -199,7 +200,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 			const inst = p.getPlugin(EmbedPlugin)!;
 
 			const volumeCalls: number[] = [];
-			(p as MockPlayer & { volume: (v: number) => void }).volume = (v: number) => { volumeCalls.push(v); };
+			(p as unknown as { volume: (v: number) => void }).volume = (v: number) => { volumeCalls.push(v); };
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',

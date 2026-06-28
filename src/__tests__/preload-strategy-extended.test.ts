@@ -118,8 +118,7 @@ describe('CrossfadeTransitionStrategy', () => {
 				s.tick(
 					{ currentTime: 10, duration: 120, fraction: 0.5, outgoingItem: item('a'), incomingItem: item('b') },
 					null,
-				),
-			).not.toThrow();
+				)).not.toThrow();
 		});
 
 		it('does nothing when backend does not support crossfade', () => {
@@ -225,8 +224,7 @@ describe('GaplessTransitionStrategy', () => {
 			s.tick(
 				{ currentTime: 100, duration: 120, fraction: 0.5, outgoingItem: item('a'), incomingItem: item('b') },
 				null,
-			),
-		).not.toThrow();
+			)).not.toThrow();
 	});
 
 	it('start() does not throw', () => {

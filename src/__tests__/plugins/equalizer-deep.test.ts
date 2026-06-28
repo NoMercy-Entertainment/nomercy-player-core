@@ -62,7 +62,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		super();
 		initPlayerCoreState(this, { className: 'MockPlayer' });
 		const resolved = resolvePlayerConstructor(id, _instances, 'MockPlayer');
-		if (resolved.kind === 'existing') return resolved.instance as unknown as this;
+		if (resolved.kind === 'existing')
+			return resolved.instance as unknown as this;
 		(this as { playerId: string }).playerId = resolved.id;
 		this.container = resolved.div;
 		_instances.set(resolved.id, this);
@@ -185,7 +186,7 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 		it('emits "ready" after wiring the chain', () => {
 			const readyEvents: unknown[] = [];
 			const { plugin } = wireEqPlugin();
-			plugin.on('ready', () => readyEvents.push(true));
+			(plugin as unknown as { on: (event: string, fn: () => void) => void }).on('ready', () => readyEvents.push(true));
 
 			// "ready" fires during use(). Re-fire to check after setup is complete via emit listener
 			// (already fired synchronously during wireEqPlugin's plugin.use())
@@ -321,7 +322,7 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 
 		it('non-finite value (NaN) defaults to 0', () => {
 			const { plugin } = wireEqPlugin();
-			plugin.preGain(NaN);
+			plugin.preGain(Number.NaN);
 			expect(plugin.preGain()).toBe(0);
 		});
 	});

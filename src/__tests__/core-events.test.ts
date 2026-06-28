@@ -34,9 +34,11 @@
  *    proves this structurally.
  */
 
-import type { SubtitleCueChange } from '../types';
 import type { NetworkType } from '../adapters/platform/IPlatform';
+import type { BaseEventMap, PluginCtorWithId, SubtitleCueChange } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createCueList } from '../core/cues/cue';
+import { CueTracker } from '../core/cues/tracker';
 import {
 	composeMixins,
 	EventEmitter,
@@ -45,11 +47,8 @@ import {
 	resolvePlayerConstructor,
 	ShuffleState,
 } from '../index';
-import type { BaseEventMap, PluginCtorWithId } from '../types';
-import { createCueList } from '../core/cues/cue';
-import { CueTracker } from '../core/cues/tracker';
-import { StubPlayer } from '../testing/stub-player';
 import { CastSenderPlugin } from '../plugins/cast-sender';
+import { StubPlayer } from '../testing/stub-player';
 import { makeFakePlatform } from './helpers/fake-platform';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -115,7 +114,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare queue: { (): ReadonlyArray<any>; (items: any[], opts?: any): void };
 	declare item: { (): any; (target: any, opts?: any): void };
 	declare index: () => number;
-	declare addPlugin: <P extends any>(PluginClass: new () => P, opts?: any) => this;
+	declare addPlugin: <P>(PluginClass: new () => P, opts?: any) => this;
 	declare getPlugin: (PluginClass: any) => any;
 	declare plugins: () => ReadonlyArray<any>;
 
@@ -166,12 +165,12 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 	// package without importing nomercy-music-player. Covered by
 	// packages/nomercy-music-player/src/__tests__/wire-backend-regression.test.ts.
 
-	it.todo("'playing' emits after backend fires 'playing' (F4: backend-bridge-only; covered by music-player wire-backend-regression.test.ts)");
+	it.todo('\'playing\' emits after backend fires \'playing\' (F4: backend-bridge-only; covered by music-player wire-backend-regression.test.ts)');
 
 	// ── Test 2: 'ended' ───────────────────────────────────────────────────────
 	// Finding F4: same as 'playing'. Covered by wire-backend-regression.test.ts.
 
-	it.todo("'ended' emits when backend fires 'ended' + phase → 'ended' (F4: backend-bridge-only; covered by music-player wire-backend-regression.test.ts)");
+	it.todo('\'ended\' emits when backend fires \'ended\' + phase → \'ended\' (F4: backend-bridge-only; covered by music-player wire-backend-regression.test.ts)');
 
 	// ── Test 3: 'seek' event payload ──────────────────────────────────────────
 	// Finding F2: spec named this test "'seeking' event payload" but 'seeking' is
@@ -179,7 +178,7 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 	// (fires during the seeking phase) and 'seeked': { time } (fires after the
 	// backend repositions). This test pins the 'seek' payload.
 
-	describe("'seek' event emits with { time } payload when time(t) is called", () => {
+	describe('\'seek\' event emits with { time } payload when time(t) is called', () => {
 		it('emits exactly once with the correct time field', async () => {
 			const player = setupPlayer('ce-seek');
 			await player.ready();
@@ -197,7 +196,7 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 			expect(payloads[0]!.time).toBe(45);
 		});
 
-		it("also emits 'seeked' with { time } after the seek settles", async () => {
+		it('also emits \'seeked\' with { time } after the seek settles', async () => {
 			const player = setupPlayer('ce-seeked');
 			await player.ready();
 			await player.play();
@@ -224,7 +223,7 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 	// Path B requires a CueTracker attached to a player — tested via StubPlayer
 	// because CueTracker only needs on/off/emit, not the full MockPlayer.
 
-	describe("'subtitleCue' emits with SubtitleCueChange payload shape", () => {
+	describe('\'subtitleCue\' emits with SubtitleCueChange payload shape', () => {
 		it('subtitle(null) emits { cues: [], language: undefined } (off path)', async () => {
 			const player = setupPlayer('ce-subtitle-off');
 			await player.ready();
@@ -301,7 +300,7 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 
 	// ── Test 5: 'shuffle' event ───────────────────────────────────────────────
 
-	describe("'shuffle' emits with { state } payload", () => {
+	describe('\'shuffle\' emits with { state } payload', () => {
 		it('shuffleState(ON) emits shuffle with state ShuffleState.ON', async () => {
 			const player = setupPlayer('ce-shuffle');
 			await player.ready();
@@ -339,7 +338,7 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 	// CSS class token in container-class-emit, not an event. The spec was wrong.
 	// There is no core unit test to write for a non-existent event.
 
-	it.todo("'buffering' event (F3: not declared in BaseEventMap; 'buffering' is a CSS class token, not a player event — no test to write)");
+	it.todo('\'buffering\' event (F3: not declared in BaseEventMap; \'buffering\' is a CSS class token, not a player event — no test to write)');
 
 	// ── Test 7: 'network:slow' event ─────────────────────────────────────────
 	// _wireNetworkPolicy in lifecycle.ts emits 'network:slow' when the platform's
@@ -347,7 +346,7 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 	// platform.network.downlinkMbps() returns a value < 1.5 AND the prior state
 	// was not already slow.
 
-	describe("'network:slow' emits when platform reports slow connection", () => {
+	describe('\'network:slow\' emits when platform reports slow connection', () => {
 		it('emits with { rttMs } payload when downlink < 1.5 Mbps on online transition', async () => {
 			let networkCallback: ((state: { online: boolean; type: NetworkType }) => void) | null = null;
 

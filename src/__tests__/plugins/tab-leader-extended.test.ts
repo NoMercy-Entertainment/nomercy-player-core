@@ -18,8 +18,10 @@
  *  - dispose() delegates to releaseLock()
  */
 
+import type { TabLeaderOptions } from '../../plugins/tab-leader';
 import type { BaseEventMap } from '../../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import {
 	composeMixins,
 	EventEmitter,
@@ -28,7 +30,6 @@ import {
 	resolvePlayerConstructor,
 } from '../../index';
 import { TabLeaderPlugin } from '../../plugins/tab-leader';
-import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 
 const _instances = new Map<string, MockPlayer>();
 
@@ -78,21 +79,19 @@ function makePlayer(divId: string): MockPlayer {
 	return p;
 }
 
-function makePlugin(player: MockPlayer, opts?: ConstructorParameters<typeof TabLeaderPlugin>[0]): TabLeaderPlugin {
+function makePlugin(player: MockPlayer, opts?: TabLeaderOptions): TabLeaderPlugin {
 	const plugin = new TabLeaderPlugin();
-	plugin.initialize(player as any, opts, new LifecycleRegistry());
+	plugin.initialize(player as any, opts ?? {}, new LifecycleRegistry());
 	return plugin;
 }
 
-type NavWithLocks = typeof navigator & {
-	locks?: {
-		request: (key: string, cb: (lock: unknown) => Promise<void>) => Promise<void>;
-	};
-};
+interface LocksStub {
+	request: (key: string, cb: (lock: unknown) => Promise<void>) => Promise<void>;
+}
 
 const originalLocksDescriptor = Object.getOwnPropertyDescriptor(navigator, 'locks');
 
-function stubLocks(fn: NavWithLocks['locks']): void {
+function stubLocks(fn: LocksStub): void {
 	Object.defineProperty(navigator, 'locks', {
 		configurable: true,
 		get: () => fn,
@@ -165,7 +164,9 @@ describe('TabLeaderPlugin extended', () => {
 		it('sets _isLeader to true and emits leader-acquired when lock granted', async () => {
 			let innerRelease!: () => void;
 			const lockRequest = vi.fn((_key: string, cb: (lock: unknown) => Promise<void>) => {
-				const inner = new Promise<void>((res) => { innerRelease = res; });
+				// Holds the lock open until innerRelease() is called below; the
+				// promise object itself is never read, only its release callback.
+				void new Promise<void>((res) => { innerRelease = res; });
 				// cb is called synchronously — sets _isLeader inside it
 				const cbResult = cb({});
 				// Resolve the outer locks.request promise immediately after cb returns

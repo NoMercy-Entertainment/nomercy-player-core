@@ -107,8 +107,8 @@ function wirePlugin(
 
 	// Stub globalThis.AudioContext so plugin.use() picks it up.
 	// Must be a regular function (not arrow) so `new` works correctly.
-	const originalAudioContext = (globalThis as Record<string, unknown>).AudioContext;
-	(globalThis as Record<string, unknown>).AudioContext = function() { return fakeCtx; };
+	const originalAudioContext = (globalThis as Record<string, unknown>)['AudioContext'];
+	(globalThis as Record<string, unknown>)['AudioContext'] = function () { return fakeCtx; };
 
 	const plugin = new AudioGraphPlugin();
 	const lifecycle = new LifecycleRegistry();
@@ -123,7 +123,7 @@ function wirePlugin(
 	plugin.use();
 
 	// Restore
-	(globalThis as Record<string, unknown>).AudioContext = originalAudioContext;
+	(globalThis as Record<string, unknown>)['AudioContext'] = originalAudioContext;
 
 	return { plugin, player, ctx: fakeCtx };
 }
@@ -134,11 +134,11 @@ describe('AudioGraphPlugin — deep behavioral coverage', () => {
 	let savedAudioContext: unknown;
 
 	beforeEach(() => {
-		savedAudioContext = (globalThis as Record<string, unknown>).AudioContext;
+		savedAudioContext = (globalThis as Record<string, unknown>)['AudioContext'];
 	});
 
 	afterEach(() => {
-		(globalThis as Record<string, unknown>).AudioContext = savedAudioContext;
+		(globalThis as Record<string, unknown>)['AudioContext'] = savedAudioContext;
 	});
 
 	// ── pre() / post() shorthands ─────────────────────────────────────────────
@@ -222,8 +222,8 @@ describe('AudioGraphPlugin — deep behavioral coverage', () => {
 		});
 
 		it('throws BrowserPolicyError when AudioContext is not available', () => {
-			(globalThis as Record<string, unknown>).AudioContext = undefined;
-			(globalThis as Record<string, unknown>).webkitAudioContext = undefined;
+			(globalThis as Record<string, unknown>)['AudioContext'] = undefined;
+			(globalThis as Record<string, unknown>)['webkitAudioContext'] = undefined;
 
 			const plugin = new AudioGraphPlugin();
 			expect(() => plugin.context()).toThrow('AudioContext is not available');
@@ -304,8 +304,8 @@ describe('AudioGraphPlugin — deep behavioral coverage', () => {
 
 	describe('unsupported() path', () => {
 		it('emits unsupported + throws BrowserPolicyError when AudioContext is missing', () => {
-			(globalThis as Record<string, unknown>).AudioContext = undefined;
-			(globalThis as Record<string, unknown>).webkitAudioContext = undefined;
+			(globalThis as Record<string, unknown>)['AudioContext'] = undefined;
+			(globalThis as Record<string, unknown>)['webkitAudioContext'] = undefined;
 
 			const player = new EventEmitter<BaseEventMap>();
 			const plugin = new AudioGraphPlugin();

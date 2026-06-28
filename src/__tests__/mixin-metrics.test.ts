@@ -84,7 +84,7 @@ describe('metricsMethods (slice 03)', () => {
 		const snapshot = player.metrics();
 
 		expect(snapshot).toBeDefined();
-		expect(typeof snapshot.sessionDurationMs).toBe('number');
+		expect(typeof snapshot['sessionDurationMs']).toBe('number');
 	});
 
 	it('recordMetric("ttfb", 99) causes metrics().ttfb to equal 99', () => {
@@ -93,6 +93,6 @@ describe('metricsMethods (slice 03)', () => {
 		player.recordMetric('ttfb', 99);
 		const snapshot = player.metrics();
 
-		expect(snapshot.ttfb).toBe(99);
+		expect(snapshot['ttfb']).toBe(99);
 	});
 });

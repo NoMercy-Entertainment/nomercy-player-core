@@ -34,7 +34,7 @@ export function makeFakeUrlResolver(): FakeUrlResolver {
 	};
 
 	const resolver = Object.assign(
-		function fakeResolver(url: string, _ctx: UrlResolverContext): ResolvedUrl {
+		(url: string, _ctx: UrlResolverContext): ResolvedUrl => {
 			resolveCalls.push(url);
 			return resolved;
 		},

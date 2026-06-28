@@ -90,8 +90,8 @@ function restoreMediaDevices(): void {
 		Object.defineProperty(navigator, 'mediaDevices', originalMediaDevices);
 	}
 	else {
-		// eslint-disable-next-line ts/no-dynamic-delete
-		try { delete (navigator as unknown as Record<string, unknown>).mediaDevices; } catch { /* read-only in some envs */ }
+		try { delete (navigator as unknown as Record<string, unknown>)['mediaDevices']; }
+		catch { /* read-only in some envs */ }
 	}
 }
 

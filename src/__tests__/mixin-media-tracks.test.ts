@@ -19,7 +19,7 @@
  * normalizeLanguage. This file covers every OTHER uncovered method.
  */
 
-import type { AudioTrack, BasePlaylistItem, Chapter, QualityLevel, SubtitleStyle, SubtitleTrack } from '../types';
+import type { AudioTrack, BaseEventMap, BasePlaylistItem, Chapter, PluginCtorWithId, QualityLevel, SubtitleStyle, SubtitleTrack } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	AudioTrackState,
@@ -30,7 +30,6 @@ import {
 	QualityState,
 	resolvePlayerConstructor,
 } from '../index';
-import type { BaseEventMap, PluginCtorWithId } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MockPlayer — minimal full-mixin player reusing the canonical pattern
@@ -182,11 +181,11 @@ function makeBackendWithTracks(opts: {
 	return {
 		...calls,
 		subtitleTracks: () => opts.subtitleTracks ?? [],
-		setSubtitleTrack: (idx) => calls.setSubtitleTrackCalls.push(idx),
+		setSubtitleTrack: idx => calls.setSubtitleTrackCalls.push(idx),
 		audioTracks: () => opts.audioTracks ?? [],
-		setAudioTrack: (idx) => calls.setAudioTrackCalls.push(idx),
+		setAudioTrack: idx => calls.setAudioTrackCalls.push(idx),
 		qualityLevels: () => opts.qualityLevels ?? [],
-		setQuality: (idx) => calls.setQualityCalls.push(idx),
+		setQuality: idx => calls.setQualityCalls.push(idx),
 	};
 }
 
@@ -374,8 +373,8 @@ describe('audioTracks() / audioTrack()', () => {
 	it('audioTracks() returns backend tracks when available', () => {
 		const player = setupPlayer();
 		const tracks: AudioTrack[] = [
-			{ id: 'a0', language: 'en', label: 'English', kind: 'main', channels: 2 },
-			{ id: 'a1', language: 'fr', label: 'French', kind: 'main', channels: 2 },
+			{ id: 'a0', language: 'en', label: 'English', channels: 2 },
+			{ id: 'a1', language: 'fr', label: 'French', channels: 2 },
 		];
 		const backend = makeBackendWithTracks({ audioTracks: tracks });
 		(player as unknown as { backend: () => unknown }).backend = () => backend;
@@ -401,8 +400,8 @@ describe('audioTracks() / audioTrack()', () => {
 		const player = setupPlayer();
 		const backend = makeBackendWithTracks({
 			audioTracks: [
-				{ id: 'a0', language: 'en', label: 'English', kind: 'main', channels: 2 },
-				{ id: 'a1', language: 'fr', label: 'French', kind: 'main', channels: 2 },
+				{ id: 'a0', language: 'en', label: 'English', channels: 2 },
+				{ id: 'a1', language: 'fr', label: 'French', channels: 2 },
 			],
 		});
 		(player as unknown as { backend: () => unknown }).backend = () => backend;
@@ -426,7 +425,7 @@ describe('audioTracks() / audioTrack()', () => {
 		const player = setupPlayer();
 		const backend = makeBackendWithTracks({
 			audioTracks: [
-				{ id: 'a0', language: 'en', label: 'English', kind: 'main', channels: 2 },
+				{ id: 'a0', language: 'en', label: 'English', channels: 2 },
 			],
 		});
 		(player as unknown as { backend: () => unknown }).backend = () => backend;
@@ -461,8 +460,8 @@ describe('qualityLevels() / quality()', () => {
 	it('qualityLevels() returns backend quality levels', () => {
 		const player = setupPlayer();
 		const levels: QualityLevel[] = [
-			{ id: 'q0', label: '1080p', bitrate: 5000000, height: 1080, width: 1920, supported: true },
-			{ id: 'q1', label: '720p', bitrate: 2500000, height: 720, width: 1280, supported: true },
+			{ index: 0, label: '1080p', bitrate: 5000000, height: 1080, width: 1920, supported: true },
+			{ index: 1, label: '720p', bitrate: 2500000, height: 720, width: 1280, supported: true },
 		];
 		const backend = makeBackendWithTracks({ qualityLevels: levels });
 		(player as unknown as { backend: () => unknown }).backend = () => backend;
@@ -498,7 +497,7 @@ describe('qualityLevels() / quality()', () => {
 	it('quality(idx) sets MANUAL state, calls backend setQuality, emits qualityState', () => {
 		const player = setupPlayer();
 		const levels: QualityLevel[] = [
-			{ id: 'q0', label: '1080p', bitrate: 5000000, height: 1080, width: 1920, supported: true },
+			{ index: 0, label: '1080p', bitrate: 5000000, height: 1080, width: 1920, supported: true },
 		];
 		const backend = makeBackendWithTracks({ qualityLevels: levels });
 		(player as unknown as { backend: () => unknown }).backend = () => backend;
@@ -516,7 +515,7 @@ describe('qualityLevels() / quality()', () => {
 	it('quality() returns { index, track } after selecting a level', () => {
 		const player = setupPlayer();
 		const levels: QualityLevel[] = [
-			{ id: 'q0', label: '1080p', bitrate: 5000000, height: 1080, width: 1920, supported: true },
+			{ index: 0, label: '1080p', bitrate: 5000000, height: 1080, width: 1920, supported: true },
 		];
 		const backend = makeBackendWithTracks({ qualityLevels: levels });
 		(player as unknown as { backend: () => unknown }).backend = () => backend;
@@ -553,7 +552,7 @@ describe('chapters() / chapter navigation', () => {
 		const fakeItem: BasePlaylistItem & { tracks: unknown[]; chapters?: Chapter[] } = {
 			id: 'item-1',
 			title: 'Test',
-			src: '/test.mp4',
+			url: '/test.mp4',
 			tracks: [{ kind: 'subtitles', file: '/placeholder.vtt', language: 'en' }],
 			chapters,
 		};
@@ -806,8 +805,7 @@ describe('_disposeSidecarSubtitle()', () => {
 		};
 
 		expect(() =>
-			(player as unknown as { _disposeSidecarSubtitle: () => void })._disposeSidecarSubtitle(),
-		).not.toThrow();
+			(player as unknown as { _disposeSidecarSubtitle: () => void })._disposeSidecarSubtitle()).not.toThrow();
 		expect((player as unknown as { _sidecarSubtitle: unknown })._sidecarSubtitle).toBeUndefined();
 	});
 });
@@ -855,7 +853,7 @@ describe('resolveItemTrackUrls()', () => {
 
 	it('calls transformUrl when _authConfig.transformUrl is set', async () => {
 		const player = setupPlayer();
-		const transformUrl = vi.fn().mockImplementation((url: string) => Promise.resolve(url + '?token=abc'));
+		const transformUrl = vi.fn().mockImplementation((url: string) => Promise.resolve(`${url}?token=abc`));
 		(player as unknown as { _authConfig: unknown })._authConfig = { transformUrl };
 
 		const item = { id: '1', title: 'Test', tracks: [{ kind: 'subtitles', file: 'https://cdn.example.com/en.vtt', language: 'en' }] };

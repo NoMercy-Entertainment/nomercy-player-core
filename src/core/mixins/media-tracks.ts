@@ -22,14 +22,14 @@ import type {
 } from '../../types';
 import type { Cue } from '../cues/cue';
 import type { Internals } from '../state';
+import type { ItemWithDefinedTracks, ItemWithTracks, SidecarTrack } from './sidecar-util';
 import { parseVtt, parseVttSubtitles } from '../../adapters/cue-parser/vtt';
 import { AudioTrackState, QualityState } from '../../types';
 import { authFetch } from '../auth-fetch';
+
 import { CueTracker } from '../cues/tracker';
 
 import { buildResolvedUrl } from '../resolved-url';
-
-import type { ItemWithDefinedTracks, ItemWithTracks, SidecarTrack } from './sidecar-util';
 
 import { hasTracksField, normalizeLanguage } from './sidecar-util';
 
@@ -273,7 +273,6 @@ function _sidecarSubtitleTracks(self: Internals): SubtitleTrack[] {
 			default: false,
 		}));
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: media tracks — subtitles / audio tracks / quality levels / chapters.

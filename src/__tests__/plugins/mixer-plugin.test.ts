@@ -28,6 +28,7 @@
 
 import type { BaseEventMap } from '../../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import {
 	composeMixins,
 	EventEmitter,
@@ -35,7 +36,6 @@ import {
 	playerCoreMethods,
 	resolvePlayerConstructor,
 } from '../../index';
-import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import { MixerPlugin } from '../../plugins/mixer';
 
 const _instances = new Map<string, MockPlayer>();
@@ -112,7 +112,7 @@ describe('MixerPlugin (slice 03)', () => {
 
 		expect(mixer.gain()).toBe(0.5);
 		expect(emitted).toHaveLength(1);
-		expect(emitted[0].gain).toBe(0.5);
+		expect(emitted[0]!.gain).toBe(0.5);
 	});
 
 	it('pan(0.3) stores 0.3; pan() returns 0.3; plugin emits plugin:mixer:pan:changed with { pan: 0.3 }', () => {
@@ -128,6 +128,6 @@ describe('MixerPlugin (slice 03)', () => {
 
 		expect(mixer.pan()).toBe(0.3);
 		expect(emitted).toHaveLength(1);
-		expect(emitted[0].pan).toBeCloseTo(0.3);
+		expect(emitted[0]!.pan).toBeCloseTo(0.3);
 	});
 });

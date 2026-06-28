@@ -23,7 +23,8 @@
  *  - _pluginLangLoadedSet / _markPluginLangLoaded
  */
 
-import type { BaseEventMap, BasePlaylistItem, PluginCtorWithId } from '../types';
+import type { StubPlayer } from '../testing/stub-player';
+import type { BaseEventMap, PluginCtorWithId } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	composeMixins,
@@ -31,11 +32,9 @@ import {
 	initPlayerCoreState,
 	playerCoreMethods,
 	Plugin,
-	pluginError,
 	resolvePlayerConstructor,
 	StateError,
 } from '../index';
-import { StubPlayer } from '../testing/stub-player';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Minimal MockPlayer
@@ -61,6 +60,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		(key: string, vars?: Record<string, string>): string;
 		(PluginClass: PluginCtorWithId, key: string, vars?: Record<string, string>): string;
 	};
+
 	declare language: { (): string; (lang: string): Promise<void> };
 	declare addTranslations: (bundle: unknown) => void;
 	declare translation: (lang: string, key: string, value: string) => void;
@@ -116,6 +116,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		PluginClass: PluginCtorWithId & (new () => P),
 		opts?: P['opts'],
 	) => this;
+
 	declare getPlugin: (PluginClass: unknown) => unknown;
 	declare getPluginById: (id: string) => unknown;
 	declare removePlugin: (PluginClass: unknown) => void;
@@ -212,6 +213,7 @@ class SlowPlugin extends Plugin<StubPlayer> {
 			setTimeout(resolve, 100_000); // will be time-limited
 		});
 	}
+
 	override dispose(): void {}
 }
 
@@ -403,14 +405,6 @@ describe('_registerPlugin — failure + cascade', () => {
 	it('cascade: dependent plugin is disabled when its dependency fails', async () => {
 		const player = setupPlayer();
 
-		class DepOnFailingPlugin extends Plugin<StubPlayer> {
-			static override readonly id = 'dep-on-failing';
-			static override readonly version = '1.0.0';
-			static override readonly description = 'DepOnFailing';
-			override use(): void {}
-			override dispose(): void {}
-		}
-
 		class FailingWithDep extends Plugin<StubPlayer> {
 			static override readonly id = 'failing-with-dep';
 			static override readonly version = '1.0.0';
@@ -428,15 +422,16 @@ describe('_registerPlugin — failure + cascade', () => {
 			override dispose(): void {}
 		}
 
-		// Register the dep that's required (but not the failing one yet)
-		// Register the dependent first (pre-setup queue order won't matter)
-		// Actually we need to go post-setup so both get registered
 		player.addPlugin(FailingWithDep);
+		player.addPlugin(DependsOnFailingDep);
 
-		const failedP = waitForEvent(player, 'plugin:failed');
-		await failedP;
+		await waitForEvent(player, 'plugin:failed');
 
-		expect(player.plugins().map(p => (p.constructor as PluginCtorWithId).id)).not.toContain('failing-with-dep');
+		const activeIds = player.plugins().map(p => (p.constructor as PluginCtorWithId).id);
+		// The plugin whose use() threw is disabled...
+		expect(activeIds).not.toContain('failing-with-dep');
+		// ...and its dependent is cascade-disabled too (_cascadeDisable).
+		expect(activeIds).not.toContain('depends-on-failing-dep');
 	});
 
 	it('use() timeout emits plugin:failed with timeout error', async () => {
@@ -508,6 +503,24 @@ describe('removePluginById — cascade semantics', () => {
 		const ids = player.plugins().map(p => (p.constructor as PluginCtorWithId).id);
 		expect(ids).not.toContain('alpha');
 		expect(ids).not.toContain('beta');
+	});
+
+	it('cascade (default) removes alpha AND its transitive chain beta + gamma', async () => {
+		const player = setupPlayer();
+
+		for (const PluginClass of [AlphaPlugin, BetaPlugin, GammaPlugin]) {
+			const installedP = waitForEvent(player, 'plugin:installed');
+			player.addPlugin(PluginClass);
+			await installedP;
+		}
+
+		// gamma → beta → alpha. Removing the root must cascade the whole chain.
+		player.removePluginById('alpha');
+
+		const ids = player.plugins().map(p => (p.constructor as PluginCtorWithId).id);
+		expect(ids).not.toContain('alpha');
+		expect(ids).not.toContain('beta');
+		expect(ids).not.toContain('gamma');
 	});
 
 	it('removePlugin() emits plugin:disposed', async () => {

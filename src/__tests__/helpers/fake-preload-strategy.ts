@@ -6,8 +6,8 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type { BasePlaylistItem } from '../../types';
 import type { IPreloadStrategy, PreloadAsset, PreloadContext } from '../../adapters/preload/default';
+import type { BasePlaylistItem } from '../../types';
 
 export interface FakePreloadStrategy extends IPreloadStrategy {
 	shouldPreloadCalls: number;

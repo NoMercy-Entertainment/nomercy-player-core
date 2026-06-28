@@ -72,7 +72,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		super();
 		initPlayerCoreState(this, { className: 'MockPlayer' });
 		const resolved = resolvePlayerConstructor(id, _instances, 'MockPlayer');
-		if (resolved.kind === 'existing') return resolved.instance as unknown as this;
+		if (resolved.kind === 'existing')
+			return resolved.instance as unknown as this;
 		(this as { playerId: string }).playerId = resolved.id;
 		this.container = resolved.div;
 		_instances.set(resolved.id, this);
@@ -129,8 +130,8 @@ function installFakeMediaSession(): {
 		writable: true,
 	});
 
-	const originalMetadata = (globalThis as Record<string, unknown>).MediaMetadata;
-	(globalThis as Record<string, unknown>).MediaMetadata = class FakeMediaMetadata {
+	const originalMetadata = (globalThis as Record<string, unknown>)['MediaMetadata'];
+	(globalThis as Record<string, unknown>)['MediaMetadata'] = class FakeMediaMetadata {
 		title?: string;
 		artist?: string;
 		album?: string;
@@ -148,9 +149,9 @@ function installFakeMediaSession(): {
 				Object.defineProperty(navigator, 'mediaSession', originalDescriptor);
 			}
 			else {
-				delete (navigator as Record<string, unknown>).mediaSession;
+				delete (navigator as unknown as Record<string, unknown>)['mediaSession'];
 			}
-			(globalThis as Record<string, unknown>).MediaMetadata = originalMetadata;
+			(globalThis as Record<string, unknown>)['MediaMetadata'] = originalMetadata;
 		},
 	};
 }
@@ -255,7 +256,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 
 		it('time event skips setPositionState when duration is NaN', async () => {
 			const p = makePlayer('ms-pos-nan').setup({});
-			(p as MockPlayer & { duration: () => number }).duration = () => NaN;
+			(p as MockPlayer & { duration: () => number }).duration = () => Number.NaN;
 			p.addPlugin(MediaSessionPlugin);
 			await p.ready();
 
@@ -401,7 +402,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			await p.ready();
 
 			const timeCalls: number[] = [];
-			(p as MockPlayer & { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
+			(p as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
 
 			session._handlers.get('seekto')!({ seekTime: 45 } as MediaSessionActionDetails);
 			expect(timeCalls[0]).toBe(45);
@@ -413,7 +414,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			await p.ready();
 
 			const timeCalls: number[] = [];
-			(p as MockPlayer & { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
+			(p as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
 
 			session._handlers.get('seekto')!({} as MediaSessionActionDetails);
 			expect(timeCalls).toHaveLength(0);

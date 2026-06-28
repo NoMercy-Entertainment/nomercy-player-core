@@ -6,8 +6,8 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type { BasePlaylistItem } from '../../types';
 import type { IShuffleStrategy } from '../../adapters/shuffle-strategy/IShuffleStrategy';
+import type { BasePlaylistItem } from '../../types';
 
 export interface FakeShuffleStrategy extends IShuffleStrategy {
 	shuffleCalled: boolean;

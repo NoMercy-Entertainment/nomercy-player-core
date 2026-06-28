@@ -16,9 +16,8 @@
  *      same object reference.
  */
 
-import type { BaseEventMap } from '../types';
-import type { IPreloadStrategy, ITransitionStrategy, PreloadContext, TransitionContext, ITransitionBackend } from '../adapters/preload/default';
-import type { BasePlaylistItem } from '../types';
+import type { IPreloadStrategy, ITransitionBackend, ITransitionStrategy, PreloadContext, TransitionContext } from '../adapters/preload/default';
+import type { BaseEventMap, BasePlaylistItem } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,

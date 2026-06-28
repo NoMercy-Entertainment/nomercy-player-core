@@ -72,7 +72,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		super();
 		initPlayerCoreState(this, { className: 'MockPlayer' });
 		const resolved = resolvePlayerConstructor(id, _instances, 'MockPlayer');
-		if (resolved.kind === 'existing') return resolved.instance as unknown as this;
+		if (resolved.kind === 'existing')
+			return resolved.instance as unknown as this;
 		(this as { playerId: string }).playerId = resolved.id;
 		this.container = resolved.div;
 		_instances.set(resolved.id, this);
@@ -173,8 +174,10 @@ function wireVizPlugin<T extends VisualizationPlugin>(
 
 	// Stub getPlugin to return our fakes.
 	(player as MockPlayer & { getPlugin: (ctor: unknown) => unknown }).getPlugin = (ctor: unknown) => {
-		if (ctor === CanvasPlugin) return fakeCanvas;
-		if (ctor === SpectrumPlugin) return fakeSpectrum;
+		if (ctor === CanvasPlugin)
+			return fakeCanvas;
+		if (ctor === SpectrumPlugin)
+			return fakeSpectrum;
 		return undefined;
 	};
 
@@ -188,9 +191,10 @@ function wireVizPlugin<T extends VisualizationPlugin>(
 	(plugin as unknown as { opts: object }).opts = {};
 
 	// Stub plugin's `on` for SpectrumPlugin events — we drive frame manually.
-	const origOn = plugin.on.bind(plugin);
+	const origOn = (plugin as unknown as { on: (source: unknown, ...rest: unknown[]) => unknown }).on.bind(plugin);
 	(plugin as unknown as { on: typeof origOn }).on = (source: unknown, ...rest: unknown[]) => {
-		if (source === SpectrumPlugin) return plugin; // skip spectrum subscription
+		if (source === SpectrumPlugin)
+			return plugin; // skip spectrum subscription
 		return (origOn as (...args: unknown[]) => unknown)(source, ...rest) as typeof plugin;
 	};
 
@@ -238,8 +242,10 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 			const { fakeCanvas: _fc, fakeSpectrum } = buildFakeDeps(false);
 
 			(p as MockPlayer & { getPlugin: (ctor: unknown) => unknown }).getPlugin = (ctor: unknown) => {
-				if (ctor === CanvasPlugin) return { addRenderer: vi.fn(), removeRenderer: vi.fn() };
-				if (ctor === SpectrumPlugin) return fakeSpectrum;
+				if (ctor === CanvasPlugin)
+					return { addRenderer: vi.fn(), removeRenderer: vi.fn() };
+				if (ctor === SpectrumPlugin)
+					return fakeSpectrum;
 				return undefined;
 			};
 

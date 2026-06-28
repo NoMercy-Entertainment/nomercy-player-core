@@ -8,7 +8,13 @@
 
 import type { BasePlaylistItem, LoadOptions } from '../../types';
 import type { Internals } from '../state';
-import { makePlayerErrorEvent, mediaFormatError, PlayerError, resourceError, stateError } from '../../errors';
+import {
+	makePlayerErrorEvent,
+	mediaFormatError,
+	PlayerError,
+	resourceError,
+	stateError,
+} from '../../errors';
 
 import { authFetch } from '../auth-fetch';
 
@@ -234,9 +240,9 @@ export const loadingMethods = {
 			const playerErr = err instanceof PlayerError
 				? err
 				: resourceError(
-					'core:resource/playlist-fetch-failed',
-					err instanceof Error ? err.message : String(err),
-				);
+						'core:resource/playlist-fetch-failed',
+						err instanceof Error ? err.message : String(err),
+					);
 			const errorPayload = makePlayerErrorEvent(playerErr, 'error', { kind: 'core' });
 			this.emit('playlistResolveError', errorPayload);
 			this.emit('error', errorPayload);

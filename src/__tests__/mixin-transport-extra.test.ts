@@ -26,6 +26,9 @@
  */
 
 import type { BackendShape } from '../core/mixins/player-state';
+import type {
+	Plugin,
+} from '../index';
 import type { BaseEventMap, BasePlaylistItem, PluginCtorWithId } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -33,7 +36,6 @@ import {
 	EventEmitter,
 	initPlayerCoreState,
 	playerCoreMethods,
-	Plugin,
 	RepeatState,
 	resolvePlayerConstructor,
 } from '../index';
@@ -62,6 +64,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		(key: string, vars?: Record<string, string>): string;
 		(PluginClass: PluginCtorWithId, key: string, vars?: Record<string, string>): string;
 	};
+
 	declare language: { (): string; (lang: string): Promise<void> };
 	declare addTranslations: (bundle: unknown) => void;
 	declare translation: (lang: string, key: string, value: string) => void;
@@ -117,6 +120,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		PluginClass: PluginCtorWithId & (new () => P),
 		opts?: P['opts'],
 	) => this;
+
 	declare getPlugin: (PluginClass: unknown) => unknown;
 	declare getPluginById: (id: string) => unknown;
 	declare removePlugin: (PluginClass: unknown) => void;
@@ -486,8 +490,8 @@ describe('next() — repeat modes', () => {
 		player.repeatState(RepeatState.ONE);
 
 		const items: BasePlaylistItem[] = [
-			{ id: 'i1', title: 'Item 1', src: '/i1.mp3' },
-			{ id: 'i2', title: 'Item 2', src: '/i2.mp3' },
+			{ id: 'i1', title: 'Item 1', url: '/i1.mp3' },
+			{ id: 'i2', title: 'Item 2', url: '/i2.mp3' },
 		];
 		player.queue(items);
 		player.item(items[0]!);
@@ -509,8 +513,8 @@ describe('next() — repeat modes', () => {
 		player.repeatState(RepeatState.ALL);
 
 		const items: BasePlaylistItem[] = [
-			{ id: 'i1', title: 'Item 1', src: '/i1.mp3' },
-			{ id: 'i2', title: 'Item 2', src: '/i2.mp3' },
+			{ id: 'i1', title: 'Item 1', url: '/i1.mp3' },
+			{ id: 'i2', title: 'Item 2', url: '/i2.mp3' },
 		];
 		player.queue(items);
 		player.item(items[1]!);
@@ -531,7 +535,7 @@ describe('next() — repeat modes', () => {
 		player.repeatState(RepeatState.OFF);
 
 		const items: BasePlaylistItem[] = [
-			{ id: 'i1', title: 'Item 1', src: '/i1.mp3' },
+			{ id: 'i1', title: 'Item 1', url: '/i1.mp3' },
 		];
 		player.queue(items);
 		player.item(items[0]!);
@@ -565,7 +569,7 @@ describe('previous() — edge cases', () => {
 	it('previous() no-ops silently when no previous item exists', async () => {
 		const player = setupPlayer();
 		const items: BasePlaylistItem[] = [
-			{ id: 'i1', title: 'Item 1', src: '/i1.mp3' },
+			{ id: 'i1', title: 'Item 1', url: '/i1.mp3' },
 		];
 		player.queue(items);
 		player.item(items[0]!);
@@ -594,8 +598,8 @@ describe('previous() — edge cases', () => {
 	it('previous() goes to previous item when one exists', async () => {
 		const player = setupPlayer();
 		const items: BasePlaylistItem[] = [
-			{ id: 'i1', title: 'Item 1', src: '/i1.mp3' },
-			{ id: 'i2', title: 'Item 2', src: '/i2.mp3' },
+			{ id: 'i1', title: 'Item 1', url: '/i1.mp3' },
+			{ id: 'i2', title: 'Item 2', url: '/i2.mp3' },
 		];
 		player.queue(items);
 		player.item(items[1]!);

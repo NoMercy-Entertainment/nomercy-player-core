@@ -30,7 +30,7 @@
 
 import type { VisualizationFrame } from '../../plugins/visualization';
 import type { BaseEventMap } from '../../types';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import { PluginError } from '../../errors';
 import { EventEmitter } from '../../index';
@@ -319,7 +319,7 @@ describe('SpectrumPlugin — deep behavioral coverage', () => {
 
 	describe('tick() — frame event', () => {
 		it('emits "frame" event with VisualizationFrame payload', () => {
-			const { plugin, player, tickFn } = wirePlugin();
+			const { player, tickFn } = wirePlugin();
 
 			const frames: Array<{ frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } }> = [];
 			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(

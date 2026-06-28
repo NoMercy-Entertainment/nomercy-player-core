@@ -53,7 +53,6 @@ afterEach(() => {
 });
 
 describe('container-class cold-stream regression', () => {
-
 	it('cold-stream sequence ends with .playing not .paused', () => {
 		const container = document.createElement('div');
 		document.body.appendChild(container);
@@ -165,5 +164,4 @@ describe('container-class cold-stream regression', () => {
 		expect(container.classList.contains('playing')).toBe(true);
 		expect(container.classList.contains('loading')).toBe(false);
 	});
-
 });

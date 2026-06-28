@@ -70,7 +70,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		super();
 		initPlayerCoreState(this, { className: 'MockPlayer' });
 		const resolved = resolvePlayerConstructor(id, _instances, 'MockPlayer');
-		if (resolved.kind === 'existing') return resolved.instance as unknown as this;
+		if (resolved.kind === 'existing')
+			return resolved.instance as unknown as this;
 		(this as { playerId: string }).playerId = resolved.id;
 		this.container = resolved.div;
 		_instances.set(resolved.id, this);

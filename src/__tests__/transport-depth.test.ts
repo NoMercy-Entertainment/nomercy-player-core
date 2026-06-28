@@ -25,14 +25,16 @@
  */
 
 import type { BackendShape } from '../core/mixins/player-state';
-import type { BaseEventMap, BasePlaylistItem, PluginCtorWithId } from '../types';
+import type {
+	Plugin,
+} from '../index';
+import type { BaseEventMap, PluginCtorWithId } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,
 	EventEmitter,
 	initPlayerCoreState,
 	playerCoreMethods,
-	Plugin,
 	RepeatState,
 	resolvePlayerConstructor,
 	StateError,

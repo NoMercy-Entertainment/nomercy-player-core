@@ -21,7 +21,9 @@
  * on each transition.
  */
 
+import type { BaseEventMap, PluginCtorWithId } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BrowserPolicyError } from '../errors';
 import {
 	composeMixins,
 	EventEmitter,
@@ -29,9 +31,7 @@ import {
 	playerCoreMethods,
 	resolvePlayerConstructor,
 } from '../index';
-import { BrowserPolicyError } from '../errors';
 import { CastState } from '../types';
-import type { BaseEventMap, PluginCtorWithId } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MockPlayer
@@ -57,6 +57,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		(key: string, vars?: Record<string, string>): string;
 		(PluginClass: PluginCtorWithId, key: string, vars?: Record<string, string>): string;
 	};
+
 	declare language: { (): string; (lang: string): Promise<void> };
 	declare addTranslations: (bundle: unknown) => void;
 	declare translation: (lang: string, key: string, value: string) => void;
@@ -150,7 +151,7 @@ function setupPlayer(opts: Record<string, unknown> = {}): MockPlayer {
 	return new MockPlayer('cast-mock').setup(opts);
 }
 
-type CastGlobal = {
+interface CastGlobal {
 	cast?: {
 		framework?: {
 			CastContext?: {
@@ -164,7 +165,7 @@ type CastGlobal = {
 			};
 		};
 	};
-};
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // castState()

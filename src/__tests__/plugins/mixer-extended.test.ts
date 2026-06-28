@@ -21,8 +21,10 @@
  * AudioContext is mocked since jsdom does not implement Web Audio.
  */
 
+import type { MixerOptions } from '../../plugins/mixer';
 import type { BaseEventMap } from '../../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import {
 	composeMixins,
 	EventEmitter,
@@ -30,7 +32,6 @@ import {
 	playerCoreMethods,
 	resolvePlayerConstructor,
 } from '../../index';
-import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import { MixerPlugin } from '../../plugins/mixer';
 
 // ── Mock AudioContext ─────────────────────────────────────────────────────────
@@ -65,7 +66,8 @@ function makeAudioGraphPlugin(ctx: AudioContext): any {
 		insertEffect: vi.fn((node: AudioNode) => effects.push(node)),
 		removeEffect: vi.fn((node: AudioNode) => {
 			const idx = effects.indexOf(node);
-			if (idx >= 0) effects.splice(idx, 1);
+			if (idx >= 0)
+				effects.splice(idx, 1);
 		}),
 	};
 }
@@ -118,12 +120,13 @@ function makePlayer(divId: string): MockPlayer {
 
 function makeInstrumentedMixer(
 	player: MockPlayer,
-	opts: ConstructorParameters<typeof MixerPlugin>[0] = {},
+	opts: MixerOptions = {},
 ): { mixer: MixerPlugin; graph: ReturnType<typeof makeAudioGraphPlugin>; ctx: AudioContext } {
 	const ctx = makeAudioContext();
 	const graph = makeAudioGraphPlugin(ctx);
 	(player as any).getPlugin = (PluginClass: any) => {
-		if (PluginClass.id === 'audio-graph') return graph;
+		if (PluginClass.id === 'audio-graph')
+			return graph;
 		return undefined;
 	};
 	const mixer = new MixerPlugin();

@@ -21,7 +21,7 @@
 
 import type { ErrorData } from 'hls.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HlsStreamSource, hlsFactory } from '../adapters/stream/hls';
+import { hlsFactory, HlsStreamSource } from '../adapters/stream/hls';
 import { MediaFormatError } from '../errors';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -274,7 +274,7 @@ describe('HlsStreamSource', () => {
 			const hls = await attachAndFireManifest(source, el);
 
 			const levelSwitchedEvents: unknown[] = [];
-			source.on('level-switched', (data) => levelSwitchedEvents.push(data));
+			source.on('level-switched', data => levelSwitchedEvents.push(data));
 
 			hls._fire(HLS_EVENTS.LEVEL_SWITCHED, { level: 1 });
 
@@ -309,7 +309,7 @@ describe('HlsStreamSource', () => {
 			const hls = await attachAndFireManifest(source, el);
 
 			const errorEvents: unknown[] = [];
-			source.on('error', (data) => errorEvents.push(data));
+			source.on('error', data => errorEvents.push(data));
 
 			const fatalData: Partial<ErrorData> = { fatal: true, details: 'networkError' as ErrorData['details'] };
 			hls._fire(HLS_EVENTS.ERROR, fatalData);
@@ -324,7 +324,7 @@ describe('HlsStreamSource', () => {
 			const hls = await attachAndFireManifest(source, el);
 
 			const errorEvents: unknown[] = [];
-			source.on('error', (data) => errorEvents.push(data));
+			source.on('error', data => errorEvents.push(data));
 
 			const nonFatalData: Partial<ErrorData> = { fatal: false, details: 'bufferStalledError' as ErrorData['details'] };
 			hls._fire(HLS_EVENTS.ERROR, nonFatalData);
@@ -402,7 +402,7 @@ describe('HlsStreamSource', () => {
 			});
 
 			const errorEvents: unknown[] = [];
-			source.on('error', (data) => errorEvents.push(data));
+			source.on('error', data => errorEvents.push(data));
 
 			// Start attach but don't await — fire element error before loadedmetadata
 			const p = source.attach(el);
@@ -445,7 +445,7 @@ describe('HlsStreamSource', () => {
 				intercept: vi.fn(),
 				dispose: vi.fn(),
 			};
-			const source = hlsFactory.create({ url: 'https://x/stream.m3u8', registry: fakeRegistry as never });
+			const source = hlsFactory.create({ url: 'https://x/stream.m3u8', registry: fakeRegistry as never }) as HlsStreamSource;
 			expect(source.getRegistry()).toBe(fakeRegistry);
 		});
 	});
@@ -470,7 +470,7 @@ describe('HlsStreamSource', () => {
 			const hls = await attachAndFireManifest(source, el);
 
 			const fragEvents: unknown[] = [];
-			source.on('fragment-loaded', (data) => fragEvents.push(data));
+			source.on('fragment-loaded', data => fragEvents.push(data));
 
 			hls._fire(HLS_EVENTS.FRAG_LOADED, { frag: { sn: 1 } });
 

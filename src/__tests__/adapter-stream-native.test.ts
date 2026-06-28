@@ -49,7 +49,7 @@ describe('NativeStreamSource', () => {
 			const el = makeElement();
 
 			const manifestEvents: unknown[] = [];
-			source.on('manifest-loaded', (data) => manifestEvents.push(data));
+			source.on('manifest-loaded', data => manifestEvents.push(data));
 
 			const attachP = source.attach(el);
 			el.dispatchEvent(new Event('loadedmetadata'));
@@ -87,7 +87,7 @@ describe('NativeStreamSource', () => {
 			const el = makeElement();
 
 			const errorEvents: unknown[] = [];
-			source.on('error', (data) => errorEvents.push(data));
+			source.on('error', data => errorEvents.push(data));
 
 			// happy-dom does not define MediaError — use a plain shape-compatible object
 			Object.defineProperty(el, 'error', {
@@ -119,7 +119,7 @@ describe('NativeStreamSource', () => {
 			const el = makeElement();
 
 			const errorEvents: unknown[] = [];
-			source.on('error', (data) => errorEvents.push(data));
+			source.on('error', data => errorEvents.push(data));
 
 			const attachP = source.attach(el);
 			el.dispatchEvent(new Event('loadedmetadata'));

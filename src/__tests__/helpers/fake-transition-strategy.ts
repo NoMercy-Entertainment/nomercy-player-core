@@ -6,13 +6,13 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type { BasePlaylistItem } from '../../types';
 import type {
 	ITransitionBackend,
 	ITransitionStrategy,
 	PreloadContext,
 	TransitionContext,
 } from '../../adapters/preload/default';
+import type { BasePlaylistItem } from '../../types';
 
 export interface FakeTransitionStrategy extends ITransitionStrategy {
 	shouldTransitionCalls: number;

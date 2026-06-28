@@ -130,24 +130,27 @@ function buildFakeSdk(overrides: { requestSessionRejects?: boolean } = {}): void
 		IS_MUTED_CHANGED: 'IS_MUTED_CHANGED',
 	};
 
-	(globalThis as unknown as Record<string, unknown>).cast = {
+	(globalThis as unknown as Record<string, unknown>)['cast'] = {
 		framework: {
 			CastContext: { getInstance: () => fakeSdk.context },
-			// Use regular functions (not arrow functions) so `new` works correctly.
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-return
-			RemotePlayer: function() { return fakeSdk.remote; },
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-return
-			RemotePlayerController: function() { return fakeSdk.controller; },
+			// Constructor functions — the plugin calls these with `new`, so they
+			// must be `function` expressions (method shorthand is not constructable).
+			/* eslint-disable object-shorthand */
+			RemotePlayer: function () { return fakeSdk.remote; },
+			RemotePlayerController: function () { return fakeSdk.controller; },
+			/* eslint-enable object-shorthand */
 			RemotePlayerEventType,
 		},
 	};
 
-	(globalThis as unknown as Record<string, unknown>).chrome = {
+	(globalThis as unknown as Record<string, unknown>)['chrome'] = {
 		cast: {
 			media: {
-				MediaInfo: function(contentId: string, contentType: string) { return { contentId, contentType }; },
-				LoadRequest: function(mediaInfo: unknown) { return { mediaInfo }; },
-				GenericMediaMetadata: function() { return {}; },
+				/* eslint-disable object-shorthand */
+				MediaInfo: function (contentId: string, contentType: string) { return { contentId, contentType }; },
+				LoadRequest: function (mediaInfo: unknown) { return { mediaInfo }; },
+				GenericMediaMetadata: function () { return {}; },
+				/* eslint-enable object-shorthand */
 				StreamType: { BUFFERED: 'BUFFERED', LIVE: 'LIVE' },
 			},
 		},
@@ -155,14 +158,14 @@ function buildFakeSdk(overrides: { requestSessionRejects?: boolean } = {}): void
 }
 
 function clearCastSdk(): void {
-	(globalThis as unknown as Record<string, unknown>).cast = undefined;
-	(globalThis as unknown as Record<string, unknown>).chrome = undefined;
+	(globalThis as unknown as Record<string, unknown>)['cast'] = undefined;
+	(globalThis as unknown as Record<string, unknown>)['chrome'] = undefined;
 }
 
 /** Create a StubPlayer with an `item()` stub so forwardCurrent() never crashes. */
-function makeStubPlayer(): StubPlayer & { item: () => undefined } {
-	const player = new StubPlayer() as StubPlayer & { item: () => undefined };
-	player.item = () => undefined;
+function makeStubPlayer(): StubPlayer & Record<string, unknown> {
+	const player = new StubPlayer() as StubPlayer & Record<string, unknown>;
+	player['item'] = () => undefined;
 	return player;
 }
 
@@ -558,9 +561,10 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 				playCalls.push(opts);
 			};
 			const timeCalls: unknown[] = [];
-			(player as typeof player & { time: (t: number, opts?: unknown) => void }).time = (t, opts) => {
+			const timeOverride: (t: number, opts?: unknown) => Promise<void> = async (t, opts) => {
 				timeCalls.push({ t, opts });
 			};
+			(player as unknown as Record<string, unknown>)['time'] = timeOverride;
 			const plugin = wirePluginForPlayer(player);
 			await plugin.connect();
 
@@ -630,7 +634,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			await new Promise<void>(resolve => setTimeout(resolve, 0));
 
 			const loadRequestArg = fakeSdk.session.loadMedia.mock.calls[0]![0] as { mediaInfo: Record<string, unknown> };
-			expect(loadRequestArg.mediaInfo.streamType).toBe('LIVE');
+			expect(loadRequestArg.mediaInfo['streamType']).toBe('LIVE');
 		});
 	});
 

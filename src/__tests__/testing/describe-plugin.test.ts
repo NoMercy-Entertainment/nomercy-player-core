@@ -30,9 +30,9 @@ import type { BaseEventMap, IPlayer } from '../../types';
 import { describe, expect, it } from 'vitest';
 import { Plugin } from '../../core/plugin';
 import { StateError } from '../../errors';
-import { StubPlayer } from '../../testing/stub-player';
 import { describePlugin } from '../../testing/describe-plugin';
 import { describePluginAgainst } from '../../testing/describe-plugin-against';
+import { StubPlayer } from '../../testing/stub-player';
 
 // ── Minimal plugin for testing the DSL ────────────────────────────────────────
 
@@ -100,8 +100,7 @@ describe('describePlugin getGlobals guard', () => {
 			(globalThis as any).describe = undefined;
 
 			expect(() =>
-				describePlugin(NoopPlugin, () => {}),
-			).toThrow(StateError);
+				describePlugin(NoopPlugin, () => {})).toThrow(StateError);
 		}
 		finally {
 			Object.assign(globalThis, saved);
@@ -137,8 +136,7 @@ describe('describePluginAgainst getGlobals guard', () => {
 			expect(() =>
 				describePluginAgainst(NoopPlugin, () => {}, {
 					player: () => new StubPlayer() as unknown as IPlayer,
-				} as any),
-			).toThrow(StateError);
+				} as any)).toThrow(StateError);
 		}
 		finally {
 			(globalThis as any).describe = saved.describe;

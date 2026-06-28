@@ -103,7 +103,10 @@ function buildFakeIdb(): {
 						} as unknown as IDBObjectStore;
 					},
 					get error() { return null; },
-					set onabort(fn: ((ev: Event) => void) | null) { if (fn) abortHandlers.push(fn as () => void); },
+					set onabort(fn: ((ev: Event) => void) | null) {
+						if (fn)
+							abortHandlers.push(fn as () => void);
+					},
 					get onabort() { return null; },
 				} as unknown as IDBTransaction;
 				return tx;
@@ -229,7 +232,7 @@ describe('IndexedDBBackend (happy path — fake indexedDB)', () => {
 	it('setJSON() swallows circular reference errors without throwing', async () => {
 		const backend = new IndexedDBBackend({ dbName: `t-${Date.now()}` });
 		const obj: Record<string, unknown> = { a: 1 };
-		obj.self = obj;
+		obj['self'] = obj;
 		await expect(backend.setJSON('circular', obj)).resolves.toBeUndefined();
 	});
 

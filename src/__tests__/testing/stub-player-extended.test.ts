@@ -47,8 +47,9 @@
 import type { BasePlaylistItem } from '../../types';
 import { describe, expect, it } from 'vitest';
 import { RepeatState, ShuffleState } from '../../core/mixins/state-mutators';
-import { SetupState } from '../../types';
+import { buildResolvedUrl } from '../../core/resolved-url';
 import { createStubPlayer, StubPlayer } from '../../testing/stub-player';
+import { SetupState } from '../../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -762,7 +763,7 @@ describe('StubPlayer urlResolver / resolveUrl', () => {
 
 	it('resolveUrl() uses resolver when provided and returns valid href', async () => {
 		const p = new StubPlayer();
-		p.urlResolver(async (url) => ({ href: `https://cdn.example.com/${url}`, url, baseUrl: '', auth: undefined }));
+		p.urlResolver(async url => buildResolvedUrl(url, `https://cdn.example.com/${url}`));
 		const result = await p.resolveUrl('file.mp3');
 		expect(result.href).toBe('https://cdn.example.com/file.mp3');
 	});

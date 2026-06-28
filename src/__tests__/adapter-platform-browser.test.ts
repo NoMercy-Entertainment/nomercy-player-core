@@ -23,8 +23,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BrowserPolicyError } from '../errors';
 import { browserPlatform } from '../adapters/platform/browser';
+import { BrowserPolicyError } from '../errors';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -51,7 +51,7 @@ describe('browserPlatform.wakeLock', () => {
 	it('isSupported() returns false when navigator.wakeLock is absent', () => {
 		Object.defineProperty(navigator, 'wakeLock', { value: undefined, configurable: true, writable: true });
 		const wl = browserPlatform.wakeLock;
-		expect(wl.isSupported()).toBe(false);
+		expect(wl.isSupported!()).toBe(false);
 	});
 
 	it('isSupported() returns true when navigator.wakeLock is present', () => {
@@ -61,7 +61,7 @@ describe('browserPlatform.wakeLock', () => {
 			writable: true,
 		});
 		const wl = browserPlatform.wakeLock;
-		expect(wl.isSupported()).toBe(true);
+		expect(wl.isSupported!()).toBe(true);
 	});
 
 	it('acquire() throws BrowserPolicyError when wakeLock not supported', async () => {
@@ -141,49 +141,49 @@ describe('browserPlatform.network', () => {
 
 	it('type() returns "unknown" when connection absent', () => {
 		const navWithConn = navigator as unknown as AnyRecord;
-		const original = navWithConn.connection;
-		navWithConn.connection = undefined;
+		const original = navWithConn['connection'];
+		navWithConn['connection'] = undefined;
 		const net = browserPlatform.network;
 		expect(net.type()).toBe('unknown');
-		navWithConn.connection = original;
+		navWithConn['connection'] = original;
 	});
 
 	it('type() maps known connection types', () => {
 		const navWithConn = navigator as unknown as AnyRecord;
-		const original = navWithConn.connection;
+		const original = navWithConn['connection'];
 
-		navWithConn.connection = { type: 'wifi' };
+		navWithConn['connection'] = { type: 'wifi' };
 		expect(browserPlatform.network.type()).toBe('wifi');
 
-		navWithConn.connection = { type: 'cellular' };
+		navWithConn['connection'] = { type: 'cellular' };
 		expect(browserPlatform.network.type()).toBe('cellular');
 
-		navWithConn.connection = { type: 'ethernet' };
+		navWithConn['connection'] = { type: 'ethernet' };
 		expect(browserPlatform.network.type()).toBe('ethernet');
 
-		navWithConn.connection = { type: 'none' };
+		navWithConn['connection'] = { type: 'none' };
 		expect(browserPlatform.network.type()).toBe('none');
 
-		navWithConn.connection = { type: 'bluetooth' };
+		navWithConn['connection'] = { type: 'bluetooth' };
 		expect(browserPlatform.network.type()).toBe('unknown');
 
-		navWithConn.connection = original;
+		navWithConn['connection'] = original;
 	});
 
 	it('downlinkMbps() returns connection.downlink', () => {
 		const navWithConn = navigator as unknown as AnyRecord;
-		const original = navWithConn.connection;
-		navWithConn.connection = { downlink: 10.5, rtt: 40 };
+		const original = navWithConn['connection'];
+		navWithConn['connection'] = { downlink: 10.5, rtt: 40 };
 		expect(browserPlatform.network.downlinkMbps()).toBe(10.5);
-		navWithConn.connection = original;
+		navWithConn['connection'] = original;
 	});
 
 	it('rttMs() returns connection.rtt', () => {
 		const navWithConn = navigator as unknown as AnyRecord;
-		const original = navWithConn.connection;
-		navWithConn.connection = { downlink: 5, rtt: 75 };
+		const original = navWithConn['connection'];
+		navWithConn['connection'] = { downlink: 5, rtt: 75 };
 		expect(browserPlatform.network.rttMs()).toBe(75);
-		navWithConn.connection = original;
+		navWithConn['connection'] = original;
 	});
 
 	it('subscribe() registers window online/offline listeners and returns unsubscribe', () => {
@@ -297,7 +297,7 @@ describe('browserPlatform.fullscreen', () => {
 			configurable: true,
 			value: vi.fn(),
 		});
-		const fs = browserPlatform.fullscreen;
+		const fs = browserPlatform.fullscreen!;
 		expect(fs.isSupported()).toBe(true);
 	});
 
@@ -306,7 +306,7 @@ describe('browserPlatform.fullscreen', () => {
 			configurable: true,
 			get: () => null,
 		});
-		const fs = browserPlatform.fullscreen;
+		const fs = browserPlatform.fullscreen!;
 		expect(fs.isActive()).toBe(false);
 	});
 
@@ -315,7 +315,7 @@ describe('browserPlatform.fullscreen', () => {
 			configurable: true,
 			get: () => document.createElement('div'),
 		});
-		const fs = browserPlatform.fullscreen;
+		const fs = browserPlatform.fullscreen!;
 		expect(fs.isActive()).toBe(true);
 	});
 
@@ -326,7 +326,7 @@ describe('browserPlatform.fullscreen', () => {
 		Object.defineProperty(el, 'webkitRequestFullscreen', { configurable: true, value: undefined });
 		Object.defineProperty(el, 'msRequestFullscreen', { configurable: true, value: undefined });
 
-		const fs = browserPlatform.fullscreen;
+		const fs = browserPlatform.fullscreen!;
 		await expect(fs.enter(el)).rejects.toBeInstanceOf(BrowserPolicyError);
 	});
 
@@ -336,7 +336,7 @@ describe('browserPlatform.fullscreen', () => {
 		Object.defineProperty(el, 'webkitRequestFullscreen', { configurable: true, value: undefined });
 		Object.defineProperty(el, 'msRequestFullscreen', { configurable: true, value: undefined });
 
-		const fs = browserPlatform.fullscreen;
+		const fs = browserPlatform.fullscreen!;
 		try {
 			await fs.enter(el);
 		}
@@ -350,7 +350,7 @@ describe('browserPlatform.fullscreen', () => {
 		const requestFn = vi.fn().mockResolvedValue(undefined);
 		Object.defineProperty(el, 'requestFullscreen', { configurable: true, value: requestFn });
 
-		const fs = browserPlatform.fullscreen;
+		const fs = browserPlatform.fullscreen!;
 		await fs.enter(el);
 		expect(requestFn).toHaveBeenCalledOnce();
 	});
@@ -358,7 +358,7 @@ describe('browserPlatform.fullscreen', () => {
 	it('subscribe() registers fullscreenchange listener and unsubscribe removes it', () => {
 		const addSpy = vi.spyOn(document, 'addEventListener');
 		const removeSpy = vi.spyOn(document, 'removeEventListener');
-		const fs = browserPlatform.fullscreen;
+		const fs = browserPlatform.fullscreen!;
 
 		const fn = vi.fn();
 		const unsub = fs.subscribe(fn);
@@ -376,7 +376,7 @@ describe('browserPlatform.fullscreen', () => {
 		});
 
 		const fn = vi.fn();
-		const fs = browserPlatform.fullscreen;
+		const fs = browserPlatform.fullscreen!;
 		const unsub = fs.subscribe(fn);
 
 		document.dispatchEvent(new Event('fullscreenchange'));
@@ -400,7 +400,7 @@ describe('browserPlatform.pip', () => {
 			configurable: true,
 			value: vi.fn(),
 		});
-		const pip = browserPlatform.pip;
+		const pip = browserPlatform.pip!;
 		expect(pip.isSupported()).toBe(true);
 	});
 
@@ -409,7 +409,7 @@ describe('browserPlatform.pip', () => {
 			configurable: true,
 			get: () => null,
 		});
-		const pip = browserPlatform.pip;
+		const pip = browserPlatform.pip!;
 		expect(pip.isActive()).toBe(false);
 	});
 
@@ -417,7 +417,7 @@ describe('browserPlatform.pip', () => {
 		const el = document.createElement('video');
 		Object.defineProperty(el, 'requestPictureInPicture', { configurable: true, value: undefined });
 
-		const pip = browserPlatform.pip;
+		const pip = browserPlatform.pip!;
 		await expect(pip.enter(el)).rejects.toBeInstanceOf(BrowserPolicyError);
 	});
 
@@ -425,7 +425,7 @@ describe('browserPlatform.pip', () => {
 		const el = document.createElement('video');
 		Object.defineProperty(el, 'requestPictureInPicture', { configurable: true, value: undefined });
 
-		const pip = browserPlatform.pip;
+		const pip = browserPlatform.pip!;
 		try {
 			await pip.enter(el);
 		}
@@ -439,7 +439,7 @@ describe('browserPlatform.pip', () => {
 		const requestFn = vi.fn().mockResolvedValue(undefined);
 		Object.defineProperty(el, 'requestPictureInPicture', { configurable: true, value: requestFn });
 
-		const pip = browserPlatform.pip;
+		const pip = browserPlatform.pip!;
 		await pip.enter(el);
 		expect(requestFn).toHaveBeenCalledOnce();
 	});
@@ -449,14 +449,14 @@ describe('browserPlatform.pip', () => {
 			configurable: true,
 			get: () => null,
 		});
-		const pip = browserPlatform.pip;
+		const pip = browserPlatform.pip!;
 		await expect(pip.exit()).resolves.toBeUndefined();
 	});
 
 	it('subscribe() registers enter/leave pip event listeners and unsubscribe removes them', () => {
 		const addSpy = vi.spyOn(document, 'addEventListener');
 		const removeSpy = vi.spyOn(document, 'removeEventListener');
-		const pip = browserPlatform.pip;
+		const pip = browserPlatform.pip!;
 
 		const fn = vi.fn();
 		const unsub = pip.subscribe(fn);
@@ -471,7 +471,7 @@ describe('browserPlatform.pip', () => {
 
 	it('subscribe() fires fn(true) on enterpictureinpicture', () => {
 		const fn = vi.fn();
-		const pip = browserPlatform.pip;
+		const pip = browserPlatform.pip!;
 		const unsub = pip.subscribe(fn);
 
 		document.dispatchEvent(new Event('enterpictureinpicture'));
@@ -482,7 +482,7 @@ describe('browserPlatform.pip', () => {
 
 	it('subscribe() fires fn(false) on leavepictureinpicture', () => {
 		const fn = vi.fn();
-		const pip = browserPlatform.pip;
+		const pip = browserPlatform.pip!;
 		const unsub = pip.subscribe(fn);
 
 		document.dispatchEvent(new Event('leavepictureinpicture'));

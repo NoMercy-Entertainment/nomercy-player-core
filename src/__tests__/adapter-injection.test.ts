@@ -17,8 +17,8 @@
  * fallback fires instead of using the provided adapter).
  */
 
-import type { BaseEventMap, BasePlaylistItem, PluginCtorWithId } from '../types';
 import type { IPreloadStrategy, ITransitionStrategy } from '../adapters/preload/default';
+import type { BaseEventMap, BasePlaylistItem, PluginCtorWithId } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	composeMixins,
@@ -29,11 +29,11 @@ import {
 } from '../index';
 import { makeFakeLogger } from './helpers/fake-logger';
 import { makeFakePlatform } from './helpers/fake-platform';
+import { makeFakePreloadStrategy } from './helpers/fake-preload-strategy';
+import { makeFakeShuffleStrategy } from './helpers/fake-shuffle-strategy';
+import { makeFakeTransitionStrategy } from './helpers/fake-transition-strategy';
 import { makeFakeTranslator } from './helpers/fake-translator';
 import { makeFakeUrlResolver } from './helpers/fake-url-resolver';
-import { makeFakeShuffleStrategy } from './helpers/fake-shuffle-strategy';
-import { makeFakePreloadStrategy } from './helpers/fake-preload-strategy';
-import { makeFakeTransitionStrategy } from './helpers/fake-transition-strategy';
 
 // ── MockPlayer (same minimal shape used in base-player.test.ts) ───────────────
 
@@ -59,6 +59,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		(key: string, vars?: Record<string, string>): string;
 		(PluginClass: PluginCtorWithId, key: string, vars?: Record<string, string>): string;
 	};
+
 	declare language: { (): string; (lang: string): Promise<void> };
 	declare addTranslations: (bundle: any) => void;
 	declare translation: { (lang: string, key: string): string | undefined; (lang: string, key: string, value: string): void };
