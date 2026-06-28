@@ -46,6 +46,11 @@ const CONTAINER_CLASS_RULES: ReadonlyMap<string, ContainerClassRule> = new Map<s
 		add: 'playing',
 		remove: PLAY_STATE_CLASSES.filter(c => c !== 'playing'),
 	}],
+	['playing', {
+		kind: 'swap',
+		add: 'playing',
+		remove: PLAY_STATE_CLASSES.filter(c => c !== 'playing'),
+	}],
 	['pause', {
 		kind: 'swap',
 		add: 'paused',
@@ -112,14 +117,18 @@ const CONTAINER_CLASS_RULES: ReadonlyMap<string, ContainerClassRule> = new Map<s
  * - `toggle` — boolean-toggle one class from a payload key.
  * - `binary` — apply one of two classes depending on a boolean payload key.
  * - `phase` — when entering a recognised play-state phase, swap the class;
- *   entering `ready` resets to `paused` as the resting state and marks the
- *   container as "has been ready". A subsequent `loading` phase on an already-
- *   ready container is a no-op — the resting class stays, because real stalls
- *   arrive via `waiting`/`stalled` events, not phase transitions.
+ *   entering `ready` resets to `paused` as the resting state UNLESS the player
+ *   is currently playing, in which case the container stays `playing`.
+ *   A subsequent `loading` phase on an already-ready container is a no-op —
+ *   the resting class stays, because real stalls arrive via `waiting`/`stalled`
+ *   events, not phase transitions.
+ *
+ * `currentPlayState` is forwarded from `this._playState` so the `ready` handler
+ * can honour a live `playing` state during cold-stream buffering recovery.
  *
  * No-ops silently when `container` is absent (player not mounted yet).
  */
-function _applyContainerClassRule(container: HTMLElement | undefined, rule: ContainerClassRule, data: unknown): void {
+function _applyContainerClassRule(container: HTMLElement | undefined, rule: ContainerClassRule, data: unknown, currentPlayState: string): void {
 	if (!container || typeof container.classList === 'undefined')
 		return;
 
@@ -158,7 +167,7 @@ function _applyContainerClassRule(container: HTMLElement | undefined, rule: Cont
 		if (phasePayload.to === 'ready') {
 			_containerHasBeenReady.set(container, true);
 			for (const cls of PLAY_STATE_CLASSES) container.classList.remove(cls);
-			container.classList.add('paused');
+			container.classList.add(currentPlayState === 'playing' ? 'playing' : 'paused');
 			return;
 		}
 
@@ -201,7 +210,7 @@ export const containerClassEmitMethods = {
 	emit(this: Internals, event: any, data?: any): void {
 		const rule = CONTAINER_CLASS_RULES.get(String(event));
 		if (rule) {
-			_applyContainerClassRule(this.container, rule, data);
+			_applyContainerClassRule(this.container, rule, data, this._playState);
 		}
 		EventEmitter.prototype.emit.call(this, event, data);
 	},
