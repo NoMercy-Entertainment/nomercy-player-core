@@ -27,6 +27,17 @@ type ContainerClassRule
 		| { kind: 'binary'; whenTrue: string; whenFalse: string; payloadKey: string }
 		| { kind: 'phase' };
 
+/**
+ * Tracks whether a given container has ever reached the `ready` phase. Once a
+ * player becomes playable for the first time, a subsequent `loading` phase
+ * transition represents a new-item load on an already-primed player and must
+ * NOT regress the container to the `loading` CSS class — `buffering` is the
+ * correct presentation for a transient data-starvation on an already-ready player.
+ *
+ * Keyed by the container element so multiple player instances remain independent.
+ */
+const _containerHasBeenReady = new WeakMap<HTMLElement, boolean>();
+
 const CONTAINER_CLASS_RULES: ReadonlyMap<string, ContainerClassRule> = new Map<string, ContainerClassRule>([
 	['play', {
 		kind: 'swap',
@@ -139,15 +150,28 @@ function _applyContainerClassRule(container: HTMLElement | undefined, rule: Cont
 		if (!phasePayload)
 			return;
 
-		if (PLAY_STATE_CLASSES.includes(phasePayload.to)) {
+		if (phasePayload.to === 'ready') {
+			_containerHasBeenReady.set(container, true);
 			for (const cls of PLAY_STATE_CLASSES) container.classList.remove(cls);
-			container.classList.add(phasePayload.to);
+			container.classList.add('paused');
 			return;
 		}
 
-		if (phasePayload.to === 'ready') {
+		if (PLAY_STATE_CLASSES.includes(phasePayload.to)) {
+			const hasBeenReady = _containerHasBeenReady.get(container) === true;
+
+			// Once the player has reached `ready` at least once, a `loading`
+			// phase transition represents a new-item load on an already-primed
+			// player. The container must NOT regress to `loading` — that class
+			// means "not yet playable". Map it to `buffering` instead, which
+			// correctly signals "temporarily stalled on a player that is still
+			// fundamentally ready".
+			const cssClass = (phasePayload.to === 'loading' && hasBeenReady)
+				? 'buffering'
+				: phasePayload.to;
+
 			for (const cls of PLAY_STATE_CLASSES) container.classList.remove(cls);
-			container.classList.add('paused');
+			container.classList.add(cssClass);
 		}
 	}
 }
