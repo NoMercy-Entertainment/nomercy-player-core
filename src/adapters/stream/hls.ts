@@ -6,6 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
+import type Hls from 'hls.js';
 import type {
 	ErrorData,
 	HlsConfig,
@@ -26,7 +27,6 @@ import type {
 	StreamSourceState,
 } from './IStreamSource';
 import type { StreamRegistry } from './registry';
-import Hls from 'hls.js';
 import { MediaFormatError, StreamError } from '../../errors';
 
 export const HLS_EXT_RE = /\.m3u8(?:\?|$)/iu;
@@ -79,6 +79,8 @@ export class HlsStreamSource implements IStreamSource {
 			return;
 		}
 
+		const { default: Hls } = await import('hls.js');
+
 		if (!Hls.isSupported()) {
 			throw new MediaFormatError({
 				code: 'core:media/hls-unsupported',
@@ -96,7 +98,7 @@ export class HlsStreamSource implements IStreamSource {
 			autoStartLoad: true,
 			enableWorker: true,
 			lowLatencyMode: false,
-			...(registry ? { loader: makeInterceptingLoader(registry) } : {}),
+			...(registry ? { loader: makeInterceptingLoader(Hls, registry) } : {}),
 		});
 
 		this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -297,9 +299,12 @@ interface HlsWithDefaultConfig {
  *
  * Returns `undefined` when `hls.js` does not expose `DefaultConfig.loader` (older
  * builds); callers omit the `loader` override in that case.
+ *
+ * @param HlsCtor - The resolved hls.js constructor (passed from `attach` after the
+ *   dynamic import resolves — never imported at module top-level).
  */
-function makeInterceptingLoader(registry: StreamRegistry): (new (config: HlsConfig) => Loader<LoaderContext>) | undefined {
-	const Base = (Hls as unknown as HlsWithDefaultConfig).DefaultConfig?.loader;
+function makeInterceptingLoader(HlsCtor: typeof import('hls.js').default, registry: StreamRegistry): (new (config: HlsConfig) => Loader<LoaderContext>) | undefined {
+	const Base = (HlsCtor as unknown as HlsWithDefaultConfig).DefaultConfig?.loader;
 	if (!Base)
 		return undefined;
 

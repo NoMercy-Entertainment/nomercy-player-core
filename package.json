@@ -1,7 +1,7 @@
 {
 	"name": "@nomercy-entertainment/nomercy-player-core",
 	"type": "module",
-	"version": "2.0.0-rc.8",
+	"version": "2.0.0-rc.9",
 	"description": "NoMercy player core — shared spine for nomercy-music-player and nomercy-video-player. Plugin runtime, event system, lifecycle helpers, streams, cues, errors, auth.",
 	"author": {
 		"name": "NoMercy Entertainment",
@@ -217,13 +217,8 @@
 		"test:watch": "vitest",
 		"prepublishOnly": "npm run build"
 	},
-	"peerDependencies": {
+	"dependencies": {
 		"hls.js": "^1.6.0"
-	},
-	"peerDependenciesMeta": {
-		"hls.js": {
-			"optional": true
-		}
 	},
 	"devDependencies": {
 		"@antfu/eslint-config": "^9.0.0",
@@ -232,7 +227,6 @@
 		"@vitest/ui": "^4.1.6",
 		"eslint": "^10.4.0",
 		"happy-dom": "^20.9.0",
-		"hls.js": "^1.6.16",
 		"tsc-alias": "^1.8.17",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.13",
