@@ -8,7 +8,7 @@ Full documentation: https://docs.nomercy.tv/nomercy-player-core/
 
 The shared, headless engine that the video and music players are built on. It carries everything that is not specific to video or audio: the queue, the auth pipeline, the plugin system, the typed event bus, i18n, storage, and an adapter port for every cross-cutting concern. Swapping a default is a matter of passing a different implementation to `setup()`, no subclassing.
 
-You rarely install this package directly. Pull in [`nomercy-video-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-video-player) or [`nomercy-music-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-music-player) and the core comes along as a peer dependency. Install it on its own only when you are writing a library-level plugin or a new player package on top of the core.
+You rarely install this package directly. Pull in [`nomercy-video-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-video-player) or [`nomercy-music-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-music-player) and the core is installed automatically as a hard dependency. Install it on its own only when you are writing a library-level plugin or a new player package on top of the core.
 
 ```
 npm install @nomercy-entertainment/nomercy-player-core
@@ -19,10 +19,10 @@ npm install @nomercy-entertainment/nomercy-player-core
 You drive the core through a library. The core's adapters and plugins are configured in the same `setup()` call:
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { nmVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
 
-const player = nmplayer('player')
+const player = nmVideoPlayer('player')
   .setup({
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
     storage: new LocalStorageBackend(),

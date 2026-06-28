@@ -217,12 +217,18 @@
 		"test:watch": "vitest",
 		"prepublishOnly": "npm run build"
 	},
-	"dependencies": {
+	"peerDependencies": {
 		"hls.js": "^1.6.0"
+	},
+	"peerDependenciesMeta": {
+		"hls.js": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"@antfu/eslint-config": "^9.0.0",
 		"@types/node": "^25.9.0",
+		"@vitest/coverage-v8": "^4.1.9",
 		"@vitest/ui": "^4.1.6",
 		"eslint": "^10.4.0",
 		"happy-dom": "^20.9.0",

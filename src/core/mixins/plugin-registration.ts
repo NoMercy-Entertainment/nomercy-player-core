@@ -92,8 +92,11 @@ function _cascadeDisable(self: Internals, failedId: string, reason: string, find
 
 /**
  * Three-way semver compare: returns -1, 0, or +1 for `a` vs `b`. Tolerates
- * missing patch / minor (`'2'` → `'2.0.0'`). Pre-release tags (`-rc.1`) are
- * compared as strings after the numeric trio.
+ * missing patch / minor (`'2'` → `'2.0.0'`). Pre-release tags follow semver
+ * §11 precedence: dot-separated identifiers compared left-to-right; numeric
+ * identifiers compare numerically; a numeric identifier has lower precedence
+ * than an alphanumeric one; a longer pre-release wins when all shared
+ * identifiers are equal; a final release always beats any pre-release.
  */
 function _compareSemver(a: string, b: string): -1 | 0 | 1 {
 	const parse = (v: string): { nums: number[]; pre: string } => {
@@ -105,8 +108,10 @@ function _compareSemver(a: string, b: string): -1 | 0 | 1 {
 			pre,
 		};
 	};
+
 	const aP = parse(a);
 	const bP = parse(b);
+
 	for (let i = 0; i < 3; i++) {
 		const an = aP.nums[i] ?? 0;
 		const bn = bP.nums[i] ?? 0;
@@ -115,13 +120,52 @@ function _compareSemver(a: string, b: string): -1 | 0 | 1 {
 		if (an > bn)
 			return 1;
 	}
+
 	if (aP.pre === bP.pre)
 		return 0;
 	if (!aP.pre && bP.pre)
-		return 1; // a is final, b is pre-release
+		return 1;
 	if (aP.pre && !bP.pre)
 		return -1;
-	return aP.pre < bP.pre ? -1 : 1;
+
+	const aIds = aP.pre.split('.');
+	const bIds = bP.pre.split('.');
+	const len = Math.max(aIds.length, bIds.length);
+
+	for (let i = 0; i < len; i++) {
+		if (i >= aIds.length)
+			return -1;
+		if (i >= bIds.length)
+			return 1;
+
+		const aId = aIds[i] ?? '';
+		const bId = bIds[i] ?? '';
+
+		const aNum = /^\d+$/.test(aId);
+		const bNum = /^\d+$/.test(bId);
+
+		if (aNum && bNum) {
+			const diff = Number(aId) - Number(bId);
+			if (diff < 0)
+				return -1;
+			if (diff > 0)
+				return 1;
+		}
+		else if (aNum && !bNum) {
+			return -1;
+		}
+		else if (!aNum && bNum) {
+			return 1;
+		}
+		else {
+			if (aId < bId)
+				return -1;
+			if (aId > bId)
+				return 1;
+		}
+	}
+
+	return 0;
 }
 
 /**

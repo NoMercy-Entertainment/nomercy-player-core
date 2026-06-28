@@ -15,5 +15,18 @@ export default defineConfig({
 		globals: true,
 		environment: 'happy-dom',
 		include: ['src/**/__tests__/**/*.test.ts'],
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'html', 'lcov'],
+			include: ['src/**/*.ts'],
+			exclude: [
+				'src/**/__tests__/**',
+				'src/**/*.d.ts',
+			],
+			thresholds: {
+				lines: 75,
+				functions: 80,
+			},
+		},
 	},
 });
