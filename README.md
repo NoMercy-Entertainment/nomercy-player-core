@@ -16,34 +16,72 @@ npm install @nomercy-entertainment/nomercy-player-core
 
 ## Quick start
 
-You drive the core through a library. The core's adapters and plugins are configured in the same `setup()` call:
+The core is the player engine. Compose its method mixins onto a class and you have a working player: the queue, transport, loading pipeline, time and volume, the typed event bus, auth, and the plugin system are all there. A library on top of the core adds only the medium-specific piece, the backend that turns a source into sound or picture.
 
 ```ts
-import { nmVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+import {
+  composeMixins,
+  initPlayerCoreState,
+  lifecycleMethods,
+  playerCoreMethods,
+  queueMethods,
+  timeMethods,
+  transportMethods,
+  volumeMethods,
+} from '@nomercy-entertainment/nomercy-player-core';
+
+class MyPlayer {
+  constructor(id: string) {
+    initPlayerCoreState(this, { className: 'MyPlayer' });
+    this.setup({ playlist: [{ id, url: '...' }] });
+  }
+}
+
+composeMixins(
+  MyPlayer.prototype,
+  playerCoreMethods,
+  lifecycleMethods,
+  queueMethods,
+  transportMethods,
+  timeMethods,
+  volumeMethods,
+);
+
+const player = new MyPlayer('intro');
+player.on('ready', () => player.play());
+player.queue();
+player.time(30);
+```
+
+That player drives the full core surface. The only thing it does not do on its own is render a medium, which is what `nomercy-video-player` and `nomercy-music-player` add. Reach for the core directly when you are building a new player package like those, not when you just want to play video or audio.
+
+Two extension points carry the rest of the surface. Adapters swap any cross-cutting concern through `setup()`, no subclassing:
+
+```ts
 import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
 
-const player = nmVideoPlayer('player')
-  .setup({
-    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-    storage: new LocalStorageBackend(),
-    playlist: [
-      {
-        id: 'sintel',
-        title: 'Sintel',
-        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-        duration: 888,
-      },
-    ],
-  });
+player.setup({ storage: new LocalStorageBackend() });
+```
 
-player.on('ready', () => {
-  player.item(0, { autoplay: true });
-});
+Plugins extend behavior and ride the same typed event bus. They read through `this.on`, emit their own events, and clean up on `dispose()`:
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+
+export class PlayCountPlugin extends Plugin {
+  static override readonly id = 'play-count';
+
+  override use(): void {
+    this.on('play', () => this.emit('play-count:changed', undefined));
+  }
+}
+
+player.addPlugin(PlayCountPlugin);
 ```
 
 ## Documentation
 
-The [docs site](https://docs.nomercy.tv/nomercy-player-core/) is the full reference and the home for everything that used to live in the wiki:
+The [docs site](https://docs.nomercy.tv/nomercy-player-core/) is the full reference:
 
 - [Quick Start](https://docs.nomercy.tv/nomercy-player-core/quickstart) and the [adapter ports](https://docs.nomercy.tv/nomercy-player-core/adapters)
 - [Event system](https://docs.nomercy.tv/nomercy-player-core/event-system), [lifecycle](https://docs.nomercy.tv/nomercy-player-core/lifecycle), and [auth and fetch](https://docs.nomercy.tv/nomercy-player-core/auth-fetch)
