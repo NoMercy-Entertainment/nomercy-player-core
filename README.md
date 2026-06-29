@@ -6,9 +6,15 @@ Full documentation: https://docs.nomercy.tv/nomercy-player-core/
 
 # nomercy-player-core
 
-The shared, headless engine that the video and music players are built on. It carries everything that is not specific to video or audio: the queue, the auth pipeline, the plugin system, the typed event bus, i18n, storage, and an adapter port for every cross-cutting concern. Swapping a default is a matter of passing a different implementation to `setup()`, no subclassing.
+The shared, headless engine that the video and music players are built on. It carries everything that is not specific to video or audio: the queue, the auth pipeline, the plugin system, the typed event bus, i18n, and storage.
 
-You rarely install this package directly. Pull in [`nomercy-video-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-video-player) or [`nomercy-music-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-music-player) and the core is installed automatically as a hard dependency. Install it on its own only when you are writing a library-level plugin or a new player package on top of the core.
+**You stay in charge.** Nothing renders a UI on its own and nothing is forced on you. Every behavior beyond the bare engine is opt-in, and every cross-cutting concern sits behind an adapter port with a sensible default you can replace.
+
+- **Everything is opt-in.** No plugin runs until you `addPlugin` it. The engine ships quiet, you add only what you want.
+- **Swap any behavior through adapters.** The clock, fetch, storage, logger, retry policy, shuffle and preload strategies, URL resolver, translator, realtime channel, stream registry, subtitle renderer, and more are each an interface with a default implementation. Pass your own to `setup()`, no subclassing.
+- **Plain events and methods.** The engine reports through a typed event bus and exposes plain methods. How you react, and what you build on top, is yours.
+
+You rarely install this package directly. Pull in [`nomercy-video-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-video-player) or [`nomercy-music-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-music-player) and the core comes with it as a hard dependency. Install it on its own when you are writing a plugin or building a new player package on top of the core.
 
 ```
 npm install @nomercy-entertainment/nomercy-player-core
@@ -55,15 +61,20 @@ player.time(30);
 
 That player drives the full core surface. The only thing it does not do on its own is render a medium, which is what `nomercy-video-player` and `nomercy-music-player` add. Reach for the core directly when you are building a new player package like those, not when you just want to play video or audio.
 
-Two extension points carry the rest of the surface. Adapters swap any cross-cutting concern through `setup()`, no subclassing:
+Two extension points put you in control of the rest. **Adapters** replace any cross-cutting concern through `setup()`, no subclassing. Override only what you want; everything else keeps its default:
 
 ```ts
 import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
 
-player.setup({ storage: new LocalStorageBackend() });
+player.setup({
+  storage: new LocalStorageBackend(),   // or your own IStorage
+  logger: myLogger,                      // your own ILogger
+  shuffleStrategy: myShuffle,            // your own IShuffleStrategy
+  urlResolver: mySignedUrls,             // your own IUrlResolver
+});
 ```
 
-Plugins extend behavior and ride the same typed event bus. They read through `this.on`, emit their own events, and clean up on `dispose()`:
+**Plugins** are opt-in and ride the same typed event bus. Nothing registers itself; you add what you want. A plugin reads through `this.on`, emits its own events, and cleans up on `dispose()`:
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
