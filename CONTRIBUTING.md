@@ -6,7 +6,7 @@ Thanks for your interest in `@nomercy-entertainment/nomercy-player-core`. This p
 
 - Bug? File a [GitHub issue](https://github.com/NoMercy-Entertainment/nomercy-player-core/issues) with a minimal reproduction. Include kit version, browser, and a stack trace if you have one.
 - Security? Do not file a public issue — see [SECURITY.md](./SECURITY.md).
-- Question? The full docs live at [docs.nomercy.tv/player/](https://docs.nomercy.tv/player/).
+- Question? The full docs live at [docs.nomercy.tv/nomercy-player-core/](https://docs.nomercy.tv/nomercy-player-core/).
 
 ## Local development
 
@@ -14,7 +14,7 @@ Thanks for your interest in `@nomercy-entertainment/nomercy-player-core`. This p
 git clone https://github.com/NoMercy-Entertainment/nomercy-player-core.git
 cd nomercy-player-core
 npm install
-npm test          # vitest run (1240 unit tests must pass)
+npm test          # vitest run
 npm run typecheck # tsc --noEmit
 npm run build     # writes dist/
 ```

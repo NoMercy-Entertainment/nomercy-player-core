@@ -2,11 +2,11 @@
 
 ## Beta publish (current)
 
-All three packages in the trio publish under the `beta` dist-tag. This is controlled by
-`publishConfig.tag: "beta"` in each `package.json`. A consumer gets the beta by running:
+All three packages in the trio publish under the `rc` dist-tag. This is controlled by
+`publishConfig.tag: "rc"` in each `package.json`. A consumer gets the release candidate by running:
 
 ```
-npm install @nomercy-entertainment/nomercy-player-core@beta
+npm install @nomercy-entertainment/nomercy-player-core@rc
 ```
 
 A plain `npm install @nomercy-entertainment/nomercy-player-core` resolves nothing until a
@@ -14,12 +14,12 @@ stable version is published under the `latest` tag.
 
 ## Stable 2.0.0 flip checklist
 
-When the beta period ends and 2.0.0 is ready for general availability:
+When the RC period ends and 2.0.0 is ready for general availability:
 
 1. Bump version to `2.0.0` in all three package.json files (`nomercy-player-core`,
    `nomercy-video-player`, `nomercy-music-player`).
-2. Remove `"tag": "beta"` from `publishConfig` in all three, OR publish with
-   `npm publish --tag latest`. Leaving `tag: "beta"` without the override means
+2. Remove `"tag": "rc"` from `publishConfig` in all three, OR publish with
+   `npm publish --tag latest`. Leaving `tag: "rc"` without the override means
    `npm install <pkg>` still resolves nothing under `latest`.
 3. Update the `@nomercy-entertainment/nomercy-player-core` dependency range in
    `nomercy-video-player` and `nomercy-music-player` from `^2.0.0-beta.0` to `^2.0.0`
@@ -29,7 +29,7 @@ When the beta period ends and 2.0.0 is ready for general availability:
 
 ## Cross-package version range
 
-During beta, video and music declare:
+During the RC phase, video and music declare:
 
 ```json
 {
@@ -39,9 +39,9 @@ During beta, video and music declare:
 }
 ```
 
-`^2.0.0-beta.0` matches `>=2.0.0-beta.0 <3.0.0-0`, which covers every `2.0.0-beta.x`
-prerelease AND the eventual `2.0.0` stable — so no range change is required at stable flip
-(step 3 above is cosmetic/conventional, not mechanical).
+`^2.0.0-beta.0` matches `>=2.0.0-beta.0 <3.0.0-0`, which covers every `2.0.0-beta.x` and
+`2.0.0-rc.x` prerelease AND the eventual `2.0.0` stable — so no range change is required at
+stable flip (step 3 above is cosmetic/conventional, not mechanical).
 
 In the yarn classic workspace the range resolves to the local `packages/nomercy-player-core`
 workspace package regardless, so local development is unaffected.

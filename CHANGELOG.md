@@ -1,5 +1,101 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.15] — 2026-06-29
+
+### Security
+
+- `auth()` now returns a **redacted** frozen snapshot: `bearerToken` and
+  `accessToken` are stripped before the object leaves the player. The raw auth
+  config is only reachable via the internal `_rawAuth()` path used by the fetch
+  pipeline. Consumer code and custom URL resolvers receive the redacted view.
+  The encapsulation guarantee is proven by tests in `base-player-auth-lock.test.ts`.
+
+### Changed
+
+- `setup()` now self-applies the `.nomercyplayer` CSS class to the container
+  element. Consumers no longer need to add `class="nomercyplayer"` manually,
+  though leaving it in place is harmless.
+
+### Added
+
+- `describePlugin` conformance kit exported via the `./testing` subpath. Wraps
+  every plugin test with a fresh `StubPlayer` + plugin pair, automatic
+  teardown, and a zero-listener-leak assertion. See `TESTING.md` for the guide
+  and the worked example at
+  `src/__tests__/testing/consumer-plugin.example.test.ts`.
+- `playbackRate` event added to `BaseEventMap`. Fires on every playback-rate
+  change with payload `{ rate: number }`.
+
+## [2.0.0-rc.14] — 2026-06-28
+
+### Security
+
+- `auth()` and the URL-resolver context now redact bearer and access tokens
+  before the object is visible to consumer or plugin code. `_rawAuth()` is the
+  internal-only token path used by the fetch pipeline.
+
+### Changed
+
+- `setup()` self-applies the `.nomercyplayer` CSS class to the container
+  element so consumers no longer need to add it manually.
+
+### Added
+
+- `describePlugin` conformance kit exported via the `./testing` subpath, with a
+  consumer `TESTING.md` guide and a worked example.
+- `playbackRate` event added to `BaseEventMap`, firing on every playback-rate
+  change with payload `{ rate: number }`.
+- Mixin test coverage added.
+
+## [2.0.0-rc.13] — 2026-06-28
+
+Version aligned with the player trio (no core code change).
+
+## [2.0.0-rc.12] — 2026-06-28
+
+Version aligned with the player trio (no core code change).
+
+## [2.0.0-rc.11] — 2026-06-28
+
+Version aligned with the player trio (no core code change).
+
+## [2.0.0-rc.10] — 2026-06-28
+
+Version aligned with the player trio for the video autohide fix (no core code
+change).
+
+## [2.0.0-rc.9] — 2026-06-28
+
+### Changed
+
+- `hls.js` is now a real `dependency` of core. The HLS engine lives here;
+  `nomercy-music-player` and `nomercy-video-player` receive it transitively.
+
+## [2.0.0-rc.8] — 2026-06-28
+
+### Fixed
+
+- The published ESM dist now carries explicit `.js` extensions on every
+  relative import via a `tsc-alias` post-build pass, making the package
+  importable by a raw Node ESM consumer.
+
+## [2.0.0-rc.7] — 2026-06-28
+
+### Fixed
+
+- `KIT_VERSION` is inlined at build time instead of read from a JSON import,
+  so the package loads cleanly under Node ESM.
+- `KIT_VERSION` is single-sourced from `package.json`; the semver prerelease
+  comparator is also corrected.
+
+## [2.0.0-rc.6] — 2026-06-28
+
+### Fixed
+
+- Cast play/pause inversion corrected; equalizer-restore no-op resolved.
+- `time()` setter is now guarded against out-of-range values.
+- `playbackRate` is clamped to the `[0.25, 2]` range.
+
 ## [2.0.0-rc.5] — 2026-06-14
 
 ### Changed
