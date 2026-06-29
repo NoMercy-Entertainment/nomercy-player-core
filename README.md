@@ -86,24 +86,7 @@ The [docs site](https://docs.nomercy.tv/nomercy-player-core/) is the full refere
 - [Quick Start](https://docs.nomercy.tv/nomercy-player-core/quickstart) and the [adapter ports](https://docs.nomercy.tv/nomercy-player-core/adapters)
 - [Event system](https://docs.nomercy.tv/nomercy-player-core/event-system), [lifecycle](https://docs.nomercy.tv/nomercy-player-core/lifecycle), and [auth and fetch](https://docs.nomercy.tv/nomercy-player-core/auth-fetch)
 - [Built-in plugins](https://docs.nomercy.tv/nomercy-player-core/plugins), [plugin authoring](https://docs.nomercy.tv/nomercy-player-core/plugin-authoring), and the full type reference
-
-## Testing your own plugin
-
-The kit ships a conformance helper so external plugin authors can validate their plugins against the player contract without any extra test infrastructure.
-
-```ts
-import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
-import { MyPlugin } from './my-plugin';
-
-describePlugin(MyPlugin, (ctx) => {
-  it('does the right thing', () => {
-    ctx.player.emit('play', undefined);
-    expect(ctx.plugin.someMethod()).toBe(true);
-  });
-});
-```
-
-Every test gets a fresh `StubPlayer` + plugin pair, automatic teardown, and a zero-listener-leak assertion — no setup boilerplate required. See [TESTING.md](./TESTING.md) for the full guide and a worked example you can copy directly.
+- [Testing your plugins](./TESTING.md) with the `describePlugin` conformance helper the kit ships
 
 ## License
 
