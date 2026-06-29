@@ -8,6 +8,7 @@
 
 import type { Cue, CueList } from '../../core/cues/cue';
 import { createCueList } from '../../core/cues/cue';
+import { parseTimestamp } from './timestamp';
 
 export interface VTTSubtitlePayload {
 	/**
@@ -321,27 +322,6 @@ function parsePercent(raw: string): number | null {
 	if (!Number.isFinite(percentNum) || percentNum < 0 || percentNum > 100)
 		return null;
 	return percentNum;
-}
-
-function parseTimestamp(ts: string): number {
-	// Accepts HH:MM:SS.mmm or MM:SS.mmm (HH optional)
-	const parts = ts.split(':');
-	let hours = 0;
-	let minutes = 0;
-	let seconds = 0;
-	if (parts.length === 3) {
-		hours = Number.parseInt(parts[0]!, 10);
-		minutes = Number.parseInt(parts[1]!, 10);
-		seconds = Number.parseFloat(parts[2]!);
-	}
-	else if (parts.length === 2) {
-		minutes = Number.parseInt(parts[0]!, 10);
-		seconds = Number.parseFloat(parts[1]!);
-	}
-	else {
-		return Number.NaN;
-	}
-	return hours * 3600 + minutes * 60 + seconds;
 }
 
 function joinUrl(base: string, relative: string): string {

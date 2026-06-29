@@ -11,6 +11,7 @@ export { parseLrc } from './adapters/cue-parser/lrc';
 export type { LrcPayload } from './adapters/cue-parser/lrc';
 export { CueParserRegistry } from './adapters/cue-parser/registry';
 
+export { parseDurationSeconds, parseTimestamp } from './adapters/cue-parser/timestamp';
 export { parseVtt, parseVttSprite, parseVttSubtitles } from './adapters/cue-parser/vtt';
 export type { VTTSpritePayload, VTTSubtitlePayload } from './adapters/cue-parser/vtt';
 // DOM helpers
