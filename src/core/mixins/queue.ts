@@ -10,6 +10,7 @@ import type { MediaList } from '../../adapters/media-list/default';
 import type { ActionOptions, BasePlaylistItem, LoadOptions } from '../../types';
 
 import type { Internals } from '../state';
+import { interpolateTitleTokens } from '../title-tokens';
 
 /**
  * The queue mixin's slice of player state — composed into `PlayerCoreState`.
@@ -91,7 +92,13 @@ function _wireQueue(self: Internals): void {
 function _ingestOne(self: Internals, item: BasePlaylistItem): BasePlaylistItem {
 	const normalized = self.normalizePlaylistItem ? self.normalizePlaylistItem(item) : item;
 	const transform = self.options?.transformPlaylistItem;
-	return transform ? transform(normalized) : normalized;
+	const result: BasePlaylistItem = transform ? transform(normalized) : normalized;
+
+	if (typeof result.title === 'string') {
+		result.title = interpolateTitleTokens(result.title, self._translator, self._titleTokenRegistry);
+	}
+
+	return result;
 }
 
 function _ingest(self: Internals, item: BasePlaylistItem | BasePlaylistItem[]): BasePlaylistItem | BasePlaylistItem[] {
@@ -380,5 +387,23 @@ export const queueMethods = {
 	backlogClear(this: Internals): void {
 		_wireQueue(this);
 		this._backlogList.clear();
+	},
+
+	/**
+	 * Merge additional letter→key pairs into this player's title-token registry.
+	 *
+	 * Registered tokens are resolved in place on every item that passes through
+	 * the ingest pipeline (`queue()`, `queueAppend()`, etc.). Core ships with an
+	 * empty registry; per-library players call this once in their constructor to
+	 * opt in. Later calls merge without clearing earlier registrations.
+	 *
+	 * Example (video player):
+	 *   `player.registerTitleTokens({ S: 'plugin.desktop-ui.token.season', E: 'plugin.desktop-ui.token.episode' })`
+	 */
+	registerTitleTokens(this: Internals, tokens: Record<string, string>): void {
+		this._titleTokenRegistry = {
+			...this._titleTokenRegistry,
+			...tokens,
+		};
 	},
 } as const;

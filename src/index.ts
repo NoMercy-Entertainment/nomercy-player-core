@@ -140,20 +140,21 @@ export { preloadStrategyMethods } from './base-player';
 
 // URL-param auth helper for non-HLS / native-HLS-fallback element.src paths
 export { appendAuthTokenParam } from './core/append-auth-token-param';
-
 // Auth-aware fetch (shared between Plugin.fetch and the player core's setup-time loads)
 export { authFetch, isAuthError, isNetworkError } from './core/auth-fetch';
+
 export type { AuthFetchOptions } from './core/auth-fetch';
+
 // Mixin + factory
 export { composeMixins } from './core/compose';
 export { mergeConfig } from './core/config-merge';
-
 // Cues
 export { createCueList, createMutableCueList } from './core/cues/cue';
 export type { Cue, CueList, MutableCueList } from './core/cues/cue';
 
 export { CueTracker } from './core/cues/tracker';
 export type { CueTrackerOptions } from './core/cues/tracker';
+
 // Shared cancellable-event dispatcher (used by both kit transport mixins and Plugin.dispatchBefore)
 export { runDispatchBefore } from './core/dispatch';
 export type { BeforeDispatchOutcome, DispatchBeforeOpts, DispatchTarget } from './core/dispatch';
@@ -167,8 +168,11 @@ export type {
 	PluginState,
 	ThrowPayload,
 } from './core/plugin';
-
 export { buildResolvedUrl } from './core/resolved-url';
+// Title-token interpolation engine (generic %<LETTER><digits> → t() resolver)
+export { interpolateTitleTokens } from './core/title-tokens';
+
+export type { TokenRegistry } from './core/title-tokens';
 // Perceptual volume curve — maps linear 0..1 slider position to gain amplitude
 export { perceptualGain } from './core/volume-curve';
 

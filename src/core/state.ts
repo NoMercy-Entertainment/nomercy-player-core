@@ -46,6 +46,7 @@ import type { StreamRegistrationState } from './mixins/stream-registration';
 import type { TimeInternalState } from './mixins/time';
 import type { PlayStateToken, TransportState } from './mixins/transport';
 import type { VolumeState, VolumeStateToken } from './mixins/volume';
+import type { TokenRegistry } from './title-tokens';
 import { CueParserRegistry } from '../adapters/cue-parser/registry';
 import { MediaList } from '../adapters/media-list/default';
 import { DefaultPreloadStrategy } from '../adapters/preload/default';
@@ -205,6 +206,16 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	/** Monotonic counter bumped on each `load()` call; stale continuations bail when epoch mismatches. Bumped by both `loadingMethods` and `queueMethods`. */
 	_loadEpoch?: number;
 
+	/**
+	 * Per-instance title-token registry. Maps a single letter (e.g. `'S'`, `'E'`)
+	 * to the translation key that resolves the token's display text. Empty by
+	 * default — core ships no tokens. Per-library players call
+	 * `registerTitleTokens()` to populate it. An empty registry makes the ingest
+	 * step a guaranteed no-op (zero cost for music player or any consumer that
+	 * never registers tokens).
+	 */
+	_titleTokenRegistry: TokenRegistry;
+
 	/** Root logger built from `options.logger` / `options.logLevel` at setup. Written by `_wireLogger`; core failures and (at debug+) the event firehose log through it. */
 	_logger?: ILogger;
 
@@ -329,6 +340,14 @@ export interface MixinSurface {
 	// i18nMethods — language() lives in i18nMethods mixin, called cross-mixin
 	language(lang?: string): string | Promise<void>;
 
+	/**
+	 * Merge additional letter→key pairs into this player's title-token registry.
+	 * Called once per player instance by per-library players that need token
+	 * resolution (e.g. video registers `{ S, E }`). Safe to call multiple times —
+	 * later calls merge into the existing registry without clearing it.
+	 */
+	registerTitleTokens(tokens: Record<string, string>): void;
+
 	// Per-library backend accessor. Optional — kit mixins probe its presence defensively.
 	backend?(): unknown;
 
@@ -431,6 +450,8 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._metricsStartedAt = 0;
 	target._metricsTimer = undefined;
 	target._lastProgressEmit = 0;
+
+	target._titleTokenRegistry = {};
 
 	target._preloadStrategy = new DefaultPreloadStrategy(10);
 	target._transitionStrategy = _NOOP_TRANSITION;
