@@ -215,7 +215,13 @@ export type { AudioGraphEvents, AudioGraphOptions } from './plugins/audio-graph'
 export { canvasPlugin, CanvasPlugin } from './plugins/canvas';
 export type { CanvasEvents, CanvasOptions, CanvasRenderFn } from './plugins/canvas';
 export { castSenderPlugin, CastSenderPlugin } from './plugins/cast-sender';
-export type { CastSenderEvents, CastSenderOptions, ChromeCastMediaCtors } from './plugins/cast-sender';
+export type {
+	CastMediaInfo,
+	CastMediaMetadata,
+	CastSenderEvents,
+	CastSenderOptions,
+	ChromeCastMediaCtors,
+} from './plugins/cast-sender';
 export { embedPlugin, EmbedPlugin } from './plugins/embed';
 export type { EmbedCommand, EmbedEventMessage, EmbedOptions } from './plugins/embed';
 export { equalizerPlugin, EqualizerPlugin } from './plugins/equalizer/index';

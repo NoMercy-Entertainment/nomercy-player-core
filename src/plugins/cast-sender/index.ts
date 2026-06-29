@@ -144,10 +144,21 @@ interface CastFrameworkGlobal {
  * Subclasses' `buildMetadata` may read additional constructors off the same
  * object — the entire `chrome.cast.media` namespace gets passed through.
  */
+/** Mutable subset of the Cast SDK `MediaInfo` the sender populates. */
+export interface CastMediaInfo extends Record<string, unknown> {
+	metadata?: unknown;
+	streamType?: string;
+}
+
+/** Base Cast SDK `MediaMetadata` fields the sender writes; subclasses extend it. */
+export interface CastMediaMetadata extends Record<string, unknown> {
+	title?: string;
+}
+
 export interface ChromeCastMediaCtors {
-	MediaInfo: new (contentId: string, contentType: string) => Record<string, unknown>;
+	MediaInfo: new (contentId: string, contentType: string) => CastMediaInfo;
 	LoadRequest: new (mediaInfo: unknown) => Record<string, unknown>;
-	GenericMediaMetadata: new () => Record<string, unknown>;
+	GenericMediaMetadata: new () => CastMediaMetadata;
 	StreamType: { BUFFERED: string; LIVE: string };
 	[k: string]: unknown;
 }
@@ -345,7 +356,7 @@ export class CastSenderPlugin<
 	 * Default returns a minimal `GenericMediaMetadata` with the title only.
 	 */
 	protected async buildMetadata(item: TItem, ctors: ChromeCastMediaCtors): Promise<unknown> {
-		const meta = new ctors.GenericMediaMetadata() as Record<string, unknown>;
+		const meta = new ctors.GenericMediaMetadata();
 		const titled = item as TItem & { title?: string; name?: string };
 		meta['title'] = titled.title ?? titled.name ?? '';
 		return meta;
@@ -533,10 +544,7 @@ export class CastSenderPlugin<
 			// URL resolver so query-string / signed-URL schemes reach the
 			// cast device.
 			const url = (await this.resolveUrl(rawUrl, 'cast')).href;
-			const mediaInfo = new ctors.MediaInfo(url, contentType) as Record<string, unknown> & {
-				metadata?: unknown;
-				streamType?: string;
-			};
+			const mediaInfo = new ctors.MediaInfo(url, contentType);
 			const metadata = await this.buildMetadata(item, ctors);
 			mediaInfo.metadata = metadata;
 			mediaInfo.streamType = opts.live ? ctors.StreamType.LIVE : ctors.StreamType.BUFFERED;
