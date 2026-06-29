@@ -6,15 +6,23 @@ Full documentation: https://docs.nomercy.tv/nomercy-player-core/
 
 # nomercy-player-core
 
-The shared, headless engine that the video and music players are built on. It carries everything that is not specific to video or audio: the queue, the auth pipeline, the plugin system, the typed event bus, i18n, and storage.
+The shared, headless engine that the video and music players are built on.
 
-**You stay in charge.** Nothing renders a UI on its own and nothing is forced on you. Every behavior beyond the bare engine is opt-in, and every cross-cutting concern sits behind an adapter port with a sensible default you can replace.
+It carries everything that is not specific to video or audio: the queue, auth, the plugin system, the typed event bus, i18n, and storage.
+
+**You stay in charge.**
+
+Nothing renders a UI on its own. Nothing is forced on you.
 
 - **Everything is opt-in.** No plugin runs until you `addPlugin` it. The engine ships quiet, you add only what you want.
-- **Swap any behavior through adapters.** The clock, fetch, storage, logger, retry policy, shuffle and preload strategies, URL resolver, translator, realtime channel, stream registry, subtitle renderer, and more are each an interface with a default implementation. Pass your own to `setup()`, no subclassing.
-- **Plain events and methods.** The engine reports through a typed event bus and exposes plain methods. How you react, and what you build on top, is yours.
+- **Swap any behavior through adapters.** The clock, fetch, storage, logger, retry policy, shuffle, URL resolver, stream registry, and more are each an interface with a default. Pass your own to `setup()`. No subclassing.
+- **Plain events and methods.** The engine reports through a typed event bus. How you react, and what you build, is yours.
 
-You rarely install this package directly. Pull in [`nomercy-video-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-video-player) or [`nomercy-music-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-music-player) and the core comes with it as a hard dependency. Install it on its own when you are writing a plugin or building a new player package on top of the core.
+You rarely install this package directly.
+
+Pull in [`nomercy-video-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-video-player) or [`nomercy-music-player`](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-music-player) and the core comes with it.
+
+Install it on its own only when you are writing a plugin or building a new player package on the core.
 
 ```
 npm install @nomercy-entertainment/nomercy-player-core
