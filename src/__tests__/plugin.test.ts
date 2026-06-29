@@ -621,19 +621,19 @@ describe('Plugin base class', () => {
 			expect(req.headers.get('Authorization')).toBe('Bearer tok');
 		});
 
-		it('reads the LIVE auth config via auth() — refreshes propagate', async () => {
-			// setup-time options.auth says 'old', but auth() returns a refreshed
+		it('reads the LIVE auth config via _rawAuth() — refreshes propagate', async () => {
+			// setup-time options.auth says 'old', but _rawAuth() returns a refreshed
 			// token. Plugin.fetch must use the refreshed one.
 			(player as any).options = { auth: { bearerToken: 'old-tok' } };
-			(player as any).auth = (): { bearerToken: string } => ({ bearerToken: 'fresh-tok' });
+			(player as any)._rawAuth = (): { bearerToken: string } => ({ bearerToken: 'fresh-tok' });
 			await plugin.publicFetch('https://x/y');
 			const req = fetchSpy.mock.calls[0]![0] as Request;
 			expect(req.headers.get('Authorization')).toBe('Bearer fresh-tok');
 		});
 
-		it('falls back to options.auth when auth() is absent or returns undefined', async () => {
+		it('falls back to options.auth when _rawAuth() is absent or returns undefined', async () => {
 			(player as any).options = { auth: { bearerToken: 'setup-tok' } };
-			(player as any).auth = (): undefined => undefined;
+			(player as any)._rawAuth = (): undefined => undefined;
 			await plugin.publicFetch('https://x/y');
 			const req = fetchSpy.mock.calls[0]![0] as Request;
 			expect(req.headers.get('Authorization')).toBe('Bearer setup-tok');

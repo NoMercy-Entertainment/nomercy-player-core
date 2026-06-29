@@ -477,7 +477,9 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	/**
 	 * Read or write the auth config.
 	 *
-	 * `auth()` — frozen snapshot of the current config, or `undefined`.
+	 * `auth()` — redacted frozen snapshot of the current config, or `undefined`.
+	 * Token-bearing fields (`bearerToken`, `accessToken`) are stripped from the
+	 * snapshot; they are only accessible through the internal fetch pipeline.
 	 * `auth(config)` — replace wholesale; emits `auth:refreshed`.
 	 * `auth(partial)` — shallow-merge; emits `auth:refreshed`.
 	 * `auth(null)` — clear the auth config; emits `auth:refreshed`.

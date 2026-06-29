@@ -39,7 +39,7 @@ type InternalFetchOptions<T> = AuthFetchOptions<T> & {
 /** Structural view of the player state `pluginFetch` reads. */
 type PluginFetchPlayer = IPlayer & {
 	options?: BasePlayerConfig;
-	auth?: () => AuthConfig | undefined;
+	_rawAuth?: () => AuthConfig | undefined;
 	emit: (event: string, data?: unknown) => void;
 };
 
@@ -58,7 +58,7 @@ interface PluginFetchHost {
 export function pluginFetch<T = string>(host: PluginFetchHost, url: string, options?: FetchOptions<T>): Promise<T> {
 	const ctrl = host.lifecycle.abortable();
 	const config = host.player.options ?? {};
-	const liveAuth = host.player.auth?.();
+	const liveAuth = host.player._rawAuth?.();
 	const auth = liveAuth ?? config.auth;
 	const scope = options?.scope ?? 'plugin';
 	return authFetch<T>({

@@ -708,21 +708,24 @@ describe('StubPlayer auth()', () => {
 		expect(new StubPlayer().auth()).toBeUndefined();
 	});
 
-	it('auth(config) stores and returns the config (frozen)', () => {
+	it('auth(config) stores the config — snapshot is frozen and token fields are redacted', () => {
 		const p = new StubPlayer();
-		p.auth({ accessToken: 'tok123' } as any);
+		p.auth({ accessToken: 'tok123', credentials: 'include' } as any);
 		const stored = p.auth();
 		expect(stored).toBeDefined();
-		expect((stored as any).accessToken).toBe('tok123');
+		expect(Object.isFrozen(stored)).toBe(true);
+		expect((stored as any).accessToken).toBeUndefined();
+		expect((stored as any).credentials).toBe('include');
 	});
 
-	it('auth(partial) merges into existing config', () => {
+	it('auth(partial) merges into existing config — non-secret fields visible', () => {
 		const p = new StubPlayer();
-		p.auth({ accessToken: 'tok1' } as any);
-		p.auth({ tokenType: 'Bearer' } as any);
+		p.auth({ accessToken: 'tok1', credentials: 'include' } as any);
+		p.auth({ retryAfterRefresh: 3 } as any);
 		const config = p.auth() as any;
-		expect(config.accessToken).toBe('tok1');
-		expect(config.tokenType).toBe('Bearer');
+		expect(config.accessToken).toBeUndefined();
+		expect(config.credentials).toBe('include');
+		expect(config.retryAfterRefresh).toBe(3);
 	});
 });
 

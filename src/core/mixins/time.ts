@@ -177,6 +177,7 @@ export const timeMethods = {
 
 		const clamped = Math.max(0.25, Math.min(2, rate));
 		this._playbackRate = clamped;
+		this.emit('playbackRate', { rate: clamped });
 		this.emit('backend:ratechange', { rate: clamped });
 
 		this._resolveBackend()?.playbackRate?.(clamped);

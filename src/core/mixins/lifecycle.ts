@@ -106,6 +106,7 @@ export const lifecycleMethods = {
 
 		_normalizeOptions(this, config);
 		_seedFromOptions(this);
+		this.container.classList.add('nomercyplayer');
 		_wireLogger(this);
 		_initTranslator(this);
 		_registerCueParsers(this);

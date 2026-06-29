@@ -29,6 +29,19 @@ export interface AuthState {
 	_urlResolver: IUrlResolver | undefined;
 }
 
+/**
+ * Returns a copy of `cfg` with token-bearing fields (`bearerToken`, `accessToken`)
+ * stripped. Used by `auth()` to produce a safe public snapshot and by `resolveUrl`
+ * to produce a safe `UrlResolverContext.auth` handed to consumer code.
+ *
+ * All non-secret fields — `credentials`, `headers`, `transformUrl`, `signRequest`,
+ * `refreshOnUnauthenticated`, `retryAfterRefresh` — are retained.
+ */
+function redactTokenFields(cfg: AuthConfig): Readonly<AuthConfig> {
+	const { bearerToken: _b, accessToken: _a, ...safe } = cfg;
+	return Object.freeze(safe);
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: auth runtime — `auth` / `urlResolver` / `refreshAuth`.
 // Single source of truth for auth config, URL resolution, and token refresh.
@@ -39,8 +52,12 @@ export const authMethods = {
 	/**
 	 * Read or write the auth config.
 	 *
-	 * `auth()` — returns a read-only frozen snapshot of the current auth
-	 * config, or `undefined` when none has been set.
+	 * `auth()` — returns a **redacted** read-only frozen snapshot of the current
+	 * auth config, or `undefined` when none has been set. Token-bearing fields
+	 * (`bearerToken`, `accessToken`) are stripped from the snapshot so that the
+	 * bearer secret is unreachable from public consumer code. Non-secret fields
+	 * (`credentials`, `headers`, `transformUrl`, `signRequest`,
+	 * `refreshOnUnauthenticated`, `retryAfterRefresh`) are retained.
 	 *
 	 * `auth(config)` — replace the auth config wholesale; old fields are gone.
 	 * Emits `auth:refreshed` so listeners (cached fetchers, telemetry) re-resolve.
@@ -54,7 +71,7 @@ export const authMethods = {
 		if (configOrPartial === undefined) {
 			if (!this._authConfig)
 				return undefined;
-			return Object.freeze({ ...this._authConfig });
+			return redactTokenFields(this._authConfig);
 		}
 		if (configOrPartial === null) {
 			this._authConfig = undefined;
@@ -72,6 +89,15 @@ export const authMethods = {
 	/** Returns `true` when an auth config is present, `false` otherwise. Does not expose the token. */
 	hasAuth(this: Internals): boolean {
 		return this._authConfig !== undefined;
+	},
+
+	/**
+	 * Returns the raw `AuthConfig` including token fields.
+	 * Internal use only — the fetch pipeline reads auth through this path.
+	 * Never expose on a public interface.
+	 */
+	_rawAuth(this: Internals): AuthConfig | undefined {
+		return this._authConfig;
 	},
 
 	/**
@@ -133,9 +159,10 @@ export const authMethods = {
 
 		// Custom resolvers receive the baseImageUrl as `baseUrl` for artwork
 		// categories so they can apply the same prefix logic or override it.
+		// Token fields are stripped so consumer resolver code cannot read the bearer.
 		const ctxBaseUrl = (isArtworkCategory && imageBase) ? imageBase : (this._baseUrl ?? this.options?.baseUrl);
 		const ctx: UrlResolverContext = {
-			auth,
+			auth: auth ? redactTokenFields(auth) : undefined,
 			baseUrl: ctxBaseUrl,
 			category: resolvedCategory,
 			defaultResolve,

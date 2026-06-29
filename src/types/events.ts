@@ -179,6 +179,7 @@ export interface BaseEventMap<I extends BasePlaylistItem = BasePlaylistItem> {
 	'mute': { muted: boolean };
 	'repeat': { state: RepeatState };
 	'shuffle': { state: ShuffleState };
+	'playbackRate': { rate: number };
 
 	// ── Error severity tiers ──────────────────────────────────────────────────
 	// `fatal` = unrecoverable, player is shutting down.

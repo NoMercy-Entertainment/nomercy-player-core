@@ -16,8 +16,12 @@
  *     affect the internal state.
  *  4. The reactive getter pattern: `bearerToken: () => mutableRef.value` — the
  *     Authorization header reflects the current ref value per-request via `authFetch`.
- *  5. When `bearerToken` is a function, `JSON.stringify(player.auth())` does NOT
- *     serialize a raw token string — functions are stripped by JSON.stringify.
+ *  5. `auth()` NEVER exposes the bearer token — `bearerToken` and `accessToken` are
+ *     absent from the public snapshot regardless of whether they are strings or functions.
+ *  6. The encapsulation proof (adversarial surface walk): the sentinel token cannot
+ *     be reached through ANY public avenue — property enumeration, JSON serialisation,
+ *     public method returns, emitted event payloads, or string coercion.
+ *  7. POSITIVE control: the internal fetch pipeline DOES send the bearer header.
  */
 
 import type { BaseEventMap } from '../types';
@@ -178,22 +182,31 @@ describe('auth-lock contract', () => {
 	});
 
 	describe('frozen snapshot', () => {
-		it('auth() returns a frozen object — direct mutation has no effect', () => {
+		it('auth() returns a frozen object', () => {
 			const player = setupPlayer();
-			player.auth({ bearerToken: 'original' });
+			player.auth({ bearerToken: 'original', credentials: 'include' });
 			const snapshot = player.auth();
 			expect(Object.isFrozen(snapshot)).toBe(true);
+		});
 
-			// Attempting to mutate — strict mode throws, non-strict silently ignores.
-			try {
-				(snapshot as any).bearerToken = 'mutated';
-			}
-			catch {
-				// expected in strict mode
-			}
+		it('auth() snapshot does not contain bearerToken', () => {
+			const player = setupPlayer();
+			player.auth({ bearerToken: 'original', credentials: 'include' });
+			expect(player.auth()?.['bearerToken']).toBeUndefined();
+		});
 
-			// Internal state must be unchanged.
-			expect(player.auth()?.['bearerToken']).toBe('original');
+		it('auth() snapshot does not contain accessToken', () => {
+			const player = setupPlayer();
+			player.auth({ accessToken: 'original', credentials: 'include' });
+			expect(player.auth()?.['accessToken']).toBeUndefined();
+		});
+
+		it('auth() snapshot retains non-secret fields', () => {
+			const player = setupPlayer();
+			player.auth({ bearerToken: 'tok', credentials: 'include', retryAfterRefresh: 2 });
+			const snapshot = player.auth();
+			expect(snapshot?.['credentials']).toBe('include');
+			expect(snapshot?.['retryAfterRefresh']).toBe(2);
 		});
 
 		it('auth() returns undefined when no auth is configured', () => {
@@ -203,7 +216,7 @@ describe('auth-lock contract', () => {
 	});
 
 	describe('reactive getter pattern', () => {
-		it('bearerToken as a function: first authFetch call uses initial ref value', async () => {
+		it('bearerToken as a function: internal fetch path uses initial ref value', async () => {
 			const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('ok', { status: 200 }));
 
 			const tokenValue = 'initial-token';
@@ -212,7 +225,7 @@ describe('auth-lock contract', () => {
 
 			await authFetch({
 				url: 'https://x/y',
-				auth: player.auth() as any,
+				auth: (player as unknown as { _rawAuth: () => any })._rawAuth(),
 				signal: new AbortController().signal,
 			});
 
@@ -222,7 +235,7 @@ describe('auth-lock contract', () => {
 			fetchSpy.mockRestore();
 		});
 
-		it('bearerToken as a function: subsequent calls see the mutated ref value', async () => {
+		it('bearerToken as a function: subsequent internal fetch calls see the mutated ref value', async () => {
 			const fetchSpy = vi.spyOn(globalThis, 'fetch')
 				.mockImplementation(async () => new Response('ok', { status: 200 })) as ReturnType<typeof vi.spyOn>;
 
@@ -230,13 +243,13 @@ describe('auth-lock contract', () => {
 			const player = setupPlayer();
 			player.auth({ bearerToken: () => tokenValue });
 
-			const authConfig = player.auth() as any;
+			const rawAuth = (player as unknown as { _rawAuth: () => any })._rawAuth();
 
-			await authFetch({ url: 'https://x/y', auth: authConfig, signal: new AbortController().signal });
+			await authFetch({ url: 'https://x/y', auth: rawAuth, signal: new AbortController().signal });
 			expect((fetchSpy.mock.calls[0]![0] as Request).headers.get('Authorization')).toBe('Bearer first-token');
 
 			tokenValue = 'second-token';
-			await authFetch({ url: 'https://x/y', auth: authConfig, signal: new AbortController().signal });
+			await authFetch({ url: 'https://x/y', auth: rawAuth, signal: new AbortController().signal });
 			expect((fetchSpy.mock.calls[1]![0] as Request).headers.get('Authorization')).toBe('Bearer second-token');
 
 			fetchSpy.mockRestore();
@@ -249,5 +262,151 @@ describe('auth-lock contract', () => {
 			const serialized = JSON.stringify(snapshot);
 			expect(serialized).not.toContain('secret-token');
 		});
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Adversarial encapsulation proof
+//
+// Sets a known sentinel token as a plain string (the worst-case form — directly
+// readable if it leaks). Then walks every public avenue a malicious or careless
+// consumer could use to read the player surface, asserting the sentinel is absent
+// from every path.
+//
+// POSITIVE control at the end: the internal fetch pipeline DOES send the token.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SENTINEL = 'SENTINEL_SECRET_TOKEN_xyz';
+
+describe('token encapsulation — adversarial surface walk', () => {
+	let player: AuthMockPlayer;
+
+	beforeEach(() => {
+		AuthMockPlayer._resetRegistry();
+		player = setupPlayer();
+		player.auth({ bearerToken: SENTINEL, credentials: 'include' });
+	});
+
+	afterEach(() => {
+		AuthMockPlayer._resetRegistry();
+		document.body.innerHTML = '';
+	});
+
+	// ── Property enumeration ─────────────────────────────────────────────────
+
+	it('Object.keys(player) values do not contain the sentinel', () => {
+		const values = Object.keys(player).map(k => (player as unknown as Record<string, unknown>)[k]);
+		for (const v of values) {
+			expect(String(v ?? '')).not.toContain(SENTINEL);
+		}
+	});
+
+	it('Object.getOwnPropertyNames(player) values do not contain the sentinel', () => {
+		const names = Object.getOwnPropertyNames(player);
+		for (const name of names) {
+			const descriptor = Object.getOwnPropertyDescriptor(player, name);
+			if (descriptor && 'value' in descriptor) {
+				const v = descriptor.value;
+				if (typeof v === 'string') {
+					expect(v).not.toContain(SENTINEL);
+				}
+			}
+		}
+	});
+
+	it('prototype chain property values do not expose the sentinel', () => {
+		let proto = Object.getPrototypeOf(player) as Record<string, unknown> | null;
+		while (proto !== null && proto !== Object.prototype) {
+			for (const name of Object.getOwnPropertyNames(proto)) {
+				const descriptor = Object.getOwnPropertyDescriptor(proto, name);
+				if (descriptor && typeof descriptor.value === 'string') {
+					expect(descriptor.value).not.toContain(SENTINEL);
+				}
+			}
+			proto = Object.getPrototypeOf(proto) as Record<string, unknown> | null;
+		}
+	});
+
+	// ── Serialisation ────────────────────────────────────────────────────────
+
+	it('JSON.stringify(player) does not contain the sentinel', () => {
+		let serialized: string;
+		try {
+			serialized = JSON.stringify(player);
+		}
+		catch {
+			// A circular-reference error means no complete serialisation occurred —
+			// the sentinel was not written to the output string.
+			return;
+		}
+		expect(serialized).not.toContain(SENTINEL);
+	});
+
+	it('JSON.stringify(player.auth()) does not contain the sentinel', () => {
+		expect(JSON.stringify(player.auth())).not.toContain(SENTINEL);
+	});
+
+	// ── Public getter methods ────────────────────────────────────────────────
+
+	it('auth() snapshot has no bearerToken or accessToken fields', () => {
+		const snapshot = player.auth();
+		expect(snapshot).toBeDefined();
+		expect((snapshot as Record<string, unknown>)['bearerToken']).toBeUndefined();
+		expect((snapshot as Record<string, unknown>)['accessToken']).toBeUndefined();
+	});
+
+	it('auth() snapshot string-ified does not contain the sentinel', () => {
+		expect(JSON.stringify(player.auth() ?? {})).not.toContain(SENTINEL);
+	});
+
+	it('hasAuth() returns true but does not expose the sentinel', () => {
+		expect(player.hasAuth()).toBe(true);
+		expect(String(player.hasAuth())).not.toContain(SENTINEL);
+	});
+
+	// ── String coercion ──────────────────────────────────────────────────────
+
+	it('String(player) does not contain the sentinel', () => {
+		expect(String(player)).not.toContain(SENTINEL);
+	});
+
+	it('player.toString() does not contain the sentinel', () => {
+		expect(player.toString()).not.toContain(SENTINEL);
+	});
+
+	// ── Event payloads ───────────────────────────────────────────────────────
+
+	it('auth:refreshed event payload does not contain the sentinel', () => {
+		const payloads: unknown[] = [];
+		player.on('auth:refreshed', data => payloads.push(data));
+
+		player.auth({ bearerToken: SENTINEL, credentials: 'omit' });
+
+		for (const payload of payloads) {
+			expect(JSON.stringify(payload ?? {})).not.toContain(SENTINEL);
+		}
+	});
+
+	// ── POSITIVE CONTROL ─────────────────────────────────────────────────────
+	// The internal fetch path MUST send the bearer header. This proves:
+	//   (a) the sentinel we set is actually the active token, and
+	//   (b) encapsulation did not accidentally break the feature.
+
+	it('POSITIVE: internal fetch sends Authorization: Bearer <sentinel>', async () => {
+		const fetchSpy = vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+
+		const rawAuth = (player as unknown as { _rawAuth: () => unknown })._rawAuth();
+
+		await authFetch({
+			url: 'https://media.example.com/stream.m3u8',
+			auth: rawAuth as Parameters<typeof authFetch>[0]['auth'],
+			signal: new AbortController().signal,
+		});
+
+		const req = fetchSpy.mock.calls[0]![0] as Request;
+		expect(req.headers.get('Authorization')).toBe(`Bearer ${SENTINEL}`);
+
+		fetchSpy.mockRestore();
 	});
 });

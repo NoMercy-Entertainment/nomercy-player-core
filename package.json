@@ -1,7 +1,7 @@
 {
 	"name": "@nomercy-entertainment/nomercy-player-core",
 	"type": "module",
-	"version": "2.0.0-rc.13",
+	"version": "2.0.0-rc.14",
 	"description": "NoMercy player core — shared spine for nomercy-music-player and nomercy-video-player. Plugin runtime, event system, lifecycle helpers, streams, cues, errors, auth.",
 	"author": {
 		"name": "NoMercy Entertainment",
