@@ -205,6 +205,12 @@ describe('VisualizationPlugin', () => {
 				deltaMs: 0,
 				energy: 0.42,
 				bandEnergies: { bass: 0.5, mid: 0.3, treble: 0.1 },
+				frequencyFloat: new Float32Array([-60, -40, -30, -20]),
+				waveformFloat: new Float32Array([0, 0.5, -0.5, 0]),
+				sampleRate: 44100,
+				binHz: 44100 / 2048,
+				peakHz: 3 * (44100 / 2048),
+				peakBandEnergies: { bass: 0.5, mid: 0.3, treble: 0.1 },
 			};
 
 			// Plant a synthetic spectrum stub + latest-frame and a mock player
@@ -247,6 +253,12 @@ describe('VisualizationPlugin', () => {
 				deltaMs: 0,
 				energy: 0,
 				bandEnergies: { bass: 0, mid: 0, treble: 0 },
+				frequencyFloat: new Float32Array(0),
+				waveformFloat: new Float32Array(0),
+				sampleRate: 44100,
+				binHz: 44100 / 2048,
+				peakHz: 0,
+				peakBandEnergies: { bass: 0, mid: 0, treble: 0 },
 			};
 			(inst as any).player = { emit: () => {} } as any;
 			(inst as any)._spectrumPlugin = { currentFrame: () => fakeFrame } as any;

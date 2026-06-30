@@ -38,11 +38,25 @@ import { SpectrumPlugin } from '../../plugins/spectrum';
 
 // ─── Analyser stub ─────────────────────────────────────────────────────────────
 
+/**
+ * The float frequency buffer uses a known peak at bin 10 (-20 dB) so the
+ * peakHz tests can assert a deterministic value without real FFT math.
+ */
+const PEAK_BIN = 10;
+const PEAK_DB = -20;
+
 function makeAnalyserStub(fftSize: number = 2048): AnalyserNode {
 	let _fftSize = fftSize;
 	let _smoothing = 0.8;
 	const freqData = new Uint8Array(fftSize / 2).fill(128);
 	const waveData = new Uint8Array(fftSize).fill(128);
+
+	// Float freq: all -100 dB except bin PEAK_BIN which is PEAK_DB.
+	const freqFloatData = new Float32Array(fftSize / 2).fill(-100);
+	freqFloatData[PEAK_BIN] = PEAK_DB;
+
+	// Float wave: sawtooth for identity checking.
+	const waveFloatData = new Float32Array(fftSize).fill(0.5);
 
 	return {
 		get fftSize() { return _fftSize; },
@@ -52,6 +66,9 @@ function makeAnalyserStub(fftSize: number = 2048): AnalyserNode {
 		set smoothingTimeConstant(v: number) { _smoothing = v; },
 		getByteFrequencyData: vi.fn((buf: Uint8Array) => { buf.set(freqData.slice(0, buf.length)); }),
 		getByteTimeDomainData: vi.fn((buf: Uint8Array) => { buf.set(waveData.slice(0, buf.length)); }),
+		getFloatFrequencyData: vi.fn((buf: Float32Array) => { buf.set(freqFloatData.slice(0, buf.length)); }),
+		getFloatTimeDomainData: vi.fn((buf: Float32Array) => { buf.set(waveFloatData.slice(0, buf.length)); }),
+		connect: vi.fn(),
 	} as unknown as AnalyserNode;
 }
 
@@ -62,7 +79,7 @@ function makePlayerStub(): EventEmitter<BaseEventMap> {
 // ─── Wire helper ──────────────────────────────────────────────────────────────
 
 function wirePlugin(
-	opts: { fftSize?: number; smoothingTimeConstant?: number } = {},
+	opts: { fftSize?: number; smoothingTimeConstant?: number; stereo?: boolean } = {},
 	analyser?: AnalyserNode,
 ): { plugin: SpectrumPlugin; player: EventEmitter<BaseEventMap>; analyserNode: AnalyserNode; tickFn: (deltaMs: number, time: number) => void } {
 	const player = makePlayerStub();
@@ -272,6 +289,12 @@ describe('SpectrumPlugin — deep behavioral coverage', () => {
 				deltaMs: 16,
 				energy: 0.5,
 				bandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
+				frequencyFloat: new Float32Array(1024),
+				waveformFloat: new Float32Array(2048),
+				sampleRate: 44100,
+				binHz: 44100 / 2048,
+				peakHz: 0,
+				peakBandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
 			};
 
 			plugin.syntheticMode(true);
@@ -290,6 +313,12 @@ describe('SpectrumPlugin — deep behavioral coverage', () => {
 				deltaMs: 16,
 				energy: 0.5,
 				bandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
+				frequencyFloat: new Float32Array(1024),
+				waveformFloat: new Float32Array(2048),
+				sampleRate: 44100,
+				binHz: 44100 / 2048,
+				peakHz: 0,
+				peakBandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
 			};
 
 			plugin.pushFrame(frame);
@@ -306,6 +335,12 @@ describe('SpectrumPlugin — deep behavioral coverage', () => {
 				deltaMs: 16,
 				energy: 0.5,
 				bandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
+				frequencyFloat: new Float32Array(1024),
+				waveformFloat: new Float32Array(2048),
+				sampleRate: 44100,
+				binHz: 44100 / 2048,
+				peakHz: 0,
+				peakBandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
 			};
 
 			plugin.syntheticMode(true);
@@ -360,6 +395,170 @@ describe('SpectrumPlugin — deep behavioral coverage', () => {
 			plugin.syntheticMode(true);
 			plugin.dispose();
 			expect((plugin as unknown as { _syntheticMode: boolean })._syntheticMode).toBe(false);
+		});
+
+		it('resets peak-hold values to 0', () => {
+			const { plugin, tickFn } = wirePlugin();
+			tickFn(16, 1);
+			plugin.dispose();
+			expect((plugin as unknown as { _peakBass: number })._peakBass).toBe(0);
+			expect((plugin as unknown as { _peakMid: number })._peakMid).toBe(0);
+			expect((plugin as unknown as { _peakTreble: number })._peakTreble).toBe(0);
+		});
+	});
+
+	// ── Float FFT + waveform ──────────────────────────────────────────────────
+
+	describe('frequencyFloat / waveformFloat', () => {
+		it('frame includes frequencyFloat as Float32Array', () => {
+			const { player, tickFn } = wirePlugin();
+
+			const frames: Array<{ frame: VisualizationFrame }> = [];
+			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+				'plugin:spectrum:frame',
+				(data: unknown) => { frames.push(data as { frame: VisualizationFrame }); },
+			);
+
+			tickFn(16, 1);
+
+			expect(frames[0]!.frame.frequencyFloat).toBeInstanceOf(Float32Array);
+			expect(frames[0]!.frame.frequencyFloat.length).toBeGreaterThan(0);
+		});
+
+		it('frame includes waveformFloat as Float32Array', () => {
+			const { player, tickFn } = wirePlugin();
+
+			const frames: Array<{ frame: VisualizationFrame }> = [];
+			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+				'plugin:spectrum:frame',
+				(data: unknown) => { frames.push(data as { frame: VisualizationFrame }); },
+			);
+
+			tickFn(16, 1);
+
+			expect(frames[0]!.frame.waveformFloat).toBeInstanceOf(Float32Array);
+			expect(frames[0]!.frame.waveformFloat.length).toBeGreaterThan(0);
+		});
+
+		it('getFloatFrequencyData and getFloatTimeDomainData are called each tick', () => {
+			const { analyserNode, tickFn } = wirePlugin();
+			tickFn(16, 1);
+			expect((analyserNode as unknown as { getFloatFrequencyData: ReturnType<typeof vi.fn> }).getFloatFrequencyData).toHaveBeenCalledOnce();
+			expect((analyserNode as unknown as { getFloatTimeDomainData: ReturnType<typeof vi.fn> }).getFloatTimeDomainData).toHaveBeenCalledOnce();
+		});
+	});
+
+	// ── sampleRate + binHz ────────────────────────────────────────────────────
+
+	describe('sampleRate / binHz', () => {
+		it('frame.sampleRate equals the AudioContext sampleRate (44100)', () => {
+			const { player, tickFn } = wirePlugin();
+			const frames: Array<{ frame: VisualizationFrame }> = [];
+			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+				'plugin:spectrum:frame',
+				(data: unknown) => { frames.push(data as { frame: VisualizationFrame }); },
+			);
+			tickFn(16, 1);
+			expect(frames[0]!.frame.sampleRate).toBe(44100);
+		});
+
+		it('frame.binHz equals sampleRate / fftSize', () => {
+			const { player, tickFn } = wirePlugin({ fftSize: 2048 });
+			const frames: Array<{ frame: VisualizationFrame }> = [];
+			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+				'plugin:spectrum:frame',
+				(data: unknown) => { frames.push(data as { frame: VisualizationFrame }); },
+			);
+			tickFn(16, 1);
+			expect(frames[0]!.frame.binHz).toBeCloseTo(44100 / 2048);
+		});
+	});
+
+	// ── peakHz ────────────────────────────────────────────────────────────────
+
+	describe('peakHz', () => {
+		it('equals the loudest float FFT bin × binHz', () => {
+			const { player, tickFn } = wirePlugin({ fftSize: 2048 });
+			const frames: Array<{ frame: VisualizationFrame }> = [];
+			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+				'plugin:spectrum:frame',
+				(data: unknown) => { frames.push(data as { frame: VisualizationFrame }); },
+			);
+			tickFn(16, 1);
+			const binHz = 44100 / 2048;
+			expect(frames[0]!.frame.peakHz).toBeCloseTo(PEAK_BIN * binHz);
+		});
+	});
+
+	// ── peakBandEnergies ──────────────────────────────────────────────────────
+
+	describe('peakBandEnergies', () => {
+		it('frame.peakBandEnergies is always present with bass/mid/treble keys', () => {
+			const { player, tickFn } = wirePlugin();
+			const frames: Array<{ frame: VisualizationFrame }> = [];
+			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+				'plugin:spectrum:frame',
+				(data: unknown) => { frames.push(data as { frame: VisualizationFrame }); },
+			);
+			tickFn(16, 1);
+			const { peakBandEnergies } = frames[0]!.frame;
+			expect(peakBandEnergies).toHaveProperty('bass');
+			expect(peakBandEnergies).toHaveProperty('mid');
+			expect(peakBandEnergies).toHaveProperty('treble');
+		});
+
+		it('peak values are >= instantaneous bandEnergies', () => {
+			const { player, tickFn } = wirePlugin();
+			const frames: Array<{ frame: VisualizationFrame }> = [];
+			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+				'plugin:spectrum:frame',
+				(data: unknown) => { frames.push(data as { frame: VisualizationFrame }); },
+			);
+			tickFn(16, 1);
+			const { bandEnergies, peakBandEnergies } = frames[0]!.frame;
+			expect(peakBandEnergies.bass).toBeGreaterThanOrEqual(bandEnergies.bass);
+			expect(peakBandEnergies.mid).toBeGreaterThanOrEqual(bandEnergies.mid);
+			expect(peakBandEnergies.treble).toBeGreaterThanOrEqual(bandEnergies.treble);
+		});
+
+		it('peak values decay between frames', () => {
+			const { player, tickFn } = wirePlugin();
+
+			const frames: Array<{ frame: VisualizationFrame }> = [];
+			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+				'plugin:spectrum:frame',
+				(data: unknown) => { frames.push(data as { frame: VisualizationFrame }); },
+			);
+
+			// Fill analyser with high energy on frame 1.
+			tickFn(16, 1);
+			const peak1 = frames[0]!.frame.peakBandEnergies.bass;
+
+			// Frame 2 — same analyser data but peak should start decaying.
+			tickFn(16, 2);
+			const peak2 = frames[1]!.frame.peakBandEnergies.bass;
+
+			// Peak may be equal if instantaneous energy matches peak, but must not grow.
+			expect(peak2).toBeLessThanOrEqual(peak1 + 0.001);
+		});
+	});
+
+	// ── stereo fields absent when stereo is off ───────────────────────────────
+
+	describe('stereo fields absent by default', () => {
+		it('frequencyLeft/Right and waveformLeft/Right are undefined in mono mode', () => {
+			const { player, tickFn } = wirePlugin();
+			const frames: Array<{ frame: VisualizationFrame }> = [];
+			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+				'plugin:spectrum:frame',
+				(data: unknown) => { frames.push(data as { frame: VisualizationFrame }); },
+			);
+			tickFn(16, 1);
+			const { frame } = frames[0]!;
+			expect(frame.frequencyLeft).toBeUndefined();
+			expect(frame.frequencyRight).toBeUndefined();
+			expect(frame.waveformLeft).toBeUndefined();
+			expect(frame.waveformRight).toBeUndefined();
 		});
 	});
 });

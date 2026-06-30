@@ -37,6 +37,9 @@ function makeAnalyserStub(initialFftSize: number = 2048): AnalyserNode {
 		set smoothingTimeConstant(v: number) { smoothingTimeConstant = v; },
 		getByteFrequencyData: (buf: Uint8Array) => { buf.fill(0); },
 		getByteTimeDomainData: (buf: Uint8Array) => { buf.fill(128); },
+		getFloatFrequencyData: (buf: Float32Array) => { buf.fill(-100); },
+		getFloatTimeDomainData: (buf: Float32Array) => { buf.fill(0); },
+		connect: () => {},
 	} as unknown as AnalyserNode;
 }
 

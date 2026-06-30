@@ -146,6 +146,12 @@ function buildFakeDeps(spectrumEnabled: boolean = true): {
 		deltaMs: 16,
 		energy: 0.4,
 		bandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
+		frequencyFloat: new Float32Array([-40, -30, -20]),
+		waveformFloat: new Float32Array([0, 0.5, -0.5]),
+		sampleRate: 44100,
+		binHz: 44100 / 2048,
+		peakHz: 2 * (44100 / 2048),
+		peakBandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
 	};
 
 	return {

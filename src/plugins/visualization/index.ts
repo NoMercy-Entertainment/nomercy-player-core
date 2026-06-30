@@ -38,6 +38,80 @@ export interface VisualizationFrame {
 	beat?: boolean;
 	/** BPM if a provider (server-side beatdetect or client-side detector) has supplied it. */
 	bpm?: number;
+
+	/**
+	 * FFT magnitudes as true dB values (typically -100..0 dB), full dynamic
+	 * range. Length = `frequencyBinCount`. Always present.
+	 *
+	 * Use when byte precision (0-255) is insufficient — e.g. for frequency
+	 * labels, log-scale axes, or amplitude-accurate peak meters.
+	 */
+	frequencyFloat: Float32Array<ArrayBuffer>;
+
+	/**
+	 * Time-domain audio samples in the range -1..1. Length = `fftSize`. Always present.
+	 *
+	 * Use instead of `waveform` when you need true amplitude (not the byte-scaled
+	 * 0-255 representation).
+	 */
+	waveformFloat: Float32Array<ArrayBuffer>;
+
+	/**
+	 * Sample rate of the `AudioContext` in Hz (e.g. 44100 or 48000). Always present.
+	 *
+	 * Combine with `binHz` to map FFT bin indices to frequencies without reaching
+	 * into the raw `AnalyserNode`.
+	 */
+	sampleRate: number;
+
+	/**
+	 * Frequency width of one FFT bin in Hz. Always present.
+	 *
+	 * `binHz = sampleRate / fftSize`. Multiply by a bin index to get its centre
+	 * frequency in Hz.
+	 */
+	binHz: number;
+
+	/**
+	 * Frequency of the loudest FFT bin this frame, in Hz. Always present.
+	 *
+	 * `peakHz = argmax(frequencyFloat) × binHz`.
+	 */
+	peakHz: number;
+
+	/**
+	 * Per-band peak-hold energies (0..1) with exponential decay. Always present.
+	 *
+	 * Unlike `bandEnergies` (instantaneous RMS), these values rise instantly to
+	 * the frame maximum then decay by a small constant each frame — the classic
+	 * "bouncing peak cap" used by spectrum analysers. Useful for drawing peak
+	 * indicator lines above bars.
+	 */
+	peakBandEnergies: { bass: number; mid: number; treble: number };
+
+	/**
+	 * Left-channel FFT magnitude bytes (0-255). Only present when the plugin was
+	 * configured with `stereo: true`.
+	 */
+	frequencyLeft?: Uint8Array;
+
+	/**
+	 * Right-channel FFT magnitude bytes (0-255). Only present when the plugin was
+	 * configured with `stereo: true`.
+	 */
+	frequencyRight?: Uint8Array;
+
+	/**
+	 * Left-channel time-domain samples (0-255 byte encoding). Only present when
+	 * the plugin was configured with `stereo: true`.
+	 */
+	waveformLeft?: Uint8Array;
+
+	/**
+	 * Right-channel time-domain samples (0-255 byte encoding). Only present when
+	 * the plugin was configured with `stereo: true`.
+	 */
+	waveformRight?: Uint8Array;
 }
 
 /** Options for {@link VisualizationPlugin} subclasses. */

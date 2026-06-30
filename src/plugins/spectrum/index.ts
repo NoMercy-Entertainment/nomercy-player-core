@@ -32,6 +32,16 @@ export interface SpectrumOptions {
 	 * Currently unused — reserved for future pacing control.
 	 */
 	frameRate?: number;
+	/**
+	 * Enable stereo analysis. When `true` the plugin wires a
+	 * `ChannelSplitterNode` feeding two separate `AnalyserNode`s (L and R) from
+	 * the same audio graph source. The frame will include `frequencyLeft`,
+	 * `frequencyRight`, `waveformLeft`, and `waveformRight` Uint8Array fields.
+	 *
+	 * Default `false`. Enabling this allocates two extra AnalyserNodes and four
+	 * extra Uint8Array buffers per frame.
+	 */
+	stereo?: boolean;
 }
 
 /** Events emitted by {@link SpectrumPlugin}. */
@@ -100,9 +110,25 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 	private _analyser: AnalyserNode | null = null;
 	private freqBuffer: Uint8Array<ArrayBuffer> = new Uint8Array(new ArrayBuffer(0));
 	private waveBuffer: Uint8Array<ArrayBuffer> = new Uint8Array(new ArrayBuffer(0));
+	private freqFloatBuffer: Float32Array<ArrayBuffer> = new Float32Array(new ArrayBuffer(0));
+	private waveFloatBuffer: Float32Array<ArrayBuffer> = new Float32Array(new ArrayBuffer(0));
 	private smoothedEnergy: number = 0;
 	private _currentFrame: VisualizationFrame | null = null;
 	private beatProviders: BeatProvider[] = [];
+
+	/** Peak-hold values per band, decayed each frame. */
+	private _peakBass: number = 0;
+	private _peakMid: number = 0;
+	private _peakTreble: number = 0;
+
+	/** Stereo support — null when stereo is disabled (default). */
+	private _splitter: ChannelSplitterNode | null = null;
+	private _analyserLeft: AnalyserNode | null = null;
+	private _analyserRight: AnalyserNode | null = null;
+	private freqBufferLeft: Uint8Array<ArrayBuffer> = new Uint8Array(new ArrayBuffer(0));
+	private freqBufferRight: Uint8Array<ArrayBuffer> = new Uint8Array(new ArrayBuffer(0));
+	private waveBufferLeft: Uint8Array<ArrayBuffer> = new Uint8Array(new ArrayBuffer(0));
+	private waveBufferRight: Uint8Array<ArrayBuffer> = new Uint8Array(new ArrayBuffer(0));
 
 	/**
 	 * When `true`, the AnalyserNode is bypassed. Each RAF tick emits the frame
@@ -139,6 +165,9 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 
 		this.allocateBuffers();
 
+		if (this.opts?.stereo === true)
+			this.wireStereo(analyserNode);
+
 		this.on(SpectrumPlugin, 'opts:changed', (opts) => {
 			if (opts.fftSize !== undefined)
 				this.fftSize(opts.fftSize);
@@ -157,6 +186,20 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		this._syntheticMode = false;
 		this._analyser = null;
 		this.graph = null;
+
+		this._peakBass = 0;
+		this._peakMid = 0;
+		this._peakTreble = 0;
+
+		try {
+			this._splitter?.disconnect();
+			this._analyserLeft?.disconnect();
+			this._analyserRight?.disconnect();
+		}
+		catch { /* swallow */ }
+		this._splitter = null;
+		this._analyserLeft = null;
+		this._analyserRight = null;
 	}
 
 	/**
@@ -362,18 +405,85 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		const analyserNode = this._analyser;
 		if (!analyserNode)
 			return;
-		this.freqBuffer = new Uint8Array(new ArrayBuffer(analyserNode.frequencyBinCount));
-		this.waveBuffer = new Uint8Array(new ArrayBuffer(analyserNode.fftSize));
+
+		const binCount = analyserNode.frequencyBinCount;
+		const fftSize = analyserNode.fftSize;
+
+		this.freqBuffer = new Uint8Array(new ArrayBuffer(binCount));
+		this.waveBuffer = new Uint8Array(new ArrayBuffer(fftSize));
+		this.freqFloatBuffer = new Float32Array(new ArrayBuffer(binCount * 4));
+		this.waveFloatBuffer = new Float32Array(new ArrayBuffer(fftSize * 4));
 	}
 
 	private ensureFreqBuffer(): void {
 		const analyserNode = this._analyser;
 		if (!analyserNode)
 			return;
-		if (this.freqBuffer.length !== analyserNode.frequencyBinCount) {
-			this.freqBuffer = new Uint8Array(new ArrayBuffer(analyserNode.frequencyBinCount));
+
+		const binCount = analyserNode.frequencyBinCount;
+		const fftSize = analyserNode.fftSize;
+
+		if (this.freqBuffer.length !== binCount) {
+			this.freqBuffer = new Uint8Array(new ArrayBuffer(binCount));
+			this.freqFloatBuffer = new Float32Array(new ArrayBuffer(binCount * 4));
+		}
+		if (this.waveBuffer.length !== fftSize) {
+			this.waveBuffer = new Uint8Array(new ArrayBuffer(fftSize));
+			this.waveFloatBuffer = new Float32Array(new ArrayBuffer(fftSize * 4));
 		}
 	}
+
+	/**
+	 * Wires a `ChannelSplitterNode` downstream of the shared mono `AnalyserNode`,
+	 * feeding two dedicated `AnalyserNode`s (left and right channels). Called from
+	 * `use()` only when `stereo: true` is configured.
+	 *
+	 * Topology: `tapSource → monoAnalyser → splitter → analyserL / analyserR`
+	 *
+	 * The `AnalyserNode` is a passthrough `AudioNode` — its signal flows through to
+	 * any connected downstream node — so connecting the splitter to the mono
+	 * analyser's output gives L/R the same pre-volume signal without needing
+	 * direct access to `AudioGraphPlugin`'s private `_analysisSource`.
+	 *
+	 * The mono path (`monoAnalyser → destination`) is unaffected; the splitter is
+	 * a parallel branch.
+	 */
+	private wireStereo(monoAnalyser: AnalyserNode): void {
+		const audioCtx = this.graph?.context();
+		if (!audioCtx)
+			return;
+
+		try {
+			const splitter = audioCtx.createChannelSplitter(2);
+			const analyserLeft = audioCtx.createAnalyser();
+			const analyserRight = audioCtx.createAnalyser();
+
+			analyserLeft.fftSize = monoAnalyser.fftSize;
+			analyserRight.fftSize = monoAnalyser.fftSize;
+			analyserLeft.smoothingTimeConstant = monoAnalyser.smoothingTimeConstant;
+			analyserRight.smoothingTimeConstant = monoAnalyser.smoothingTimeConstant;
+
+			// monoAnalyser is a passthrough — connect its output to the splitter.
+			monoAnalyser.connect(splitter);
+			splitter.connect(analyserLeft, 0);
+			splitter.connect(analyserRight, 1);
+
+			this._splitter = splitter;
+			this._analyserLeft = analyserLeft;
+			this._analyserRight = analyserRight;
+
+			const binCount = analyserLeft.frequencyBinCount;
+			const fftSz = analyserLeft.fftSize;
+			this.freqBufferLeft = new Uint8Array(new ArrayBuffer(binCount));
+			this.freqBufferRight = new Uint8Array(new ArrayBuffer(binCount));
+			this.waveBufferLeft = new Uint8Array(new ArrayBuffer(fftSz));
+			this.waveBufferRight = new Uint8Array(new ArrayBuffer(fftSz));
+		}
+		catch { /* AudioContext not available or stereo wiring failed — degrade to mono silently */ }
+	}
+
+	/** Decay constant applied to peak-hold values each frame (matches testbed PEAK_DECAY). */
+	private static readonly PEAK_DECAY = 0.003;
 
 	private tick(deltaMs: number, time: number): void {
 		const analyserNode = this._analyser;
@@ -381,10 +491,8 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 			return;
 
 		this.ensureFreqBuffer();
-		if (this.waveBuffer.length !== analyserNode.fftSize) {
-			this.waveBuffer = new Uint8Array(new ArrayBuffer(analyserNode.fftSize));
-		}
 
+		// Byte data (0-255) — existing mono path.
 		try {
 			analyserNode.getByteFrequencyData(this.freqBuffer);
 		}
@@ -394,10 +502,42 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		}
 		catch { /* swallow */ }
 
+		// Float data — true dB frequency values and true -1..1 waveform.
+		try {
+			analyserNode.getFloatFrequencyData(this.freqFloatBuffer);
+		}
+		catch { /* swallow */ }
+		try {
+			analyserNode.getFloatTimeDomainData(this.waveFloatBuffer);
+		}
+		catch { /* swallow */ }
+
+		// sampleRate + binHz — reuse the same math as bandEnergy().
+		const ctx = this.graph?.context();
+		const sampleRate = ctx?.sampleRate ?? 44100;
+		const binHz = sampleRate / analyserNode.fftSize;
+
+		// peakHz — bin index of max magnitude in float FFT × binHz.
+		let peakBin = 0;
+		let peakDb = -Infinity;
+		for (let i = 0; i < this.freqFloatBuffer.length; i++) {
+			const db = this.freqFloatBuffer[i] ?? -Infinity;
+			if (db > peakDb) {
+				peakDb = db;
+				peakBin = i;
+			}
+		}
+		const peakHz = peakBin * binHz;
+
 		// Common bands — coarse splits roughly aligned with bass/mid/treble.
 		const bass = this.bandEnergy(20, 250);
 		const mid = this.bandEnergy(250, 4000);
 		const treble = this.bandEnergy(4000, 16000);
+
+		// Peak-hold with exponential decay — rise instantly, decay slowly.
+		this._peakBass = Math.max(bass, this._peakBass - SpectrumPlugin.PEAK_DECAY);
+		this._peakMid = Math.max(mid, this._peakMid - SpectrumPlugin.PEAK_DECAY);
+		this._peakTreble = Math.max(treble, this._peakTreble - SpectrumPlugin.PEAK_DECAY);
 
 		// Smoothed RMS-ish energy (0..1) for trivial kick detection.
 		const instant = (bass + mid + treble) / 3;
@@ -417,6 +557,36 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 			catch { /* swallow */ }
 		}
 
+		// Stereo channel data — only populated when stereo is wired.
+		let frequencyLeft: Uint8Array | undefined;
+		let frequencyRight: Uint8Array | undefined;
+		let waveformLeft: Uint8Array | undefined;
+		let waveformRight: Uint8Array | undefined;
+
+		if (this._analyserLeft && this._analyserRight) {
+			try {
+				this._analyserLeft.getByteFrequencyData(this.freqBufferLeft);
+			}
+			catch { /* swallow */ }
+			try {
+				this._analyserRight.getByteFrequencyData(this.freqBufferRight);
+			}
+			catch { /* swallow */ }
+			try {
+				this._analyserLeft.getByteTimeDomainData(this.waveBufferLeft);
+			}
+			catch { /* swallow */ }
+			try {
+				this._analyserRight.getByteTimeDomainData(this.waveBufferRight);
+			}
+			catch { /* swallow */ }
+
+			frequencyLeft = this.freqBufferLeft;
+			frequencyRight = this.freqBufferRight;
+			waveformLeft = this.waveBufferLeft;
+			waveformRight = this.waveBufferRight;
+		}
+
 		const frameData: VisualizationFrame = {
 			frequency: this.freqBuffer,
 			waveform: this.waveBuffer,
@@ -430,6 +600,20 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 			},
 			beat,
 			bpm,
+			frequencyFloat: this.freqFloatBuffer,
+			waveformFloat: this.waveFloatBuffer,
+			sampleRate,
+			binHz,
+			peakHz,
+			peakBandEnergies: {
+				bass: this._peakBass,
+				mid: this._peakMid,
+				treble: this._peakTreble,
+			},
+			frequencyLeft,
+			frequencyRight,
+			waveformLeft,
+			waveformRight,
 		};
 		this._currentFrame = frameData;
 

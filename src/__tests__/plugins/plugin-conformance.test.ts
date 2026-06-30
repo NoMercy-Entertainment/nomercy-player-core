@@ -749,6 +749,12 @@ describePlugin(SpectrumPlugin, (ctx) => {
 			deltaMs: 0,
 			energy: 0,
 			bandEnergies: { bass: 0, mid: 0, treble: 0 },
+			frequencyFloat: new Float32Array(1024),
+			waveformFloat: new Float32Array(2048),
+			sampleRate: 44100,
+			binHz: 44100 / 2048,
+			peakHz: 0,
+			peakBandEnergies: { bass: 0, mid: 0, treble: 0 },
 		};
 		expect(() => ctx.plugin.pushFrame(frame)).not.toThrow();
 		expect(ctx.plugin.syntheticMode()).toBe(false);
@@ -762,6 +768,12 @@ describePlugin(SpectrumPlugin, (ctx) => {
 			deltaMs: 16,
 			energy: 0.5,
 			bandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
+			frequencyFloat: new Float32Array(1024),
+			waveformFloat: new Float32Array(2048),
+			sampleRate: 44100,
+			binHz: 44100 / 2048,
+			peakHz: 440,
+			peakBandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
 		};
 		ctx.plugin.syntheticMode(true);
 		expect(() => ctx.plugin.pushFrame(frame)).not.toThrow();
