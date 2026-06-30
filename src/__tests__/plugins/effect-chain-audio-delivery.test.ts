@@ -571,85 +571,12 @@ describe('Effect-chain audio delivery — full-stack EQ + mixer + spectrum', () 
 		});
 	});
 
-	// ── Scenario 4: OfflineAudioContext signal-flow proof ─────────────────────
-	// These tests prove signal travels from source through EQ+mixer to destination
-	// by using an OfflineAudioContext render with a known input.
-	// In happy-dom, OfflineAudioContext is not available; skip under that env.
-
-	describe('OfflineAudioContext render — signal reaches destination (real Web Audio)', () => {
-		const skipIfNoOfflineCtx = typeof globalThis.OfflineAudioContext === 'undefined'
-			? it.skip
-			: it;
-
-		skipIfNoOfflineCtx('EQ + mixer chain renders non-zero output for a 440 Hz test tone', async () => {
-			const sampleRate = 44100;
-			const durationSecs = 0.1;
-			const numFrames = Math.floor(sampleRate * durationSecs);
-			const offlineCtx = new OfflineAudioContext(1, numFrames, sampleRate);
-
-			// Build the chain manually: oscillator (source) → preGain → destination.
-			// We don't use the plugin system here — we're verifying the graph topology
-			// that AudioGraphPlugin+EQ+Mixer produces is correct, not the plugin API.
-			const osc = offlineCtx.createOscillator();
-			osc.type = 'sine';
-			osc.frequency.value = 440;
-
-			const preGain = offlineCtx.createGain();
-			preGain.gain.value = 1;
-
-			const mixerGain = offlineCtx.createGain();
-			mixerGain.gain.value = 1;
-
-			const panner = offlineCtx.createStereoPanner();
-			panner.pan.value = 0;
-
-			osc.connect(preGain);
-			preGain.connect(mixerGain);
-			mixerGain.connect(panner);
-			panner.connect(offlineCtx.destination);
-
-			osc.start(0);
-			osc.stop(durationSecs);
-
-			const buffer = await offlineCtx.startRendering();
-			const data = buffer.getChannelData(0);
-
-			let hasSignal = false;
-			for (let i = 0; i < data.length; i++) {
-				if (Math.abs(data[i]!) > 0.001) {
-					hasSignal = true;
-					break;
-				}
-			}
-
-			expect(hasSignal).toBe(true);
-		});
-
-		skipIfNoOfflineCtx('a ZERO-GAIN preGain node in the chain produces silence', async () => {
-			const sampleRate = 44100;
-			const numFrames = Math.floor(sampleRate * 0.1);
-			const offlineCtx = new OfflineAudioContext(1, numFrames, sampleRate);
-
-			const osc = offlineCtx.createOscillator();
-			osc.type = 'sine';
-			osc.frequency.value = 440;
-
-			const silentGain = offlineCtx.createGain();
-			silentGain.gain.value = 0;
-
-			osc.connect(silentGain);
-			silentGain.connect(offlineCtx.destination);
-
-			osc.start(0);
-			osc.stop(0.1);
-
-			const buffer = await offlineCtx.startRendering();
-			const data = buffer.getChannelData(0);
-			const max = Array.from(data).reduce((acc, val) => Math.max(acc, Math.abs(val)), 0);
-
-			expect(max).toBeLessThan(0.001);
-		});
-	});
+	// Note: a real-audio render proof (signal reaches destination through the
+	// EQ + mixer chain) lives in nomercy-music-player's e2e suite
+	// (webaudio-analyser.spec.ts asserts maxValue > 0; equalizer.spec.ts asserts
+	// EQ boost/cut in dB), which runs against a real browser AudioContext where
+	// our plugins actually shape audio. A unit-env OfflineAudioContext render
+	// would only exercise the Web Audio API itself, not our plugin code.
 
 	// ── Scenario 5: chain integrity after plugin removal ──────────────────────
 
