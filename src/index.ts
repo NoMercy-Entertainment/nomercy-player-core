@@ -159,6 +159,13 @@ export type { CueTrackerOptions } from './core/cues/tracker';
 // Shared cancellable-event dispatcher (used by both kit transport mixins and Plugin.dispatchBefore)
 export { runDispatchBefore } from './core/dispatch';
 export type { BeforeDispatchOutcome, DispatchBeforeOpts, DispatchTarget } from './core/dispatch';
+// Generic format / escape / clamp utilities (shared across all player packages)
+export {
+	clampVolume,
+	escapeHtml,
+	formatDuration,
+	formatSeconds,
+} from './core/format';
 // Plugin runtime
 export { Plugin, PluginThrow } from './core/plugin';
 export type {
