@@ -1,0 +1,236 @@
+{
+	"name": "@nomercy-entertainment/nomercy-player-core",
+	"type": "module",
+	"version": "2.0.0-rc.19",
+	"description": "NoMercy player core — shared spine for nomercy-music-player and nomercy-video-player. Plugin runtime, event system, lifecycle helpers, streams, cues, errors, auth.",
+	"author": {
+		"name": "NoMercy Entertainment",
+		"email": "info@nomercy.tv",
+		"url": "https://nomercy.tv"
+	},
+	"contributors": [
+		"Stoney Eagle <45034970+StoneyEagle@users.noreply.github.com>"
+	],
+	"license": "Apache-2.0",
+	"homepage": "https://docs.nomercy.tv/nomercy-player-core/",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/NoMercy-Entertainment/nomercy-player-core.git"
+	},
+	"bugs": {
+		"url": "https://github.com/NoMercy-Entertainment/nomercy-player-core/issues"
+	},
+	"keywords": [
+		"player",
+		"plugin",
+		"hls",
+		"webvtt",
+		"NoMercy"
+	],
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./adapters/clock": {
+			"types": "./dist/adapters/clock/index.d.ts",
+			"import": "./dist/adapters/clock/index.js"
+		},
+		"./adapters/cue-parser": {
+			"types": "./dist/adapters/cue-parser/index.d.ts",
+			"import": "./dist/adapters/cue-parser/index.js"
+		},
+		"./adapters/element-factory": {
+			"types": "./dist/adapters/element-factory/index.d.ts",
+			"import": "./dist/adapters/element-factory/index.js"
+		},
+		"./adapters/event-bus": {
+			"types": "./dist/adapters/event-bus/index.d.ts",
+			"import": "./dist/adapters/event-bus/index.js"
+		},
+		"./adapters/fetch": {
+			"types": "./dist/adapters/fetch/index.d.ts",
+			"import": "./dist/adapters/fetch/index.js"
+		},
+		"./adapters/id-generator": {
+			"types": "./dist/adapters/id-generator/index.d.ts",
+			"import": "./dist/adapters/id-generator/index.js"
+		},
+		"./adapters/language-matcher": {
+			"types": "./dist/adapters/language-matcher/index.d.ts",
+			"import": "./dist/adapters/language-matcher/index.js"
+		},
+		"./adapters/lifecycle-registry": {
+			"types": "./dist/adapters/lifecycle-registry/index.d.ts",
+			"import": "./dist/adapters/lifecycle-registry/index.js"
+		},
+		"./adapters/logger": {
+			"types": "./dist/adapters/logger/index.d.ts",
+			"import": "./dist/adapters/logger/index.js"
+		},
+		"./adapters/media-list": {
+			"types": "./dist/adapters/media-list/index.d.ts",
+			"import": "./dist/adapters/media-list/index.js"
+		},
+		"./adapters/platform": {
+			"types": "./dist/adapters/platform/index.d.ts",
+			"import": "./dist/adapters/platform/index.js"
+		},
+		"./adapters/preload": {
+			"types": "./dist/adapters/preload/index.d.ts",
+			"import": "./dist/adapters/preload/index.js"
+		},
+		"./adapters/realtime": {
+			"types": "./dist/adapters/realtime/index.d.ts",
+			"import": "./dist/adapters/realtime/index.js"
+		},
+		"./adapters/retry-policy": {
+			"types": "./dist/adapters/retry-policy/index.d.ts",
+			"import": "./dist/adapters/retry-policy/index.js"
+		},
+		"./adapters/storage": {
+			"types": "./dist/adapters/storage/index.d.ts",
+			"import": "./dist/adapters/storage/index.js"
+		},
+		"./adapters/stream": {
+			"types": "./dist/adapters/stream/index.d.ts",
+			"import": "./dist/adapters/stream/index.js"
+		},
+		"./adapters/subtitle-renderer": {
+			"types": "./dist/adapters/subtitle-renderer/index.d.ts",
+			"import": "./dist/adapters/subtitle-renderer/index.js"
+		},
+		"./adapters/translator": {
+			"types": "./dist/adapters/translator/index.d.ts",
+			"import": "./dist/adapters/translator/index.js"
+		},
+		"./adapters/url-resolver": {
+			"types": "./dist/adapters/url-resolver/index.d.ts",
+			"import": "./dist/adapters/url-resolver/index.js"
+		},
+		"./plugins/cast-sender": {
+			"types": "./dist/plugins/cast-sender/index.d.ts",
+			"import": "./dist/plugins/cast-sender/index.js"
+		},
+		"./plugins/tab-leader": {
+			"types": "./dist/plugins/tab-leader/index.d.ts",
+			"import": "./dist/plugins/tab-leader/index.js"
+		},
+		"./plugins/key-handler": {
+			"types": "./dist/plugins/key-handler/index.d.ts",
+			"import": "./dist/plugins/key-handler/index.js"
+		},
+		"./plugins/media-session": {
+			"types": "./dist/plugins/media-session/index.d.ts",
+			"import": "./dist/plugins/media-session/index.js"
+		},
+		"./plugins/message": {
+			"types": "./dist/plugins/message/index.d.ts",
+			"import": "./dist/plugins/message/index.js"
+		},
+		"./plugins/embed": {
+			"types": "./dist/plugins/embed/index.d.ts",
+			"import": "./dist/plugins/embed/index.js"
+		},
+		"./plugins/audio-graph": {
+			"types": "./dist/plugins/audio-graph/index.d.ts",
+			"import": "./dist/plugins/audio-graph/index.js"
+		},
+		"./plugins/canvas": {
+			"types": "./dist/plugins/canvas/index.d.ts",
+			"import": "./dist/plugins/canvas/index.js"
+		},
+		"./plugins/mixer": {
+			"types": "./dist/plugins/mixer/index.d.ts",
+			"import": "./dist/plugins/mixer/index.js"
+		},
+		"./plugins/equalizer": {
+			"types": "./dist/plugins/equalizer/index.d.ts",
+			"import": "./dist/plugins/equalizer/index.js"
+		},
+		"./plugins/spectrum": {
+			"types": "./dist/plugins/spectrum/index.d.ts",
+			"import": "./dist/plugins/spectrum/index.js"
+		},
+		"./plugins/visualization": {
+			"types": "./dist/plugins/visualization/index.d.ts",
+			"import": "./dist/plugins/visualization/index.js"
+		},
+		"./streams/native": {
+			"types": "./dist/adapters/stream/native.d.ts",
+			"import": "./dist/adapters/stream/native.js"
+		},
+		"./streams/hls": {
+			"types": "./dist/adapters/stream/hls.d.ts",
+			"import": "./dist/adapters/stream/hls.js"
+		},
+		"./adapters/cue-parser/vtt": {
+			"types": "./dist/adapters/cue-parser/vtt.d.ts",
+			"import": "./dist/adapters/cue-parser/vtt.js"
+		},
+		"./adapters/cue-parser/lrc": {
+			"types": "./dist/adapters/cue-parser/lrc.d.ts",
+			"import": "./dist/adapters/cue-parser/lrc.js"
+		},
+		"./testing": {
+			"types": "./dist/testing/index.d.ts",
+			"import": "./dist/testing/index.js"
+		},
+		"./vite-plugin": {
+			"types": "./dist/vite-plugin.d.ts",
+			"import": "./dist/vite-plugin.js"
+		},
+		"./compat": {
+			"types": "./dist/compat.d.ts",
+			"import": "./dist/compat.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"CHANGELOG.md",
+		"CODE_OF_CONDUCT.md",
+		"CONTRIBUTING.md",
+		"MIGRATION.md",
+		"RELEASING.md",
+		"SECURITY.md",
+		"dist",
+		"scripts"
+	],
+	"engines": {
+		"node": ">=18.0.0"
+	},
+	"publishConfig": {
+		"access": "public",
+		"tag": "rc"
+	},
+	"scripts": {
+		"build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && node scripts/inline-kit-version.mjs && node scripts/resolve-translation-globs.mjs",
+		"dev": "tsc -p tsconfig.build.json --watch",
+		"typecheck": "tsc --noEmit",
+		"lint": "eslint . --max-warnings 0",
+		"lint:fix": "eslint . --fix --max-warnings 0",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"prepublishOnly": "npm run build"
+	},
+	"dependencies": {
+		"hls.js": "^1.6.0"
+	},
+	"devDependencies": {
+		"@antfu/eslint-config": "^9.0.0",
+		"@types/node": "^25.9.0",
+		"@vitest/coverage-v8": "^4.1.9",
+		"@vitest/ui": "^4.1.6",
+		"eslint": "^10.4.0",
+		"happy-dom": "^20.9.0",
+		"tsc-alias": "^1.8.17",
+		"typescript": "^6.0.3",
+		"vite": "^8.0.13",
+		"vite-plugin-dts": "^5.0.0",
+		"vitest": "^4.1.6"
+	}
+}
