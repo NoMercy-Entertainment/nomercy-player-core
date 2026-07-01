@@ -7,10 +7,12 @@
 // -----------------------------------------------------------------------------
 
 import type { ErrorScope } from '../../errors/code';
+import type { BackendState } from './backend-state';
 
 import { appendAuthTokenParam } from '../../core/append-auth-token-param';
 import { BrowserPolicyError } from '../../errors';
 import { HLS_EXT_RE } from '../stream/hls';
+import { BACKEND_STATE } from './backend-state';
 
 export type BackendId = Extract<ErrorScope, { kind: 'backend' }>['id'];
 
@@ -150,8 +152,8 @@ export interface DomBridgeHandler {
 export function attachDomBridgesTo(
 	el: HTMLMediaElement,
 	emit: (event: string, data: unknown) => void,
-	onStateChange: (state: string) => void,
-	getState: () => string,
+	onStateChange: (state: BackendState) => void,
+	getState: () => BackendState,
 ): DomBridgeHandler[] {
 	const handlers: DomBridgeHandler[] = [];
 
@@ -180,24 +182,24 @@ export function attachDomBridgesTo(
 	// State-mutation handlers tracked in the same array so detach/dispose
 	// always removes them — no separate cleanup path.
 	track('loadstart', () => {
-		onStateChange('loading');
+		onStateChange(BACKEND_STATE.LOADING);
 	});
 	track('loadedmetadata', () => {
-		onStateChange('ready');
+		onStateChange(BACKEND_STATE.READY);
 	});
 	track('play', () => {
-		onStateChange('playing');
+		onStateChange(BACKEND_STATE.PLAYING);
 	});
 	track('pause', () => {
-		if (getState() !== 'idle' && getState() !== 'error') {
-			onStateChange('paused');
+		if (getState() !== BACKEND_STATE.IDLE && getState() !== BACKEND_STATE.ERROR) {
+			onStateChange(BACKEND_STATE.PAUSED);
 		}
 	});
 	track('ended', () => {
-		onStateChange('paused');
+		onStateChange(BACKEND_STATE.PAUSED);
 	});
 	track('error', () => {
-		onStateChange('error');
+		onStateChange(BACKEND_STATE.ERROR);
 	});
 
 	return handlers;

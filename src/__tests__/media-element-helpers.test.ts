@@ -85,9 +85,9 @@ describe('supportsNativeHls', () => {
 		}
 	});
 
-	function elementReporting(answer: string): HTMLMediaElement {
+	function elementReporting(answer: CanPlayTypeResult): HTMLMediaElement {
 		const el = document.createElement('audio');
-		el.canPlayType = (): CanPlayTypeResult => answer as CanPlayTypeResult;
+		el.canPlayType = (): CanPlayTypeResult => answer;
 		return el;
 	}
 

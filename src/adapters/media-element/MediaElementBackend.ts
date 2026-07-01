@@ -6,7 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type { BackendLoaderState } from './backend-state';
+import type { BackendLoaderState, BackendState } from './backend-state';
 import type { BackendId, DomBridgeHandler, HlsHandle } from './helpers';
 
 import { perceptualGain } from '../../core/volume-curve';
@@ -134,8 +134,8 @@ export abstract class MediaElementBackend<
 	 *   state.
 	 */
 	protected attachDomBridges(
-		onStateChange: (state: string) => void,
-		getState: () => string,
+		onStateChange: (state: BackendState) => void,
+		getState: () => BackendState,
 	): void {
 		this.domHandlers = attachDomBridgesTo(
 			this.element,
