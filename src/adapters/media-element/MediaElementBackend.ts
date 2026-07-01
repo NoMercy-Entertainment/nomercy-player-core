@@ -6,6 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
+import type { BackendLoaderState } from './backend-state';
 import type { BackendId, DomBridgeHandler, HlsHandle } from './helpers';
 
 import { perceptualGain } from '../../core/volume-curve';
@@ -40,9 +41,6 @@ export interface MinimalBackendEventPayload {
 	encrypted: unknown;
 	error: unknown;
 }
-
-/** Loader state literals — mirrors the per-package `BackendLoaderState` types. */
-export type BaseLoaderState = 'running' | 'paused';
 
 /** Provider function shape stored on every backend for auth-header resolution. */
 export type AuthHeaderProvider = () =>
@@ -94,7 +92,7 @@ export abstract class MediaElementBackend<
 
 	protected domHandlers: DomBridgeHandler[] = [];
 	protected hlsInstance: HlsHandle | undefined;
-	protected loaderRunning: BaseLoaderState = 'running';
+	protected loaderRunning: BackendLoaderState = 'running';
 	protected disposed: boolean = false;
 
 	protected _authHeaderProvider: AuthHeaderProvider | undefined;
@@ -280,7 +278,7 @@ export abstract class MediaElementBackend<
 		this.loaderRunning = 'running';
 	}
 
-	loaderState(): BaseLoaderState {
+	loaderState(): BackendLoaderState {
 		return this.loaderRunning;
 	}
 

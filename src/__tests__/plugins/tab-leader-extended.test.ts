@@ -11,7 +11,6 @@
  *  - requestLock() — returns existing pending promise when already pending
  *  - requestLock() — emits 'unsupported' when locks API is absent
  *  - requestLock() — calls navigator.locks.request and sets _isLeader
- *  - requestLeadership() — backward-compat alias
  *  - releaseLock() — leader-released emit + mute action
  *  - releaseLock() — no-op when not leader and no _release
  *  - getLockKey() — default key
@@ -214,22 +213,6 @@ describe('TabLeaderPlugin extended', () => {
 		});
 	});
 
-	describe('requestLeadership()', () => {
-		it('resolves to a boolean (isLeader state after lock attempt)', async () => {
-			const lockRequest = vi.fn((_key: string, cb: (lock: unknown) => Promise<void>) => {
-				void cb({});
-				return Promise.resolve();
-			});
-			stubLocks({ request: lockRequest });
-			const p = makePlayer('tl-6');
-			const plugin = makePlugin(p);
-
-			const result = await plugin.requestLeadership();
-
-			expect(typeof result).toBe('boolean');
-		});
-	});
-
 	describe('releaseLock()', () => {
 		it('is a no-op when not leader and no _release', () => {
 			removeLocks();
@@ -293,17 +276,6 @@ describe('TabLeaderPlugin extended', () => {
 			(plugin as any)._release = (): void => { throw new Error('oops'); };
 
 			expect(() => plugin.releaseLock()).not.toThrow();
-		});
-	});
-
-	describe('releaseLeadership()', () => {
-		it('is a backward-compat alias for releaseLock()', () => {
-			removeLocks();
-			const p = makePlayer('tl-12');
-			const plugin = makePlugin(p);
-			const releaseSpy = vi.spyOn(plugin, 'releaseLock');
-			plugin.releaseLeadership();
-			expect(releaseSpy).toHaveBeenCalled();
 		});
 	});
 

@@ -187,14 +187,6 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	}
 
 	/**
-	 * Backwards-compatible alias. Returns `true` when leadership is held after
-	 * the attempt resolves, `false` otherwise.
-	 */
-	requestLeadership(): Promise<boolean> {
-		return this.requestLock().then(() => this._isLeader);
-	}
-
-	/**
 	 * Voluntarily release the leader lock. Any tab waiting in the queue will
 	 * receive the lock next.
 	 *
@@ -229,11 +221,6 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 				void this.player.pause?.();
 			}
 		}
-	}
-
-	/** Backwards-compatible alias for `releaseLock()`. */
-	releaseLeadership(): void {
-		this.releaseLock();
 	}
 
 	/**

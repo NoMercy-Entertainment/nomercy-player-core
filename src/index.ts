@@ -70,11 +70,16 @@ export type {
 	HlsHandle,
 	HlsLoaderConfig,
 } from './adapters/media-element';
-export { MediaElementBackend } from './adapters/media-element';
+export {
+	BACKEND_LOADER_STATE,
+	BACKEND_STATE,
+	MediaElementBackend,
+} from './adapters/media-element';
 
 export type {
 	AuthHeaderProvider,
-	BaseLoaderState,
+	BackendLoaderState,
+	BackendState,
 	MinimalBackendEventPayload,
 } from './adapters/media-element';
 // Media list (cursor-aware list — both libs' queue surface delegates here)

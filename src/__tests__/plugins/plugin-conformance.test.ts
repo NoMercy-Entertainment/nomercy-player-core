@@ -834,16 +834,8 @@ describePlugin(TabLeaderPlugin, (ctx) => {
 		expect(() => ctx.plugin.releaseLock()).not.toThrow();
 	});
 
-	it('releaseLeadership() alias is safe', () => {
-		expect(() => ctx.plugin.releaseLeadership()).not.toThrow();
-	});
-
 	it('requestLock() resolves immediately in jsdom', async () => {
 		await expect(ctx.plugin.requestLock()).resolves.toBeUndefined();
-	});
-
-	it('requestLeadership() resolves false in jsdom', async () => {
-		await expect(ctx.plugin.requestLeadership()).resolves.toBe(false);
 	});
 
 	it('dispose() calls releaseLock without throwing', () => {

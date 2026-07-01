@@ -7,6 +7,16 @@
 // -----------------------------------------------------------------------------
 
 export {
+	BACKEND_LOADER_STATE,
+	BACKEND_STATE,
+} from './backend-state';
+
+export type {
+	BackendLoaderState,
+	BackendState,
+} from './backend-state';
+
+export {
 	attachDomBridgesTo,
 	attachHlsOrFallback,
 	captureStreamFromElement,
@@ -35,6 +45,5 @@ export { MediaElementBackend } from './MediaElementBackend';
 
 export type {
 	AuthHeaderProvider,
-	BaseLoaderState,
 	MinimalBackendEventPayload,
 } from './MediaElementBackend';
