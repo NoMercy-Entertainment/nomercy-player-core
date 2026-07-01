@@ -103,37 +103,37 @@ describe('Plugin translation chain registration', () => {
 	});
 
 	it('registers BOTH base and child translations when only the child is added', async () => {
-		const p = makePlayer('chain1').setup({});
-		await p.ready();
-		p.addPlugin(ChildPlugin);
+		const mockPlayer = makePlayer('chain1').setup({});
+		await mockPlayer.ready();
+		mockPlayer.addPlugin(ChildPlugin);
 
 		// Base-only key — would be missing if child shadowed the parent.
-		expect(p.t('plugin.chain-test.base-only')).toBe('BASE-EN');
+		expect(mockPlayer.t('plugin.chain-test.base-only')).toBe('BASE-EN');
 		// Child-only key.
-		expect(p.t('plugin.chain-test.child-only')).toBe('CHILD-EN');
+		expect(mockPlayer.t('plugin.chain-test.child-only')).toBe('CHILD-EN');
 		// Shared key — child wins on collision (registered last in chain order).
-		expect(p.t('plugin.chain-test.shared')).toBe('CHILD-shared-EN');
+		expect(mockPlayer.t('plugin.chain-test.shared')).toBe('CHILD-shared-EN');
 	});
 
 	it('registers Dutch keys from both ancestors', async () => {
-		const p = makePlayer('chain2').setup({});
-		await p.ready();
-		p.addPlugin(ChildPlugin);
-		await p.language('nl');
-		expect(p.t('plugin.chain-test.base-only')).toBe('BASIS-NL');
-		expect(p.t('plugin.chain-test.child-only')).toBe('KIND-NL');
-		expect(p.t('plugin.chain-test.shared')).toBe('KIND-shared-NL');
+		const mockPlayer = makePlayer('chain2').setup({});
+		await mockPlayer.ready();
+		mockPlayer.addPlugin(ChildPlugin);
+		await mockPlayer.language('nl');
+		expect(mockPlayer.t('plugin.chain-test.base-only')).toBe('BASIS-NL');
+		expect(mockPlayer.t('plugin.chain-test.child-only')).toBe('KIND-NL');
+		expect(mockPlayer.t('plugin.chain-test.shared')).toBe('KIND-shared-NL');
 	});
 
 	it('removing the plugin clears every key under its id', async () => {
-		const p = makePlayer('chain3').setup({});
-		await p.ready();
-		p.addPlugin(ChildPlugin);
-		p.removePlugin(ChildPlugin);
+		const mockPlayer = makePlayer('chain3').setup({});
+		await mockPlayer.ready();
+		mockPlayer.addPlugin(ChildPlugin);
+		mockPlayer.removePlugin(ChildPlugin);
 		// Removal walks the `plugin.<id>.` prefix so both parent + child
 		// keys are gone in one pass.
-		expect(p.t('plugin.chain-test.base-only')).toBe('plugin.chain-test.base-only');
-		expect(p.t('plugin.chain-test.child-only')).toBe('plugin.chain-test.child-only');
+		expect(mockPlayer.t('plugin.chain-test.base-only')).toBe('plugin.chain-test.base-only');
+		expect(mockPlayer.t('plugin.chain-test.child-only')).toBe('plugin.chain-test.child-only');
 	});
 
 	it('a plain (no-ancestor-translations) plugin still works', async () => {
@@ -144,10 +144,10 @@ describe('Plugin translation chain registration', () => {
 				en: { 'plugin.loner.x': 'X' },
 			};
 		}
-		const p = makePlayer('loner').setup({});
-		await p.ready();
-		p.addPlugin(Loner);
-		expect(p.t('plugin.loner.x')).toBe('X');
+		const mockPlayer = makePlayer('loner').setup({});
+		await mockPlayer.ready();
+		mockPlayer.addPlugin(Loner);
+		expect(mockPlayer.t('plugin.loner.x')).toBe('X');
 	});
 });
 
@@ -167,15 +167,15 @@ describe('Plugin lazy translation chain', () => {
 	});
 
 	/** addPlugin is fire-and-forget; wait for the install event before asserting. */
-	const waitForInstall = (p: MockPlayer, id: string): Promise<void> => new Promise<void>((resolve) => {
+	const waitForInstall = (mockPlayer: MockPlayer, id: string): Promise<void> => new Promise<void>((resolve) => {
 		const handler = (data: unknown): void => {
 			const payload = data as { id: string };
 			if (payload.id !== id)
 				return;
-			p.off('plugin:installed', handler);
+			mockPlayer.off('plugin:installed', handler);
 			resolve();
 		};
-		p.on('plugin:installed', handler);
+		mockPlayer.on('plugin:installed', handler);
 	});
 
 	it('loads ONLY the active language at addPlugin time — Chinese stays untouched', async () => {
@@ -195,14 +195,14 @@ describe('Plugin lazy translation chain', () => {
 			static override readonly translations: Translations = lazy;
 		}
 
-		const p = makePlayer('lazy1').setup({});
-		await p.ready();
-		await p.language('nl');
-		const installed = waitForInstall(p, 'lazy');
-		p.addPlugin(LazyPlugin);
+		const mockPlayer = makePlayer('lazy1').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.language('nl');
+		const installed = waitForInstall(mockPlayer, 'lazy');
+		mockPlayer.addPlugin(LazyPlugin);
 		await installed;
 
-		expect(p.t('plugin.lazy.k')).toBe('NL');
+		expect(mockPlayer.t('plugin.lazy.k')).toBe('NL');
 		// Critical: ONLY the active language was loaded. The plugin add path
 		// walks the BCP-47 chain (`nl`) and stops there. Chinese never paid
 		// the cost of being parsed / merged.
@@ -227,11 +227,11 @@ describe('Plugin lazy translation chain', () => {
 			});
 		}
 
-		const p = makePlayer('lazy2').setup({});
-		await p.ready();
-		await p.language('pt-BR');
-		const installed = waitForInstall(p, 'lazy');
-		p.addPlugin(LazyPlugin);
+		const mockPlayer = makePlayer('lazy2').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.language('pt-BR');
+		const installed = waitForInstall(mockPlayer, 'lazy');
+		mockPlayer.addPlugin(LazyPlugin);
 		await installed;
 
 		expect(ptBR).toHaveBeenCalledTimes(1);
@@ -241,9 +241,9 @@ describe('Plugin lazy translation chain', () => {
 		expect(zh).not.toHaveBeenCalled();
 
 		// pt-BR-specific key resolves from pt-BR.
-		expect(p.t('plugin.lazy.regional')).toBe('BR');
+		expect(mockPlayer.t('plugin.lazy.regional')).toBe('BR');
 		// Shared key falls back to pt (pt-BR doesn't define it).
-		expect(p.t('plugin.lazy.shared')).toBe('PT');
+		expect(mockPlayer.t('plugin.lazy.shared')).toBe('PT');
 	});
 
 	it('language() to a NEW language fires the lazy loader for that language', async () => {
@@ -259,18 +259,18 @@ describe('Plugin lazy translation chain', () => {
 			});
 		}
 
-		const p = makePlayer('lazy3').setup({});
-		await p.ready();
-		const installed = waitForInstall(p, 'lazy');
-		p.addPlugin(LazyPlugin);
+		const mockPlayer = makePlayer('lazy3').setup({});
+		await mockPlayer.ready();
+		const installed = waitForInstall(mockPlayer, 'lazy');
+		mockPlayer.addPlugin(LazyPlugin);
 		await installed;
 
 		expect(en).toHaveBeenCalledTimes(1);
 		expect(fr).not.toHaveBeenCalled();
 
-		await p.language('fr');
+		await mockPlayer.language('fr');
 		expect(fr).toHaveBeenCalledTimes(1);
-		expect(p.t('plugin.lazy.k')).toBe('FR');
+		expect(mockPlayer.t('plugin.lazy.k')).toBe('FR');
 	});
 
 	it('eager bundles (no lazy marker) still work alongside lazy ones', async () => {
@@ -292,13 +292,13 @@ describe('Plugin lazy translation chain', () => {
 			};
 		}
 
-		const p = makePlayer('lazy4').setup({});
-		await p.ready();
-		const installed = waitForInstall(p, 'lazy');
-		p.addPlugin(EagerChild);
+		const mockPlayer = makePlayer('lazy4').setup({});
+		await mockPlayer.ready();
+		const installed = waitForInstall(mockPlayer, 'lazy');
+		mockPlayer.addPlugin(EagerChild);
 		await installed;
 
-		expect(p.t('plugin.lazy.base')).toBe('BASE-EN');
-		expect(p.t('plugin.lazy.child')).toBe('CHILD-EN');
+		expect(mockPlayer.t('plugin.lazy.base')).toBe('BASE-EN');
+		expect(mockPlayer.t('plugin.lazy.child')).toBe('CHILD-EN');
 	});
 });

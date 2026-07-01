@@ -235,19 +235,19 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 
 	describe('use() with canvas + spectrum available', () => {
 		it('registers renderer with canvas plugin via addRenderer()', () => {
-			const p = makePlayer('viz-use-1');
-			const { fakeCanvas } = wireVizPlugin(TestVisualization, p);
+			const mockPlayer = makePlayer('viz-use-1');
+			const { fakeCanvas } = wireVizPlugin(TestVisualization, mockPlayer);
 			expect(fakeCanvas.addRenderer).toHaveBeenCalledOnce();
 		});
 
 		it('emits unsupported when spectrum is disabled', () => {
-			const p = makePlayer('viz-unsupported-spectrum');
+			const mockPlayer = makePlayer('viz-unsupported-spectrum');
 			const unsupported: Array<{ reason: string }> = [];
 
 			const plugin = new TestVisualization();
 			const { fakeCanvas: _fc, fakeSpectrum } = buildFakeDeps(false);
 
-			(p as MockPlayer & { getPlugin: (ctor: unknown) => unknown }).getPlugin = (ctor: unknown) => {
+			(mockPlayer as MockPlayer & { getPlugin: (ctor: unknown) => unknown }).getPlugin = (ctor: unknown) => {
 				if (ctor === CanvasPlugin)
 					return { addRenderer: vi.fn(), removeRenderer: vi.fn() };
 				if (ctor === SpectrumPlugin)
@@ -255,11 +255,11 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 				return undefined;
 			};
 
-			(plugin as unknown as { player: MockPlayer }).player = p;
+			(plugin as unknown as { player: MockPlayer }).player = mockPlayer;
 			(plugin as unknown as { lifecycle: { addCleanup: () => void } }).lifecycle = { addCleanup: vi.fn() };
 			(plugin as unknown as { opts: object }).opts = {};
 
-			p.on('plugin:test:viz:unsupported' as never, (data: { reason: string }) => { unsupported.push(data); });
+			mockPlayer.on('plugin:test:viz:unsupported' as never, (data: { reason: string }) => { unsupported.push(data); });
 			plugin.use();
 
 			expect(unsupported).toHaveLength(1);
@@ -271,8 +271,8 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 
 	describe('_renderTick — setup() called once before first render', () => {
 		it('setup() is called exactly once on the first render tick', () => {
-			const p = makePlayer('viz-setup-1');
-			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(TestVisualization, p);
+			const mockPlayer = makePlayer('viz-setup-1');
+			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(TestVisualization, mockPlayer);
 
 			// Plant a frame so the tick has data.
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = sampleFrame;
@@ -290,8 +290,8 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 
 	describe('_renderTick — render() receives canvas-anchored timing', () => {
 		it('render() is called with deltaMs and time from the canvas RAF (not the spectrum frame)', () => {
-			const p = makePlayer('viz-timing-1');
-			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(TestVisualization, p);
+			const mockPlayer = makePlayer('viz-timing-1');
+			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(TestVisualization, mockPlayer);
 
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = {
 				...sampleFrame,
@@ -313,12 +313,12 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 
 	describe('_renderTick — "rendered" event emitted after render()', () => {
 		it('emits rendered with the composed frame payload', () => {
-			const p = makePlayer('viz-rendered-1');
-			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(TestVisualization, p);
+			const mockPlayer = makePlayer('viz-rendered-1');
+			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(TestVisualization, mockPlayer);
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = sampleFrame;
 
 			const rendered: Array<{ frame: VisualizationFrame }> = [];
-			p.on('plugin:test:viz:rendered' as never, (data: { frame: VisualizationFrame }) => { rendered.push(data); });
+			mockPlayer.on('plugin:test:viz:rendered' as never, (data: { frame: VisualizationFrame }) => { rendered.push(data); });
 
 			const ctx = makeCtx();
 			invokeRenderTick(fakeCanvas, ctx, 16, 5);
@@ -332,8 +332,8 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 
 	describe('_renderTick — errors in render() are swallowed', () => {
 		it('player loop continues after render() throws', () => {
-			const p = makePlayer('viz-throw-1');
-			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(ThrowingVisualization, p);
+			const mockPlayer = makePlayer('viz-throw-1');
+			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(ThrowingVisualization, mockPlayer);
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = sampleFrame;
 
 			const ctx = makeCtx();
@@ -346,8 +346,8 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 
 	describe('_renderTick — falls back to spectrum.currentFrame() when _latestFrame is undefined', () => {
 		it('render() still receives a frame on first tick when no frame was cached', () => {
-			const p = makePlayer('viz-fallback-1');
-			const { plugin, fakeCanvas } = wireVizPlugin(TestVisualization, p);
+			const mockPlayer = makePlayer('viz-fallback-1');
+			const { plugin, fakeCanvas } = wireVizPlugin(TestVisualization, mockPlayer);
 
 			// Confirm no cached frame.
 			(plugin as unknown as { _latestFrame: VisualizationFrame | undefined })._latestFrame = undefined;
@@ -365,16 +365,16 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 
 	describe('currentFrame()', () => {
 		it('returns undefined before any tick', () => {
-			const p = makePlayer('viz-currentframe-1');
-			const { plugin } = wireVizPlugin(TestVisualization, p);
+			const mockPlayer = makePlayer('viz-currentframe-1');
+			const { plugin } = wireVizPlugin(TestVisualization, mockPlayer);
 			// No ticks yet, no cached frame planted.
 			(plugin as unknown as { _latestFrame: VisualizationFrame | undefined })._latestFrame = undefined;
 			expect(plugin.currentFrame()).toBeUndefined();
 		});
 
 		it('returns the last rendered frame after a tick', () => {
-			const p = makePlayer('viz-currentframe-2');
-			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(TestVisualization, p);
+			const mockPlayer = makePlayer('viz-currentframe-2');
+			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(TestVisualization, mockPlayer);
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = sampleFrame;
 
 			const ctx = makeCtx();
@@ -390,15 +390,15 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 
 	describe('dispose()', () => {
 		it('calls removeRenderer on the canvas plugin', () => {
-			const p = makePlayer('viz-dispose-1');
-			const { plugin, fakeCanvas } = wireVizPlugin(TestVisualization, p);
+			const mockPlayer = makePlayer('viz-dispose-1');
+			const { plugin, fakeCanvas } = wireVizPlugin(TestVisualization, mockPlayer);
 			plugin.dispose();
 			expect(fakeCanvas.removeRenderer).toHaveBeenCalledOnce();
 		});
 
 		it('clears _latestFrame and _renderTickBound after dispose', () => {
-			const p = makePlayer('viz-dispose-2');
-			const { plugin, sampleFrame } = wireVizPlugin(TestVisualization, p);
+			const mockPlayer = makePlayer('viz-dispose-2');
+			const { plugin, sampleFrame } = wireVizPlugin(TestVisualization, mockPlayer);
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = sampleFrame;
 			plugin.dispose();
 			expect(plugin.currentFrame()).toBeUndefined();
@@ -415,8 +415,8 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 		});
 
 		it('render() draws a waveform stroke on the canvas context', () => {
-			const p = makePlayer('viz-waveform-render');
-			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(WaveformVisualization, p);
+			const mockPlayer = makePlayer('viz-waveform-render');
+			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(WaveformVisualization, mockPlayer);
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = sampleFrame;
 
 			const ctx = makeCtx();
@@ -427,8 +427,8 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 		});
 
 		it('render() is a no-op when waveform array is empty', () => {
-			const p = makePlayer('viz-waveform-empty');
-			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(WaveformVisualization, p);
+			const mockPlayer = makePlayer('viz-waveform-empty');
+			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(WaveformVisualization, mockPlayer);
 
 			const emptyFrame: VisualizationFrame = { ...sampleFrame, waveform: new Uint8Array(0) };
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = emptyFrame;

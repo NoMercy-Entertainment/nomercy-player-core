@@ -72,10 +72,10 @@ function makePlayer(divId: string): MockPlayer {
 	const div = document.createElement('div');
 	div.id = divId;
 	document.body.appendChild(div);
-	const p = new MockPlayer(divId);
-	(p as any).pause = vi.fn().mockResolvedValue(undefined);
-	(p as any).mute = vi.fn();
-	return p;
+	const mockPlayer = new MockPlayer(divId);
+	(mockPlayer as any).pause = vi.fn().mockResolvedValue(undefined);
+	(mockPlayer as any).mute = vi.fn();
+	return mockPlayer;
 }
 
 function makePlugin(player: MockPlayer, opts?: TabLeaderOptions): TabLeaderPlugin {
@@ -127,10 +127,10 @@ describe('TabLeaderPlugin extended', () => {
 	describe('requestLock() — unsupported environment', () => {
 		it('emits unsupported and resolves when navigator.locks is absent', async () => {
 			removeLocks();
-			const p = makePlayer('tl-1');
-			const plugin = makePlugin(p);
+			const mockPlayer = makePlayer('tl-1');
+			const plugin = makePlugin(mockPlayer);
 			const events: string[] = [];
-			p.on('plugin:tab-leader:unsupported' as any, () => events.push('unsupported'));
+			mockPlayer.on('plugin:tab-leader:unsupported' as any, () => events.push('unsupported'));
 			const result = await plugin.requestLock();
 			expect(result).toBeUndefined();
 			expect(events).toContain('unsupported');
@@ -149,8 +149,8 @@ describe('TabLeaderPlugin extended', () => {
 				return inner;
 			});
 			stubLocks({ request: lockRequest });
-			const p = makePlayer('tl-2');
-			const plugin = makePlugin(p);
+			const mockPlayer = makePlayer('tl-2');
+			const plugin = makePlugin(mockPlayer);
 
 			const p1 = plugin.requestLock();
 			const p2 = plugin.requestLock();
@@ -176,10 +176,10 @@ describe('TabLeaderPlugin extended', () => {
 				return Promise.resolve();
 			});
 			stubLocks({ request: lockRequest });
-			const p = makePlayer('tl-3');
-			const plugin = makePlugin(p);
+			const mockPlayer = makePlayer('tl-3');
+			const plugin = makePlugin(mockPlayer);
 			const events: string[] = [];
-			p.on('plugin:tab-leader:leader-acquired' as any, () => events.push('acquired'));
+			mockPlayer.on('plugin:tab-leader:leader-acquired' as any, () => events.push('acquired'));
 
 			await plugin.requestLock();
 
@@ -193,8 +193,8 @@ describe('TabLeaderPlugin extended', () => {
 				return Promise.resolve();
 			});
 			stubLocks({ request: lockRequest });
-			const p = makePlayer('tl-4');
-			const plugin = makePlugin(p);
+			const mockPlayer = makePlayer('tl-4');
+			const plugin = makePlugin(mockPlayer);
 
 			await plugin.requestLock();
 
@@ -204,8 +204,8 @@ describe('TabLeaderPlugin extended', () => {
 		it('clears _pending to null when lock.request rejects', async () => {
 			const lockRequest = vi.fn(() => Promise.reject(new Error('lock failed')));
 			stubLocks({ request: lockRequest });
-			const p = makePlayer('tl-5');
-			const plugin = makePlugin(p);
+			const mockPlayer = makePlayer('tl-5');
+			const plugin = makePlugin(mockPlayer);
 
 			await plugin.requestLock();
 
@@ -216,18 +216,18 @@ describe('TabLeaderPlugin extended', () => {
 	describe('releaseLock()', () => {
 		it('is a no-op when not leader and no _release', () => {
 			removeLocks();
-			const p = makePlayer('tl-7');
-			const plugin = makePlugin(p);
+			const mockPlayer = makePlayer('tl-7');
+			const plugin = makePlugin(mockPlayer);
 			expect(() => plugin.releaseLock()).not.toThrow();
 		});
 
 		it('emits leader-released and calls pause (onLost: "pause" default)', () => {
 			removeLocks();
-			const p = makePlayer('tl-8');
-			const plugin = makePlugin(p, { onLost: 'pause' });
+			const mockPlayer = makePlayer('tl-8');
+			const plugin = makePlugin(mockPlayer, { onLost: 'pause' });
 
 			const events: string[] = [];
-			p.on('plugin:tab-leader:leader-released' as any, () => events.push('released'));
+			mockPlayer.on('plugin:tab-leader:leader-released' as any, () => events.push('released'));
 
 			(plugin as any)._isLeader = true;
 			(plugin as any)._release = (): void => {};
@@ -235,29 +235,29 @@ describe('TabLeaderPlugin extended', () => {
 			plugin.releaseLock();
 
 			expect(events).toContain('released');
-			expect((p as any).pause).toHaveBeenCalled();
+			expect((mockPlayer as any).pause).toHaveBeenCalled();
 		});
 
 		it('calls mute when onLost is "mute"', () => {
 			removeLocks();
-			const p = makePlayer('tl-9');
-			const plugin = makePlugin(p, { onLost: 'mute' });
+			const mockPlayer = makePlayer('tl-9');
+			const plugin = makePlugin(mockPlayer, { onLost: 'mute' });
 
 			(plugin as any)._isLeader = true;
 			(plugin as any)._release = (): void => {};
 
 			plugin.releaseLock();
 
-			expect((p as any).mute).toHaveBeenCalled();
-			expect((p as any).pause).not.toHaveBeenCalled();
+			expect((mockPlayer as any).mute).toHaveBeenCalled();
+			expect((mockPlayer as any).pause).not.toHaveBeenCalled();
 		});
 
 		it('does not emit leader-released when _isLeader was false but _release exists', () => {
 			removeLocks();
-			const p = makePlayer('tl-10');
-			const plugin = makePlugin(p);
+			const mockPlayer = makePlayer('tl-10');
+			const plugin = makePlugin(mockPlayer);
 			const events: string[] = [];
-			p.on('plugin:tab-leader:leader-released' as any, () => events.push('released'));
+			mockPlayer.on('plugin:tab-leader:leader-released' as any, () => events.push('released'));
 
 			(plugin as any)._isLeader = false;
 			(plugin as any)._release = (): void => {};
@@ -269,8 +269,8 @@ describe('TabLeaderPlugin extended', () => {
 
 		it('swallows errors thrown by the release function', () => {
 			removeLocks();
-			const p = makePlayer('tl-11');
-			const plugin = makePlugin(p);
+			const mockPlayer = makePlayer('tl-11');
+			const plugin = makePlugin(mockPlayer);
 
 			(plugin as any)._isLeader = true;
 			(plugin as any)._release = (): void => { throw new Error('oops'); };
@@ -282,8 +282,8 @@ describe('TabLeaderPlugin extended', () => {
 	describe('dispose()', () => {
 		it('calls releaseLock() on dispose', () => {
 			removeLocks();
-			const p = makePlayer('tl-13');
-			const plugin = makePlugin(p);
+			const mockPlayer = makePlayer('tl-13');
+			const plugin = makePlugin(mockPlayer);
 			const releaseSpy = vi.spyOn(plugin, 'releaseLock');
 			plugin.dispose();
 			expect(releaseSpy).toHaveBeenCalled();
@@ -293,15 +293,15 @@ describe('TabLeaderPlugin extended', () => {
 	describe('getLockKey()', () => {
 		it('returns default key when no getLockKey opt given', () => {
 			removeLocks();
-			const p = makePlayer('tl-14');
-			const plugin = makePlugin(p);
+			const mockPlayer = makePlayer('tl-14');
+			const plugin = makePlugin(mockPlayer);
 			expect((plugin as any).getLockKey()).toBe('nomercy-player-leader');
 		});
 
 		it('returns custom key from opts.getLockKey()', () => {
 			removeLocks();
-			const p = makePlayer('tl-15');
-			const plugin = makePlugin(p, { getLockKey: () => 'custom-key' });
+			const mockPlayer = makePlayer('tl-15');
+			const plugin = makePlugin(mockPlayer, { getLockKey: () => 'custom-key' });
 			expect((plugin as any).getLockKey()).toBe('custom-key');
 		});
 	});

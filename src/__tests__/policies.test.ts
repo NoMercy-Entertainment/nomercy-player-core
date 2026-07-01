@@ -150,20 +150,20 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 
 	it('pauseWhenHidden:true → visibility false fires visibility:hidden AND calls pause', async () => {
 		const fake = buildFakePlatform();
-		const p = makePlayer('pol-vis-on').setup({
+		const mockPlayer = makePlayer('pol-vis-on').setup({
 			platform: fake.platform,
 			pauseWhenHidden: true,
 		});
-		await p.ready();
-		await p.play();
+		await mockPlayer.ready();
+		await mockPlayer.play();
 
 		const events: string[] = [];
 		const pausePromise = new Promise<void>((resolve) => {
-			p.on('pause' as any, () => {
+			mockPlayer.on('pause' as any, () => {
 				resolve();
 			});
 		});
-		p.on('visibility:hidden' as any, () => events.push('visibility:hidden'));
+		mockPlayer.on('visibility:hidden' as any, () => events.push('visibility:hidden'));
 
 		fake.flipVisibility(false);
 		await pausePromise;
@@ -173,14 +173,14 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 
 	it('pauseWhenHidden:false (default) → visibility false fires no pause', async () => {
 		const fake = buildFakePlatform();
-		const p = makePlayer('pol-vis-off').setup({
+		const mockPlayer = makePlayer('pol-vis-off').setup({
 			platform: fake.platform,
 		});
-		await p.ready();
-		await p.play();
+		await mockPlayer.ready();
+		await mockPlayer.play();
 
 		let pauseFired = false;
-		p.on('pause' as any, () => {
+		mockPlayer.on('pause' as any, () => {
 			pauseFired = true;
 		});
 
@@ -194,20 +194,20 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 
 	it('onOffline:\'pause\' → offline emits network:offline AND calls pause', async () => {
 		const fake = buildFakePlatform();
-		const p = makePlayer('pol-net-pause').setup({
+		const mockPlayer = makePlayer('pol-net-pause').setup({
 			platform: fake.platform,
 			onOffline: 'pause',
 		});
-		await p.ready();
-		await p.play();
+		await mockPlayer.ready();
+		await mockPlayer.play();
 
 		const events: string[] = [];
 		const pausePromise = new Promise<void>((resolve) => {
-			p.on('pause' as any, () => {
+			mockPlayer.on('pause' as any, () => {
 				resolve();
 			});
 		});
-		p.on('network:offline' as any, () => events.push('network:offline'));
+		mockPlayer.on('network:offline' as any, () => events.push('network:offline'));
 
 		fake.flipNetwork(false);
 		await pausePromise;
@@ -217,16 +217,16 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 
 	it('onOffline:\'continue-buffered\' (default) → emits network:offline but does NOT call pause', async () => {
 		const fake = buildFakePlatform();
-		const p = makePlayer('pol-net-continue').setup({
+		const mockPlayer = makePlayer('pol-net-continue').setup({
 			platform: fake.platform,
 		});
-		await p.ready();
-		await p.play();
+		await mockPlayer.ready();
+		await mockPlayer.play();
 
 		const events: string[] = [];
 		let pauseFired = false;
-		p.on('network:offline' as any, () => events.push('network:offline'));
-		p.on('pause' as any, () => {
+		mockPlayer.on('network:offline' as any, () => events.push('network:offline'));
+		mockPlayer.on('pause' as any, () => {
 			pauseFired = true;
 		});
 
@@ -239,17 +239,17 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 
 	it('onOffline:\'ignore\' → emits NEITHER network:offline NOR pauses', async () => {
 		const fake = buildFakePlatform();
-		const p = makePlayer('pol-net-ignore').setup({
+		const mockPlayer = makePlayer('pol-net-ignore').setup({
 			platform: fake.platform,
 			onOffline: 'ignore',
 		});
-		await p.ready();
-		await p.play();
+		await mockPlayer.ready();
+		await mockPlayer.play();
 
 		const events: string[] = [];
 		let pauseFired = false;
-		p.on('network:offline' as any, () => events.push('network:offline'));
-		p.on('pause' as any, () => {
+		mockPlayer.on('network:offline' as any, () => events.push('network:offline'));
+		mockPlayer.on('pause' as any, () => {
 			pauseFired = true;
 		});
 
@@ -264,11 +264,11 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 
 	it('wakeLock:\'always\' → acquire() once at setup, release() at dispose', async () => {
 		const fake = buildFakePlatform();
-		const p = makePlayer('pol-wl-always').setup({
+		const mockPlayer = makePlayer('pol-wl-always').setup({
 			platform: fake.platform,
 			wakeLock: 'always',
 		});
-		await p.ready();
+		await mockPlayer.ready();
 		// Wait for the floating promise from acquire().catch(...).
 		await Promise.resolve();
 		await Promise.resolve();
@@ -276,7 +276,7 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 		expect(fake.wakeLock.acquire).toHaveBeenCalledTimes(1);
 		expect(fake.wakeLock.release).not.toHaveBeenCalled();
 
-		p.dispose();
+		mockPlayer.dispose();
 		await Promise.resolve();
 		await Promise.resolve();
 
@@ -285,20 +285,20 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 
 	it('wakeLock:\'auto\' → acquire on starting/playing, release on paused/stopped/ended/disposed', async () => {
 		const fake = buildFakePlatform();
-		const p = makePlayer('pol-wl-auto').setup({
+		const mockPlayer = makePlayer('pol-wl-auto').setup({
 			platform: fake.platform,
 			wakeLock: 'auto',
 		});
-		await p.ready();
+		await mockPlayer.ready();
 
 		expect(fake.wakeLock.acquire).not.toHaveBeenCalled();
 
-		await p.play(); // ready → starting fires phase event
+		await mockPlayer.play(); // ready → starting fires phase event
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(fake.wakeLock.acquire).toHaveBeenCalled();
 
-		await p.pause(); // starting → paused
+		await mockPlayer.pause(); // starting → paused
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(fake.wakeLock.release).toHaveBeenCalled();
@@ -306,11 +306,11 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 
 	it('wakeLock:\'never\' (default) → acquire never called', async () => {
 		const fake = buildFakePlatform();
-		const p = makePlayer('pol-wl-never').setup({
+		const mockPlayer = makePlayer('pol-wl-never').setup({
 			platform: fake.platform,
 		});
-		await p.ready();
-		await p.play();
+		await mockPlayer.ready();
+		await mockPlayer.play();
 		await Promise.resolve();
 		await Promise.resolve();
 
@@ -320,18 +320,18 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 	// ── now() / clockSource ──
 
 	it('now() returns Date.now() by default', async () => {
-		const p = makePlayer('pol-now-default').setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('pol-now-default').setup({});
+		await mockPlayer.ready();
 		const before = Date.now();
-		const got = p.now();
+		const got = mockPlayer.now();
 		const after = Date.now();
 		expect(got).toBeGreaterThanOrEqual(before);
 		expect(got).toBeLessThanOrEqual(after);
 	});
 
 	it('now() returns clockSource() value when configured', async () => {
-		const p = makePlayer('pol-now-custom').setup({ clockSource: () => 12345 });
-		await p.ready();
-		expect(p.now()).toBe(12345);
+		const mockPlayer = makePlayer('pol-now-custom').setup({ clockSource: () => 12345 });
+		await mockPlayer.ready();
+		expect(mockPlayer.now()).toBe(12345);
 	});
 });

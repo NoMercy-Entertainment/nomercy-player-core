@@ -74,9 +74,9 @@ function makePlayer(divId: string): MockPlayer {
 	return new MockPlayer(divId);
 }
 
-function phaseTrace(p: MockPlayer): Array<{ from: PlayerPhase; to: PlayerPhase }> {
+function phaseTrace(mockPlayer: MockPlayer): Array<{ from: PlayerPhase; to: PlayerPhase }> {
 	const trace: Array<{ from: PlayerPhase; to: PlayerPhase }> = [];
-	p.on('phase', ({ from, to }) => {
+	mockPlayer.on('phase', ({ from, to }) => {
 		trace.push({ from, to });
 	});
 	return trace;
@@ -95,14 +95,14 @@ describe('seeking phase round-trip (spec §D)', () => {
 	// ── 1. paused → seeking → paused ──
 
 	it('time(t) from paused: [paused→seeking, seeking→paused]', async () => {
-		const p = makePlayer('sp-paused').setup({});
-		await p.ready();
-		await p.play();
-		await p.pause();
-		expect(p.phase()).toBe('paused');
+		const mockPlayer = makePlayer('sp-paused').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.play();
+		await mockPlayer.pause();
+		expect(mockPlayer.phase()).toBe('paused');
 
-		const trace = phaseTrace(p);
-		await p.time(10);
+		const trace = phaseTrace(mockPlayer);
+		await mockPlayer.time(10);
 
 		expect(trace).toEqual([
 			{ from: 'paused', to: 'seeking' },
@@ -116,14 +116,14 @@ describe('seeking phase round-trip (spec §D)', () => {
 	// rendering. This mirrors what a backend would do via _transitionPhase.
 
 	it('time(t) from playing: [playing→seeking, seeking→playing]', async () => {
-		const p = makePlayer('sp-playing').setup({});
-		await p.ready();
-		await p.play();
+		const mockPlayer = makePlayer('sp-playing').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.play();
 		// Force the phase machine into 'playing' as a backend would after firstFrame.
-		(p as unknown as PlayerTestInternals)._phase = 'playing';
+		(mockPlayer as unknown as PlayerTestInternals)._phase = 'playing';
 
-		const trace = phaseTrace(p);
-		await p.time(10);
+		const trace = phaseTrace(mockPlayer);
+		await mockPlayer.time(10);
 
 		expect(trace).toEqual([
 			{ from: 'playing', to: 'seeking' },
@@ -134,13 +134,13 @@ describe('seeking phase round-trip (spec §D)', () => {
 	// ── 3. starting → seeking → starting ──
 
 	it('time(t) from starting: [starting→seeking, seeking→starting]', async () => {
-		const p = makePlayer('sp-starting').setup({});
-		await p.ready();
-		await p.play();
-		expect(p.phase()).toBe('starting');
+		const mockPlayer = makePlayer('sp-starting').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.play();
+		expect(mockPlayer.phase()).toBe('starting');
 
-		const trace = phaseTrace(p);
-		await p.time(10);
+		const trace = phaseTrace(mockPlayer);
+		await mockPlayer.time(10);
 
 		expect(trace).toEqual([
 			{ from: 'starting', to: 'seeking' },
@@ -151,12 +151,12 @@ describe('seeking phase round-trip (spec §D)', () => {
 	// ── 4. ready → no phase event ──
 
 	it('time(t) from ready: NO phase event (skip the round-trip)', async () => {
-		const p = makePlayer('sp-ready').setup({});
-		await p.ready();
-		expect(p.phase()).toBe('ready');
+		const mockPlayer = makePlayer('sp-ready').setup({});
+		await mockPlayer.ready();
+		expect(mockPlayer.phase()).toBe('ready');
 
-		const trace = phaseTrace(p);
-		await p.time(10);
+		const trace = phaseTrace(mockPlayer);
+		await mockPlayer.time(10);
 
 		expect(trace).toEqual([]);
 	});
@@ -164,13 +164,13 @@ describe('seeking phase round-trip (spec §D)', () => {
 	// ── 5. rewind / forward / restart all do the same round-trip ──
 
 	it('rewind(5) from paused: [paused→seeking, seeking→paused]', async () => {
-		const p = makePlayer('sp-rewind').setup({});
-		await p.ready();
-		await p.play();
-		await p.pause();
+		const mockPlayer = makePlayer('sp-rewind').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.play();
+		await mockPlayer.pause();
 
-		const trace = phaseTrace(p);
-		await p.rewind(5);
+		const trace = phaseTrace(mockPlayer);
+		await mockPlayer.rewind(5);
 
 		expect(trace).toEqual([
 			{ from: 'paused', to: 'seeking' },
@@ -179,13 +179,13 @@ describe('seeking phase round-trip (spec §D)', () => {
 	});
 
 	it('forward(5) from paused: [paused→seeking, seeking→paused]', async () => {
-		const p = makePlayer('sp-forward').setup({});
-		await p.ready();
-		await p.play();
-		await p.pause();
+		const mockPlayer = makePlayer('sp-forward').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.play();
+		await mockPlayer.pause();
 
-		const trace = phaseTrace(p);
-		await p.forward(5);
+		const trace = phaseTrace(mockPlayer);
+		await mockPlayer.forward(5);
 
 		expect(trace).toEqual([
 			{ from: 'paused', to: 'seeking' },
@@ -194,13 +194,13 @@ describe('seeking phase round-trip (spec §D)', () => {
 	});
 
 	it('restart() from paused: round-trip then play (paused→seeking→paused, then on to starting)', async () => {
-		const p = makePlayer('sp-restart').setup({});
-		await p.ready();
-		await p.play();
-		await p.pause();
+		const mockPlayer = makePlayer('sp-restart').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.play();
+		await mockPlayer.pause();
 
-		const trace = phaseTrace(p);
-		await p.restart();
+		const trace = phaseTrace(mockPlayer);
+		await mockPlayer.restart();
 
 		// First two transitions are the seek round-trip.
 		expect(trace[0]).toEqual({ from: 'paused', to: 'seeking' });
@@ -212,19 +212,19 @@ describe('seeking phase round-trip (spec §D)', () => {
 	// ── 6. preventDefault on beforeSeek skips phase change entirely ──
 
 	it('beforeSeek.preventDefault() → NO phase change', async () => {
-		const p = makePlayer('sp-prevent').setup({});
-		await p.ready();
-		await p.play();
-		await p.pause();
+		const mockPlayer = makePlayer('sp-prevent').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.play();
+		await mockPlayer.pause();
 
-		p.on('beforeSeek', (e) => {
-			e.preventDefault();
+		mockPlayer.on('beforeSeek', (beforeEvent) => {
+			beforeEvent.preventDefault();
 		});
 
-		const trace = phaseTrace(p);
-		await p.time(10);
+		const trace = phaseTrace(mockPlayer);
+		await mockPlayer.time(10);
 
 		expect(trace).toEqual([]);
-		expect(p.phase()).toBe('paused');
+		expect(mockPlayer.phase()).toBe('paused');
 	});
 });

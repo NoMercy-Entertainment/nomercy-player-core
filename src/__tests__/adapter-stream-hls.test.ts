@@ -437,7 +437,7 @@ describe('HlsStreamSource', () => {
 
 		it('create() with registry passes registry to the source', () => {
 			const fakeRegistry = {
-				runInterceptors: vi.fn().mockImplementation((_url: string, r: Response) => Promise.resolve(r)),
+				runInterceptors: vi.fn().mockImplementation((_url: string, response: Response) => Promise.resolve(response)),
 				resolve: vi.fn(),
 				has: vi.fn(),
 				findById: vi.fn(),

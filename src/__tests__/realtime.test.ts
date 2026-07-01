@@ -60,7 +60,7 @@ class MockWebSocket {
 	}
 
 	dispatchEvent(event: Event): boolean {
-		this.listeners.get(event.type)?.forEach(l => l(event));
+		this.listeners.get(event.type)?.forEach(eventListener => eventListener(event));
 		return true;
 	}
 }

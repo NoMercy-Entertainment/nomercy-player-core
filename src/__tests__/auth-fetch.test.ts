@@ -471,11 +471,11 @@ describe('authFetch', () => {
 	describe('abort', () => {
 		it('throws NetworkError(aborted) when signal aborts during fetch', async () => {
 			(fetchSpy as any).mockImplementation(() => Promise.reject(new DOMException('aborted', 'AbortError')));
-			const c = new AbortController();
-			c.abort();
+			const abortController = new AbortController();
+			abortController.abort();
 			const result = authFetch({
 				url: 'https://x/y',
-				signal: c.signal,
+				signal: abortController.signal,
 			});
 			await expect(result).rejects.toMatchObject({
 				code: 'core:network/aborted',

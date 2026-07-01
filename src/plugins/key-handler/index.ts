@@ -53,7 +53,7 @@ export interface KeyHandlerOptions<P> {
 	 * to suppress all key handling for that event — useful for disabling
 	 * shortcuts during modals, chat overlays, or other UI states.
 	 */
-	when?: (e: KeyboardEvent) => boolean;
+	when?: (keyboardEvent: KeyboardEvent) => boolean;
 
 	/**
 	 * Minimum milliseconds between consecutive fires of the same (or any) key.
@@ -115,7 +115,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	static override readonly version: string = '2.0.0';
 	static override readonly description: string = 'Keyboard binding router with overridable group methods';
 
-	private _bindings: Map<string, (e: KeyboardEvent) => void> = new Map();
+	private _bindings: Map<string, (keyboardEvent: KeyboardEvent) => void> = new Map();
 	private lastFireAt: number = 0;
 
 	/**
@@ -382,8 +382,8 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		return this.canonicalKey(key, mods);
 	}
 
-	private readonly handleKeydown = (e: Event): void => {
-		const ev = e as KeyboardEvent;
+	private readonly handleKeydown = (event: Event): void => {
+		const ev = event as KeyboardEvent;
 		if (!this.enabled())
 			return;
 		if (this.isTypingTarget(ev.target))

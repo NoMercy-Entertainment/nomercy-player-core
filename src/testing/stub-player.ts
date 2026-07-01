@@ -402,7 +402,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	seekByPercentage(_pct: number, _opts?: ActionOptions): void {}
 
 	registerCueParser(parser: ICueParser, prepend?: boolean): void {
-		const existing = this._registeredParsers.findIndex(p => p.id === parser.id);
+		const existing = this._registeredParsers.findIndex(cueParser => cueParser.id === parser.id);
 		if (existing >= 0)
 			this._registeredParsers.splice(existing, 1);
 		if (prepend)
@@ -411,13 +411,13 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	}
 
 	unregisterCueParser(id: string): void {
-		const idx = this._registeredParsers.findIndex(p => p.id === id);
+		const idx = this._registeredParsers.findIndex(cueParser => cueParser.id === id);
 		if (idx >= 0)
 			this._registeredParsers.splice(idx, 1);
 	}
 
 	resolveCueParser(url: string): ICueParser | undefined {
-		return this._registeredParsers.find(p => p.canParse(url));
+		return this._registeredParsers.find(cueParser => cueParser.canParse(url));
 	}
 
 	/** Test-only: introspect registered parsers without going through `resolve()`. */
@@ -460,7 +460,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	}
 
 	/** Returns a real jsdom `<button>` — same rationale as `createElement`. */
-	createButton(_id: string, _label: string, _onClick: (e: Event) => void): HTMLButtonElement {
+	createButton(_id: string, _label: string, _onClick: (event: Event) => void): HTMLButtonElement {
 		return document.createElement('button');
 	}
 

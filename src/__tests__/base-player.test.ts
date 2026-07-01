@@ -165,8 +165,8 @@ describe('player-core mixins (kit)', () => {
 				const _instance = new MockPlayer();
 				void _instance;
 			}
-			catch (e) {
-				err = e;
+			catch (error) {
+				err = error;
 			}
 			expect(err).toBeInstanceOf(PlayerError);
 			expect(err).toBeInstanceOf(StateError);
@@ -179,8 +179,8 @@ describe('player-core mixins (kit)', () => {
 				const _instance = new MockPlayer('absent');
 				void _instance;
 			}
-			catch (e) {
-				err = e;
+			catch (error) {
+				err = error;
 			}
 			expect(err).toBeInstanceOf(ResourceError);
 			expect((err as PlayerError).code).toBe('core:player/element-missing');
@@ -195,8 +195,8 @@ describe('player-core mixins (kit)', () => {
 				const _instance = new MockPlayer('span-mock');
 				void _instance;
 			}
-			catch (e) {
-				err = e;
+			catch (error) {
+				err = error;
 			}
 			expect(err).toBeInstanceOf(StateError);
 			expect((err as PlayerError).code).toBe('core:player/element-not-div');
@@ -208,8 +208,8 @@ describe('player-core mixins (kit)', () => {
 				const _instance = new MockPlayer({} as any);
 				void _instance;
 			}
-			catch (e) {
-				err = e;
+			catch (error) {
+				err = error;
 			}
 			expect(err).toBeInstanceOf(StateError);
 			expect((err as PlayerError).code).toBe('core:player/invalid-id-type');
@@ -226,8 +226,8 @@ describe('player-core mixins (kit)', () => {
 				const _instance = new MockPlayer(99);
 				void _instance;
 			}
-			catch (e) {
-				err = e;
+			catch (error) {
+				err = error;
 			}
 			expect(err).toBeInstanceOf(StateError);
 			expect((err as PlayerError).code).toBe('core:player/not-found');
@@ -267,11 +267,11 @@ describe('player-core mixins (kit)', () => {
 			const div = document.createElement('div');
 			div.id = 'p2';
 			document.body.appendChild(div);
-			const p = new MockPlayer('p2');
-			const transitions: string[] = [p.phase()];
-			p.on('phase' as any, ({ to }: any) => transitions.push(to));
-			p.setup({});
-			await p.ready();
+			const mockPlayer = new MockPlayer('p2');
+			const transitions: string[] = [mockPlayer.phase()];
+			mockPlayer.on('phase' as any, ({ to }: any) => transitions.push(to));
+			mockPlayer.setup({});
+			await mockPlayer.ready();
 			expect(transitions).toEqual(['idle', 'setup', 'ready']);
 		});
 
@@ -279,7 +279,7 @@ describe('player-core mixins (kit)', () => {
 			const div = document.createElement('div');
 			div.id = 'p3';
 			document.body.appendChild(div);
-			const p = new MockPlayer('p3');
+			const mockPlayer = new MockPlayer('p3');
 			const events: string[] = [];
 			const sequence = [
 				'beforeSetup',
@@ -294,10 +294,10 @@ describe('player-core mixins (kit)', () => {
 				'ready',
 			] as const;
 			for (const name of sequence) {
-				p.on(name as any, () => events.push(name));
+				mockPlayer.on(name as any, () => events.push(name));
 			}
-			p.setup({});
-			await p.ready();
+			mockPlayer.setup({});
+			await mockPlayer.ready();
 			expect(events).toEqual([...sequence]);
 		});
 
@@ -305,32 +305,32 @@ describe('player-core mixins (kit)', () => {
 			const div = document.createElement('div');
 			div.id = 'p4';
 			document.body.appendChild(div);
-			const p = new MockPlayer('p4').setup({});
-			await p.ready();
-			expect(() => p.setup({})).toThrow(/already-setup/);
+			const mockPlayer = new MockPlayer('p4').setup({});
+			await mockPlayer.ready();
+			expect(() => mockPlayer.setup({})).toThrow(/already-setup/);
 		});
 
 		it('ready() resolves once setup completes', async () => {
 			const div = document.createElement('div');
 			div.id = 'p5';
 			document.body.appendChild(div);
-			const p = new MockPlayer('p5').setup({});
-			await expect(p.ready()).resolves.toBeUndefined();
+			const mockPlayer = new MockPlayer('p5').setup({});
+			await expect(mockPlayer.ready()).resolves.toBeUndefined();
 		});
 
 		it('ready() rejects with spec-compliant StateError when dispose runs first', async () => {
 			const div = document.createElement('div');
 			div.id = 'p6';
 			document.body.appendChild(div);
-			const p = new MockPlayer('p6');
-			const promise = p.ready();
-			p.dispose();
+			const mockPlayer = new MockPlayer('p6');
+			const promise = mockPlayer.ready();
+			mockPlayer.dispose();
 			let err: unknown;
 			try {
 				await promise;
 			}
-			catch (e) {
-				err = e;
+			catch (error) {
+				err = error;
 			}
 			expect(err).toBeInstanceOf(StateError);
 			expect((err as PlayerError).code).toBe('core:player/disposed');
@@ -340,23 +340,23 @@ describe('player-core mixins (kit)', () => {
 			const div = document.createElement('div');
 			div.id = 'p7';
 			document.body.appendChild(div);
-			const p = new MockPlayer('p7');
+			const mockPlayer = new MockPlayer('p7');
 			let disposed = false;
-			p.on('dispose' as any, () => {
+			mockPlayer.on('dispose' as any, () => {
 				disposed = true;
 			});
-			p.dispose();
+			mockPlayer.dispose();
 			expect(disposed).toBe(true);
-			expect(p.phase()).toBe('disposed');
+			expect(mockPlayer.phase()).toBe('disposed');
 		});
 
 		it('dispose() is idempotent', () => {
 			const div = document.createElement('div');
 			div.id = 'p8';
 			document.body.appendChild(div);
-			const p = new MockPlayer('p8');
-			p.dispose();
-			expect(() => p.dispose()).not.toThrow();
+			const mockPlayer = new MockPlayer('p8');
+			mockPlayer.dispose();
+			expect(() => mockPlayer.dispose()).not.toThrow();
 		});
 	});
 
@@ -364,59 +364,59 @@ describe('player-core mixins (kit)', () => {
 
 	describe('BeforeEvent contract (sync dispatch)', () => {
 		it('beforePlay receives mutable data; mutation flows to play event', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let received: { source?: string } | undefined;
-			p.on('beforePlay' as any, (e: any) => {
+			mockPlayer.on('beforePlay' as any, (e: any) => {
 				e.data.source = 'remote';
 			});
-			p.on('play' as any, (data: any) => {
+			mockPlayer.on('play' as any, (data: any) => {
 				received = data;
 			});
-			await p.play({ source: 'user' });
+			await mockPlayer.play({ source: 'user' });
 			expect(received?.source).toBe('remote');
 		});
 
 		it('preventDefault on beforePlay → playPrevented, no play', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let played = false;
 			let reason: string | undefined;
-			p.on('beforePlay' as any, (e: any) => {
+			mockPlayer.on('beforePlay' as any, (e: any) => {
 				e.preventDefault();
 			});
-			p.on('play' as any, () => {
+			mockPlayer.on('play' as any, () => {
 				played = true;
 			});
-			p.on('playPrevented' as any, (data: any) => {
+			mockPlayer.on('playPrevented' as any, (data: any) => {
 				reason = data.reason;
 			});
-			await p.play();
+			await mockPlayer.play();
 			expect(played).toBe(false);
 			expect(reason).toBe('listener-prevented');
 		});
 
 		it('stopImmediatePropagation skips later listeners', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			const calls: string[] = [];
-			p.on('beforePlay' as any, (e: any) => {
+			mockPlayer.on('beforePlay' as any, (e: any) => {
 				calls.push('a');
 				e.stopImmediatePropagation();
 			});
-			p.on('beforePlay' as any, () => {
+			mockPlayer.on('beforePlay' as any, () => {
 				calls.push('b');
 			});
-			await p.play();
+			await mockPlayer.play();
 			expect(calls).toEqual(['a']);
 		});
 
 		it('stamps before-event onto dispatching() while listeners run', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let observed: ReadonlyArray<string> | undefined;
-			p.on('beforePlay' as any, () => {
-				observed = p.dispatching();
+			mockPlayer.on('beforePlay' as any, () => {
+				observed = mockPlayer.dispatching();
 			});
-			await p.play();
+			await mockPlayer.play();
 			expect(observed).toEqual(['beforePlay']);
-			expect(p.dispatching()).toEqual([]);
+			expect(mockPlayer.dispatching()).toEqual([]);
 		});
 	});
 
@@ -427,108 +427,108 @@ describe('player-core mixins (kit)', () => {
 			const div = document.createElement('div');
 			div.id = 'before';
 			document.body.appendChild(div);
-			const p = new MockPlayer('before');
+			const mockPlayer = new MockPlayer('before');
 			let err: unknown;
 			try {
-				await p.play();
+				await mockPlayer.play();
 			}
-			catch (e) {
-				err = e;
+			catch (error) {
+				err = error;
 			}
 			expect(err).toBeInstanceOf(StateError);
 			expect((err as PlayerError).code).toBe('core:player/not-ready');
 		});
 
 		it('pause emits beforePause + pause', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			const order: string[] = [];
-			p.on('beforePause' as any, () => {
+			mockPlayer.on('beforePause' as any, () => {
 				order.push('beforePause');
 			});
-			p.on('pause' as any, () => {
+			mockPlayer.on('pause' as any, () => {
 				order.push('pause');
 			});
-			await p.pause();
+			await mockPlayer.pause();
 			expect(order).toEqual(['beforePause', 'pause']);
 		});
 
 		it('stop emits beforeStop + stop (cancellable transport pre-event)', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			const order: string[] = [];
-			p.on('beforeStop' as any, () => {
+			mockPlayer.on('beforeStop' as any, () => {
 				order.push('beforeStop');
 			});
-			p.on('stop' as any, () => {
+			mockPlayer.on('stop' as any, () => {
 				order.push('stop');
 			});
-			await p.stop();
+			await mockPlayer.stop();
 			expect(order).toEqual(['beforeStop', 'stop']);
 		});
 
 		it('stop respects preventDefault and emits stopPrevented', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let stopped = false;
 			let prevented: { reason?: string } | undefined;
-			p.on('beforeStop' as any, (e: any) => {
+			mockPlayer.on('beforeStop' as any, (e: any) => {
 				e.preventDefault();
 			});
-			p.on('stop' as any, () => {
+			mockPlayer.on('stop' as any, () => {
 				stopped = true;
 			});
-			p.on('stopPrevented' as any, (data: any) => {
+			mockPlayer.on('stopPrevented' as any, (data: any) => {
 				prevented = data;
 			});
-			await p.stop();
+			await mockPlayer.stop();
 			expect(stopped).toBe(false);
 			expect(prevented?.reason).toBe('listener-prevented');
 		});
 
 		it('togglePlayback toggles between play and pause', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let played = 0;
 			let paused = 0;
-			p.on('play' as any, () => {
+			mockPlayer.on('play' as any, () => {
 				played += 1;
 			});
-			p.on('pause' as any, () => {
+			mockPlayer.on('pause' as any, () => {
 				paused += 1;
 			});
-			await p.togglePlayback();
-			await p.togglePlayback();
+			await mockPlayer.togglePlayback();
+			await mockPlayer.togglePlayback();
 			expect(played).toBe(1);
 			expect(paused).toBe(1);
 		});
 
 		it('rewind emits beforeSeek with negative delta', () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let beforeSeekTime: number | undefined;
-			p.on('beforeSeek' as any, (e: any) => {
+			mockPlayer.on('beforeSeek' as any, (e: any) => {
 				beforeSeekTime = e.data.time;
 			});
-			p.rewind(5);
+			mockPlayer.rewind(5);
 			expect(beforeSeekTime).toBe(-5);
 		});
 
 		it('forward emits beforeSeek with positive delta', () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let beforeSeekTime: number | undefined;
-			p.on('beforeSeek' as any, (e: any) => {
+			mockPlayer.on('beforeSeek' as any, (e: any) => {
 				beforeSeekTime = e.data.time;
 			});
-			p.forward(10);
+			mockPlayer.forward(10);
 			expect(beforeSeekTime).toBe(10);
 		});
 
 		it('restart seeks to 0 then plays', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			const order: string[] = [];
-			p.on('seek' as any, (data: any) => {
+			mockPlayer.on('seek' as any, (data: any) => {
 				order.push(`seek:${data.time}`);
 			});
-			p.on('play' as any, () => {
+			mockPlayer.on('play' as any, () => {
 				order.push('play');
 			});
-			await p.restart();
+			await mockPlayer.restart();
 			expect(order).toContain('seek:0');
 			expect(order[order.length - 1]).toBe('play');
 		});
@@ -538,34 +538,34 @@ describe('player-core mixins (kit)', () => {
 
 	describe('state enums', () => {
 		it('playState transitions through play/pause/stop', async () => {
-			const p = setupPlayer();
-			expect(p.playState()).toBe('idle');
-			await p.play();
-			expect(p.playState()).toBe('playing');
-			await p.pause();
-			expect(p.playState()).toBe('paused');
-			await p.stop();
-			expect(p.playState()).toBe('stopped');
+			const mockPlayer = setupPlayer();
+			expect(mockPlayer.playState()).toBe('idle');
+			await mockPlayer.play();
+			expect(mockPlayer.playState()).toBe('playing');
+			await mockPlayer.pause();
+			expect(mockPlayer.playState()).toBe('paused');
+			await mockPlayer.stop();
+			expect(mockPlayer.playState()).toBe('stopped');
 		});
 
 		it('repeatState round-trips and emits "repeat"', () => {
-			const p = setupPlayer();
-			expect(p.repeatState()).toBe('off');
+			const mockPlayer = setupPlayer();
+			expect(mockPlayer.repeatState()).toBe('off');
 			let emitted: { state: string } | undefined;
-			p.on('repeat' as any, (data: any) => {
+			mockPlayer.on('repeat' as any, (data: any) => {
 				emitted = data;
 			});
-			p.repeatState('all');
-			expect(p.repeatState()).toBe('all');
+			mockPlayer.repeatState('all');
+			expect(mockPlayer.repeatState()).toBe('all');
 			expect(emitted?.state).toBe('all');
 		});
 
 		it('shuffleState accepts a boolean shorthand', () => {
-			const p = setupPlayer();
-			p.shuffleState(true as any);
-			expect(p.shuffleState()).toBe('on');
-			p.shuffleState(false as any);
-			expect(p.shuffleState()).toBe('off');
+			const mockPlayer = setupPlayer();
+			mockPlayer.shuffleState(true as any);
+			expect(mockPlayer.shuffleState()).toBe('on');
+			mockPlayer.shuffleState(false as any);
+			expect(mockPlayer.shuffleState()).toBe('off');
 		});
 	});
 
@@ -580,35 +580,35 @@ describe('player-core mixins (kit)', () => {
 			const div = document.createElement('div');
 			div.id = 'vp';
 			document.body.appendChild(div);
-			const p = new MockPlayer('vp').setup({ defaultVolume: 40 } as any);
-			expect(p.volume()).toBe(40);
+			const mockPlayer = new MockPlayer('vp').setup({ defaultVolume: 40 } as any);
+			expect(mockPlayer.volume()).toBe(40);
 		});
 
 		it('clamps writes to [0, 100]', () => {
-			const p = setupPlayer();
-			p.volume(200);
-			expect(p.volume()).toBe(100);
-			p.volume(-1);
-			expect(p.volume()).toBe(0);
+			const mockPlayer = setupPlayer();
+			mockPlayer.volume(200);
+			expect(mockPlayer.volume()).toBe(100);
+			mockPlayer.volume(-1);
+			expect(mockPlayer.volume()).toBe(0);
 		});
 
 		it('mute() returns 0; unmute() restores prior level', () => {
-			const p = setupPlayer();
-			p.volume(60);
-			p.mute();
-			expect(p.volume()).toBe(0);
-			p.unmute();
-			expect(p.volume()).toBe(60);
+			const mockPlayer = setupPlayer();
+			mockPlayer.volume(60);
+			mockPlayer.mute();
+			expect(mockPlayer.volume()).toBe(0);
+			mockPlayer.unmute();
+			expect(mockPlayer.volume()).toBe(60);
 		});
 
 		it('volumeUp / volumeDown clamp at the bounds', () => {
-			const p = setupPlayer();
-			p.volume(95);
-			p.volumeUp(20);
-			expect(p.volume()).toBe(100);
-			p.volume(5);
-			p.volumeDown(20);
-			expect(p.volume()).toBe(0);
+			const mockPlayer = setupPlayer();
+			mockPlayer.volume(95);
+			mockPlayer.volumeUp(20);
+			expect(mockPlayer.volume()).toBe(100);
+			mockPlayer.volume(5);
+			mockPlayer.volumeDown(20);
+			expect(mockPlayer.volume()).toBe(0);
 		});
 	});
 
@@ -620,41 +620,41 @@ describe('player-core mixins (kit)', () => {
 		});
 
 		it('time(t) round-trips and emits seek', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let seekTime: number | undefined;
-			p.on('seek' as any, (data: any) => {
+			mockPlayer.on('seek' as any, (data: any) => {
 				seekTime = data.time;
 			});
-			await p.time(15);
-			expect(p.time()).toBe(15);
+			await mockPlayer.time(15);
+			expect(mockPlayer.time()).toBe(15);
 			expect(seekTime).toBe(15);
 		});
 
 		it('time(t) preventDefault leaves the value unchanged', async () => {
-			const p = setupPlayer();
-			await p.time(7);
-			p.on('beforeSeek' as any, (e: any) => {
+			const mockPlayer = setupPlayer();
+			await mockPlayer.time(7);
+			mockPlayer.on('beforeSeek' as any, (e: any) => {
 				e.preventDefault();
 			});
-			await p.time(99);
-			expect(p.time()).toBe(7);
+			await mockPlayer.time(99);
+			expect(mockPlayer.time()).toBe(7);
 		});
 
 		it('playbackRate round-trips and emits backend:ratechange', () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let rate: number | undefined;
-			p.on('backend:ratechange' as any, (data: any) => {
+			mockPlayer.on('backend:ratechange' as any, (data: any) => {
 				rate = data.rate;
 			});
-			p.playbackRate(1.5);
-			expect(p.playbackRate()).toBe(1.5);
+			mockPlayer.playbackRate(1.5);
+			expect(mockPlayer.playbackRate()).toBe(1.5);
 			expect(rate).toBe(1.5);
 		});
 
 		it('timeData returns aggregated TimeState shape', async () => {
-			const p = setupPlayer();
-			await p.time(3);
-			const data = p.timeData();
+			const mockPlayer = setupPlayer();
+			await mockPlayer.time(3);
+			const data = mockPlayer.timeData();
 			expect(data.position).toBe(3);
 			expect(data).toHaveProperty('duration');
 			expect(data).toHaveProperty('buffered');
@@ -671,22 +671,22 @@ describe('player-core mixins (kit)', () => {
 		});
 
 		it('addTranslations + t round-trips', () => {
-			const p = setupPlayer();
-			p.addTranslations({ en: { hello: 'world' } });
-			expect(p.t('hello')).toBe('world');
+			const mockPlayer = setupPlayer();
+			mockPlayer.addTranslations({ en: { hello: 'world' } });
+			expect(mockPlayer.t('hello')).toBe('world');
 		});
 
 		it('t(key, vars) interpolates {var}', () => {
-			const p = setupPlayer();
-			p.addTranslations({ en: { greet: 'Hi {name}' } });
-			expect(p.t('greet', { name: 'Arc' })).toBe('Hi Arc');
+			const mockPlayer = setupPlayer();
+			mockPlayer.addTranslations({ en: { greet: 'Hi {name}' } });
+			expect(mockPlayer.t('greet', { name: 'Arc' })).toBe('Hi Arc');
 		});
 
 		it('removeTranslations strips by prefix', () => {
-			const p = setupPlayer();
-			p.addTranslations({ en: { 'foo.a': 'A', 'foo.b': 'B' } });
-			p.removeTranslations('foo.');
-			expect(p.t('foo.a')).toBe('foo.a');
+			const mockPlayer = setupPlayer();
+			mockPlayer.addTranslations({ en: { 'foo.a': 'A', 'foo.b': 'B' } });
+			mockPlayer.removeTranslations('foo.');
+			expect(mockPlayer.t('foo.a')).toBe('foo.a');
 		});
 	});
 
@@ -694,10 +694,10 @@ describe('player-core mixins (kit)', () => {
 
 	describe('cue parser', () => {
 		it('register + unregister round-trip without throwing', () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			const parser = { id: 'p1', canParse: (): boolean => false, parse: (): any => ({ cues: [], duration: 0 }) };
-			expect(() => p.registerCueParser(parser as any)).not.toThrow();
-			expect(() => p.unregisterCueParser('p1')).not.toThrow();
+			expect(() => mockPlayer.registerCueParser(parser as any)).not.toThrow();
+			expect(() => mockPlayer.unregisterCueParser('p1')).not.toThrow();
 		});
 
 		it('unregistering an absent id is a no-op', () => {
@@ -709,18 +709,18 @@ describe('player-core mixins (kit)', () => {
 
 	describe('baseUrl + audioContext', () => {
 		it('baseUrl read/write round-trips', () => {
-			const p = setupPlayer();
-			expect(p.baseUrl()).toBeUndefined();
-			p.baseUrl('https://example.test/api');
-			expect(p.baseUrl()).toBe('https://example.test/api');
+			const mockPlayer = setupPlayer();
+			expect(mockPlayer.baseUrl()).toBeUndefined();
+			mockPlayer.baseUrl('https://example.test/api');
+			expect(mockPlayer.baseUrl()).toBe('https://example.test/api');
 		});
 
 		it('config.baseUrl seeds the value at setup', () => {
 			const div = document.createElement('div');
 			div.id = 'cb';
 			document.body.appendChild(div);
-			const p = new MockPlayer('cb').setup({ baseUrl: 'https://seeded.test' } as any);
-			expect(p.baseUrl()).toBe('https://seeded.test');
+			const mockPlayer = new MockPlayer('cb').setup({ baseUrl: 'https://seeded.test' } as any);
+			expect(mockPlayer.baseUrl()).toBe('https://seeded.test');
 		});
 
 		it('audioContext is undefined initially', () => {
@@ -732,18 +732,18 @@ describe('player-core mixins (kit)', () => {
 
 	describe('experimental', () => {
 		it('override + restore + overrides round-trip', () => {
-			const p = setupPlayer();
-			const unbind = p.experimental.override('foo', () => 1);
-			expect(p.experimental.overrides().some((o: any) => o.method === 'foo')).toBe(true);
+			const mockPlayer = setupPlayer();
+			const unbind = mockPlayer.experimental.override('foo', () => 1);
+			expect(mockPlayer.experimental.overrides().some((o: any) => o.method === 'foo')).toBe(true);
 			unbind();
-			expect(p.experimental.overrides().some((o: any) => o.method === 'foo')).toBe(false);
+			expect(mockPlayer.experimental.overrides().some((o: any) => o.method === 'foo')).toBe(false);
 		});
 
 		it('restore(name) clears a named method', () => {
-			const p = setupPlayer();
-			p.experimental.override('bar', () => 2);
-			p.experimental.restore('bar');
-			expect(p.experimental.overrides().some((o: any) => o.method === 'bar')).toBe(false);
+			const mockPlayer = setupPlayer();
+			mockPlayer.experimental.override('bar', () => 2);
+			mockPlayer.experimental.restore('bar');
+			expect(mockPlayer.experimental.overrides().some((o: any) => o.method === 'bar')).toBe(false);
 		});
 	});
 
@@ -753,68 +753,68 @@ describe('player-core mixins (kit)', () => {
 		const t = (id: string): BasePlaylistItem => ({ id });
 
 		it('queue() empty initially; queue([items]) replaces and emits "queue"', () => {
-			const p = setupPlayer();
-			expect(p.queue()).toEqual([]);
+			const mockPlayer = setupPlayer();
+			expect(mockPlayer.queue()).toEqual([]);
 			let emitted: ReadonlyArray<unknown> | undefined;
-			p.on('queue' as any, (items: any) => {
+			mockPlayer.on('queue' as any, (items: any) => {
 				emitted = items;
 			});
-			p.queue([t('a'), t('b')]);
-			expect(p.queue().length).toBe(2);
+			mockPlayer.queue([t('a'), t('b')]);
+			expect(mockPlayer.queue().length).toBe(2);
 			expect(emitted?.length).toBe(2);
 		});
 
 		it('queueAppend emits queue:append with from index', () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let from: number | undefined;
-			p.on('queue:append' as any, (data: any) => {
+			mockPlayer.on('queue:append' as any, (data: any) => {
 				from = data.from;
 			});
-			p.queue([t('a')]);
-			p.queueAppend(t('b'));
+			mockPlayer.queue([t('a')]);
+			mockPlayer.queueAppend(t('b'));
 			expect(from).toBe(1);
 		});
 
 		it('queueRemove emits queue:remove with id', () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let removedId: string | undefined;
-			p.on('queue:remove' as any, (data: any) => {
+			mockPlayer.on('queue:remove' as any, (data: any) => {
 				removedId = data.id;
 			});
-			p.queue([t('a'), t('b')]);
-			p.queueRemove('a');
+			mockPlayer.queue([t('a'), t('b')]);
+			mockPlayer.queueRemove('a');
 			expect(removedId).toBe('a');
 		});
 
 		it('queueClear emits queue:clear with previousLength', () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let cleared: { previousLength: number } | undefined;
-			p.on('queue:clear' as any, (data: any) => {
+			mockPlayer.on('queue:clear' as any, (data: any) => {
 				cleared = data;
 			});
-			p.queue([t('a'), t('b'), t('c')]);
-			p.queueClear();
+			mockPlayer.queue([t('a'), t('b'), t('c')]);
+			mockPlayer.queueClear();
 			expect(cleared?.previousLength).toBe(3);
-			expect(p.queue()).toEqual([]);
+			expect(mockPlayer.queue()).toEqual([]);
 		});
 
 		it('item() moves the cursor and emits "item"', () => {
-			const p = setupPlayer();
-			p.queue([t('a'), t('b'), t('c')]);
+			const mockPlayer = setupPlayer();
+			mockPlayer.queue([t('a'), t('b'), t('c')]);
 			let payload: { index: number } | undefined;
-			p.on('item' as any, (data: any) => {
+			mockPlayer.on('item' as any, (data: any) => {
 				payload = data;
 			});
-			p.item('c');
-			expect(p.item()?.id).toBe('c');
+			mockPlayer.item('c');
+			expect(mockPlayer.item()?.id).toBe('c');
 			expect(payload?.index).toBe(2);
 		});
 
 		it('peekNext / peekPrevious work off the cursor', () => {
-			const p = setupPlayer();
-			p.queue([t('a'), t('b')]);
-			expect(p.peekNext()?.id).toBe('b');
-			expect(p.peekPrevious()).toBeUndefined();
+			const mockPlayer = setupPlayer();
+			mockPlayer.queue([t('a'), t('b')]);
+			expect(mockPlayer.peekNext()?.id).toBe('b');
+			expect(mockPlayer.peekPrevious()).toBeUndefined();
 		});
 
 		it('queueIndexOf returns -1 for unknown ids', () => {
@@ -822,23 +822,23 @@ describe('player-core mixins (kit)', () => {
 		});
 
 		it('backlog([items]) replaces + emits "backlog"', () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let emitted: ReadonlyArray<unknown> | undefined;
-			p.on('backlog' as any, (items: any) => {
+			mockPlayer.on('backlog' as any, (items: any) => {
 				emitted = items;
 			});
-			p.backlog([t('a'), t('b')]);
+			mockPlayer.backlog([t('a'), t('b')]);
 			expect(emitted?.length).toBe(2);
 		});
 
 		it('backlogClear emits backlog:clear', () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let cleared: { previousLength: number } | undefined;
-			p.on('backlog:clear' as any, (data: any) => {
+			mockPlayer.on('backlog:clear' as any, (data: any) => {
 				cleared = data;
 			});
-			p.backlog([t('a')]);
-			p.backlogClear();
+			mockPlayer.backlog([t('a')]);
+			mockPlayer.backlogClear();
 			expect(cleared?.previousLength).toBe(1);
 		});
 	});
@@ -862,34 +862,34 @@ describe('player-core mixins (kit)', () => {
 		}
 
 		it('addPlugin instantiates + uses + emits plugin:installed', async () => {
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 			let payload: { id: string; version: string } | undefined;
-			p.on('plugin:installed' as any, (data: any) => {
+			mockPlayer.on('plugin:installed' as any, (data: any) => {
 				payload = data;
 			});
-			p.addPlugin(HelloPlugin);
-			await p.ready();
-			const inst = p.getPlugin(HelloPlugin);
+			mockPlayer.addPlugin(HelloPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(HelloPlugin);
 			expect(inst?.used).toBe(true);
 			expect(payload).toEqual({ id: 'hello', version: '1.0.0' });
 		});
 
 		it('addPlugin merges static translations', async () => {
-			const p = setupPlayer();
-			p.addPlugin(HelloPlugin);
-			await p.ready();
-			expect(p.t('plugin.hello.greet')).toBe('hi');
+			const mockPlayer = setupPlayer();
+			mockPlayer.addPlugin(HelloPlugin);
+			await mockPlayer.ready();
+			expect(mockPlayer.t('plugin.hello.greet')).toBe('hi');
 		});
 
 		it('addPlugin throws core:plugin/duplicate-id on second add', () => {
-			const p = setupPlayer();
-			p.addPlugin(HelloPlugin);
-			expect(() => p.addPlugin(HelloPlugin)).toThrow(/core:plugin\/duplicate-id/);
+			const mockPlayer = setupPlayer();
+			mockPlayer.addPlugin(HelloPlugin);
+			expect(() => mockPlayer.addPlugin(HelloPlugin)).toThrow(/core:plugin\/duplicate-id/);
 		});
 
 		it('addPlugin throws core:plugin/missing-dep when a required plugin is absent', () => {
-			const p = setupPlayer();
-			expect(() => p.addPlugin(NeedsHelloPlugin)).toThrow(/core:plugin\/missing-dep/);
+			const mockPlayer = setupPlayer();
+			expect(() => mockPlayer.addPlugin(NeedsHelloPlugin)).toThrow(/core:plugin\/missing-dep/);
 		});
 
 		it('addPlugin\'s `opts` parameter is typed to the plugin\'s O generic — no `satisfies` needed for autocomplete', async () => {
@@ -904,48 +904,48 @@ describe('player-core mixins (kit)', () => {
 				static override readonly description = 'verifies opts inference';
 			}
 
-			const p = setupPlayer();
+			const mockPlayer = setupPlayer();
 
 			// Compile-time assertion: passing matching opts compiles without `satisfies`
 			// AND without `as`. If P['opts'] inference broke, this line would fail
 			// type-checking with "Object literal may only specify known properties..."
 			// (extra prop) or "missing property" (required field absent).
-			p.addPlugin(TypedPlugin, { answer: 42 });
+			mockPlayer.addPlugin(TypedPlugin, { answer: 42 });
 
 			// @ts-expect-error — wrong type for `answer` (not assignable to number)
-			void (() => p.addPlugin(TypedPlugin, { answer: 'no' }));
+			void (() => mockPlayer.addPlugin(TypedPlugin, { answer: 'no' }));
 			// @ts-expect-error — extra property not on TypedOpts
-			void (() => p.addPlugin(TypedPlugin, { answer: 1, bogus: true }));
+			void (() => mockPlayer.addPlugin(TypedPlugin, { answer: 1, bogus: true }));
 
-			await p.ready();
+			await mockPlayer.ready();
 
 			// At runtime, the plugin received the typed opts.
-			const inst = p.getPlugin(TypedPlugin) as (TypedPlugin & { opts: TypedOpts }) | undefined;
+			const inst = mockPlayer.getPlugin(TypedPlugin) as (TypedPlugin & { opts: TypedOpts }) | undefined;
 			expect(inst?.opts?.answer).toBe(42);
 		});
 
 		it('removePlugin disposes + emits plugin:disposed + strips translations', async () => {
-			const p = setupPlayer();
-			p.addPlugin(HelloPlugin);
-			await p.ready();
-			const inst = p.getPlugin(HelloPlugin);
+			const mockPlayer = setupPlayer();
+			mockPlayer.addPlugin(HelloPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(HelloPlugin);
 			let disposedId: string | undefined;
-			p.on('plugin:disposed' as any, (data: any) => {
+			mockPlayer.on('plugin:disposed' as any, (data: any) => {
 				disposedId = data.id;
 			});
-			p.removePlugin(HelloPlugin);
+			mockPlayer.removePlugin(HelloPlugin);
 			expect(inst?.disposed).toBe(true);
 			expect(disposedId).toBe('hello');
-			expect(p.t('plugin.hello.greet')).toBe('plugin.hello.greet');
+			expect(mockPlayer.t('plugin.hello.greet')).toBe('plugin.hello.greet');
 		});
 
 		it('plugins() lists registered; enabledPlugins() filters disabled', async () => {
-			const p = setupPlayer();
-			p.addPlugin(HelloPlugin);
-			await p.ready();
-			expect(p.plugins().length).toBe(1);
-			p.getPlugin(HelloPlugin)?.disable();
-			expect(p.enabledPlugins().length).toBe(0);
+			const mockPlayer = setupPlayer();
+			mockPlayer.addPlugin(HelloPlugin);
+			await mockPlayer.ready();
+			expect(mockPlayer.plugins().length).toBe(1);
+			mockPlayer.getPlugin(HelloPlugin)?.disable();
+			expect(mockPlayer.enabledPlugins().length).toBe(0);
 		});
 	});
 

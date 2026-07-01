@@ -602,7 +602,7 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	 * No extra state or behaviour beyond delegating to the standalone helpers in `dom.ts`.
 	 */
 	createElement<K extends keyof HTMLElementTagNameMap>(type: K, id: string, unique?: boolean): CreateElement<HTMLElementTagNameMap[K]>;
-	createButton(id: string, label: string, onClick: (e: Event) => void): HTMLButtonElement;
+	createButton(id: string, label: string, onClick: (event: Event) => void): HTMLButtonElement;
 	createSVG(id: string, viewBox: string): SVGSVGElement;
 	addClasses<T extends Element>(el: T, names: string[]): AddClasses<T>;
 	removeClasses<T extends Element>(el: T, names: string[]): T;

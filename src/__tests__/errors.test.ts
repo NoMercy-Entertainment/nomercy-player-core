@@ -146,67 +146,67 @@ describe('Error framework', () => {
 
 	describe('PlayerError', () => {
 		it('stores code / scope / severity (defaulting to error)', () => {
-			const e = new PlayerError({ code: 'core:foo/bar', scope: { kind: 'core' } });
-			expect(e.code).toBe('core:foo/bar');
-			expect(e.scope).toEqual({ kind: 'core' });
-			expect(e.severity).toBe('error');
+			const playerError = new PlayerError({ code: 'core:foo/bar', scope: { kind: 'core' } });
+			expect(playerError.code).toBe('core:foo/bar');
+			expect(playerError.scope).toEqual({ kind: 'core' });
+			expect(playerError.severity).toBe('error');
 		});
 
 		it('honors explicit severity', () => {
-			const e = new PlayerError({ code: 'x', scope: { kind: 'core' }, severity: 'fatal' });
-			expect(e.severity).toBe('fatal');
+			const playerError = new PlayerError({ code: 'x', scope: { kind: 'core' }, severity: 'fatal' });
+			expect(playerError.severity).toBe('fatal');
 		});
 
 		it('uses message arg for Error.message when supplied', () => {
-			const e = new PlayerError({ code: 'x', scope: { kind: 'core' }, message: 'bang' });
-			expect(e.message).toBe('bang');
+			const playerError = new PlayerError({ code: 'x', scope: { kind: 'core' }, message: 'bang' });
+			expect(playerError.message).toBe('bang');
 		});
 
 		it('falls back to code as Error.message when message is omitted', () => {
-			const e = new PlayerError({ code: 'core:fallback', scope: { kind: 'core' } });
-			expect(e.message).toBe('core:fallback');
+			const playerError = new PlayerError({ code: 'core:fallback', scope: { kind: 'core' } });
+			expect(playerError.message).toBe('core:fallback');
 		});
 
 		it('stores cause / context / suggestion when provided', () => {
 			const cause = new Error('inner');
-			const e = new PlayerError({
+			const playerError = new PlayerError({
 				code: 'x',
 				scope: { kind: 'core' },
 				cause,
 				context: { url: 'https://example.com' },
 				suggestion: 'Try again',
 			});
-			expect(e.cause).toBe(cause);
-			expect(e.context).toEqual({ url: 'https://example.com' });
-			expect(e.suggestion).toBe('Try again');
+			expect(playerError.cause).toBe(cause);
+			expect(playerError.context).toEqual({ url: 'https://example.com' });
+			expect(playerError.suggestion).toBe('Try again');
 		});
 
 		it('has name "PlayerError"', () => {
-			const e = new PlayerError({ code: 'x', scope: { kind: 'core' } });
-			expect(e.name).toBe('PlayerError');
+			const playerError = new PlayerError({ code: 'x', scope: { kind: 'core' } });
+			expect(playerError.name).toBe('PlayerError');
 		});
 
 		it('is an instanceof Error', () => {
-			const e = new PlayerError({ code: 'x', scope: { kind: 'core' } });
-			expect(e).toBeInstanceOf(Error);
+			const playerError = new PlayerError({ code: 'x', scope: { kind: 'core' } });
+			expect(playerError).toBeInstanceOf(Error);
 		});
 
 		describe('isHttp()', () => {
 			it('returns true when context.httpStatus matches the requested century', () => {
-				const e = new PlayerError({ code: 'x', scope: { kind: 'network' }, context: { httpStatus: 404 } });
-				expect(e.isHttp(4)).toBe(true);
-				expect(e.isHttp(5)).toBe(false);
+				const playerError = new PlayerError({ code: 'x', scope: { kind: 'network' }, context: { httpStatus: 404 } });
+				expect(playerError.isHttp(4)).toBe(true);
+				expect(playerError.isHttp(5)).toBe(false);
 			});
 
 			it('returns false when no httpStatus in context', () => {
-				const e = new PlayerError({ code: 'x', scope: { kind: 'network' } });
-				expect(e.isHttp(4)).toBe(false);
+				const playerError = new PlayerError({ code: 'x', scope: { kind: 'network' } });
+				expect(playerError.isHttp(4)).toBe(false);
 			});
 
 			it('returns false for httpStatus boundary outside century', () => {
-				const e = new PlayerError({ code: 'x', scope: { kind: 'network' }, context: { httpStatus: 500 } });
-				expect(e.isHttp(4)).toBe(false);
-				expect(e.isHttp(5)).toBe(true);
+				const playerError = new PlayerError({ code: 'x', scope: { kind: 'network' }, context: { httpStatus: 500 } });
+				expect(playerError.isHttp(4)).toBe(false);
+				expect(playerError.isHttp(5)).toBe(true);
 			});
 		});
 	});
@@ -217,58 +217,58 @@ describe('Error framework', () => {
 
 	describe('error subclasses', () => {
 		it('NetworkError extends PlayerError', () => {
-			const e = new NetworkError({ code: 'core:network/x', scope: { kind: 'network' } });
-			expect(e).toBeInstanceOf(PlayerError);
-			expect(e.name).toBe('NetworkError');
+			const networkError = new NetworkError({ code: 'core:network/x', scope: { kind: 'network' } });
+			expect(networkError).toBeInstanceOf(PlayerError);
+			expect(networkError.name).toBe('NetworkError');
 		});
 
 		it('AuthError extends NetworkError', () => {
-			const e = new AuthError({ code: 'core:auth/x', scope: { kind: 'auth' } });
-			expect(e).toBeInstanceOf(NetworkError);
-			expect(e).toBeInstanceOf(PlayerError);
-			expect(e.name).toBe('AuthError');
+			const authError = new AuthError({ code: 'core:auth/x', scope: { kind: 'auth' } });
+			expect(authError).toBeInstanceOf(NetworkError);
+			expect(authError).toBeInstanceOf(PlayerError);
+			expect(authError.name).toBe('AuthError');
 		});
 
 		it('MediaFormatError extends PlayerError', () => {
-			const e = new MediaFormatError({ code: 'core:media/x', scope: { kind: 'core' } });
-			expect(e).toBeInstanceOf(PlayerError);
-			expect(e.name).toBe('MediaFormatError');
+			const mediaFormatError = new MediaFormatError({ code: 'core:media/x', scope: { kind: 'core' } });
+			expect(mediaFormatError).toBeInstanceOf(PlayerError);
+			expect(mediaFormatError.name).toBe('MediaFormatError');
 		});
 
 		it('StreamError extends PlayerError', () => {
-			const e = new StreamError({ code: 'core:stream/x', scope: { kind: 'stream', id: 'hls' } });
-			expect(e).toBeInstanceOf(PlayerError);
-			expect(e.name).toBe('StreamError');
+			const streamError = new StreamError({ code: 'core:stream/x', scope: { kind: 'stream', id: 'hls' } });
+			expect(streamError).toBeInstanceOf(PlayerError);
+			expect(streamError.name).toBe('StreamError');
 		});
 
 		it('DrmError extends PlayerError', () => {
-			const e = new DrmError({ code: 'core:drm/x', scope: { kind: 'core' } });
-			expect(e).toBeInstanceOf(PlayerError);
-			expect(e.name).toBe('DrmError');
+			const drmError = new DrmError({ code: 'core:drm/x', scope: { kind: 'core' } });
+			expect(drmError).toBeInstanceOf(PlayerError);
+			expect(drmError.name).toBe('DrmError');
 		});
 
 		it('BrowserPolicyError extends PlayerError', () => {
-			const e = new BrowserPolicyError({ code: 'core:policy/x', scope: { kind: 'core' } });
-			expect(e).toBeInstanceOf(PlayerError);
-			expect(e.name).toBe('BrowserPolicyError');
+			const browserPolicyError = new BrowserPolicyError({ code: 'core:policy/x', scope: { kind: 'core' } });
+			expect(browserPolicyError).toBeInstanceOf(PlayerError);
+			expect(browserPolicyError.name).toBe('BrowserPolicyError');
 		});
 
 		it('StateError extends PlayerError', () => {
-			const e = new StateError({ code: 'core:state/x', scope: { kind: 'core' } });
-			expect(e).toBeInstanceOf(PlayerError);
-			expect(e.name).toBe('StateError');
+			const stateError = new StateError({ code: 'core:state/x', scope: { kind: 'core' } });
+			expect(stateError).toBeInstanceOf(PlayerError);
+			expect(stateError.name).toBe('StateError');
 		});
 
 		it('PluginError extends PlayerError', () => {
-			const e = new PluginError({ code: 'plugin:foo/x', scope: { kind: 'plugin', id: 'foo' } });
-			expect(e).toBeInstanceOf(PlayerError);
-			expect(e.name).toBe('PluginError');
+			const pluginError = new PluginError({ code: 'plugin:foo/x', scope: { kind: 'plugin', id: 'foo' } });
+			expect(pluginError).toBeInstanceOf(PlayerError);
+			expect(pluginError.name).toBe('PluginError');
 		});
 
 		it('ResourceError extends PlayerError', () => {
-			const e = new ResourceError({ code: 'core:resource/x', scope: { kind: 'core' } });
-			expect(e).toBeInstanceOf(PlayerError);
-			expect(e.name).toBe('ResourceError');
+			const resourceError = new ResourceError({ code: 'core:resource/x', scope: { kind: 'core' } });
+			expect(resourceError).toBeInstanceOf(PlayerError);
+			expect(resourceError.name).toBe('ResourceError');
 		});
 	});
 

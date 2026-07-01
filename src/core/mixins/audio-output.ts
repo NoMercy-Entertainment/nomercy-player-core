@@ -46,7 +46,7 @@ export const audioOutputMethods = {
 			return [];
 		}
 		const devices = await navigator.mediaDevices.enumerateDevices();
-		return devices.filter(d => d.kind === 'audiooutput');
+		return devices.filter(mediaDeviceInfo => mediaDeviceInfo.kind === 'audiooutput');
 	},
 	/**
 	 * Open the browser's audio-output picker. Chrome ≥105 exposes

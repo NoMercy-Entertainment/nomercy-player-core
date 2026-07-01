@@ -61,8 +61,8 @@ function item(id: string): BasePlaylistItem {
 
 describe('StubPlayer transport stubs', () => {
 	it('play() resolves', async () => {
-		const p = new StubPlayer();
-		await expect(p.play()).resolves.toBeUndefined();
+		const stubPlayer = new StubPlayer();
+		await expect(stubPlayer.play()).resolves.toBeUndefined();
 	});
 
 	it('pause() resolves', async () => {
@@ -102,8 +102,8 @@ describe('StubPlayer transport stubs', () => {
 
 describe('StubPlayer lifecycle stubs', () => {
 	it('setup() returns this for chaining', () => {
-		const p = new StubPlayer();
-		expect(p.setup({})).toBe(p);
+		const stubPlayer = new StubPlayer();
+		expect(stubPlayer.setup({})).toBe(stubPlayer);
 	});
 
 	it('ready() resolves immediately', async () => {
@@ -119,18 +119,18 @@ describe('StubPlayer lifecycle stubs', () => {
 	});
 
 	it('setupState() returns SETTING_UP in setup phase', () => {
-		const p = new StubPlayer({ phase: 'setup' });
-		expect(p.setupState()).toBe(SetupState.SETTING_UP);
+		const stubPlayer = new StubPlayer({ phase: 'setup' });
+		expect(stubPlayer.setupState()).toBe(SetupState.SETTING_UP);
 	});
 
 	it('setupState() returns DISPOSED in disposed phase', () => {
-		const p = new StubPlayer({ phase: 'disposed' });
-		expect(p.setupState()).toBe(SetupState.DISPOSED);
+		const stubPlayer = new StubPlayer({ phase: 'disposed' });
+		expect(stubPlayer.setupState()).toBe(SetupState.DISPOSED);
 	});
 
 	it('setupState() returns READY in ready phase', () => {
-		const p = new StubPlayer({ phase: 'ready' });
-		expect(p.setupState()).toBe(SetupState.READY);
+		const stubPlayer = new StubPlayer({ phase: 'ready' });
+		expect(stubPlayer.setupState()).toBe(SetupState.READY);
 	});
 });
 
@@ -138,9 +138,9 @@ describe('StubPlayer lifecycle stubs', () => {
 
 describe('StubPlayer id getter', () => {
 	it('id mirrors playerId', () => {
-		const p = new StubPlayer({ id: 'my-player' });
-		expect(p.id).toBe('my-player');
-		expect(p.id).toBe(p.playerId);
+		const stubPlayer = new StubPlayer({ id: 'my-player' });
+		expect(stubPlayer.id).toBe('my-player');
+		expect(stubPlayer.id).toBe(stubPlayer.playerId);
 	});
 });
 
@@ -148,8 +148,8 @@ describe('StubPlayer id getter', () => {
 
 describe('StubPlayer platform()', () => {
 	it('returns a non-null platform object', () => {
-		const p = new StubPlayer();
-		const plat = p.platform();
+		const stubPlayer = new StubPlayer();
+		const plat = stubPlayer.platform();
 		expect(plat).toBeDefined();
 		expect(typeof plat).toBe('object');
 	});
@@ -163,34 +163,34 @@ describe('StubPlayer volume', () => {
 	});
 
 	it('volume(level) stores and returns the level', () => {
-		const p = new StubPlayer();
-		p.volume(75);
-		expect(p.volume()).toBe(75);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.volume(75);
+		expect(stubPlayer.volume()).toBe(75);
 	});
 
 	it('volume(level) clamps to 0', () => {
-		const p = new StubPlayer();
-		p.volume(-10);
-		expect(p.volume()).toBe(0);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.volume(-10);
+		expect(stubPlayer.volume()).toBe(0);
 	});
 
 	it('volume(level) clamps to 100', () => {
-		const p = new StubPlayer();
-		p.volume(200);
-		expect(p.volume()).toBe(100);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.volume(200);
+		expect(stubPlayer.volume()).toBe(100);
 	});
 
 	it('volume(level) clears mute flag', () => {
-		const p = new StubPlayer();
-		p.mute();
-		p.volume(50);
-		expect(p.volume()).toBe(50);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.mute();
+		stubPlayer.volume(50);
+		expect(stubPlayer.volume()).toBe(50);
 	});
 
 	it('volume() returns 0 when muted', () => {
-		const p = new StubPlayer();
-		p.mute();
-		expect(p.volume()).toBe(0);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.mute();
+		expect(stubPlayer.volume()).toBe(0);
 	});
 
 	it('volumeUp() is a no-op stub (does not throw)', () => {
@@ -204,24 +204,24 @@ describe('StubPlayer volume', () => {
 	});
 
 	it('mute() sets muted flag', () => {
-		const p = new StubPlayer();
-		p.mute();
-		expect(p.volume()).toBe(0);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.mute();
+		expect(stubPlayer.volume()).toBe(0);
 	});
 
 	it('unmute() clears muted flag', () => {
-		const p = new StubPlayer();
-		p.mute();
-		p.unmute();
-		expect(p.volume()).toBe(100);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.mute();
+		stubPlayer.unmute();
+		expect(stubPlayer.volume()).toBe(100);
 	});
 
 	it('toggleMute() flips mute state', () => {
-		const p = new StubPlayer();
-		p.toggleMute();
-		expect(p.volume()).toBe(0);
-		p.toggleMute();
-		expect(p.volume()).toBe(100);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.toggleMute();
+		expect(stubPlayer.volume()).toBe(0);
+		stubPlayer.toggleMute();
+		expect(stubPlayer.volume()).toBe(100);
 	});
 });
 
@@ -233,9 +233,9 @@ describe('StubPlayer time', () => {
 	});
 
 	it('time(seconds) sets position and resolves', async () => {
-		const p = new StubPlayer();
-		await p.time(30);
-		expect(p.time()).toBe(30);
+		const stubPlayer = new StubPlayer();
+		await stubPlayer.time(30);
+		expect(stubPlayer.time()).toBe(30);
 	});
 
 	it('duration() returns 0 by default', () => {
@@ -243,9 +243,9 @@ describe('StubPlayer time', () => {
 	});
 
 	it('timeData() returns snapshot with correct fields', () => {
-		const p = new StubPlayer();
-		void p.time(20);
-		const data = p.timeData();
+		const stubPlayer = new StubPlayer();
+		void stubPlayer.time(20);
+		const data = stubPlayer.timeData();
 		expect(data.position).toBe(20);
 		expect(data.duration).toBe(0);
 		expect(data.buffered).toBe(0);
@@ -254,10 +254,10 @@ describe('StubPlayer time', () => {
 	});
 
 	it('timeData() percentage is computed when duration > 0', () => {
-		const p = new StubPlayer();
-		(p as unknown as Record<string, unknown>)['_duration'] = 100;
-		void p.time(25);
-		const data = p.timeData();
+		const stubPlayer = new StubPlayer();
+		(stubPlayer as unknown as Record<string, unknown>)['_duration'] = 100;
+		void stubPlayer.time(25);
+		const data = stubPlayer.timeData();
 		expect(data.percentage).toBeCloseTo(25);
 		expect(data.remaining).toBe(75);
 	});
@@ -271,9 +271,9 @@ describe('StubPlayer time', () => {
 	});
 
 	it('playbackRate(rate) stores and returns the rate', () => {
-		const p = new StubPlayer();
-		p.playbackRate(1.5);
-		expect(p.playbackRate()).toBe(1.5);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.playbackRate(1.5);
+		expect(stubPlayer.playbackRate()).toBe(1.5);
 	});
 });
 
@@ -285,16 +285,16 @@ describe('StubPlayer queue', () => {
 	});
 
 	it('queue(items) replaces the queue', () => {
-		const p = new StubPlayer();
+		const stubPlayer = new StubPlayer();
 		const items = [item('a'), item('b')];
-		p.queue(items);
-		expect(p.queue()).toEqual(items);
+		stubPlayer.queue(items);
+		expect(stubPlayer.queue()).toEqual(items);
 	});
 
 	it('queueLength() reflects the queue length', () => {
-		const p = new StubPlayer();
-		p.queue([item('x'), item('y')]);
-		expect(p.queueLength()).toBe(2);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.queue([item('x'), item('y')]);
+		expect(stubPlayer.queueLength()).toBe(2);
 	});
 
 	it('queueLength() returns 0 when empty', () => {
@@ -302,9 +302,9 @@ describe('StubPlayer queue', () => {
 	});
 
 	it('queueIndexOf() always returns -1 (stub behaviour)', () => {
-		const p = new StubPlayer();
-		p.queue([item('a')]);
-		expect(p.queueIndexOf('a')).toBe(-1);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.queue([item('a')]);
+		expect(stubPlayer.queueIndexOf('a')).toBe(-1);
 	});
 
 	it('index() always returns -1 (stub behaviour)', () => {
@@ -385,9 +385,9 @@ describe('StubPlayer repeatState / shuffleState', () => {
 	});
 
 	it('repeatState(state) stores and returns the state', () => {
-		const p = new StubPlayer();
-		p.repeatState(RepeatState.ALL);
-		expect(p.repeatState()).toBe(RepeatState.ALL);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.repeatState(RepeatState.ALL);
+		expect(stubPlayer.repeatState()).toBe(RepeatState.ALL);
 	});
 
 	it('shuffleState() returns OFF by default', () => {
@@ -395,22 +395,22 @@ describe('StubPlayer repeatState / shuffleState', () => {
 	});
 
 	it('shuffleState(ShuffleState) stores enum value', () => {
-		const p = new StubPlayer();
-		p.shuffleState(ShuffleState.ON);
-		expect(p.shuffleState()).toBe(ShuffleState.ON);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.shuffleState(ShuffleState.ON);
+		expect(stubPlayer.shuffleState()).toBe(ShuffleState.ON);
 	});
 
 	it('shuffleState(true) maps to ShuffleState.ON', () => {
-		const p = new StubPlayer();
-		p.shuffleState(true);
-		expect(p.shuffleState()).toBe(ShuffleState.ON);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.shuffleState(true);
+		expect(stubPlayer.shuffleState()).toBe(ShuffleState.ON);
 	});
 
 	it('shuffleState(false) maps to ShuffleState.OFF', () => {
-		const p = new StubPlayer();
-		p.shuffleState(true);
-		p.shuffleState(false);
-		expect(p.shuffleState()).toBe(ShuffleState.OFF);
+		const stubPlayer = new StubPlayer();
+		stubPlayer.shuffleState(true);
+		stubPlayer.shuffleState(false);
+		expect(stubPlayer.shuffleState()).toBe(ShuffleState.OFF);
 	});
 });
 
@@ -422,10 +422,10 @@ describe('StubPlayer backlog', () => {
 	});
 
 	it('backlog(items) replaces the backlog', () => {
-		const p = new StubPlayer();
+		const stubPlayer = new StubPlayer();
 		const items = [item('a')];
-		p.backlog(items);
-		expect(p.backlog()).toEqual(items);
+		stubPlayer.backlog(items);
+		expect(stubPlayer.backlog()).toEqual(items);
 	});
 
 	it('backlogAppend() is a no-op stub (does not throw)', () => {
@@ -505,15 +505,15 @@ describe('StubPlayer cast', () => {
 
 describe('StubPlayer plugin and stream stubs', () => {
 	it('addPlugin() returns this for chaining', () => {
-		const p = new StubPlayer();
-		const result = p.addPlugin({} as any);
-		expect(result).toBe(p);
+		const stubPlayer = new StubPlayer();
+		const result = stubPlayer.addPlugin({} as any);
+		expect(result).toBe(stubPlayer);
 	});
 
 	it('registerStream() returns this for chaining', () => {
-		const p = new StubPlayer();
-		const result = p.registerStream({} as any);
-		expect(result).toBe(p);
+		const stubPlayer = new StubPlayer();
+		const result = stubPlayer.registerStream({} as any);
+		expect(result).toBe(stubPlayer);
 	});
 
 	it('getPlugin() always returns undefined', () => {
@@ -567,15 +567,15 @@ describe('StubPlayer accessibility, metrics, clock', () => {
 	});
 
 	it('metrics() returns a zeroed-out metrics snapshot', () => {
-		const m = new StubPlayer().metrics();
-		expect(m.ttfb).toBeNull();
-		expect(m.ttff).toBe(0);
-		expect(m.rebufferRatio).toBe(0);
-		expect(m.avgBitrate).toBeNull();
-		expect(m.droppedFrames).toBeNull();
-		expect(m.decoderStalls).toBeNull();
-		expect(m.joinTime).toBe(0);
-		expect(m.sessionDurationMs).toBe(0);
+		const playbackMetrics = new StubPlayer().metrics();
+		expect(playbackMetrics.ttfb).toBeNull();
+		expect(playbackMetrics.ttff).toBe(0);
+		expect(playbackMetrics.rebufferRatio).toBe(0);
+		expect(playbackMetrics.avgBitrate).toBeNull();
+		expect(playbackMetrics.droppedFrames).toBeNull();
+		expect(playbackMetrics.decoderStalls).toBeNull();
+		expect(playbackMetrics.joinTime).toBe(0);
+		expect(playbackMetrics.sessionDurationMs).toBe(0);
 	});
 });
 
@@ -667,23 +667,23 @@ describe('StubPlayer media track mode stubs', () => {
 	});
 
 	it('qualityMode() (getter) returns AUTO', () => {
-		const p = new StubPlayer();
-		const mode = p.qualityMode();
+		const stubPlayer = new StubPlayer();
+		const mode = stubPlayer.qualityMode();
 		expect(mode).toBeDefined();
 	});
 
 	it('qualityMode(target) stores MANUAL state when given a number', () => {
-		const p = new StubPlayer();
-		p.qualityMode(2);
-		const mode = p.qualityMode();
+		const stubPlayer = new StubPlayer();
+		stubPlayer.qualityMode(2);
+		const mode = stubPlayer.qualityMode();
 		expect(mode).toBeDefined();
 	});
 
 	it('qualityMode("auto") stores AUTO state', () => {
-		const p = new StubPlayer();
-		p.qualityMode(2);
-		p.qualityMode('auto');
-		expect(p.qualityMode()).toBeDefined();
+		const stubPlayer = new StubPlayer();
+		stubPlayer.qualityMode(2);
+		stubPlayer.qualityMode('auto');
+		expect(stubPlayer.qualityMode()).toBeDefined();
 	});
 
 	it('audioTrackMode() (getter) returns default state', () => {
@@ -691,9 +691,9 @@ describe('StubPlayer media track mode stubs', () => {
 	});
 
 	it('audioTrackMode(idx) (setter) stores MANUAL state', () => {
-		const p = new StubPlayer();
-		p.audioTrackMode(1);
-		expect(p.audioTrackMode()).toBeDefined();
+		const stubPlayer = new StubPlayer();
+		stubPlayer.audioTrackMode(1);
+		expect(stubPlayer.audioTrackMode()).toBeDefined();
 	});
 
 	it('seekByPercentage() is a no-op stub (does not throw)', () => {
@@ -709,9 +709,9 @@ describe('StubPlayer auth()', () => {
 	});
 
 	it('auth(config) stores the config — snapshot is frozen and token fields are redacted', () => {
-		const p = new StubPlayer();
-		p.auth({ bearerToken: 'tok123', credentials: 'include' });
-		const stored = p.auth();
+		const stubPlayer = new StubPlayer();
+		stubPlayer.auth({ bearerToken: 'tok123', credentials: 'include' });
+		const stored = stubPlayer.auth();
 		expect(stored).toBeDefined();
 		expect(Object.isFrozen(stored)).toBe(true);
 		expect((stored as any).bearerToken).toBeUndefined();
@@ -719,10 +719,10 @@ describe('StubPlayer auth()', () => {
 	});
 
 	it('auth(partial) merges into existing config — non-secret fields visible', () => {
-		const p = new StubPlayer();
-		p.auth({ bearerToken: 'tok1', credentials: 'include' });
-		p.auth({ retryAfterRefresh: 3 } as any);
-		const config = p.auth() as any;
+		const stubPlayer = new StubPlayer();
+		stubPlayer.auth({ bearerToken: 'tok1', credentials: 'include' });
+		stubPlayer.auth({ retryAfterRefresh: 3 } as any);
+		const config = stubPlayer.auth() as any;
 		expect(config.bearerToken).toBeUndefined();
 		expect(config.credentials).toBe('include');
 		expect(config.retryAfterRefresh).toBe(3);
@@ -737,44 +737,44 @@ describe('StubPlayer urlResolver / resolveUrl', () => {
 	});
 
 	it('urlResolver(fn) stores and returns the resolver', () => {
-		const p = new StubPlayer();
+		const stubPlayer = new StubPlayer();
 		const resolver = async (url: string): Promise<any> => ({ href: url, url, baseUrl: '', auth: undefined });
-		p.urlResolver(resolver);
-		expect(p.urlResolver()).toBe(resolver);
+		stubPlayer.urlResolver(resolver);
+		expect(stubPlayer.urlResolver()).toBe(resolver);
 	});
 
 	it('urlResolver(undefined) clears the resolver', () => {
-		const p = new StubPlayer();
+		const stubPlayer = new StubPlayer();
 		const resolver = async (url: string): Promise<any> => ({ href: url, url, baseUrl: '', auth: undefined });
-		p.urlResolver(resolver);
-		p.urlResolver(undefined);
-		expect(p.urlResolver()).toBeUndefined();
+		stubPlayer.urlResolver(resolver);
+		stubPlayer.urlResolver(undefined);
+		expect(stubPlayer.urlResolver()).toBeUndefined();
 	});
 
 	it('resolveUrl() returns the raw URL as href when no baseUrl and no resolver', async () => {
-		const p = new StubPlayer();
-		const result = await p.resolveUrl('https://cdn.example.com/file.mp3');
+		const stubPlayer = new StubPlayer();
+		const result = await stubPlayer.resolveUrl('https://cdn.example.com/file.mp3');
 		expect(result.href).toBe('https://cdn.example.com/file.mp3');
 	});
 
 	it('resolveUrl() resolves relative image URL with baseImageUrl for poster category', async () => {
-		const p = new StubPlayer();
-		p.baseImageUrl('https://images.example.com/');
-		const result = await p.resolveUrl('poster.jpg', 'poster');
+		const stubPlayer = new StubPlayer();
+		stubPlayer.baseImageUrl('https://images.example.com/');
+		const result = await stubPlayer.resolveUrl('poster.jpg', 'poster');
 		expect(result.href).toBe('https://images.example.com/poster.jpg');
 	});
 
 	it('resolveUrl() uses resolver when provided and returns valid href', async () => {
-		const p = new StubPlayer();
-		p.urlResolver(async url => buildResolvedUrl(url, `https://cdn.example.com/${url}`));
-		const result = await p.resolveUrl('file.mp3');
+		const stubPlayer = new StubPlayer();
+		stubPlayer.urlResolver(async url => buildResolvedUrl(url, `https://cdn.example.com/${url}`));
+		const result = await stubPlayer.resolveUrl('file.mp3');
 		expect(result.href).toBe('https://cdn.example.com/file.mp3');
 	});
 
 	it('resolveUrl() falls back to default when resolver returns invalid result', async () => {
-		const p = new StubPlayer();
-		p.urlResolver(async () => null as any);
-		const result = await p.resolveUrl('https://cdn.example.com/x.mp3');
+		const stubPlayer = new StubPlayer();
+		stubPlayer.urlResolver(async () => null as any);
+		const result = await stubPlayer.resolveUrl('https://cdn.example.com/x.mp3');
 		expect(result.href).toBe('https://cdn.example.com/x.mp3');
 	});
 
@@ -783,9 +783,9 @@ describe('StubPlayer urlResolver / resolveUrl', () => {
 	});
 
 	it('baseImageUrl(path) stores and returns the path', () => {
-		const p = new StubPlayer();
-		p.baseImageUrl('https://images.example.com/');
-		expect(p.baseImageUrl()).toBe('https://images.example.com/');
+		const stubPlayer = new StubPlayer();
+		stubPlayer.baseImageUrl('https://images.example.com/');
+		expect(stubPlayer.baseImageUrl()).toBe('https://images.example.com/');
 	});
 });
 
@@ -793,35 +793,35 @@ describe('StubPlayer urlResolver / resolveUrl', () => {
 
 describe('StubPlayer DOM helpers', () => {
 	it('createElement() returns an object with el', () => {
-		const p = new StubPlayer();
-		const result = p.createElement('div', 'my-div');
+		const stubPlayer = new StubPlayer();
+		const result = stubPlayer.createElement('div', 'my-div');
 		expect(result).toBeDefined();
 	});
 
 	it('createButton() returns a button element', () => {
-		const p = new StubPlayer();
-		const btn = p.createButton('my-btn', 'Play', () => {});
+		const stubPlayer = new StubPlayer();
+		const btn = stubPlayer.createButton('my-btn', 'Play', () => {});
 		expect(btn).toBeInstanceOf(HTMLButtonElement);
 	});
 
 	it('createSVG() returns an SVG element', () => {
-		const p = new StubPlayer();
-		const svg = p.createSVG('my-svg', '0 0 24 24');
+		const stubPlayer = new StubPlayer();
+		const svg = stubPlayer.createSVG('my-svg', '0 0 24 24');
 		expect(svg).toBeInstanceOf(SVGSVGElement);
 	});
 
 	it('addClasses() returns el unchanged', () => {
-		const p = new StubPlayer();
+		const stubPlayer = new StubPlayer();
 		const el = document.createElement('div');
-		const result = p.addClasses(el, ['foo']);
+		const result = stubPlayer.addClasses(el, ['foo']);
 		expect(result).toBe(el);
 	});
 
 	it('removeClasses() returns el unchanged', () => {
-		const p = new StubPlayer();
+		const stubPlayer = new StubPlayer();
 		const el = document.createElement('div');
 		el.classList.add('foo');
-		const result = p.removeClasses(el, ['foo']);
+		const result = stubPlayer.removeClasses(el, ['foo']);
 		expect(result).toBe(el);
 	});
 });
@@ -830,14 +830,14 @@ describe('StubPlayer DOM helpers', () => {
 
 describe('StubPlayer streaming state stubs', () => {
 	it('bufferState() returns IDLE', () => {
-		const p = new StubPlayer();
-		const state = p.bufferState();
+		const stubPlayer = new StubPlayer();
+		const state = stubPlayer.bufferState();
 		expect(state).toBeDefined();
 	});
 
 	it('networkState() returns ONLINE', () => {
-		const p = new StubPlayer();
-		const state = p.networkState();
+		const stubPlayer = new StubPlayer();
+		const state = stubPlayer.networkState();
 		expect(state).toBeDefined();
 	});
 
@@ -846,8 +846,8 @@ describe('StubPlayer streaming state stubs', () => {
 	});
 
 	it('visibilityState() returns VISIBLE', () => {
-		const p = new StubPlayer();
-		const state = p.visibilityState();
+		const stubPlayer = new StubPlayer();
+		const state = stubPlayer.visibilityState();
 		expect(state).toBeDefined();
 	});
 });
@@ -860,8 +860,8 @@ describe('createStubPlayer factory', () => {
 	});
 
 	it('passes opts through to the constructor', () => {
-		const p = createStubPlayer({ id: 'factory-test', phase: 'ready' });
-		expect(p.playerId).toBe('factory-test');
-		expect(p.phase()).toBe('ready');
+		const stubPlayer = createStubPlayer({ id: 'factory-test', phase: 'ready' });
+		expect(stubPlayer.playerId).toBe('factory-test');
+		expect(stubPlayer.phase()).toBe('ready');
 	});
 });

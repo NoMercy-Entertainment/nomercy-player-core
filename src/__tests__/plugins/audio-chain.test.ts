@@ -117,15 +117,15 @@ describe('Audio chain plugins (audio-graph / mixer / spectrum)', () => {
 			expect(typeof (globalThis as any).AudioContext).toBe('undefined');
 			expect(typeof (globalThis as any).webkitAudioContext).toBe('undefined');
 
-			const p = makePlayer('ag-unsupported').setup({});
-			await p.ready();
+			const mockPlayer = makePlayer('ag-unsupported').setup({});
+			await mockPlayer.ready();
 
 			let captured: unknown;
-			p.on('plugin:failed' as any, (data: any) => {
+			mockPlayer.on('plugin:failed' as any, (data: any) => {
 				captured = data?.error;
 			});
 
-			p.addPlugin(AudioGraphPlugin);
+			mockPlayer.addPlugin(AudioGraphPlugin);
 			// Allow the kit's async install path to settle.
 			await new Promise(r => setTimeout(r, 0));
 
@@ -133,7 +133,7 @@ describe('Audio chain plugins (audio-graph / mixer / spectrum)', () => {
 			expect((captured as BrowserPolicyError).code).toBe('core:policy/audioContextUnsupported');
 			// Plugin whose use() throws is disposed + NOT pushed onto _plugins.
 			// plugins() must never return a ghost instance with enabled:false.
-			const inst = p.getPluginById('audio-graph');
+			const inst = mockPlayer.getPluginById('audio-graph');
 			expect(inst).toBeUndefined();
 		});
 

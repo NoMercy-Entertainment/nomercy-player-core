@@ -187,7 +187,7 @@ describe('subtitles() dedup', () => {
 		});
 
 		expect(result).toHaveLength(2);
-		expect(result.map(t => t.label)).toEqual(['German (Full)', 'English (Full)']);
+		expect(result.map(subtitleTrack => subtitleTrack.label)).toEqual(['German (Full)', 'English (Full)']);
 	});
 
 	it('regression: sidecar ger + manifest de → one German entry, sidecar wins', () => {
@@ -204,7 +204,7 @@ describe('subtitles() dedup', () => {
 
 		expect(result).toHaveLength(2);
 
-		const labels = result.map(t => t.label);
+		const labels = result.map(subtitleTrack => subtitleTrack.label);
 		expect(labels).toContain('English (Full)');
 		expect(labels).toContain('German (Full)');
 		expect(labels).not.toContain('German (manifest)');
@@ -220,7 +220,7 @@ describe('subtitles() dedup', () => {
 		});
 
 		expect(result).toHaveLength(2);
-		expect(result.map(t => t.label)).toEqual(['full', 'sign']);
+		expect(result.map(subtitleTrack => subtitleTrack.label)).toEqual(['full', 'sign']);
 	});
 
 	it('variant sidecars still displace the backend track for that language', () => {
@@ -234,7 +234,7 @@ describe('subtitles() dedup', () => {
 			],
 		});
 
-		expect(result.map(t => t.label)).toEqual(['full', 'sign']);
+		expect(result.map(subtitleTrack => subtitleTrack.label)).toEqual(['full', 'sign']);
 	});
 
 	it('drops sidecar tracks with no file URL', () => {

@@ -87,7 +87,7 @@ function makePlayer(divId: string): MockPlayer {
  */
 function bareInstance(): EqualizerPlugin {
 	const inst = new EqualizerPlugin();
-	(inst as any)._bands = DEFAULT_BANDS.map(b => ({ ...b }));
+	(inst as any)._bands = DEFAULT_BANDS.map(eqBand => ({ ...eqBand }));
 	(inst as any).sliderValues = {
 		pre: { min: -1, max: 3, step: 0.01, default: 0, totalSteps: 4 },
 		band: { min: -12, max: 12, step: 0.01, default: 0, totalSteps: 24 },
@@ -123,7 +123,7 @@ describe('EqualizerPlugin', () => {
 		it('starts with `Pre` at index 0 then 10 peaking-filter centres', () => {
 			expect(DEFAULT_BANDS).toHaveLength(11);
 			expect(DEFAULT_BANDS[0]?.frequency).toBe('Pre');
-			const freqs = DEFAULT_BANDS.slice(1).map(b => b.frequency);
+			const freqs = DEFAULT_BANDS.slice(1).map(eqBand => eqBand.frequency);
 			expect(freqs).toEqual([70, 180, 320, 600, 1000, 3000, 6000, 12000, 14000, 16000]);
 		});
 	});
@@ -132,7 +132,7 @@ describe('EqualizerPlugin', () => {
 		it('exposes Fillz\'s 19 hand-tuned built-in presets including Custom + Rock', () => {
 			const inst = bareInstance();
 			const presets = inst.presets();
-			const names = presets.map(p => p.name);
+			const names = presets.map(eqPreset => eqPreset.name);
 			expect(names).toEqual(
 				expect.arrayContaining([
 					'Custom',
@@ -162,27 +162,27 @@ describe('EqualizerPlugin', () => {
 
 		it('every built-in preset targets the canonical 10 frequencies', () => {
 			const expectedFreqs = [70, 180, 320, 600, 1000, 3000, 6000, 12000, 14000, 16000];
-			for (const p of BUILTIN_PRESETS) {
-				const freqs = p.values.map(v => v.frequency);
+			for (const eqPreset of BUILTIN_PRESETS) {
+				const freqs = eqPreset.values.map(eqBand => eqBand.frequency);
 				expect(freqs).toEqual(expectedFreqs);
 			}
 		});
 
 		it('treats Rock\'s ported gains as the canonical reference', () => {
-			const rock = BUILTIN_PRESETS.find(p => p.name === 'Rock')!;
-			expect(rock.values.map(v => v.gain)).toEqual(
+			const rock = BUILTIN_PRESETS.find(eqPreset => eqPreset.name === 'Rock')!;
+			expect(rock.values.map(eqBand => eqBand.gain)).toEqual(
 				[4.875, 3, -3.375, -4.875, -2.25, 2.625, 5.625, 6.75, 6.75, 6.75],
 			);
 		});
 
 		it('Custom is all zeros — canonical "no preset selected" sentinel', () => {
-			const custom = BUILTIN_PRESETS.find(p => p.name === 'Custom')!;
-			expect(custom.values.every(v => v.gain === 0)).toBe(true);
+			const custom = BUILTIN_PRESETS.find(eqPreset => eqPreset.name === 'Custom')!;
+			expect(custom.values.every(eqBand => eqBand.gain === 0)).toBe(true);
 		});
 
 		it('exposes consumer-supplied opts.presets alongside built-ins, deduped by name', () => {
 			const inst = new EqualizerPlugin();
-			(inst as any).bands = DEFAULT_BANDS.map(b => ({ ...b }));
+			(inst as any).bands = DEFAULT_BANDS.map(eqBand => ({ ...eqBand }));
 			(inst as any).sliderValues = {
 				pre: { min: -1, max: 3, step: 0.01, default: 0, totalSteps: 4 },
 				band: { min: -12, max: 12, step: 0.01, default: 0, totalSteps: 24 },
@@ -194,10 +194,10 @@ describe('EqualizerPlugin', () => {
 					{ name: 'Rock', values: [{ frequency: 70, gain: 99 }] }, // dup of built-in name — should NOT shadow
 				] satisfies EqPreset[],
 			};
-			const names = inst.presets().map(p => p.name);
+			const names = inst.presets().map(eqPreset => eqPreset.name);
 			expect(names).toContain('CustomA');
 			// Built-in Rock wins on collision (registered first).
-			const rock = inst.presets().find(p => p.name === 'Rock')!;
+			const rock = inst.presets().find(eqPreset => eqPreset.name === 'Rock')!;
 			expect(rock.values[0]?.gain).toBe(4.875);
 		});
 	});
@@ -209,22 +209,22 @@ describe('EqualizerPlugin', () => {
 				name: 'MyMix',
 				values: [{ frequency: 1000, gain: 6 }, { frequency: 6000, gain: -3 }],
 			});
-			const my = inst.presets().find(p => p.name === 'MyMix')!;
+			const my = inst.presets().find(eqPreset => eqPreset.name === 'MyMix')!;
 			expect(my).toBeDefined();
 			expect(my.values).toHaveLength(2);
-			expect(my.values.find(v => v.frequency === 1000)?.gain).toBe(6);
+			expect(my.values.find(eqBand => eqBand.frequency === 1000)?.gain).toBe(6);
 		});
 
 		it('removePreset deletes custom presets but never built-ins', () => {
 			const inst = bareInstance();
 			inst.addCustomPreset({ name: 'Temp', values: [{ frequency: 1000, gain: 1 }] });
-			expect(inst.presets().some(p => p.name === 'Temp')).toBe(true);
+			expect(inst.presets().some(eqPreset => eqPreset.name === 'Temp')).toBe(true);
 			inst.removePreset('Temp');
-			expect(inst.presets().some(p => p.name === 'Temp')).toBe(false);
+			expect(inst.presets().some(eqPreset => eqPreset.name === 'Temp')).toBe(false);
 
 			// Built-ins are protected.
 			inst.removePreset('Rock');
-			expect(inst.presets().some(p => p.name === 'Rock')).toBe(true);
+			expect(inst.presets().some(eqPreset => eqPreset.name === 'Rock')).toBe(true);
 		});
 	});
 
@@ -299,32 +299,32 @@ describe('EqualizerPlugin', () => {
 			expect(typeof (globalThis as any).AudioContext).toBe('undefined');
 			expect(typeof (globalThis as any).webkitAudioContext).toBe('undefined');
 
-			const p = makePlayer('eq-unsupported').setup({});
-			await p.ready();
+			const mockPlayer = makePlayer('eq-unsupported').setup({});
+			await mockPlayer.ready();
 
 			const failures: unknown[] = [];
-			p.on('plugin:failed' as any, (data: any) => {
+			mockPlayer.on('plugin:failed' as any, (data: any) => {
 				failures.push(data?.error);
 			});
 
-			p.addPlugin(AudioGraphPlugin);
+			mockPlayer.addPlugin(AudioGraphPlugin);
 			await new Promise(r => setTimeout(r, 0));
 
 			expect(failures.some(f => f instanceof BrowserPolicyError)).toBe(true);
 
 			// AudioGraph failed, so it is NOT in _plugins.
-			expect(p.getPluginById('audio-graph')).toBeUndefined();
+			expect(mockPlayer.getPluginById('audio-graph')).toBeUndefined();
 		});
 
 		it('addPlugin(EqualizerPlugin) throws missing-dep when AudioGraph failed (not in _plugins)', async () => {
-			const p = makePlayer('eq-unsupported2').setup({});
-			await p.ready();
+			const mockPlayer = makePlayer('eq-unsupported2').setup({});
+			await mockPlayer.ready();
 
-			p.addPlugin(AudioGraphPlugin);
+			mockPlayer.addPlugin(AudioGraphPlugin);
 			await new Promise(r => setTimeout(r, 0));
 
 			// AudioGraph is not in _plugins after failing. Adding Equalizer must throw missing-dep.
-			expect(() => p.addPlugin(EqualizerPlugin)).toThrow('missing-dep');
+			expect(() => mockPlayer.addPlugin(EqualizerPlugin)).toThrow('missing-dep');
 		});
 
 		it('refuses to wire up if AudioGraphPlugin is missing from the player', () => {
@@ -336,8 +336,8 @@ describe('EqualizerPlugin', () => {
 			try {
 				inst.use();
 			}
-			catch (e) {
-				err = e;
+			catch (error) {
+				err = error;
 			}
 			expect(err).toBeInstanceOf(PluginError);
 			expect((err as PluginError).code).toBe('core:plugin/missing-dep');

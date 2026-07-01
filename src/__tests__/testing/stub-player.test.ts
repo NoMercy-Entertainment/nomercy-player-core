@@ -238,7 +238,7 @@ describe('StubPlayer', () => {
 		it('register adds a parser', () => {
 			const player = new StubPlayer();
 			player.registerCueParser(dummy('lrc'));
-			expect(player.cueParsers().map(p => p.id)).toEqual(['lrc']);
+			expect(player.cueParsers().map(cueParser => cueParser.id)).toEqual(['lrc']);
 		});
 
 		it('register replaces same-id parser', () => {
@@ -255,7 +255,7 @@ describe('StubPlayer', () => {
 			const player = new StubPlayer();
 			player.registerCueParser(dummy('a'));
 			player.registerCueParser(dummy('b'), true);
-			expect(player.cueParsers().map(p => p.id)).toEqual(['b', 'a']);
+			expect(player.cueParsers().map(cueParser => cueParser.id)).toEqual(['b', 'a']);
 		});
 
 		it('unregister removes by id', () => {
@@ -263,7 +263,7 @@ describe('StubPlayer', () => {
 			player.registerCueParser(dummy('lrc'));
 			player.registerCueParser(dummy('vtt'));
 			player.unregisterCueParser('lrc');
-			expect(player.cueParsers().map(p => p.id)).toEqual(['vtt']);
+			expect(player.cueParsers().map(cueParser => cueParser.id)).toEqual(['vtt']);
 		});
 
 		it('unregister no-op when id absent', () => {

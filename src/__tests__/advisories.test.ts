@@ -101,16 +101,16 @@ describe('static advisories — declarative phase-aware advisories', () => {
 			];
 		}
 
-		const p = makePlayer('a1');
-		p.addPlugin(AdvisorPlugin);
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('a1');
+		mockPlayer.addPlugin(AdvisorPlugin);
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
-		p.queue([{ id: 'x' }, { id: 'y' }]);
+		mockPlayer.queue([{ id: 'x' }, { id: 'y' }]);
 		const warnings: unknown[] = [];
-		p.on('warning', (data: unknown) => warnings.push(data));
+		mockPlayer.on('warning', (data: unknown) => warnings.push(data));
 
-		p.item(0);
+		mockPlayer.item(0);
 
 		interface Advisory { error: { code: string; message: string; severity: string } }
 		expect(warnings.length).toBe(1);
@@ -128,22 +128,22 @@ describe('static advisories — declarative phase-aware advisories', () => {
 			];
 		}
 
-		const p = makePlayer('a2');
-		p.addPlugin(PlayingOnlyAdvisor);
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('a2');
+		mockPlayer.addPlugin(PlayingOnlyAdvisor);
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
-		p.queue([{ id: 'x' }]);
+		mockPlayer.queue([{ id: 'x' }]);
 		const warnings: unknown[] = [];
-		p.on('warning', (data: unknown) => warnings.push(data));
+		mockPlayer.on('warning', (data: unknown) => warnings.push(data));
 
 		// Phase is 'ready', not 'playing' — advisory should NOT fire.
-		p.item(0);
+		mockPlayer.item(0);
 		expect(warnings.length).toBe(0);
 
 		// Force phase to 'playing' to prove the constraint.
-		(p as unknown as PlayerTestInternals)._phase = 'playing';
-		p.item(0);
+		(mockPlayer as unknown as PlayerTestInternals)._phase = 'playing';
+		mockPlayer.item(0);
 		expect(warnings.length).toBe(1);
 	});
 
@@ -157,18 +157,18 @@ describe('static advisories — declarative phase-aware advisories', () => {
 			];
 		}
 
-		const p = makePlayer('a3');
-		p.addPlugin(MultiSevAdvisor);
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('a3');
+		mockPlayer.addPlugin(MultiSevAdvisor);
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
-		p.queue([{ id: 'x' }]);
+		mockPlayer.queue([{ id: 'x' }]);
 		const infos: unknown[] = [];
 		const errors: unknown[] = [];
-		p.on('info', (d: unknown) => infos.push(d));
-		p.on('error', (d: unknown) => errors.push(d));
+		mockPlayer.on('info', (d: unknown) => infos.push(d));
+		mockPlayer.on('error', (d: unknown) => errors.push(d));
 
-		p.item(0);
+		mockPlayer.item(0);
 
 		interface Advisory { error: { code: string } }
 		expect(infos.length).toBe(1);
@@ -186,18 +186,18 @@ describe('static advisories — declarative phase-aware advisories', () => {
 			];
 		}
 
-		const p = makePlayer('a4');
-		p.addPlugin(DisabledAdvisor);
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('a4');
+		mockPlayer.addPlugin(DisabledAdvisor);
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
-		p.queue([{ id: 'x' }]);
+		mockPlayer.queue([{ id: 'x' }]);
 		const warnings: unknown[] = [];
-		p.on('warning', (data: unknown) => warnings.push(data));
+		mockPlayer.on('warning', (data: unknown) => warnings.push(data));
 
 		// Disable, then mutate — advisory should NOT fire.
-		p.getPluginById('disabled-advisor')?.disable();
-		p.item(0);
+		mockPlayer.getPluginById('disabled-advisor')?.disable();
+		mockPlayer.item(0);
 		expect(warnings.length).toBe(0);
 	});
 
@@ -213,24 +213,24 @@ describe('static advisories — declarative phase-aware advisories', () => {
 			];
 		}
 
-		const p = makePlayer('a5');
-		p.addPlugin(DuringPlayAdvisor);
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('a5');
+		mockPlayer.addPlugin(DuringPlayAdvisor);
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
-		p.queue([{ id: 'x' }]);
+		mockPlayer.queue([{ id: 'x' }]);
 		const warnings: unknown[] = [];
-		p.on('warning', (data: unknown) => warnings.push(data));
+		mockPlayer.on('warning', (data: unknown) => warnings.push(data));
 
 		// No event in flight — advisory does NOT fire.
-		p.item(0);
+		mockPlayer.item(0);
 		expect(warnings.length).toBe(0);
 
 		// Simulate `beforePlay` in flight via push/pop instance methods.
-		const pInternals = p as unknown as PlayerTestInternals;
+		const pInternals = mockPlayer as unknown as PlayerTestInternals;
 		pInternals.pushDispatch('beforePlay');
 		try {
-			p.item(0);
+			mockPlayer.item(0);
 		}
 		finally {
 			pInternals.popDispatch();

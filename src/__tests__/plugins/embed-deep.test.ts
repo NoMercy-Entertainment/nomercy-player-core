@@ -123,13 +123,13 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 
 	describe('handleCommand()', () => {
 		it('play action calls player.play()', async () => {
-			const p = makePlayer('embed-hc-play').setup({});
-			p.addPlugin(EmbedPlugin, { allowedOrigins: ['https://host.example.com'] });
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-hc-play').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: ['https://host.example.com'] });
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const playCalls: unknown[] = [];
-			p.play = vi.fn(async (opts) => { playCalls.push(opts); });
+			mockPlayer.play = vi.fn(async (opts) => { playCalls.push(opts); });
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -141,13 +141,13 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('pause action calls player.pause()', async () => {
-			const p = makePlayer('embed-hc-pause').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-hc-pause').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const pauseCalls: unknown[] = [];
-			p.pause = vi.fn(async (opts) => { pauseCalls.push(opts); });
+			mockPlayer.pause = vi.fn(async (opts) => { pauseCalls.push(opts); });
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -158,13 +158,13 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('stop action calls player.stop()', async () => {
-			const p = makePlayer('embed-hc-stop').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-hc-stop').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const stopCalls: unknown[] = [];
-			p.stop = vi.fn(async (opts) => { stopCalls.push(opts); });
+			mockPlayer.stop = vi.fn(async (opts) => { stopCalls.push(opts); });
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -175,13 +175,13 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('seek action calls player.time()', async () => {
-			const p = makePlayer('embed-hc-seek').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-hc-seek').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const timeCalls: number[] = [];
-			(p as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
+			(mockPlayer as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -194,13 +194,13 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('volume action calls player.volume()', async () => {
-			const p = makePlayer('embed-hc-volume').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-hc-volume').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const volumeCalls: number[] = [];
-			(p as unknown as { volume: (v: number) => void }).volume = (v: number) => { volumeCalls.push(v); };
+			(mockPlayer as unknown as { volume: (v: number) => void }).volume = (v: number) => { volumeCalls.push(v); };
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -213,13 +213,13 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('mute action calls player.mute()', async () => {
-			const p = makePlayer('embed-hc-mute').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-hc-mute').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const muteCalls: unknown[] = [];
-			(p as MockPlayer & { mute: () => void }).mute = () => { muteCalls.push(true); };
+			(mockPlayer as MockPlayer & { mute: () => void }).mute = () => { muteCalls.push(true); };
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -230,13 +230,13 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('unmute action calls player.unmute()', async () => {
-			const p = makePlayer('embed-hc-unmute').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-hc-unmute').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const unmuteCalls: unknown[] = [];
-			(p as MockPlayer & { unmute: () => void }).unmute = () => { unmuteCalls.push(true); };
+			(mockPlayer as MockPlayer & { unmute: () => void }).unmute = () => { unmuteCalls.push(true); };
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -247,13 +247,13 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('next action calls player.next()', async () => {
-			const p = makePlayer('embed-hc-next').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-hc-next').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const nextCalls: unknown[] = [];
-			(p as MockPlayer & { next: (opts?: unknown) => Promise<void> }).next = async (opts) => { nextCalls.push(opts); };
+			(mockPlayer as MockPlayer & { next: (opts?: unknown) => Promise<void> }).next = async (opts) => { nextCalls.push(opts); };
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -264,13 +264,13 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('previous action calls player.previous()', async () => {
-			const p = makePlayer('embed-hc-prev').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-hc-prev').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const prevCalls: unknown[] = [];
-			(p as MockPlayer & { previous: (opts?: unknown) => Promise<void> }).previous = async (opts) => { prevCalls.push(opts); };
+			(mockPlayer as MockPlayer & { previous: (opts?: unknown) => Promise<void> }).previous = async (opts) => { prevCalls.push(opts); };
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -281,10 +281,10 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('unknown action does not throw', async () => {
-			const p = makePlayer('embed-hc-unknown').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-hc-unknown').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			expect(() => {
 				(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
@@ -299,10 +299,10 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 
 	describe('options() live update', () => {
 		it('options({ allowedOrigins }) immediately updates the live origin filter', async () => {
-			const p = makePlayer('embed-opts-1').setup({});
-			p.addPlugin(EmbedPlugin, { allowedOrigins: ['https://old.example.com'] });
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-opts-1').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: ['https://old.example.com'] });
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://old.example.com')).toBe(true);
 
@@ -313,10 +313,10 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('options({ allowedOrigins: "*" }) accepts any origin', async () => {
-			const p = makePlayer('embed-opts-2').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-opts-2').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			inst.options({ allowedOrigins: '*' });
 
@@ -328,20 +328,20 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 
 	describe('allowedOrigins()', () => {
 		it('getter returns current allowlist snapshot', async () => {
-			const p = makePlayer('embed-ao-1').setup({});
-			p.addPlugin(EmbedPlugin, { allowedOrigins: ['https://a.com', 'https://b.com'] });
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-ao-1').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: ['https://a.com', 'https://b.com'] });
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const list = inst.allowedOrigins();
 			expect(list).toEqual(['https://a.com', 'https://b.com']);
 		});
 
 		it('getter returns a snapshot — mutating it does not affect live list', async () => {
-			const p = makePlayer('embed-ao-2').setup({});
-			p.addPlugin(EmbedPlugin, { allowedOrigins: ['https://a.com'] });
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-ao-2').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: ['https://a.com'] });
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const list = inst.allowedOrigins() as string[];
 			list.push('https://evil.com');
@@ -350,10 +350,10 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('setter(array) replaces the allowlist', async () => {
-			const p = makePlayer('embed-ao-3').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-ao-3').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			inst.allowedOrigins(['https://replaced.com']);
 
@@ -361,10 +361,10 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('setter(string) wraps in array', async () => {
-			const p = makePlayer('embed-ao-4').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-ao-4').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			inst.allowedOrigins('https://single.com');
 
@@ -376,19 +376,19 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 
 	describe('isOriginAllowed()', () => {
 		it('empty allowlist rejects all origins', async () => {
-			const p = makePlayer('embed-ioa-1').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-ioa-1').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://anything.com')).toBe(false);
 		});
 
 		it('"*" in list accepts any origin', async () => {
-			const p = makePlayer('embed-ioa-2').setup({});
-			p.addPlugin(EmbedPlugin, { allowedOrigins: '*' });
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-ioa-2').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: '*' });
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://random.com')).toBe(true);
 		});
@@ -400,10 +400,10 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		it('posts message to window.parent with pinned origin when one origin is in list', async () => {
 			const stub = stubWindowParent();
 			try {
-				const p = makePlayer('embed-send-1').setup({});
-				p.addPlugin(EmbedPlugin, { allowedOrigins: 'https://host.example.com' });
-				await p.ready();
-				const inst = p.getPlugin(EmbedPlugin)!;
+				const mockPlayer = makePlayer('embed-send-1').setup({});
+				mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: 'https://host.example.com' });
+				await mockPlayer.ready();
+				const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 				inst.sendToHost({ type: 'nm:event', name: 'play', data: {} });
 
@@ -420,10 +420,10 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		it('uses "*" as target when multiple origins are listed', async () => {
 			const stub = stubWindowParent();
 			try {
-				const p = makePlayer('embed-send-2').setup({});
-				p.addPlugin(EmbedPlugin, { allowedOrigins: ['https://a.com', 'https://b.com'] });
-				await p.ready();
-				const inst = p.getPlugin(EmbedPlugin)!;
+				const mockPlayer = makePlayer('embed-send-2').setup({});
+				mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: ['https://a.com', 'https://b.com'] });
+				await mockPlayer.ready();
+				const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 				inst.sendToHost({ type: 'nm:event', name: 'play', data: {} });
 
@@ -442,12 +442,12 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 
 	describe('inbound message dispatching', () => {
 		it('message from allowed origin with nm:command type dispatches handleCommand', async () => {
-			const p = makePlayer('embed-msg-1').setup({});
-			p.addPlugin(EmbedPlugin, { allowedOrigins: 'https://trusted.com' });
-			await p.ready();
+			const mockPlayer = makePlayer('embed-msg-1').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: 'https://trusted.com' });
+			await mockPlayer.ready();
 
 			const playCalls: unknown[] = [];
-			p.play = vi.fn(async (opts) => { playCalls.push(opts); });
+			mockPlayer.play = vi.fn(async (opts) => { playCalls.push(opts); });
 
 			const event = new MessageEvent('message', {
 				data: { type: 'nm:command', action: 'play' },
@@ -459,12 +459,12 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('message from disallowed origin is rejected', async () => {
-			const p = makePlayer('embed-msg-2').setup({});
-			p.addPlugin(EmbedPlugin, { allowedOrigins: 'https://trusted.com' });
-			await p.ready();
+			const mockPlayer = makePlayer('embed-msg-2').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: 'https://trusted.com' });
+			await mockPlayer.ready();
 
 			const playCalls: unknown[] = [];
-			p.play = vi.fn(async (opts) => { playCalls.push(opts); });
+			mockPlayer.play = vi.fn(async (opts) => { playCalls.push(opts); });
 
 			const event = new MessageEvent('message', {
 				data: { type: 'nm:command', action: 'play' },
@@ -476,12 +476,12 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		});
 
 		it('message with wrong type is ignored', async () => {
-			const p = makePlayer('embed-msg-3').setup({});
-			p.addPlugin(EmbedPlugin, { allowedOrigins: '*' });
-			await p.ready();
+			const mockPlayer = makePlayer('embed-msg-3').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: '*' });
+			await mockPlayer.ready();
 
 			const playCalls: unknown[] = [];
-			p.play = vi.fn(async (opts) => { playCalls.push(opts); });
+			mockPlayer.play = vi.fn(async (opts) => { playCalls.push(opts); });
 
 			const event = new MessageEvent('message', {
 				data: { type: 'nm:other', action: 'play' },
@@ -499,11 +499,11 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		it('player.emit("play") posts nm:event to window.parent', async () => {
 			const stub = stubWindowParent();
 			try {
-				const p = makePlayer('embed-fwd-1').setup({});
-				p.addPlugin(EmbedPlugin, { allowedOrigins: 'https://host.example.com' });
-				await p.ready();
+				const mockPlayer = makePlayer('embed-fwd-1').setup({});
+				mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: 'https://host.example.com' });
+				await mockPlayer.ready();
 
-				(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', { source: 'user' });
+				(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', { source: 'user' });
 
 				expect(stub.postMessage).toHaveBeenCalledWith(
 					expect.objectContaining({ type: 'nm:event', name: 'play' }),
@@ -518,17 +518,17 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		it('opts.forwardEvents limits which events are forwarded', async () => {
 			const stub = stubWindowParent();
 			try {
-				const p = makePlayer('embed-fwd-2').setup({});
-				p.addPlugin(EmbedPlugin, {
+				const mockPlayer = makePlayer('embed-fwd-2').setup({});
+				mockPlayer.addPlugin(EmbedPlugin, {
 					allowedOrigins: 'https://host.example.com',
 					forwardEvents: ['play'],
 				});
-				await p.ready();
+				await mockPlayer.ready();
 
-				(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('pause', {});
+				(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('pause', {});
 				expect(stub.postMessage).not.toHaveBeenCalled();
 
-				(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', {});
+				(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', {});
 				expect(stub.postMessage).toHaveBeenCalledOnce();
 			}
 			finally {
@@ -543,16 +543,16 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 		it('removes forwarded event listeners so player events no longer post messages', async () => {
 			const stub = stubWindowParent();
 			try {
-				const p = makePlayer('embed-dispose-1').setup({});
-				p.addPlugin(EmbedPlugin, { allowedOrigins: 'https://host.example.com' });
-				await p.ready();
+				const mockPlayer = makePlayer('embed-dispose-1').setup({});
+				mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: 'https://host.example.com' });
+				await mockPlayer.ready();
 
-				p.removePlugin(EmbedPlugin);
+				mockPlayer.removePlugin(EmbedPlugin);
 
 				// Reset call count — ready event was forwarded during p.ready() above.
 				stub.postMessage.mockClear();
 
-				(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', {});
+				(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', {});
 				expect(stub.postMessage).not.toHaveBeenCalled();
 			}
 			finally {

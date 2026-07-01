@@ -78,7 +78,7 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		const div = document.createElement('div');
 		div.id = 'lock-in';
 		document.body.appendChild(div);
-		const p = new MockPlayer('lock-in');
+		const mockPlayer = new MockPlayer('lock-in');
 
 		const events: string[] = [];
 		const stages = [
@@ -94,11 +94,11 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 			'ready',
 		] as const;
 		for (const name of stages) {
-			p.on(name, () => events.push(name));
+			mockPlayer.on(name, () => events.push(name));
 		}
 
-		p.setup({});
-		await p.ready();
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
 		// Strict equality — any reorder or omit fails.
 		expect(events).toEqual([...stages]);
@@ -108,7 +108,7 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		const div = document.createElement('div');
 		div.id = 'pl-url';
 		document.body.appendChild(div);
-		const p = new MockPlayer('pl-url');
+		const mockPlayer = new MockPlayer('pl-url');
 
 		// Mock fetch so the playlist URL resolves to a valid array.
 		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
@@ -119,11 +119,11 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		);
 
 		const order: string[] = [];
-		p.on('playlistResolving', (data: { url: string }) => order.push(`resolving:${data.url}`));
-		p.on('playlistReady', () => order.push('ready'));
+		mockPlayer.on('playlistResolving', (data: { url: string }) => order.push(`resolving:${data.url}`));
+		mockPlayer.on('playlistReady', () => order.push('ready'));
 
-		p.setup({ playlist: 'https://example.test/list.json' } as any);
-		await p.ready();
+		mockPlayer.setup({ playlist: 'https://example.test/list.json' } as any);
+		await mockPlayer.ready();
 
 		expect(order).toEqual(['resolving:https://example.test/list.json', 'ready']);
 
@@ -134,7 +134,7 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		const div = document.createElement('div');
 		div.id = 'pl-url-queue';
 		document.body.appendChild(div);
-		const p = new MockPlayer('pl-url-queue');
+		const mockPlayer = new MockPlayer('pl-url-queue');
 
 		const items = [
 			{ id: '1', url: 'https://cdn.test/a.mp4' },
@@ -148,13 +148,13 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		);
 
 		let readyLength: number | undefined;
-		p.on('playlistReady', (data: { length: number }) => { readyLength = data.length; });
+		mockPlayer.on('playlistReady', (data: { length: number }) => { readyLength = data.length; });
 
-		p.setup({ playlist: 'https://example.test/list.json' } as any);
-		await p.ready();
+		mockPlayer.setup({ playlist: 'https://example.test/list.json' } as any);
+		await mockPlayer.ready();
 
 		expect(readyLength).toBe(2);
-		expect(p.queue()).toHaveLength(2);
+		expect(mockPlayer.queue()).toHaveLength(2);
 
 		vi.restoreAllMocks();
 	});
@@ -163,17 +163,17 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		const div = document.createElement('div');
 		div.id = 'pl-url-err';
 		document.body.appendChild(div);
-		const p = new MockPlayer('pl-url-err');
+		const mockPlayer = new MockPlayer('pl-url-err');
 
 		vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('network failure'));
 
 		let errFired: unknown;
 		let readyLength: number | undefined;
-		p.on('playlistError', (data: unknown) => { errFired = data; });
-		p.on('playlistReady', (data: { length: number }) => { readyLength = data.length; });
+		mockPlayer.on('playlistError', (data: unknown) => { errFired = data; });
+		mockPlayer.on('playlistReady', (data: { length: number }) => { readyLength = data.length; });
 
-		p.setup({ playlist: 'https://example.test/list.json' } as any);
-		await p.ready();
+		mockPlayer.setup({ playlist: 'https://example.test/list.json' } as any);
+		await mockPlayer.ready();
 
 		expect(errFired).toBeDefined();
 		expect(readyLength).toBe(0);
@@ -185,7 +185,7 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		const div = document.createElement('div');
 		div.id = 'pl-url-bad';
 		document.body.appendChild(div);
-		const p = new MockPlayer('pl-url-bad');
+		const mockPlayer = new MockPlayer('pl-url-bad');
 
 		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
 			new Response(JSON.stringify({ not: 'an-array' }), {
@@ -195,10 +195,10 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		);
 
 		let errFired: unknown;
-		p.on('playlistError', (data: unknown) => { errFired = data; });
+		mockPlayer.on('playlistError', (data: unknown) => { errFired = data; });
 
-		p.setup({ playlist: 'https://example.test/list.json' } as any);
-		await p.ready();
+		mockPlayer.setup({ playlist: 'https://example.test/list.json' } as any);
+		await mockPlayer.ready();
 
 		expect(errFired).toBeDefined();
 
@@ -209,13 +209,13 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		const div = document.createElement('div');
 		div.id = 'pl-none';
 		document.body.appendChild(div);
-		const p = new MockPlayer('pl-none');
+		const mockPlayer = new MockPlayer('pl-none');
 
 		let length: number | undefined;
-		p.on('playlistReady', (data: { length: number }) => { length = data.length; });
+		mockPlayer.on('playlistReady', (data: { length: number }) => { length = data.length; });
 
-		p.setup({});
-		await p.ready();
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
 		expect(length).toBe(0);
 	});
@@ -224,13 +224,13 @@ describe('setup() canonical event order — spec §14 lock-in', () => {
 		const div = document.createElement('div');
 		div.id = 'ready-only';
 		document.body.appendChild(div);
-		const p = new MockPlayer('ready-only');
+		const mockPlayer = new MockPlayer('ready-only');
 
 		let readyFired = false;
-		p.on('ready' as any, () => { readyFired = true; });
+		mockPlayer.on('ready' as any, () => { readyFired = true; });
 
-		p.setup({});
-		await p.ready();
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
 		expect(readyFired).toBe(true);
 	});

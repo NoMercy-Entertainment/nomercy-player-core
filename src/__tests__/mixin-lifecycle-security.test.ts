@@ -113,106 +113,106 @@ describe('lifecycle mixin — dispose()', () => {
 	});
 
 	it('transitions phase from setup → disposing → disposed', async () => {
-		const p = makePlayer('dispose-phase');
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('dispose-phase');
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
 		const phases: string[] = [];
-		p.on('phase', ({ to }: { to: string }) => phases.push(to));
+		mockPlayer.on('phase', ({ to }: { to: string }) => phases.push(to));
 
-		p.dispose();
+		mockPlayer.dispose();
 
 		expect(phases).toContain('disposing');
 		expect(phases).toContain('disposed');
-		expect(p.phase()).toBe('disposed');
+		expect(mockPlayer.phase()).toBe('disposed');
 	});
 
 	it('second dispose() is a no-op — phase stays disposed, no error', () => {
-		const p = makePlayer('double-dispose');
-		p.setup({});
-		p.dispose();
+		const mockPlayer = makePlayer('double-dispose');
+		mockPlayer.setup({});
+		mockPlayer.dispose();
 
-		expect(() => p.dispose()).not.toThrow();
-		expect(p.phase()).toBe('disposed');
+		expect(() => mockPlayer.dispose()).not.toThrow();
+		expect(mockPlayer.phase()).toBe('disposed');
 	});
 
 	it('removes all event listeners after dispose() (off("all"))', async () => {
-		const p = makePlayer('listeners-cleared');
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('listeners-cleared');
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
 		const spy = vi.fn();
-		p.on('play' as keyof BaseEventMap, spy);
-		p.dispose();
+		mockPlayer.on('play' as keyof BaseEventMap, spy);
+		mockPlayer.dispose();
 
-		p.emit('play' as keyof BaseEventMap, undefined as never);
+		mockPlayer.emit('play' as keyof BaseEventMap, undefined as never);
 		expect(spy).not.toHaveBeenCalled();
 	});
 
 	it('drains _policyCleanup — all registered cleanups run exactly once', async () => {
-		const p = makePlayer('policy-cleanup');
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('policy-cleanup');
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
 		const cleanupA = vi.fn();
 		const cleanupB = vi.fn();
 
-		const internals = p as unknown as { _policyCleanup: Array<() => void> };
+		const internals = mockPlayer as unknown as { _policyCleanup: Array<() => void> };
 		internals._policyCleanup.push(cleanupA, cleanupB);
 
-		p.dispose();
+		mockPlayer.dispose();
 
 		expect(cleanupA).toHaveBeenCalledTimes(1);
 		expect(cleanupB).toHaveBeenCalledTimes(1);
 	});
 
 	it('_policyCleanup is empty after dispose()', async () => {
-		const p = makePlayer('cleanup-drained');
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('cleanup-drained');
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
-		const internals = p as unknown as { _policyCleanup: Array<() => void> };
+		const internals = mockPlayer as unknown as { _policyCleanup: Array<() => void> };
 		internals._policyCleanup.push(() => {});
 
-		p.dispose();
+		mockPlayer.dispose();
 
 		expect(internals._policyCleanup).toHaveLength(0);
 	});
 
 	it('cleanup callback throws → emits warning event, continues teardown', async () => {
-		const p = makePlayer('cleanup-throw');
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('cleanup-throw');
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
 		const warnings: unknown[] = [];
-		p.on('warning', (data: unknown) => warnings.push(data));
+		mockPlayer.on('warning', (data: unknown) => warnings.push(data));
 
-		const internals = p as unknown as { _policyCleanup: Array<() => void> };
+		const internals = mockPlayer as unknown as { _policyCleanup: Array<() => void> };
 		const goodCleanup = vi.fn();
 		internals._policyCleanup.push(
 			() => { throw new Error('cleanup boom'); },
 			goodCleanup,
 		);
 
-		p.dispose();
+		mockPlayer.dispose();
 
 		expect(warnings.length).toBeGreaterThan(0);
 		expect(goodCleanup).toHaveBeenCalledTimes(1);
 	});
 
 	it('dispose() before ready resolves → rejects the ready() promise', async () => {
-		const p = makePlayer('dispose-before-ready');
-		p.setup({});
+		const mockPlayer = makePlayer('dispose-before-ready');
+		mockPlayer.setup({});
 
-		const readyP = p.ready();
-		p.dispose();
+		const readyP = mockPlayer.ready();
+		mockPlayer.dispose();
 
 		await expect(readyP).rejects.toBeDefined();
 	});
 
 	it('dispose() when setup was never called does not throw', () => {
-		const p = makePlayer('dispose-no-setup');
-		expect(() => p.dispose()).not.toThrow();
+		const mockPlayer = makePlayer('dispose-no-setup');
+		expect(() => mockPlayer.dispose()).not.toThrow();
 	});
 });
 
@@ -230,21 +230,21 @@ describe('lifecycle mixin — dispose() auth/security contract', () => {
 		// after disposal. This test asserts that internal _authConfig is still set
 		// (i.e. we don't accidentally break downstream code that checks _rawAuth
 		// post-dispose for diagnostic logging), and that auth() read is silent.
-		const p = makePlayer('auth-security');
-		p.setup({
+		const mockPlayer = makePlayer('auth-security');
+		mockPlayer.setup({
 			auth: { bearerToken: 'secret-token-123', credentials: 'include' as RequestCredentials },
 		});
-		await p.ready();
+		await mockPlayer.ready();
 
-		const internals = p as unknown as { _authConfig: unknown; _rawAuth: () => unknown };
+		const internals = mockPlayer as unknown as { _authConfig: unknown; _rawAuth: () => unknown };
 		const tokenBefore = internals._rawAuth();
 		expect(tokenBefore).toBeDefined();
 
-		p.dispose();
+		mockPlayer.dispose();
 
 		// The public auth() read surface returns undefined or the redacted config —
 		// bearer token must never be exposed via the public snapshot in any phase.
-		const publicSnapshot = p.auth() as (Record<string, unknown> | undefined);
+		const publicSnapshot = mockPlayer.auth() as (Record<string, unknown> | undefined);
 		if (publicSnapshot !== undefined) {
 			expect(publicSnapshot['bearerToken']).toBeUndefined();
 			expect(publicSnapshot['accessToken']).toBeUndefined();
@@ -252,13 +252,13 @@ describe('lifecycle mixin — dispose() auth/security contract', () => {
 	});
 
 	it('bearer token never appears in auth() read snapshot before or after dispose()', async () => {
-		const p = makePlayer('bearer-never-exposed');
-		p.setup({
+		const mockPlayer = makePlayer('bearer-never-exposed');
+		mockPlayer.setup({
 			auth: { bearerToken: 'supersecret', credentials: 'same-origin' as RequestCredentials },
 		});
-		await p.ready();
+		await mockPlayer.ready();
 
-		const snap = p.auth() as Record<string, unknown> | undefined;
+		const snap = mockPlayer.auth() as Record<string, unknown> | undefined;
 		expect(snap?.['bearerToken']).toBeUndefined();
 		expect(snap?.['accessToken']).toBeUndefined();
 	});
@@ -272,45 +272,45 @@ describe('lifecycle mixin — ready()', () => {
 	});
 
 	it('resolves after setup pipeline completes', async () => {
-		const p = makePlayer('ready-resolve');
-		p.setup({});
-		await expect(p.ready()).resolves.toBeUndefined();
+		const mockPlayer = makePlayer('ready-resolve');
+		mockPlayer.setup({});
+		await expect(mockPlayer.ready()).resolves.toBeUndefined();
 	});
 
 	it('resolves immediately when already in ready phase', async () => {
-		const p = makePlayer('ready-immediate');
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('ready-immediate');
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
-		await expect(p.ready()).resolves.toBeUndefined();
+		await expect(mockPlayer.ready()).resolves.toBeUndefined();
 	});
 
 	it('rejects immediately when player is already disposed', () => {
-		const p = makePlayer('ready-disposed');
-		p.dispose();
+		const mockPlayer = makePlayer('ready-disposed');
+		mockPlayer.dispose();
 
-		return expect(p.ready()).rejects.toBeInstanceOf(StateError);
+		return expect(mockPlayer.ready()).rejects.toBeInstanceOf(StateError);
 	});
 
 	it('rejects immediately when player is in disposing phase', async () => {
-		const p = makePlayer('ready-disposing');
-		p.setup({});
+		const mockPlayer = makePlayer('ready-disposing');
+		mockPlayer.setup({});
 
-		const readyP = p.ready();
-		p.dispose();
+		const readyP = mockPlayer.ready();
+		mockPlayer.dispose();
 
 		// A second ready() call after dispose() should reject with a StateError
-		const secondP = p.ready();
+		const secondP = mockPlayer.ready();
 		await expect(secondP).rejects.toBeInstanceOf(StateError);
 		await readyP.catch(() => {});
 	});
 
 	it('is memoised — repeated calls return the same promise', async () => {
-		const p = makePlayer('ready-memoised');
-		p.setup({});
+		const mockPlayer = makePlayer('ready-memoised');
+		mockPlayer.setup({});
 
-		const p1 = p.ready();
-		const p2 = p.ready();
+		const p1 = mockPlayer.ready();
+		const p2 = mockPlayer.ready();
 		await p1;
 
 		expect(p1).toBe(p2);
@@ -325,18 +325,18 @@ describe('lifecycle mixin — setup() guard', () => {
 	});
 
 	it('throws StateError when called twice without dispose()', async () => {
-		const p = makePlayer('double-setup');
-		p.setup({});
-		await p.ready();
+		const mockPlayer = makePlayer('double-setup');
+		mockPlayer.setup({});
+		await mockPlayer.ready();
 
-		expect(() => p.setup({})).toThrow(StateError);
+		expect(() => mockPlayer.setup({})).toThrow(StateError);
 	});
 
 	it('throws StateError when called after dispose()', () => {
-		const p = makePlayer('setup-after-dispose');
-		p.dispose();
+		const mockPlayer = makePlayer('setup-after-dispose');
+		mockPlayer.dispose();
 
-		expect(() => p.setup({})).toThrow(StateError);
+		expect(() => mockPlayer.setup({})).toThrow(StateError);
 	});
 });
 
@@ -348,29 +348,29 @@ describe('lifecycle mixin — setupState()', () => {
 	});
 
 	it('returns NOT_SETUP before setup() is called', () => {
-		const p = makePlayer('state-idle');
-		expect(p.setupState()).toBe(SetupState.NOT_SETUP);
+		const mockPlayer = makePlayer('state-idle');
+		expect(mockPlayer.setupState()).toBe(SetupState.NOT_SETUP);
 	});
 
 	it('returns SETTING_UP during the setup phase synchronously', () => {
-		const p = makePlayer('state-setting-up');
-		p.setup({});
-		expect(p.setupState()).toBe(SetupState.SETTING_UP);
+		const mockPlayer = makePlayer('state-setting-up');
+		mockPlayer.setup({});
+		expect(mockPlayer.setupState()).toBe(SetupState.SETTING_UP);
 	});
 
 	it('returns READY after setup pipeline completes', async () => {
-		const p = makePlayer('state-ready');
-		p.setup({});
-		await p.ready();
-		expect(p.setupState()).toBe(SetupState.READY);
+		const mockPlayer = makePlayer('state-ready');
+		mockPlayer.setup({});
+		await mockPlayer.ready();
+		expect(mockPlayer.setupState()).toBe(SetupState.READY);
 	});
 
 	it('returns DISPOSED after dispose()', async () => {
-		const p = makePlayer('state-disposed');
-		p.setup({});
-		await p.ready();
-		p.dispose();
-		expect(p.setupState()).toBe(SetupState.DISPOSED);
+		const mockPlayer = makePlayer('state-disposed');
+		mockPlayer.setup({});
+		await mockPlayer.ready();
+		mockPlayer.dispose();
+		expect(mockPlayer.setupState()).toBe(SetupState.DISPOSED);
 	});
 });
 
@@ -383,16 +383,16 @@ describe('lifecycle mixin — setup pipeline error paths', () => {
 	});
 
 	it('playlist URL fetch error → emits playlistError with code + playlistReady length:0', async () => {
-		const p = makePlayer('stage-playlist-err');
+		const mockPlayer = makePlayer('stage-playlist-err');
 		vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('network failure'));
 
 		const errEvents: unknown[] = [];
 		let readyLength: number | undefined;
-		p.on('playlistError', (data: unknown) => errEvents.push(data));
-		p.on('playlistReady', (data: { length: number }) => { readyLength = data.length; });
+		mockPlayer.on('playlistError', (data: unknown) => errEvents.push(data));
+		mockPlayer.on('playlistReady', (data: { length: number }) => { readyLength = data.length; });
 
-		p.setup({ playlist: 'https://example.test/list.json' } as unknown as Record<string, unknown>);
-		await p.ready();
+		mockPlayer.setup({ playlist: 'https://example.test/list.json' } as unknown as Record<string, unknown>);
+		await mockPlayer.ready();
 
 		expect(errEvents.length).toBeGreaterThan(0);
 		expect(readyLength).toBe(0);
@@ -401,7 +401,7 @@ describe('lifecycle mixin — setup pipeline error paths', () => {
 	});
 
 	it('playlist URL response is not a JSON array → emits playlistError with code core:playlist/parse-error', async () => {
-		const p = makePlayer('stage-parse-err');
+		const mockPlayer = makePlayer('stage-parse-err');
 		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
 			new Response(JSON.stringify({ not: 'an-array' }), {
 				status: 200,
@@ -410,10 +410,10 @@ describe('lifecycle mixin — setup pipeline error paths', () => {
 		);
 
 		const errEvents: unknown[] = [];
-		p.on('playlistError', (data: unknown) => errEvents.push(data));
+		mockPlayer.on('playlistError', (data: unknown) => errEvents.push(data));
 
-		p.setup({ playlist: 'https://example.test/list.json' } as unknown as Record<string, unknown>);
-		await p.ready();
+		mockPlayer.setup({ playlist: 'https://example.test/list.json' } as unknown as Record<string, unknown>);
+		await mockPlayer.ready();
 
 		expect(errEvents.length).toBeGreaterThan(0);
 		const err = errEvents[0] as { code: string };
@@ -423,16 +423,16 @@ describe('lifecycle mixin — setup pipeline error paths', () => {
 	it('stage callback that throws → emits matching <stage>Error event and rejects ready()', async () => {
 		// Override _registerPlugin on the instance so the pluginsRegistering
 		// stage work() propagates a real throw through the pipeline.
-		const p = makePlayer('stage-error');
+		const mockPlayer = makePlayer('stage-error');
 
 		const errorEvents: unknown[] = [];
 		const stageErrors: unknown[] = [];
-		p.on('error', (data: unknown) => errorEvents.push(data));
-		p.on('pluginsRegisteringError', (data: unknown) => stageErrors.push(data));
+		mockPlayer.on('error', (data: unknown) => errorEvents.push(data));
+		mockPlayer.on('pluginsRegisteringError', (data: unknown) => stageErrors.push(data));
 
 		// Inject a queue entry and stub _registerPlugin to throw so the
 		// stage work() fails and the pipeline bails.
-		const internals = p as unknown as {
+		const internals = mockPlayer as unknown as {
 			_pluginQueue: Array<{ ctor: unknown; opts: unknown }>;
 			_registerPlugin: unknown;
 		};
@@ -441,8 +441,8 @@ describe('lifecycle mixin — setup pipeline error paths', () => {
 			throw new Error('registration boom');
 		};
 
-		p.setup({});
-		await expect(p.ready()).rejects.toBeDefined();
+		mockPlayer.setup({});
+		await expect(mockPlayer.ready()).rejects.toBeDefined();
 
 		expect(stageErrors.length).toBeGreaterThan(0);
 		expect(errorEvents.length).toBeGreaterThan(0);

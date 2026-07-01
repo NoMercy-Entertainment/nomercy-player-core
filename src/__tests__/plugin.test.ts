@@ -511,8 +511,8 @@ describe('Plugin base class', () => {
 			try {
 				plugin.publicThrow({ code: 'plugin:test/boom' });
 			}
-			catch (e) {
-				expect((e as PlayerError).severity).toBe('error');
+			catch (error) {
+				expect((error as PlayerError).severity).toBe('error');
 			}
 		});
 
@@ -520,8 +520,8 @@ describe('Plugin base class', () => {
 			try {
 				plugin.publicThrow({ code: 'plugin:test/fatal', severity: 'fatal' });
 			}
-			catch (e) {
-				expect((e as PlayerError).severity).toBe('fatal');
+			catch (error) {
+				expect((error as PlayerError).severity).toBe('fatal');
 			}
 		});
 
@@ -544,8 +544,8 @@ describe('Plugin base class', () => {
 			try {
 				plugin.publicThrow({ code: 'plugin:test/boom' });
 			}
-			catch (e) {
-				expect((e as PlayerError).scope).toEqual({ kind: 'plugin', id: 'test' });
+			catch (error) {
+				expect((error as PlayerError).scope).toEqual({ kind: 'plugin', id: 'test' });
 			}
 		});
 
@@ -560,8 +560,8 @@ describe('Plugin base class', () => {
 					suggestion: 'try again',
 				});
 			}
-			catch (e) {
-				const err = e as PlayerError;
+			catch (error) {
+				const err = error as PlayerError;
 				expect(err.message).toBe('human');
 				expect(err.cause).toBe(cause);
 				expect(err.context).toEqual({ url: 'https://x' });
@@ -1094,7 +1094,7 @@ describe('Plugin base class', () => {
 			const inst = new IgnoreOnErrorPlugin();
 			inst.initialize(player, { value: 1 }, new LifecycleRegistry());
 			const errors: unknown[] = [];
-			player.on('error', e => errors.push(e));
+			player.on('error', playerErrorEvent => errors.push(playerErrorEvent));
 
 			inst.publicReport({ code: 'ignore-on-error:load/failed', severity: 'error' });
 

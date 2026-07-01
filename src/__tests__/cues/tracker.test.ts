@@ -267,7 +267,7 @@ describe('CueTracker', () => {
 			player.emit('time', { time: 12 }); // B
 			player.emit('time', { time: 22 }); // C
 			const history = tracker.history();
-			expect(history.map(c => c.payload.text)).toEqual(['C', 'B', 'A']);
+			expect(history.map(cue => cue.payload.text)).toEqual(['C', 'B', 'A']);
 			tracker.dispose();
 		});
 

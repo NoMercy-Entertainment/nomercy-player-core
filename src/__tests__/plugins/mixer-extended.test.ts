@@ -147,16 +147,16 @@ describe('MixerPlugin extended', () => {
 
 	describe('muted() getter / setter', () => {
 		it('muted() returns false by default after use()', () => {
-			const p = makePlayer('mx-1');
-			const { mixer } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-1');
+			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			expect(mixer.muted()).toBe(false);
 		});
 
 		it('muted(true) sets mute state and emits mute:changed', () => {
-			const p = makePlayer('mx-2');
-			const { mixer } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-2');
+			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			const events: Array<{ muted: boolean }> = [];
-			p.on('plugin:mixer:mute:changed' as any, (d: { muted: boolean }) => events.push(d));
+			mockPlayer.on('plugin:mixer:mute:changed' as any, (d: { muted: boolean }) => events.push(d));
 
 			mixer.muted(true);
 
@@ -166,11 +166,11 @@ describe('MixerPlugin extended', () => {
 		});
 
 		it('muted(false) restores gain and emits mute:changed', () => {
-			const p = makePlayer('mx-3');
-			const { mixer } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-3');
+			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			mixer.muted(true);
 			const events: Array<{ muted: boolean }> = [];
-			p.on('plugin:mixer:mute:changed' as any, (d: { muted: boolean }) => events.push(d));
+			mockPlayer.on('plugin:mixer:mute:changed' as any, (d: { muted: boolean }) => events.push(d));
 
 			mixer.muted(false);
 
@@ -180,10 +180,10 @@ describe('MixerPlugin extended', () => {
 		});
 
 		it('muted(value) is a no-op when value equals current state', () => {
-			const p = makePlayer('mx-4');
-			const { mixer } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-4');
+			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			const events: unknown[] = [];
-			p.on('plugin:mixer:mute:changed' as any, (d: unknown) => events.push(d));
+			mockPlayer.on('plugin:mixer:mute:changed' as any, (d: unknown) => events.push(d));
 
 			mixer.muted(false);
 
@@ -193,22 +193,22 @@ describe('MixerPlugin extended', () => {
 
 	describe('gain() with AudioNode', () => {
 		it('gain(dB) clamps to +maxGainDb', () => {
-			const p = makePlayer('mx-5');
-			const { mixer } = makeInstrumentedMixer(p, { maxGainDb: 12 });
+			const mockPlayer = makePlayer('mx-5');
+			const { mixer } = makeInstrumentedMixer(mockPlayer, { maxGainDb: 12 });
 			mixer.gain(100);
 			expect(mixer.gain()).toBe(12);
 		});
 
 		it('gain(dB) clamps to -maxGainDb', () => {
-			const p = makePlayer('mx-6');
-			const { mixer } = makeInstrumentedMixer(p, { maxGainDb: 12 });
+			const mockPlayer = makePlayer('mx-6');
+			const { mixer } = makeInstrumentedMixer(mockPlayer, { maxGainDb: 12 });
 			mixer.gain(-100);
 			expect(mixer.gain()).toBe(-12);
 		});
 
 		it('gain(dB) ramps the GainNode param via setTargetAtTime', () => {
-			const p = makePlayer('mx-7');
-			const { mixer, ctx } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-7');
+			const { mixer, ctx } = makeInstrumentedMixer(mockPlayer);
 			const gainNode = (mixer as any).gainNode as GainNode;
 			const setTargetSpy = vi.spyOn(gainNode.gain, 'setTargetAtTime');
 			mixer.gain(6);
@@ -217,8 +217,8 @@ describe('MixerPlugin extended', () => {
 		});
 
 		it('when muted, gain(dB) ramps to 0 (not the linear value)', () => {
-			const p = makePlayer('mx-8');
-			const { mixer } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-8');
+			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			mixer.muted(true);
 			const gainNode = (mixer as any).gainNode as GainNode;
 			const setTargetSpy = vi.spyOn(gainNode.gain, 'setTargetAtTime');
@@ -230,22 +230,22 @@ describe('MixerPlugin extended', () => {
 
 	describe('pan() with AudioNode', () => {
 		it('pan(value) clamps to +1', () => {
-			const p = makePlayer('mx-9');
-			const { mixer } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-9');
+			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			mixer.pan(5);
 			expect(mixer.pan()).toBe(1);
 		});
 
 		it('pan(value) clamps to -1', () => {
-			const p = makePlayer('mx-10');
-			const { mixer } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-10');
+			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			mixer.pan(-5);
 			expect(mixer.pan()).toBe(-1);
 		});
 
 		it('pan(value) ramps the StereoPannerNode param', () => {
-			const p = makePlayer('mx-11');
-			const { mixer } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-11');
+			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			const pannerNode = (mixer as any).pannerNode as StereoPannerNode;
 			const setTargetSpy = vi.spyOn(pannerNode.pan, 'setTargetAtTime');
 			mixer.pan(0.5);
@@ -255,21 +255,21 @@ describe('MixerPlugin extended', () => {
 
 	describe('save()', () => {
 		it('is a no-op when persistKey is not set', () => {
-			const p = makePlayer('mx-12');
-			const { mixer } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-12');
+			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			const events: unknown[] = [];
-			p.on('plugin:mixer:saved' as any, (d: unknown) => events.push(d));
+			mockPlayer.on('plugin:mixer:saved' as any, (d: unknown) => events.push(d));
 			mixer.save();
 			expect(events).toHaveLength(0);
 		});
 
 		it('emits saved when persistKey is set', () => {
-			const p = makePlayer('mx-13');
+			const mockPlayer = makePlayer('mx-13');
 			const storageMock = { set: vi.fn().mockResolvedValue(undefined), get: vi.fn() };
-			const { mixer } = makeInstrumentedMixer(p, { persistKey: 'mixer-state' });
+			const { mixer } = makeInstrumentedMixer(mockPlayer, { persistKey: 'mixer-state' });
 			(mixer as any).storage = storageMock;
 			const events: unknown[] = [];
-			p.on('plugin:mixer:saved' as any, (d: unknown) => events.push(d));
+			mockPlayer.on('plugin:mixer:saved' as any, (d: unknown) => events.push(d));
 			mixer.save();
 			expect(events).toHaveLength(1);
 			expect(storageMock.set).toHaveBeenCalledWith('mixer-state', expect.any(String));
@@ -278,31 +278,31 @@ describe('MixerPlugin extended', () => {
 
 	describe('dispose()', () => {
 		it('removes gain and panner nodes from the graph', () => {
-			const p = makePlayer('mx-14');
-			const { mixer, graph } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-14');
+			const { mixer, graph } = makeInstrumentedMixer(mockPlayer);
 			mixer.dispose();
 			expect(graph.removeEffect).toHaveBeenCalledTimes(2);
 		});
 
 		it('clears gainNode and pannerNode references', () => {
-			const p = makePlayer('mx-15');
-			const { mixer } = makeInstrumentedMixer(p);
+			const mockPlayer = makePlayer('mx-15');
+			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			mixer.dispose();
 			expect((mixer as any).gainNode).toBeNull();
 			expect((mixer as any).pannerNode).toBeNull();
 		});
 
 		it('dispose with no graph is a no-op', () => {
-			const p = makePlayer('mx-16');
+			const mockPlayer = makePlayer('mx-16');
 			const mixer = new MixerPlugin();
-			mixer.initialize(p as any, {}, new LifecycleRegistry());
+			mixer.initialize(mockPlayer as any, {}, new LifecycleRegistry());
 			expect(() => mixer.dispose()).not.toThrow();
 		});
 	});
 
 	describe('rampParam() fallback', () => {
 		it('falls back to direct param.value when setTargetAtTime throws', () => {
-			const p = makePlayer('mx-17');
+			const mockPlayer = makePlayer('mx-17');
 			const ctx = makeAudioContext();
 			const gainNode = makeGainNode();
 			const pannerNode = makePannerNode();
@@ -312,10 +312,10 @@ describe('MixerPlugin extended', () => {
 			(ctx.createGain as ReturnType<typeof vi.fn>).mockReturnValue(gainNode);
 			(ctx.createStereoPanner as ReturnType<typeof vi.fn>).mockReturnValue(pannerNode);
 			const graph = makeAudioGraphPlugin(ctx);
-			(p as any).getPlugin = () => graph;
+			(mockPlayer as any).getPlugin = () => graph;
 
 			const mixer = new MixerPlugin();
-			mixer.initialize(p as any, {}, new LifecycleRegistry());
+			mixer.initialize(mockPlayer as any, {}, new LifecycleRegistry());
 			mixer.use();
 
 			expect(() => mixer.gain(6)).not.toThrow();
@@ -325,33 +325,33 @@ describe('MixerPlugin extended', () => {
 
 	describe('loadPersisted()', () => {
 		it('returns undefined when storage.get returns undefined', () => {
-			const p = makePlayer('mx-18');
-			const { mixer } = makeInstrumentedMixer(p, { persistKey: 'k' });
+			const mockPlayer = makePlayer('mx-18');
+			const { mixer } = makeInstrumentedMixer(mockPlayer, { persistKey: 'k' });
 			(mixer as any).storage = { get: () => undefined, set: vi.fn() };
 			const result = (mixer as any).loadPersisted('k');
 			expect(result).toBeUndefined();
 		});
 
 		it('returns parsed state when storage.get returns valid JSON', () => {
-			const p = makePlayer('mx-19');
+			const mockPlayer = makePlayer('mx-19');
 			const state = { gain: 3, pan: 0.1, muted: false };
-			const { mixer } = makeInstrumentedMixer(p, { persistKey: 'k' });
+			const { mixer } = makeInstrumentedMixer(mockPlayer, { persistKey: 'k' });
 			(mixer as any).storage = { get: () => JSON.stringify(state), set: vi.fn() };
 			const result = (mixer as any).loadPersisted('k');
 			expect(result).toEqual(state);
 		});
 
 		it('returns undefined when storage.get returns invalid JSON', () => {
-			const p = makePlayer('mx-20');
-			const { mixer } = makeInstrumentedMixer(p, { persistKey: 'k' });
+			const mockPlayer = makePlayer('mx-20');
+			const { mixer } = makeInstrumentedMixer(mockPlayer, { persistKey: 'k' });
 			(mixer as any).storage = { get: () => '{bad json', set: vi.fn() };
 			const result = (mixer as any).loadPersisted('k');
 			expect(result).toBeUndefined();
 		});
 
 		it('returns undefined when storage.get returns null JSON', () => {
-			const p = makePlayer('mx-21');
-			const { mixer } = makeInstrumentedMixer(p, { persistKey: 'k' });
+			const mockPlayer = makePlayer('mx-21');
+			const { mixer } = makeInstrumentedMixer(mockPlayer, { persistKey: 'k' });
 			(mixer as any).storage = { get: () => 'null', set: vi.fn() };
 			const result = (mixer as any).loadPersisted('k');
 			expect(result).toBeUndefined();

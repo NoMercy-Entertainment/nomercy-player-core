@@ -165,14 +165,14 @@ export function parseVttSprite(text: string, baseUrl?: string): CueList<VTTSprit
 	const raw = parseRaw(text);
 	const cues: Cue<VTTSpritePayload>[] = [];
 
-	for (const c of raw) {
-		const spriteMatch = c.body.trim().match(SPRITE_FRAGMENT_RE);
+	for (const rawCue of raw) {
+		const spriteMatch = rawCue.body.trim().match(SPRITE_FRAGMENT_RE);
 		if (!spriteMatch)
 			continue; // skip cues that aren't sprite-formatted
 		const url = spriteMatch[1]!;
 		cues.push({
-			start: c.start,
-			end: c.end,
+			start: rawCue.start,
+			end: rawCue.end,
 			payload: {
 				url: baseUrl && !/^https?:\/\//.test(url) ? joinUrl(baseUrl, url) : url,
 				x: Number.parseInt(spriteMatch[2]!, 10),

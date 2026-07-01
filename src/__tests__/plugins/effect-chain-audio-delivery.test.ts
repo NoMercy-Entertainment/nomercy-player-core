@@ -354,7 +354,7 @@ describe('Effect-chain audio delivery — full-stack EQ + mixer + spectrum', () 
 			// Provide a source node via a minimal backend mock (context pre-registered).
 			const sourceNode = new MockMediaElementSourceNode('source');
 			const rawPlayer = player as unknown as {
-				backend?: () => { outputNode: (c: AudioContext) => AudioNode; mediaElement: () => HTMLMediaElement };
+				backend?: () => { outputNode: (audioContext: AudioContext) => AudioNode; mediaElement: () => HTMLMediaElement };
 			};
 			rawPlayer.backend = () => ({
 				outputNode: (_c: AudioContext): AudioNode => sourceNode as unknown as AudioNode,
@@ -389,7 +389,7 @@ describe('Effect-chain audio delivery — full-stack EQ + mixer + spectrum', () 
 
 			const sourceNode = new MockMediaElementSourceNode('source');
 			const rawPlayer = player as unknown as {
-				backend?: () => { outputNode: (c: AudioContext) => AudioNode; mediaElement: () => HTMLMediaElement };
+				backend?: () => { outputNode: (audioContext: AudioContext) => AudioNode; mediaElement: () => HTMLMediaElement };
 			};
 			rawPlayer.backend = () => ({
 				outputNode: (_c: AudioContext): AudioNode => sourceNode as unknown as AudioNode,
@@ -508,7 +508,7 @@ describe('Effect-chain audio delivery — full-stack EQ + mixer + spectrum', () 
 
 			const sourceNode = new MockMediaElementSourceNode('source');
 			const rawPlayer = player as unknown as {
-				backend?: () => { outputNode: (c: AudioContext) => AudioNode; mediaElement: () => HTMLMediaElement };
+				backend?: () => { outputNode: (audioContext: AudioContext) => AudioNode; mediaElement: () => HTMLMediaElement };
 			};
 			rawPlayer.backend = () => ({
 				outputNode: (_c: AudioContext): AudioNode => sourceNode as unknown as AudioNode,
@@ -546,7 +546,7 @@ describe('Effect-chain audio delivery — full-stack EQ + mixer + spectrum', () 
 
 			const sourceNode = new MockMediaElementSourceNode('source');
 			const rawPlayer = player as unknown as {
-				backend?: () => { outputNode: (c: AudioContext) => AudioNode; mediaElement: () => HTMLMediaElement };
+				backend?: () => { outputNode: (audioContext: AudioContext) => AudioNode; mediaElement: () => HTMLMediaElement };
 			};
 			rawPlayer.backend = () => ({
 				outputNode: (_c: AudioContext): AudioNode => sourceNode as unknown as AudioNode,
@@ -597,7 +597,7 @@ describe('Effect-chain audio delivery — full-stack EQ + mixer + spectrum', () 
 
 			const sourceNode = new MockMediaElementSourceNode('source');
 			const rawPlayer = player as unknown as {
-				backend?: () => { outputNode: (c: AudioContext) => AudioNode; mediaElement: () => HTMLMediaElement };
+				backend?: () => { outputNode: (audioContext: AudioContext) => AudioNode; mediaElement: () => HTMLMediaElement };
 			};
 			rawPlayer.backend = () => ({
 				outputNode: (_c: AudioContext): AudioNode => sourceNode as unknown as AudioNode,

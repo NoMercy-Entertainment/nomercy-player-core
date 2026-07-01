@@ -116,10 +116,10 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	// ── replace() ─────────────────────────────────────────────────────────────
 
 	it('replace() is equivalent to bind() — replaces handler for the same combo', async () => {
-		const p = makePlayer('kh-replace-1').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-replace-1').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const fn1 = vi.fn();
 		const fn2 = vi.fn();
@@ -134,10 +134,10 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	// ── bindings() snapshot ───────────────────────────────────────────────────
 
 	it('bindings() returns a snapshot — mutating it does not affect live binding table', async () => {
-		const p = makePlayer('kh-snapshot-1').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-snapshot-1').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const snapshot = inst.bindings();
 		(snapshot as Map<string, unknown>).delete(' ');
@@ -149,14 +149,14 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	// ── opts.extend: false ────────────────────────────────────────────────────
 
 	it('opts.extend: false clears defaults; only user bindings survive', async () => {
-		const p = makePlayer('kh-extend-false-1').setup({});
+		const mockPlayer = makePlayer('kh-extend-false-1').setup({});
 		const custom = vi.fn();
-		p.addPlugin(KeyHandlerPlugin, {
+		mockPlayer.addPlugin(KeyHandlerPlugin, {
 			extend: false,
 			bindings: { x: custom },
 		});
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const map = inst.bindings();
 		expect(map.has(' ')).toBe(false);
@@ -169,12 +169,12 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	// ── opts.bindings merged on top ────────────────────────────────────────────
 
 	it('opts.bindings wins over defaults for the same combo', async () => {
-		const p = makePlayer('kh-opts-bindings-1').setup({});
+		const mockPlayer = makePlayer('kh-opts-bindings-1').setup({});
 		const customSpace = vi.fn();
-		p.addPlugin(KeyHandlerPlugin, {
+		mockPlayer.addPlugin(KeyHandlerPlugin, {
 			bindings: { ' ': customSpace },
 		});
-		await p.ready();
+		await mockPlayer.ready();
 
 		dispatch(' ');
 		expect(customSpace).toHaveBeenCalledOnce();
@@ -183,11 +183,11 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	// ── opts.when predicate ────────────────────────────────────────────────────
 
 	it('opts.when returning false suppresses all key handling', async () => {
-		const p = makePlayer('kh-when-1').setup({});
+		const mockPlayer = makePlayer('kh-when-1').setup({});
 		const whenFn = vi.fn(() => false);
-		p.addPlugin(KeyHandlerPlugin, { when: whenFn });
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		mockPlayer.addPlugin(KeyHandlerPlugin, { when: whenFn });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const handler = vi.fn();
 		inst.bind('q', handler);
@@ -198,11 +198,11 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	});
 
 	it('opts.when returning true allows key handling', async () => {
-		const p = makePlayer('kh-when-2').setup({});
+		const mockPlayer = makePlayer('kh-when-2').setup({});
 		const whenFn = vi.fn(() => true);
-		p.addPlugin(KeyHandlerPlugin, { when: whenFn });
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		mockPlayer.addPlugin(KeyHandlerPlugin, { when: whenFn });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const handler = vi.fn();
 		inst.bind('q', handler);
@@ -214,10 +214,10 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	// ── opts.cooldownMs ────────────────────────────────────────────────────────
 
 	it('opts.cooldownMs: 0 disables throttling — consecutive fires pass through', async () => {
-		const p = makePlayer('kh-cooldown-0').setup({});
-		p.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-cooldown-0').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const handler = vi.fn();
 		inst.bind('q', handler);
@@ -230,10 +230,10 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 
 	it('default cooldownMs 300 throttles rapid-fire keys', async () => {
 		vi.useFakeTimers();
-		const p = makePlayer('kh-cooldown-default').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-cooldown-default').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const handler = vi.fn();
 		inst.bind('q', handler);
@@ -254,12 +254,12 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	// ── scope: 'container' ────────────────────────────────────────────────────
 
 	it('scope: "container" attaches listener to container element', async () => {
-		const p = makePlayer('kh-scope-container').setup({});
-		p.addPlugin(KeyHandlerPlugin, { scope: 'container' });
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-scope-container').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { scope: 'container' });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
-		expect(inst.scope()).toBe(p.container);
+		expect(inst.scope()).toBe(mockPlayer.container);
 	});
 
 	// ── scope: HTMLElement ────────────────────────────────────────────────────
@@ -268,10 +268,10 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 		const customEl = document.createElement('div');
 		document.body.appendChild(customEl);
 
-		const p = makePlayer('kh-scope-el').setup({});
-		p.addPlugin(KeyHandlerPlugin, { scope: customEl });
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-scope-el').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { scope: customEl });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		// Verify behavior: handler fires when the event is dispatched on customEl.
 		const handler = vi.fn();
@@ -286,10 +286,10 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	// ── combo normalisation ────────────────────────────────────────────────────
 
 	it('modifier order is canonical — shift+ctrl+k and ctrl+shift+k resolve the same', async () => {
-		const p = makePlayer('kh-combo-1').setup({});
-		p.addPlugin(KeyHandlerPlugin, { extend: false, bindings: {} });
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-combo-1').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { extend: false, bindings: {} });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const fn = vi.fn();
 		inst.bind('shift+ctrl+k', fn);
@@ -306,10 +306,10 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	});
 
 	it('single-character keys are lowercased in canonical form', async () => {
-		const p = makePlayer('kh-combo-lower').setup({});
-		p.addPlugin(KeyHandlerPlugin, { extend: false });
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-combo-lower').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { extend: false });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const fn = vi.fn();
 		inst.bind('P', fn);
@@ -321,10 +321,10 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	// ── typing target suppression ──────────────────────────────────────────────
 
 	it('suppresses keys from <textarea> targets', async () => {
-		const p = makePlayer('kh-textarea').setup({});
-		p.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-textarea').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const fn = vi.fn();
 		inst.bind('p', fn);
@@ -336,10 +336,10 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	});
 
 	it('suppresses keys from <select> targets', async () => {
-		const p = makePlayer('kh-select').setup({});
-		p.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-select').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const fn = vi.fn();
 		inst.bind('p', fn);
@@ -351,10 +351,10 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	});
 
 	it('suppresses keys from contenteditable elements', async () => {
-		const p = makePlayer('kh-contenteditable').setup({});
-		p.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
-		await p.ready();
-		const inst = p.getPluginById('key-handler') as KeyHandlerPlugin;
+		const mockPlayer = makePlayer('kh-contenteditable').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
 
 		const fn = vi.fn();
 		inst.bind('p', fn);
@@ -369,120 +369,120 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 	// ── default bindings trigger player methods ───────────────────────────────
 
 	it('Space calls player.togglePlayback()', async () => {
-		const p = makePlayer('kh-space').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
+		const mockPlayer = makePlayer('kh-space').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
 
 		const toggleFn = vi.fn(() => Promise.resolve());
-		p.togglePlayback = toggleFn;
+		mockPlayer.togglePlayback = toggleFn;
 
 		dispatch(' ');
 		expect(toggleFn).toHaveBeenCalledOnce();
 	});
 
 	it('ArrowLeft calls player.rewind(5)', async () => {
-		const p = makePlayer('kh-arrowleft').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
+		const mockPlayer = makePlayer('kh-arrowleft').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
 
 		const rewindFn = vi.fn();
-		(p as MockPlayer & { rewind: (n: number) => void }).rewind = rewindFn;
+		(mockPlayer as MockPlayer & { rewind: (n: number) => void }).rewind = rewindFn;
 
 		dispatch('ArrowLeft');
 		expect(rewindFn).toHaveBeenCalledWith(5);
 	});
 
 	it('ArrowRight calls player.forward(5)', async () => {
-		const p = makePlayer('kh-arrowright').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
+		const mockPlayer = makePlayer('kh-arrowright').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
 
 		const forwardFn = vi.fn();
-		(p as MockPlayer & { forward: (n: number) => void }).forward = forwardFn;
+		(mockPlayer as MockPlayer & { forward: (n: number) => void }).forward = forwardFn;
 
 		dispatch('ArrowRight');
 		expect(forwardFn).toHaveBeenCalledWith(5);
 	});
 
 	it('ArrowUp calls player.volumeUp()', async () => {
-		const p = makePlayer('kh-arrowup').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
+		const mockPlayer = makePlayer('kh-arrowup').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
 
 		const volumeUpFn = vi.fn();
-		(p as MockPlayer & { volumeUp: () => void }).volumeUp = volumeUpFn;
+		(mockPlayer as MockPlayer & { volumeUp: () => void }).volumeUp = volumeUpFn;
 
 		dispatch('ArrowUp');
 		expect(volumeUpFn).toHaveBeenCalledOnce();
 	});
 
 	it('ArrowDown calls player.volumeDown()', async () => {
-		const p = makePlayer('kh-arrowdown').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
+		const mockPlayer = makePlayer('kh-arrowdown').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
 
 		const volumeDownFn = vi.fn();
-		(p as MockPlayer & { volumeDown: () => void }).volumeDown = volumeDownFn;
+		(mockPlayer as MockPlayer & { volumeDown: () => void }).volumeDown = volumeDownFn;
 
 		dispatch('ArrowDown');
 		expect(volumeDownFn).toHaveBeenCalledOnce();
 	});
 
 	it('m calls player.toggleMute()', async () => {
-		const p = makePlayer('kh-m').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
+		const mockPlayer = makePlayer('kh-m').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
 
 		const toggleMuteFn = vi.fn();
-		(p as MockPlayer & { toggleMute: () => void }).toggleMute = toggleMuteFn;
+		(mockPlayer as MockPlayer & { toggleMute: () => void }).toggleMute = toggleMuteFn;
 
 		dispatch('m');
 		expect(toggleMuteFn).toHaveBeenCalledOnce();
 	});
 
 	it('MediaPlay calls player.play() when disableMediaControls is false', async () => {
-		const p = makePlayer('kh-mediaplay').setup({});
-		p.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
-		await p.ready();
+		const mockPlayer = makePlayer('kh-mediaplay').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
+		await mockPlayer.ready();
 
 		const playFn = vi.fn(() => Promise.resolve());
-		p.play = playFn;
+		mockPlayer.play = playFn;
 
 		dispatch('MediaPlay');
 		expect(playFn).toHaveBeenCalledOnce();
 	});
 
 	it('MediaPause calls player.pause() when disableMediaControls is false', async () => {
-		const p = makePlayer('kh-mediapause').setup({});
-		p.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
-		await p.ready();
+		const mockPlayer = makePlayer('kh-mediapause').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
+		await mockPlayer.ready();
 
 		const pauseFn = vi.fn(() => Promise.resolve());
-		p.pause = pauseFn;
+		mockPlayer.pause = pauseFn;
 
 		dispatch('MediaPause');
 		expect(pauseFn).toHaveBeenCalledOnce();
 	});
 
 	it('MediaTrackNext calls player.next?.()', async () => {
-		const p = makePlayer('kh-tracknext').setup({});
-		p.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
-		await p.ready();
+		const mockPlayer = makePlayer('kh-tracknext').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
+		await mockPlayer.ready();
 
 		const nextFn = vi.fn(() => Promise.resolve());
-		(p as MockPlayer & { next: () => Promise<void> }).next = nextFn;
+		(mockPlayer as MockPlayer & { next: () => Promise<void> }).next = nextFn;
 
 		dispatch('MediaTrackNext');
 		expect(nextFn).toHaveBeenCalledOnce();
 	});
 
 	it('MediaTrackPrevious calls player.previous?.()', async () => {
-		const p = makePlayer('kh-trackprev').setup({});
-		p.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
-		await p.ready();
+		const mockPlayer = makePlayer('kh-trackprev').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
+		await mockPlayer.ready();
 
 		const prevFn = vi.fn(() => Promise.resolve());
-		(p as MockPlayer & { previous: () => Promise<void> }).previous = prevFn;
+		(mockPlayer as MockPlayer & { previous: () => Promise<void> }).previous = prevFn;
 
 		dispatch('MediaTrackPrevious');
 		expect(prevFn).toHaveBeenCalledOnce();

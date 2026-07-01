@@ -66,8 +66,8 @@ describe('CastSenderPlugin (kit base)', () => {
 		try {
 			await plugin.connect();
 		}
-		catch (e) {
-			err = e;
+		catch (error) {
+			err = error;
 		}
 		expect(err).toBeDefined();
 		expect((err as { code?: string }).code).toBe('core:policy/castUnavailable');

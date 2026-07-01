@@ -70,7 +70,7 @@ describe('parseLrc()', () => {
 		it('parses multi-line LRC', () => {
 			const list = parseLrc('[00:00.00]First\n[00:10.00]Second\n[00:20.00]Third');
 			expect(list.cues).toHaveLength(3);
-			expect(list.cues.map(c => c.payload.text)).toEqual(['First', 'Second', 'Third']);
+			expect(list.cues.map(cue => cue.payload.text)).toEqual(['First', 'Second', 'Third']);
 		});
 
 		it('handles minutes > 60', () => {
@@ -95,7 +95,7 @@ describe('parseLrc()', () => {
 		it('emits one cue per leading timestamp', () => {
 			const list = parseLrc('[00:10.00][00:30.00][00:50.00]Chorus');
 			expect(list.cues).toHaveLength(3);
-			expect(list.cues.map(c => c.payload.text)).toEqual(['Chorus', 'Chorus', 'Chorus']);
+			expect(list.cues.map(cue => cue.payload.text)).toEqual(['Chorus', 'Chorus', 'Chorus']);
 		});
 
 		it('sorts emitted cues by start', () => {

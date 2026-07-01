@@ -499,7 +499,7 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 			plugin.removePreset('Tmp');
 			// selectedPreset string stays after removal — the preset is just no longer available
 			expect(plugin.preset()).toBe('Tmp');
-			expect(plugin.presets().some(p => p.name === 'Tmp')).toBe(false);
+			expect(plugin.presets().some(eqPreset => eqPreset.name === 'Tmp')).toBe(false);
 		});
 	});
 
@@ -528,7 +528,7 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 			expect(savedEvents.length).toBeGreaterThanOrEqual(1);
 			expect(storage['eq-state']).toBeDefined();
 			const parsed = JSON.parse(storage['eq-state']!) as { bands: EqBand[] };
-			expect(parsed.bands.some(b => b.frequency === 1000 && b.gain === 6)).toBe(true);
+			expect(parsed.bands.some(eqBand => eqBand.frequency === 1000 && eqBand.gain === 6)).toBe(true);
 		});
 
 		it('restore() is a no-op when persistKey is not set', () => {
@@ -556,13 +556,13 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 
 			const { plugin: plugin2 } = wireEqPlugin({ persistKey: 'eq-custom-restore', autoLoad: false }, storage);
 			plugin2.restore();
-			expect(plugin2.presets().some(p => p.name === 'Stored')).toBe(true);
+			expect(plugin2.presets().some(eqPreset => eqPreset.name === 'Stored')).toBe(true);
 		});
 
 		it('autoLoad: true on use() reads persisted bands', () => {
 			const storage: Record<string, string> = {};
 			const state = {
-				bands: DEFAULT_BANDS.map(b => b.frequency === 1000 ? { ...b, gain: 5 } : { ...b }),
+				bands: DEFAULT_BANDS.map(eqBand => eqBand.frequency === 1000 ? { ...eqBand, gain: 5 } : { ...eqBand }),
 			};
 			storage['eq-autoload'] = JSON.stringify(state);
 

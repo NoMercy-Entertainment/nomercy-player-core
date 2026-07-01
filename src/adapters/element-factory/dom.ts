@@ -112,7 +112,7 @@ export function createSVG(id: string, viewBox: string): SVGSVGElement {
  * and a click listener attached. The returned element is ready to insert — no
  * additional attribute setup is required.
  */
-export function createButton(id: string, label: string, onClick: (e: Event) => void): HTMLButtonElement {
+export function createButton(id: string, label: string, onClick: (event: Event) => void): HTMLButtonElement {
 	const button = document.createElement('button');
 	button.id = id;
 	button.type = 'button';

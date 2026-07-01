@@ -185,31 +185,31 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 
 	describe('playback state mirroring', () => {
 		it('play event sets playbackState to "playing"', async () => {
-			const p = makePlayer('ms-deep-1').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-deep-1').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', {});
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', {});
 
 			expect(session.playbackState).toBe('playing');
 		});
 
 		it('pause event sets playbackState to "paused"', async () => {
-			const p = makePlayer('ms-deep-2').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-deep-2').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('pause', {});
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('pause', {});
 
 			expect(session.playbackState).toBe('paused');
 		});
 
 		it('ended event sets playbackState to "none"', async () => {
-			const p = makePlayer('ms-deep-3').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-deep-3').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('ended', undefined);
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('ended', undefined);
 
 			expect(session.playbackState).toBe('none');
 		});
@@ -219,13 +219,13 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 
 	describe('position state updates', () => {
 		it('time event calls setPositionState when duration is finite and positive', async () => {
-			const p = makePlayer('ms-pos-1').setup({});
-			(p as MockPlayer & { duration: () => number }).duration = () => 180;
-			(p as MockPlayer & { playbackRate: () => number }).playbackRate = () => 1;
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-pos-1').setup({});
+			(mockPlayer as MockPlayer & { duration: () => number }).duration = () => 180;
+			(mockPlayer as MockPlayer & { playbackRate: () => number }).playbackRate = () => 1;
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 30 });
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 30 });
 
 			expect(positionCalls).toHaveLength(1);
 			expect(positionCalls[0]?.position).toBe(30);
@@ -233,57 +233,57 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 		});
 
 		it('seek event calls setPositionState', async () => {
-			const p = makePlayer('ms-pos-2').setup({});
-			(p as MockPlayer & { duration: () => number }).duration = () => 180;
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-pos-2').setup({});
+			(mockPlayer as MockPlayer & { duration: () => number }).duration = () => 180;
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('seek', { time: 60 });
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('seek', { time: 60 });
 
 			expect(positionCalls.length).toBeGreaterThan(0);
 		});
 
 		it('time event skips setPositionState when duration is 0', async () => {
-			const p = makePlayer('ms-pos-nodur').setup({});
-			(p as MockPlayer & { duration: () => number }).duration = () => 0;
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-pos-nodur').setup({});
+			(mockPlayer as MockPlayer & { duration: () => number }).duration = () => 0;
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 10 });
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 10 });
 
 			expect(positionCalls).toHaveLength(0);
 		});
 
 		it('time event skips setPositionState when duration is NaN', async () => {
-			const p = makePlayer('ms-pos-nan').setup({});
-			(p as MockPlayer & { duration: () => number }).duration = () => Number.NaN;
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-pos-nan').setup({});
+			(mockPlayer as MockPlayer & { duration: () => number }).duration = () => Number.NaN;
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 10 });
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 10 });
 
 			expect(positionCalls).toHaveLength(0);
 		});
 
 		it('time event skips setPositionState when duration is Infinity', async () => {
-			const p = makePlayer('ms-pos-inf').setup({});
-			(p as MockPlayer & { duration: () => number }).duration = () => Infinity;
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-pos-inf').setup({});
+			(mockPlayer as MockPlayer & { duration: () => number }).duration = () => Infinity;
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 10 });
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 10 });
 
 			expect(positionCalls).toHaveLength(0);
 		});
 
 		it('position is clamped to [0, duration]', async () => {
-			const p = makePlayer('ms-pos-clamp').setup({});
-			(p as MockPlayer & { duration: () => number }).duration = () => 100;
-			(p as MockPlayer & { playbackRate: () => number }).playbackRate = () => 1;
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-pos-clamp').setup({});
+			(mockPlayer as MockPlayer & { duration: () => number }).duration = () => 100;
+			(mockPlayer as MockPlayer & { playbackRate: () => number }).playbackRate = () => 1;
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 200 });
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 200 });
 
 			expect(positionCalls[0]?.position).toBe(100);
 		});
@@ -293,12 +293,12 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 
 	describe('OS action handlers', () => {
 		it('play action calls player.play()', async () => {
-			const p = makePlayer('ms-action-play').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-action-play').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
 			const playCalls: unknown[] = [];
-			p.play = vi.fn(async () => { playCalls.push(true); });
+			mockPlayer.play = vi.fn(async () => { playCalls.push(true); });
 
 			const handler = session._handlers.get('play');
 			expect(handler).toBeTypeOf('function');
@@ -308,24 +308,24 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 		});
 
 		it('pause action calls player.pause()', async () => {
-			const p = makePlayer('ms-action-pause').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-action-pause').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
 			const pauseCalls: unknown[] = [];
-			p.pause = vi.fn(async () => { pauseCalls.push(true); });
+			mockPlayer.pause = vi.fn(async () => { pauseCalls.push(true); });
 
 			session._handlers.get('pause')!({} as MediaSessionActionDetails);
 			expect(pauseCalls).toHaveLength(1);
 		});
 
 		it('stop action calls player.stop()', async () => {
-			const p = makePlayer('ms-action-stop').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-action-stop').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
 			const stopCalls: unknown[] = [];
-			p.stop = vi.fn(async () => { stopCalls.push(true); });
+			mockPlayer.stop = vi.fn(async () => { stopCalls.push(true); });
 
 			const handler = session._handlers.get('stop');
 			if (handler) {
@@ -336,36 +336,36 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 		});
 
 		it('nexttrack action calls player.next()', async () => {
-			const p = makePlayer('ms-action-next').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-action-next').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
 			const nextCalls: unknown[] = [];
-			(p as MockPlayer & { next: () => Promise<void> }).next = vi.fn(async () => { nextCalls.push(true); });
+			(mockPlayer as MockPlayer & { next: () => Promise<void> }).next = vi.fn(async () => { nextCalls.push(true); });
 
 			session._handlers.get('nexttrack')!({} as MediaSessionActionDetails);
 			expect(nextCalls).toHaveLength(1);
 		});
 
 		it('previoustrack action calls player.previous()', async () => {
-			const p = makePlayer('ms-action-prev').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-action-prev').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
 			const prevCalls: unknown[] = [];
-			(p as MockPlayer & { previous: () => Promise<void> }).previous = vi.fn(async () => { prevCalls.push(true); });
+			(mockPlayer as MockPlayer & { previous: () => Promise<void> }).previous = vi.fn(async () => { prevCalls.push(true); });
 
 			session._handlers.get('previoustrack')!({} as MediaSessionActionDetails);
 			expect(prevCalls).toHaveLength(1);
 		});
 
 		it('seekbackward action calls player.rewind(seekOffset)', async () => {
-			const p = makePlayer('ms-action-seekbk').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-action-seekbk').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
 			const rewindCalls: number[] = [];
-			(p as MockPlayer & { rewind: (offset: number) => void }).rewind = (offset: number) => { rewindCalls.push(offset); };
+			(mockPlayer as MockPlayer & { rewind: (offset: number) => void }).rewind = (offset: number) => { rewindCalls.push(offset); };
 
 			session._handlers.get('seekbackward')!({ seekOffset: 10 } as MediaSessionActionDetails);
 			expect(rewindCalls).toHaveLength(1);
@@ -373,48 +373,48 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 		});
 
 		it('seekbackward falls back to 5s when seekOffset is undefined', async () => {
-			const p = makePlayer('ms-action-seekbk-fallback').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-action-seekbk-fallback').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
 			const rewindCalls: number[] = [];
-			(p as MockPlayer & { rewind: (offset: number) => void }).rewind = (offset: number) => { rewindCalls.push(offset); };
+			(mockPlayer as MockPlayer & { rewind: (offset: number) => void }).rewind = (offset: number) => { rewindCalls.push(offset); };
 
 			session._handlers.get('seekbackward')!({} as MediaSessionActionDetails);
 			expect(rewindCalls[0]).toBe(5);
 		});
 
 		it('seekforward action calls player.forward(seekOffset)', async () => {
-			const p = makePlayer('ms-action-seekfwd').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-action-seekfwd').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
 			const forwardCalls: number[] = [];
-			(p as MockPlayer & { forward: (offset: number) => void }).forward = (offset: number) => { forwardCalls.push(offset); };
+			(mockPlayer as MockPlayer & { forward: (offset: number) => void }).forward = (offset: number) => { forwardCalls.push(offset); };
 
 			session._handlers.get('seekforward')!({ seekOffset: 15 } as MediaSessionActionDetails);
 			expect(forwardCalls[0]).toBe(15);
 		});
 
 		it('seekto action calls player.time(seekTime)', async () => {
-			const p = makePlayer('ms-action-seekto').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-action-seekto').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
 			const timeCalls: number[] = [];
-			(p as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
+			(mockPlayer as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
 
 			session._handlers.get('seekto')!({ seekTime: 45 } as MediaSessionActionDetails);
 			expect(timeCalls[0]).toBe(45);
 		});
 
 		it('seekto is a no-op when seekTime is undefined', async () => {
-			const p = makePlayer('ms-action-seekto-undef').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-action-seekto-undef').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
 			const timeCalls: number[] = [];
-			(p as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
+			(mockPlayer as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
 
 			session._handlers.get('seekto')!({} as MediaSessionActionDetails);
 			expect(timeCalls).toHaveLength(0);
@@ -425,12 +425,12 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 
 	describe('clearMetadata()', () => {
 		it('sets navigator.mediaSession.metadata to null', async () => {
-			const p = makePlayer('ms-clear-1').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
-			const inst = p.getPluginById('media-session') as MediaSessionPlugin;
+			const mockPlayer = makePlayer('ms-clear-1').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPluginById('media-session') as MediaSessionPlugin;
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('item', {
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('item', {
 				item: { id: 1, title: 'Track' },
 				index: 0,
 			});
@@ -446,19 +446,19 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 
 	describe('metadata() overload', () => {
 		it('getter returns undefined before any metadata is set', async () => {
-			const p = makePlayer('ms-meta-1').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
-			const inst = p.getPluginById('media-session') as MediaSessionPlugin;
+			const mockPlayer = makePlayer('ms-meta-1').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPluginById('media-session') as MediaSessionPlugin;
 
 			expect(inst.metadata()).toBeUndefined();
 		});
 
 		it('setter writes to navigator.mediaSession.metadata', async () => {
-			const p = makePlayer('ms-meta-2').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
-			const inst = p.getPluginById('media-session') as MediaSessionPlugin;
+			const mockPlayer = makePlayer('ms-meta-2').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPluginById('media-session') as MediaSessionPlugin;
 
 			inst.metadata({ title: 'Test Song', artist: 'Test Artist', album: 'Test Album' });
 
@@ -471,18 +471,18 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 
 	describe('item event with null item', () => {
 		it('clears metadata when item is null', async () => {
-			const p = makePlayer('ms-null-item').setup({});
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('ms-null-item').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('item', {
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('item', {
 				item: { id: 1, title: 'Track' },
 				index: 0,
 			});
 			await flush();
 			expect(session.metadata).toBeTruthy();
 
-			(p as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('item', { item: null, index: -1 });
+			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('item', { item: null, index: -1 });
 			await flush();
 			expect(session.metadata).toBeNull();
 		});
@@ -492,16 +492,16 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 
 	describe('seed on use() from existing item', () => {
 		it('pushes metadata from player.item() immediately when plugin is added after track is loaded', async () => {
-			const p = makePlayer('ms-seed-1').setup({});
+			const mockPlayer = makePlayer('ms-seed-1').setup({});
 
 			// Pre-wire the player's item() accessor before addPlugin.
-			(p as MockPlayer & { item: () => { id: number; title: string } }).item = () => ({
+			(mockPlayer as MockPlayer & { item: () => { id: number; title: string } }).item = () => ({
 				id: 99,
 				title: 'Pre-loaded Track',
 			});
 
-			p.addPlugin(MediaSessionPlugin);
-			await p.ready();
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
 			await flush();
 
 			expect((session.metadata as { title: string }).title).toBe('Pre-loaded Track');
@@ -514,10 +514,10 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 		it('use() and dispose() do not throw when mediaSession is absent', async () => {
 			restore(); // temporarily remove fake session
 
-			const p = makePlayer('ms-nosession').setup({});
-			expect(() => p.addPlugin(MediaSessionPlugin)).not.toThrow();
-			await p.ready();
-			expect(() => p.removePlugin(MediaSessionPlugin)).not.toThrow();
+			const mockPlayer = makePlayer('ms-nosession').setup({});
+			expect(() => mockPlayer.addPlugin(MediaSessionPlugin)).not.toThrow();
+			await mockPlayer.ready();
+			expect(() => mockPlayer.removePlugin(MediaSessionPlugin)).not.toThrow();
 
 			// Re-install for afterEach to run cleanly.
 			const installed = installFakeMediaSession();

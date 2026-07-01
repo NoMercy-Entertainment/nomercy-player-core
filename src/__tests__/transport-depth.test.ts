@@ -200,8 +200,8 @@ describe('transport-depth (slice 02)', () => {
 		try {
 			await player.time(10);
 		}
-		catch (e) {
-			thrown = e;
+		catch (error) {
+			thrown = error;
 		}
 
 		expect(thrown).toBeInstanceOf(StateError);

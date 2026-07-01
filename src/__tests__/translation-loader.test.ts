@@ -116,14 +116,14 @@ describe('createNetworkTranslationLoader', () => {
 			return mockResponse(404, 'Not Found');
 		});
 
-		const t = new DefaultTranslator({
+		const defaultTranslator = new DefaultTranslator({
 			language: 'en',
 			translations: { en: {} },
 			loadTranslations: createNetworkTranslationLoader({ url: 'https://cdn.example/i18n/{lang}.json' }),
 		});
-		await t.language('pt-BR');
+		await defaultTranslator.language('pt-BR');
 
-		expect(t.t('regional')).toBe('br');
-		expect(t.t('greeting')).toBe('Olá');
+		expect(defaultTranslator.t('regional')).toBe('br');
+		expect(defaultTranslator.t('greeting')).toBe('Olá');
 	});
 });

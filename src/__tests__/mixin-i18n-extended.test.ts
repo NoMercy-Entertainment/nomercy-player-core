@@ -99,16 +99,16 @@ function makeSetupPlayer(divId: string): MockPlayer {
 	return new MockPlayer(divId).setup({});
 }
 
-function waitForInstall(p: MockPlayer, id: string): Promise<void> {
+function waitForInstall(mockPlayer: MockPlayer, id: string): Promise<void> {
 	return new Promise<void>((resolve) => {
 		const handler = (data: unknown): void => {
 			const payload = data as { id: string };
 			if (payload.id !== id)
 				return;
-			p.off('plugin:installed', handler);
+			mockPlayer.off('plugin:installed', handler);
 			resolve();
 		};
-		p.on('plugin:installed', handler);
+		mockPlayer.on('plugin:installed', handler);
 	});
 }
 

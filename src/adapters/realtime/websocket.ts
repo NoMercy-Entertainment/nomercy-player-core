@@ -36,12 +36,12 @@ export const nativeWebSocketAdapter: RealtimeFactory = (url, opts) => {
 	};
 
 	ws.addEventListener('open', () => dispatch('open'));
-	ws.addEventListener('message', e => dispatch('message', e.data));
-	ws.addEventListener('close', e => dispatch('close', {
-		code: e.code,
-		reason: e.reason,
+	ws.addEventListener('message', messageEvent => dispatch('message', messageEvent.data));
+	ws.addEventListener('close', closeEvent => dispatch('close', {
+		code: closeEvent.code,
+		reason: closeEvent.reason,
 	}));
-	ws.addEventListener('error', e => dispatch('error', e));
+	ws.addEventListener('error', event => dispatch('error', event));
 
 	return {
 		send(data) { ws.send(data); },

@@ -106,10 +106,10 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 
 	describe('show()', () => {
 		it('displays text and auto-hides after ms', async () => {
-			const p = makePlayer('msg-show-1').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-show-1').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 			const toast = (inst as unknown as { toast: HTMLDivElement }).toast;
 
 			inst.show('Hello', 500);
@@ -121,10 +121,10 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 		});
 
 		it('replaces a visible toast and resets the timer', async () => {
-			const p = makePlayer('msg-show-2').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-show-2').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 			const toast = (inst as unknown as { toast: HTMLDivElement }).toast;
 
 			inst.show('First', 1000);
@@ -148,10 +148,10 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 
 	describe('hide()', () => {
 		it('cancels the auto-hide timer and hides immediately', async () => {
-			const p = makePlayer('msg-hide-1').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-hide-1').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 			const toast = (inst as unknown as { toast: HTMLDivElement }).toast;
 
 			inst.show('Visible', 1000);
@@ -170,10 +170,10 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 
 	describe('displayMessage()', () => {
 		it('string form calls show(text, defaultDuration)', async () => {
-			const p = makePlayer('msg-dm-1').setup({});
-			p.addPlugin(MessagePlugin, { durationMs: 400 });
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-dm-1').setup({});
+			mockPlayer.addPlugin(MessagePlugin, { durationMs: 400 });
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 			const toast = (inst as unknown as { toast: HTMLDivElement }).toast;
 
 			inst.displayMessage('Test');
@@ -184,10 +184,10 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 		});
 
 		it('object form uses durationMs from the object', async () => {
-			const p = makePlayer('msg-dm-2').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-dm-2').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 			const toast = (inst as unknown as { toast: HTMLDivElement }).toast;
 
 			inst.displayMessage({ text: 'Hi', durationMs: 200 });
@@ -198,10 +198,10 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 		});
 
 		it('explicit ms override wins over object.durationMs', async () => {
-			const p = makePlayer('msg-dm-3').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-dm-3').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 			const toast = (inst as unknown as { toast: HTMLDivElement }).toast;
 
 			inst.displayMessage({ text: 'Override', durationMs: 1000 }, 100);
@@ -215,10 +215,10 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 
 	describe('queue()', () => {
 		it('plays messages back-to-back, each for its own duration', async () => {
-			const p = makePlayer('msg-queue-1').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-queue-1').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 			const toast = (inst as unknown as { toast: HTMLDivElement }).toast;
 
 			inst.queue([
@@ -236,10 +236,10 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 		});
 
 		it('calling queue() again cancels the in-flight run', async () => {
-			const p = makePlayer('msg-queue-2').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-queue-2').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 			const toast = (inst as unknown as { toast: HTMLDivElement }).toast;
 
 			inst.queue([{ text: 'Old 1', durationMs: 1000 }, { text: 'Old 2', durationMs: 1000 }]);
@@ -260,10 +260,10 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 
 	describe('clear()', () => {
 		it('hides the toast and cancels in-flight queue', async () => {
-			const p = makePlayer('msg-clear-1').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-clear-1').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 			const toast = (inst as unknown as { toast: HTMLDivElement }).toast;
 
 			inst.queue([{ text: 'Running', durationMs: 500 }, { text: 'Next', durationMs: 500 }]);
@@ -282,41 +282,41 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 
 	describe('displayPersistent()', () => {
 		it('creates a named overlay element in the container', async () => {
-			const p = makePlayer('msg-persist-1').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-persist-1').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 
 			inst.displayPersistent('Tap to play', 'autoplay-blocked');
 
-			const el = p.container.querySelector('[data-persistent-id="autoplay-blocked"]');
+			const el = mockPlayer.container.querySelector('[data-persistent-id="autoplay-blocked"]');
 			expect(el).not.toBeNull();
 			expect(el!.textContent).toBe('Tap to play');
 		});
 
 		it('updates text of existing id in-place without creating a new element', async () => {
-			const p = makePlayer('msg-persist-2').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-persist-2').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 
 			inst.displayPersistent('Loading…', 'status');
 			inst.displayPersistent('Almost there!', 'status');
 
-			const els = p.container.querySelectorAll('[data-persistent-id="status"]');
+			const els = mockPlayer.container.querySelectorAll('[data-persistent-id="status"]');
 			expect(els).toHaveLength(1);
 			expect(els[0]!.textContent).toBe('Almost there!');
 		});
 
 		it('element has role="status" and aria-live="polite"', async () => {
-			const p = makePlayer('msg-persist-aria').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-persist-aria').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 
 			inst.displayPersistent('Test', 'test-id');
 
-			const el = p.container.querySelector('[data-persistent-id="test-id"]');
+			const el = mockPlayer.container.querySelector('[data-persistent-id="test-id"]');
 			expect(el?.getAttribute('role')).toBe('status');
 			expect(el?.getAttribute('aria-live')).toBe('polite');
 		});
@@ -326,23 +326,23 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 
 	describe('removePersistent()', () => {
 		it('removes the named element from the DOM', async () => {
-			const p = makePlayer('msg-rmpersist-1').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-rmpersist-1').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 
 			inst.displayPersistent('Remove me', 'to-remove');
 			inst.removePersistent('to-remove');
 
-			const el = p.container.querySelector('[data-persistent-id="to-remove"]');
+			const el = mockPlayer.container.querySelector('[data-persistent-id="to-remove"]');
 			expect(el).toBeNull();
 		});
 
 		it('no-op for an id that was never displayed', async () => {
-			const p = makePlayer('msg-rmpersist-2').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-rmpersist-2').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 
 			expect(() => inst.removePersistent('never-existed')).not.toThrow();
 		});
@@ -352,40 +352,40 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 
 	describe('dispose()', () => {
 		it('removes all persistent elements from the DOM', async () => {
-			const p = makePlayer('msg-dispose-1').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-dispose-1').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 
 			inst.displayPersistent('A', 'a');
 			inst.displayPersistent('B', 'b');
 
-			p.removePlugin(MessagePlugin);
+			mockPlayer.removePlugin(MessagePlugin);
 
-			expect(p.container.querySelector('[data-persistent-id="a"]')).toBeNull();
-			expect(p.container.querySelector('[data-persistent-id="b"]')).toBeNull();
+			expect(mockPlayer.container.querySelector('[data-persistent-id="a"]')).toBeNull();
+			expect(mockPlayer.container.querySelector('[data-persistent-id="b"]')).toBeNull();
 		});
 
 		it('clears the toast reference so show() after dispose is a no-op', async () => {
-			const p = makePlayer('msg-dispose-2').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-dispose-2').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 
-			p.removePlugin(MessagePlugin);
+			mockPlayer.removePlugin(MessagePlugin);
 
 			// show() after dispose must not throw.
 			expect(() => inst.show('Late', 100)).not.toThrow();
 		});
 
 		it('cancels pending hide timers', async () => {
-			const p = makePlayer('msg-dispose-3').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-dispose-3').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 
 			inst.show('Showing', 500);
-			p.removePlugin(MessagePlugin);
+			mockPlayer.removePlugin(MessagePlugin);
 
 			// After dispose the timer should be gone. Advancing should not cause errors.
 			expect(() => vi.advanceTimersByTime(600)).not.toThrow();
@@ -400,10 +400,10 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 			customEl.id = 'custom-toast';
 			document.body.appendChild(customEl);
 
-			const p = makePlayer('msg-selector-1').setup({});
-			p.addPlugin(MessagePlugin, { mountSelector: '#custom-toast' });
-			await p.ready();
-			const inst = p.getPlugin(MessagePlugin)!;
+			const mockPlayer = makePlayer('msg-selector-1').setup({});
+			mockPlayer.addPlugin(MessagePlugin, { mountSelector: '#custom-toast' });
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(MessagePlugin)!;
 
 			const toast = (inst as unknown as { toast: HTMLDivElement }).toast;
 			expect(toast).toBe(customEl);

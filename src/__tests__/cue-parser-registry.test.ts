@@ -74,20 +74,20 @@ describe('Cue parser registry — kit defaults', () => {
 	});
 
 	it('kit auto-registers the three built-in parsers (lrc, vtt, sprite-vtt) on setup', async () => {
-		const p = make('p1');
-		await p.ready();
+		const mockPlayer = make('p1');
+		await mockPlayer.ready();
 		// Indirect check: registry's `_cueParsers` field is internal but we can
 		// resolve URL patterns to confirm a parser claims them.
-		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
+		const reg = (mockPlayer as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('lyrics.lrc')?.id).toBe('lrc');
 		expect(reg.resolve('subs.vtt')?.id).toBe('vtt');
 		expect(reg.resolve('thumbs.sprite.vtt')?.id).toBe('sprite-vtt');
 	});
 
 	it('matches by content-type when extension is ambiguous', async () => {
-		const p = make('p2');
-		await p.ready();
-		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
+		const mockPlayer = make('p2');
+		await mockPlayer.ready();
+		const reg = (mockPlayer as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('https://x/lyrics', 'application/x-lrc')?.id).toBe('lrc');
 		expect(reg.resolve('https://x/subs', 'text/vtt')?.id).toBe('vtt');
 	});
@@ -98,38 +98,38 @@ describe('Cue parser registry — kit defaults', () => {
 			canParse: (url: string) => /\.lrc(?:\?|$)/i.test(url),
 			parse: () => ({ get: () => [], at: () => undefined, after: () => undefined, before: () => undefined } as any),
 		};
-		const p = make('p3', { cueParsers: [customLrc] });
-		await p.ready();
-		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
+		const mockPlayer = make('p3', { cueParsers: [customLrc] });
+		await mockPlayer.ready();
+		const reg = (mockPlayer as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('lyrics.lrc')?.id).toBe('custom-lrc');
 	});
 
 	it('unrecognized URL returns undefined (caller decides whether absence is an error)', async () => {
-		const p = make('p4');
-		await p.ready();
-		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
+		const mockPlayer = make('p4');
+		await mockPlayer.ready();
+		const reg = (mockPlayer as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('https://x/something.xyz')).toBeUndefined();
 	});
 
 	it('runtime registerCueParser appends to back so latest wins', async () => {
-		const p = make('p5');
-		await p.ready();
+		const mockPlayer = make('p5');
+		await mockPlayer.ready();
 		const customVtt: ICueParser = {
 			id: 'late-vtt',
 			canParse: (url: string) => /\.vtt(?:\?|$)/i.test(url),
 			parse: () => ({ get: () => [], at: () => undefined, after: () => undefined, before: () => undefined } as any),
 		};
-		p.registerCueParser(customVtt);
-		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
+		mockPlayer.registerCueParser(customVtt);
+		const reg = (mockPlayer as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('subs.vtt')?.id).toBe('late-vtt');
 	});
 
 	it('unregisterCueParser removes by id', async () => {
-		const p = make('p6');
-		await p.ready();
-		const reg = (p as unknown as PlayerTestInternals)._cueParsers;
+		const mockPlayer = make('p6');
+		await mockPlayer.ready();
+		const reg = (mockPlayer as unknown as PlayerTestInternals)._cueParsers;
 		expect(reg.resolve('lyrics.lrc')?.id).toBe('lrc');
-		p.unregisterCueParser('lrc');
+		mockPlayer.unregisterCueParser('lrc');
 		expect(reg.resolve('lyrics.lrc')).toBeUndefined();
 	});
 });

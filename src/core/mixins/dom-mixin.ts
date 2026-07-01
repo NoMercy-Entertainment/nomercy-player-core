@@ -44,7 +44,7 @@ export const domMethods = {
 	 * an `aria-label`, a `title`, and a click handler. Ready to insert — no
 	 * additional attribute setup needed.
 	 */
-	createButton(this: Internals, id: string, label: string, onClick: (e: Event) => void): HTMLButtonElement {
+	createButton(this: Internals, id: string, label: string, onClick: (event: Event) => void): HTMLButtonElement {
 		return createButton(id, label, onClick);
 	},
 

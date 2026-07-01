@@ -707,7 +707,7 @@ export const mediaTracksMethods = {
 			return;
 
 		const currentTime = this._internalCurrentTime;
-		const nextIdx = list.findIndex(c => c.start > currentTime);
+		const nextIdx = list.findIndex(chapter => chapter.start > currentTime);
 		if (nextIdx < 0)
 			return;
 

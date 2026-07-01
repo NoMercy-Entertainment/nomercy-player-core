@@ -514,7 +514,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		try {
 			const backend = this.player.backend?.();
 			if (backend && 'analysisNode' in backend && typeof (backend as { analysisNode: unknown }).analysisNode === 'function') {
-				return (backend as { analysisNode: (c: AudioContext) => AudioNode }).analysisNode(ctx);
+				return (backend as { analysisNode: (audioContext: AudioContext) => AudioNode }).analysisNode(ctx);
 			}
 			return null;
 		}

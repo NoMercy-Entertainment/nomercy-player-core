@@ -191,7 +191,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		const initialBands = (this.opts?.bands && this.opts.bands.length > 0)
 			? this.opts.bands
 			: DEFAULT_BANDS;
-		this._bands = initialBands.map(b => ({ ...b }));
+		this._bands = initialBands.map(eqBand => ({ ...eqBand }));
 		this._sliderValues = this.opts?.sliderValues ?? DEFAULT_SLIDER_VALUES;
 
 		// Build the audio chain: preGain → filter[0..N-1] → (downstream).
@@ -200,7 +200,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		preGain.gain.value = this.preGainBand().gain + 1;
 		this.preGainNode = preGain;
 
-		const filterBands = this._bands.filter((b): b is EqBand & { frequency: number } => b.frequency !== 'Pre');
+		const filterBands = this._bands.filter((eqBand): eqBand is EqBand & { frequency: number } => eqBand.frequency !== 'Pre');
 		this.filterNodes = filterBands.map((b) => {
 			const node = ctx.createBiquadFilter();
 			node.type = b.type ?? 'peaking';
@@ -218,13 +218,13 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		// so a secondary link pass would create duplicate fan-out edges and amplify
 		// the signal at each filter stage.
 		graph.insertEffect(preGain, 'post');
-		for (const f of this.filterNodes) graph.insertEffect(f, 'post');
+		for (const biquadFilterNode of this.filterNodes) graph.insertEffect(biquadFilterNode, 'post');
 
 		// Restore persisted state if `persistKey` is set.
 		const persistKey = this.opts?.persistKey;
 		const restored = persistKey ? this.loadPersisted(persistKey) : undefined;
 		if (restored?.customPresets) {
-			for (const p of restored.customPresets) this.customPresets.set(p.name, p);
+			for (const eqPreset of restored.customPresets) this.customPresets.set(eqPreset.name, eqPreset);
 		}
 
 		// Initial preset application: explicit option > restored state > nothing.
@@ -232,7 +232,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			this.preset(this.opts.preset);
 		}
 		else if (restored?.bands) {
-			this._bands = restored.bands.map(b => ({ ...b }));
+			this._bands = restored.bands.map(eqBand => ({ ...eqBand }));
 			this._selectedPreset = restored.selectedPreset;
 			this.applyAllToNodes();
 		}
@@ -248,11 +248,11 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		if (graph) {
 			if (this.preGainNode)
 				graph.removeEffect(this.preGainNode);
-			for (const f of this.filterNodes) graph.removeEffect(f);
+			for (const biquadFilterNode of this.filterNodes) graph.removeEffect(biquadFilterNode);
 		}
-		for (const f of this.filterNodes) {
+		for (const biquadFilterNode of this.filterNodes) {
 			try {
-				f.disconnect();
+				biquadFilterNode.disconnect();
 			}
 			catch { /* swallow */ }
 		}
@@ -273,7 +273,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	 * Mutating the returned array has no effect on the internal state.
 	 */
 	bands(): EqBand[] {
-		return this._bands.map(b => ({ ...b }));
+		return this._bands.map(eqBand => ({ ...eqBand }));
 	}
 
 	/**
@@ -424,10 +424,10 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		for (const p of this.customPresets.values()) out.push(this.clonePreset(p));
 		// Consumer-supplied `opts.presets` extends/replaces the catalogue.
 		if (this.opts?.presets) {
-			const seen = new Set(out.map(p => p.name));
-			for (const p of this.opts.presets) {
-				if (!seen.has(p.name))
-					out.push(this.clonePreset(p));
+			const seen = new Set(out.map(eqPreset => eqPreset.name));
+			for (const eqPreset of this.opts.presets) {
+				if (!seen.has(eqPreset.name))
+					out.push(this.clonePreset(eqPreset));
 			}
 		}
 		return out;
@@ -454,7 +454,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		const fresh = (this.opts?.bands && this.opts.bands.length > 0)
 			? this.opts.bands
 			: DEFAULT_BANDS;
-		this._bands = fresh.map(b => ({ ...b }));
+		this._bands = fresh.map(eqBand => ({ ...eqBand }));
 		this._selectedPreset = undefined;
 		this.applyAllToNodes();
 		this.emit('preset:changed', { name: undefined });
@@ -535,9 +535,9 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		if (!persistKey)
 			return;
 		const state: PersistedEqState = {
-			bands: this._bands.map(b => ({ ...b })),
+			bands: this._bands.map(eqBand => ({ ...eqBand })),
 			selectedPreset: this._selectedPreset,
-			customPresets: Array.from(this.customPresets.values()).map(p => this.clonePreset(p)),
+			customPresets: Array.from(this.customPresets.values()).map(eqPreset => this.clonePreset(eqPreset)),
 		};
 		try {
 			const raw = JSON.stringify(state);
@@ -567,10 +567,10 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			return;
 		if (restored.customPresets) {
 			this.customPresets.clear();
-			for (const p of restored.customPresets) this.customPresets.set(p.name, p);
+			for (const eqPreset of restored.customPresets) this.customPresets.set(eqPreset.name, eqPreset);
 		}
 		if (restored.bands) {
-			this._bands = restored.bands.map(b => ({ ...b }));
+			this._bands = restored.bands.map(eqBand => ({ ...eqBand }));
 			this.applyAllToNodes();
 		}
 		this._selectedPreset = restored.selectedPreset;
@@ -590,13 +590,13 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	}
 
 	private findBand(freq: EqBandFrequency): EqBand | undefined {
-		return this._bands.find(b => b.frequency === freq);
+		return this._bands.find(eqBand => eqBand.frequency === freq);
 	}
 
 	private findFilter(freq: number): BiquadFilterNode | undefined {
 		// Filter nodes correspond to the non-Pre bands in order.
 		// `_bands` index 0 is Pre, so filter index = band index - 1.
-		const idx = this._bands.findIndex(b => b.frequency === freq);
+		const idx = this._bands.findIndex(eqBand => eqBand.frequency === freq);
 		if (idx < 1)
 			return undefined;
 		return this.filterNodes[idx - 1];
@@ -637,10 +637,10 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		return undefined;
 	}
 
-	private clonePreset(p: EqPreset): EqPreset {
+	private clonePreset(eqPreset: EqPreset): EqPreset {
 		return {
-			name: p.name,
-			values: p.values.map(v => ({ ...v })),
+			name: eqPreset.name,
+			values: eqPreset.values.map(eqBand => ({ ...eqBand })),
 		};
 	}
 

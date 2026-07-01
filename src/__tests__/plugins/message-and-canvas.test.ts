@@ -128,14 +128,14 @@ describe('MessagePlugin + CanvasPlugin', () => {
 	describe('MessagePlugin', () => {
 		it('show("hello", 100) makes the toast visible and auto-hides after 100ms', async () => {
 			vi.useFakeTimers();
-			const p = makePlayer('msg-show').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('msg-show').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
 
-			const inst = p.getPluginById<MessagePlugin>('message')!;
+			const inst = mockPlayer.getPluginById<MessagePlugin>('message')!;
 			inst.show('hello', 100);
 
-			const toast = p.container.querySelector<HTMLDivElement>('.nmplayer-message-toast');
+			const toast = mockPlayer.container.querySelector<HTMLDivElement>('.nmplayer-message-toast');
 			expect(toast).toBeTruthy();
 			expect(toast!.textContent).toBe('hello');
 			expect(toast!.style.display).toBe('block');
@@ -149,13 +149,13 @@ describe('MessagePlugin + CanvasPlugin', () => {
 
 		it('hide() cancels a pending auto-hide', async () => {
 			vi.useFakeTimers();
-			const p = makePlayer('msg-hide').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('msg-hide').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
 
-			const inst = p.getPluginById<MessagePlugin>('message')!;
+			const inst = mockPlayer.getPluginById<MessagePlugin>('message')!;
 			inst.show('keep', 1000);
-			const toast = p.container.querySelector<HTMLDivElement>('.nmplayer-message-toast')!;
+			const toast = mockPlayer.container.querySelector<HTMLDivElement>('.nmplayer-message-toast')!;
 			expect(toast.style.display).toBe('block');
 
 			inst.hide();
@@ -170,18 +170,18 @@ describe('MessagePlugin + CanvasPlugin', () => {
 
 		it('queue([...]) shows messages in order, gated by per-message duration', async () => {
 			vi.useFakeTimers();
-			const p = makePlayer('msg-queue').setup({});
-			p.addPlugin(MessagePlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('msg-queue').setup({});
+			mockPlayer.addPlugin(MessagePlugin);
+			await mockPlayer.ready();
 
-			const inst = p.getPluginById<MessagePlugin>('message')!;
+			const inst = mockPlayer.getPluginById<MessagePlugin>('message')!;
 			inst.queue([
 				{ text: 'one', durationMs: 50 },
 				{ text: 'two', durationMs: 50 },
 				{ text: 'three', durationMs: 50 },
 			]);
 
-			const toast = p.container.querySelector<HTMLDivElement>('.nmplayer-message-toast')!;
+			const toast = mockPlayer.container.querySelector<HTMLDivElement>('.nmplayer-message-toast')!;
 			expect(toast.textContent).toBe('one');
 
 			vi.advanceTimersByTime(51);
@@ -202,38 +202,38 @@ describe('MessagePlugin + CanvasPlugin', () => {
 
 	describe('CanvasPlugin', () => {
 		it('canvas() returns an HTMLCanvasElement under the player container by default', async () => {
-			const p = makePlayer('cnv-get').setup({});
-			p.addPlugin(CanvasPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('cnv-get').setup({});
+			mockPlayer.addPlugin(CanvasPlugin);
+			await mockPlayer.ready();
 
-			const inst = p.getPluginById<CanvasPlugin>('canvas')!;
+			const inst = mockPlayer.getPluginById<CanvasPlugin>('canvas')!;
 			const canvas = inst.canvas();
 			expect(canvas).toBeInstanceOf(HTMLCanvasElement);
 			// Canvas lives inside the namespaced surface div, which is itself
 			// under the player container when opts.mount is absent.
-			const surface = p.container.querySelector('.nmplayer-canvas-surface');
+			const surface = mockPlayer.container.querySelector('.nmplayer-canvas-surface');
 			expect(surface).toBeTruthy();
 			expect(surface!.contains(canvas)).toBe(true);
 		});
 
 		it('surface and canvas default to pointer-events: none', async () => {
-			const p = makePlayer('cnv-pe-default').setup({});
-			p.addPlugin(CanvasPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('cnv-pe-default').setup({});
+			mockPlayer.addPlugin(CanvasPlugin);
+			await mockPlayer.ready();
 
-			const surface = p.container.querySelector<HTMLDivElement>('.nmplayer-canvas-surface')!;
-			const canvas = p.container.querySelector<HTMLCanvasElement>('canvas')!;
+			const surface = mockPlayer.container.querySelector<HTMLDivElement>('.nmplayer-canvas-surface')!;
+			const canvas = mockPlayer.container.querySelector<HTMLCanvasElement>('canvas')!;
 			expect(surface.style.pointerEvents).toBe('none');
 			expect(canvas.style.pointerEvents).toBe('none');
 		});
 
 		it('opts.pointerEvents: "auto" is applied to surface and canvas', async () => {
-			const p = makePlayer('cnv-pe-auto').setup({});
-			p.addPlugin(CanvasPlugin, { pointerEvents: 'auto' });
-			await p.ready();
+			const mockPlayer = makePlayer('cnv-pe-auto').setup({});
+			mockPlayer.addPlugin(CanvasPlugin, { pointerEvents: 'auto' });
+			await mockPlayer.ready();
 
-			const surface = p.container.querySelector<HTMLDivElement>('.nmplayer-canvas-surface')!;
-			const canvas = p.container.querySelector<HTMLCanvasElement>('canvas')!;
+			const surface = mockPlayer.container.querySelector<HTMLDivElement>('.nmplayer-canvas-surface')!;
+			const canvas = mockPlayer.container.querySelector<HTMLCanvasElement>('canvas')!;
 			expect(surface.style.pointerEvents).toBe('auto');
 			expect(canvas.style.pointerEvents).toBe('auto');
 		});
@@ -244,20 +244,20 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			mountTarget.id = 'visualizer-mount';
 			document.body.appendChild(mountTarget);
 
-			const p = makePlayer('cnv-mount-el').setup({});
-			p.addPlugin(CanvasPlugin, { mount: mountTarget });
-			await p.ready();
+			const mockPlayer = makePlayer('cnv-mount-el').setup({});
+			mockPlayer.addPlugin(CanvasPlugin, { mount: mountTarget });
+			await mockPlayer.ready();
 
 			// Surface must be inside mountTarget.
 			const surface = mountTarget.querySelector('.nmplayer-canvas-surface');
 			expect(surface).toBeTruthy();
 
 			// Surface must NOT be inside the player container.
-			const surfaceInContainer = p.container.querySelector('.nmplayer-canvas-surface');
+			const surfaceInContainer = mockPlayer.container.querySelector('.nmplayer-canvas-surface');
 			expect(surfaceInContainer).toBeNull();
 
 			// Canvas is inside the surface inside mountTarget.
-			const inst = p.getPluginById<CanvasPlugin>('canvas')!;
+			const inst = mockPlayer.getPluginById<CanvasPlugin>('canvas')!;
 			expect(mountTarget.contains(inst.canvas())).toBe(true);
 		});
 
@@ -266,26 +266,26 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			mountTarget.id = 'cnv-selector-target';
 			document.body.appendChild(mountTarget);
 
-			const p = makePlayer('cnv-mount-sel').setup({});
-			p.addPlugin(CanvasPlugin, { mount: '#cnv-selector-target' });
-			await p.ready();
+			const mockPlayer = makePlayer('cnv-mount-sel').setup({});
+			mockPlayer.addPlugin(CanvasPlugin, { mount: '#cnv-selector-target' });
+			await mockPlayer.ready();
 
 			const surface = mountTarget.querySelector('.nmplayer-canvas-surface');
 			expect(surface).toBeTruthy();
 
-			const surfaceInContainer = p.container.querySelector('.nmplayer-canvas-surface');
+			const surfaceInContainer = mockPlayer.container.querySelector('.nmplayer-canvas-surface');
 			expect(surfaceInContainer).toBeNull();
 		});
 
 		it('unresolvable opts.mount selector falls back to player container and logs a warning', async () => {
 			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-			const p = makePlayer('cnv-mount-bad').setup({});
-			p.addPlugin(CanvasPlugin, { mount: '#this-does-not-exist' });
-			await p.ready();
+			const mockPlayer = makePlayer('cnv-mount-bad').setup({});
+			mockPlayer.addPlugin(CanvasPlugin, { mount: '#this-does-not-exist' });
+			await mockPlayer.ready();
 
 			// Falls back to container — surface must be there.
-			const surface = p.container.querySelector('.nmplayer-canvas-surface');
+			const surface = mockPlayer.container.querySelector('.nmplayer-canvas-surface');
 			expect(surface).toBeTruthy();
 
 			// A warning must have been emitted. console.warn is called as:
@@ -298,11 +298,11 @@ describe('MessagePlugin + CanvasPlugin', () => {
 		});
 
 		it('addRenderer(fn) runs fn on the next RAF tick', async () => {
-			const p = makePlayer('cnv-add').setup({});
-			p.addPlugin(CanvasPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('cnv-add').setup({});
+			mockPlayer.addPlugin(CanvasPlugin);
+			await mockPlayer.ready();
 
-			const inst = p.getPluginById<CanvasPlugin>('canvas')!;
+			const inst = mockPlayer.getPluginById<CanvasPlugin>('canvas')!;
 			const fn = vi.fn();
 			inst.addRenderer(fn);
 
@@ -321,11 +321,11 @@ describe('MessagePlugin + CanvasPlugin', () => {
 		});
 
 		it('removeRenderer(fn) stops calling fn', async () => {
-			const p = makePlayer('cnv-remove').setup({});
-			p.addPlugin(CanvasPlugin);
-			await p.ready();
+			const mockPlayer = makePlayer('cnv-remove').setup({});
+			mockPlayer.addPlugin(CanvasPlugin);
+			await mockPlayer.ready();
 
-			const inst = p.getPluginById<CanvasPlugin>('canvas')!;
+			const inst = mockPlayer.getPluginById<CanvasPlugin>('canvas')!;
 			const fn = vi.fn();
 			inst.addRenderer(fn);
 

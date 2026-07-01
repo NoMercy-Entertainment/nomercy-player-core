@@ -280,7 +280,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 
 			let err: unknown;
 			try { await plugin.connect(); }
-			catch (e) { err = e; }
+			catch (error) { err = error; }
 
 			expect(err).toBeInstanceOf(BrowserPolicyError);
 			expect(unsupported).toHaveLength(1);

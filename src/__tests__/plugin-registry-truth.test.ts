@@ -210,7 +210,7 @@ describe('Plugin.enabled() registry truth', () => {
 			await player.ready();
 
 			const list = player.plugins();
-			const brokenEntry = list.find(p => (p.constructor as typeof Plugin).id === 'broken');
+			const brokenEntry = list.find(plugin => (plugin.constructor as typeof Plugin).id === 'broken');
 			expect(brokenEntry).toBeUndefined();
 		});
 
@@ -261,7 +261,7 @@ describe('Plugin.enabled() registry truth', () => {
 			player.addPlugin(BrokenPlugin2);
 			await player.ready();
 
-			const ids = player.plugins().map(p => (p.constructor as typeof Plugin).id);
+			const ids = player.plugins().map(plugin => (plugin.constructor as typeof Plugin).id);
 			expect(ids).toContain('good2');
 			expect(ids).not.toContain('broken2');
 		});

@@ -319,7 +319,7 @@ describe('subtitleStyle()', () => {
 	it('merges a patch onto the active style and emits subtitleStyle with merged result', () => {
 		const player = setupPlayer();
 		const styleEvents: SubtitleStyle[] = [];
-		player.on('subtitleStyle' as never, (d: SubtitleStyle) => styleEvents.push(d));
+		player.on('subtitleStyle' as never, (subtitleStyle: SubtitleStyle) => styleEvents.push(subtitleStyle));
 
 		player.subtitleStyle({ fontSize: 120 });
 

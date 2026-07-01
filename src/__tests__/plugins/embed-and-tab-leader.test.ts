@@ -94,18 +94,18 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 
 	describe('EmbedPlugin', () => {
 		it('inIframe() returns false in JSDOM (window.top === window.self)', async () => {
-			const p = makePlayer('embed-1').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-1').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 			expect((inst as any).inIframe()).toBe(false);
 		});
 
 		it('isOriginAllowed() rejects origins not in the list', async () => {
-			const p = makePlayer('embed-2').setup({});
-			p.addPlugin(EmbedPlugin, { allowedOrigins: ['https://trusted.example.com'] });
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-2').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: ['https://trusted.example.com'] });
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 			// Surface the internal allow-list so the helper has data to compare against.
 			inst.allowedOrigins(['https://trusted.example.com']);
 			expect((inst as any).isOriginAllowed('https://trusted.example.com')).toBe(true);
@@ -114,33 +114,33 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 		});
 
 		it('formatEvent("play", {}) returns { type: "nm:event", name: "play", data: {} }', async () => {
-			const p = makePlayer('embed-3').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-3').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 			const msg = (inst as any).formatEvent('play', {});
 			expect(msg).toEqual({ type: 'nm:event', name: 'play', data: {} });
 		});
 
 		it('applyIframeTweaks: true adds nm-embed class to the player container', async () => {
-			const p = makePlayer('embed-4').setup({});
-			p.addPlugin(EmbedPlugin, { applyIframeTweaks: true });
-			await p.ready();
-			expect(p.container.classList.contains('nm-embed')).toBe(true);
+			const mockPlayer = makePlayer('embed-4').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { applyIframeTweaks: true });
+			await mockPlayer.ready();
+			expect(mockPlayer.container.classList.contains('nm-embed')).toBe(true);
 		});
 
 		it('applyIframeTweaks: false does not add nm-embed class', async () => {
-			const p = makePlayer('embed-5').setup({});
-			p.addPlugin(EmbedPlugin, { applyIframeTweaks: false });
-			await p.ready();
-			expect(p.container.classList.contains('nm-embed')).toBe(false);
+			const mockPlayer = makePlayer('embed-5').setup({});
+			mockPlayer.addPlugin(EmbedPlugin, { applyIframeTweaks: false });
+			await mockPlayer.ready();
+			expect(mockPlayer.container.classList.contains('nm-embed')).toBe(false);
 		});
 
 		it('formatEvent("error", ...) returns a plain clone-safe object — structuredClone must not throw', async () => {
-			const p = makePlayer('embed-6').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-6').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const error = new PlayerError({
 				code: 'core:network/timeout',
@@ -177,10 +177,10 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 		});
 
 		it('formatEvent for non-error events passes structuredClone without throwing', async () => {
-			const p = makePlayer('embed-7').setup({});
-			p.addPlugin(EmbedPlugin);
-			await p.ready();
-			const inst = p.getPlugin(EmbedPlugin)!;
+			const mockPlayer = makePlayer('embed-7').setup({});
+			mockPlayer.addPlugin(EmbedPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const cases: Array<[string, unknown]> = [
 				['ready', undefined],
@@ -201,26 +201,26 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 
 	describe('TabLeaderPlugin', () => {
 		it('isLeader() returns a boolean (Web Locks may or may not be available in JSDOM)', async () => {
-			const p = makePlayer('lock-1').setup({});
-			p.addPlugin(TabLeaderPlugin);
-			await p.ready();
-			const inst = p.getPlugin(TabLeaderPlugin)!;
+			const mockPlayer = makePlayer('lock-1').setup({});
+			mockPlayer.addPlugin(TabLeaderPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(TabLeaderPlugin)!;
 			expect(typeof inst.isLeader()).toBe('boolean');
 		});
 
 		it('getLockKey() returns the default "nomercy-player-leader"', async () => {
-			const p = makePlayer('lock-2').setup({});
-			p.addPlugin(TabLeaderPlugin);
-			await p.ready();
-			const inst = p.getPlugin(TabLeaderPlugin)!;
+			const mockPlayer = makePlayer('lock-2').setup({});
+			mockPlayer.addPlugin(TabLeaderPlugin);
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(TabLeaderPlugin)!;
 			expect((inst as any).getLockKey()).toBe('nomercy-player-leader');
 		});
 
 		it('getLockKey() returns the custom key from opts.getLockKey when provided', async () => {
-			const p = makePlayer('lock-3').setup({});
-			p.addPlugin(TabLeaderPlugin, { getLockKey: () => 'custom-key' });
-			await p.ready();
-			const inst = p.getPlugin(TabLeaderPlugin)!;
+			const mockPlayer = makePlayer('lock-3').setup({});
+			mockPlayer.addPlugin(TabLeaderPlugin, { getLockKey: () => 'custom-key' });
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(TabLeaderPlugin)!;
 			expect((inst as any).getLockKey()).toBe('custom-key');
 		});
 
@@ -234,17 +234,17 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 				get: () => ({ request: lockRequestFn }),
 			});
 
-			const p = makePlayer('lock-4').setup({});
+			const mockPlayer = makePlayer('lock-4').setup({});
 
 			// Inject own-property transport stubs BEFORE addPlugin so use() sees them.
 			const pauseCalls: unknown[] = [];
 			const muteCalls: unknown[] = [];
-			Object.defineProperty(p, 'pause', { value: (): void => { pauseCalls.push(true); }, configurable: true, writable: true });
-			Object.defineProperty(p, 'mute', { value: (): void => { muteCalls.push(true); }, configurable: true, writable: true });
+			Object.defineProperty(mockPlayer, 'pause', { value: (): void => { pauseCalls.push(true); }, configurable: true, writable: true });
+			Object.defineProperty(mockPlayer, 'mute', { value: (): void => { muteCalls.push(true); }, configurable: true, writable: true });
 
-			p.addPlugin(TabLeaderPlugin, { onLost: 'pause' });
-			await p.ready();
-			const inst = p.getPlugin(TabLeaderPlugin)!;
+			mockPlayer.addPlugin(TabLeaderPlugin, { onLost: 'pause' });
+			await mockPlayer.ready();
+			const inst = mockPlayer.getPlugin(TabLeaderPlugin)!;
 
 			// Restore navigator.locks after setup.
 			if (originalLocks) {

@@ -90,13 +90,13 @@ interface MockBackend {
 }
 
 function wireBackend(player: MockPlayer): MockBackend {
-	const b: MockBackend = { volumeCalls: [], muteCalls: 0, unmuteCalls: 0 };
+	const mockBackend: MockBackend = { volumeCalls: [], muteCalls: 0, unmuteCalls: 0 };
 	(player as unknown as { backend: () => unknown }).backend = (): unknown => ({
-		volume: (v: number): void => { b.volumeCalls.push(v); },
-		mute: (): void => { b.muteCalls++; },
-		unmute: (): void => { b.unmuteCalls++; },
+		volume: (v: number): void => { mockBackend.volumeCalls.push(v); },
+		mute: (): void => { mockBackend.muteCalls++; },
+		unmute: (): void => { mockBackend.unmuteCalls++; },
 	});
-	return b;
+	return mockBackend;
 }
 
 describe('volumeMethods — extended (VOL-E)', () => {

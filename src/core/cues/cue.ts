@@ -210,7 +210,7 @@ export function createMutableCueList<T>(initial?: ReadonlyArray<Cue<T>>): Mutabl
 		},
 
 		remove(id: string | number): boolean {
-			const idx = sorted.findIndex(c => c.id === id);
+			const idx = sorted.findIndex(cue => cue.id === id);
 			if (idx === -1)
 				return false;
 			sorted.splice(idx, 1);

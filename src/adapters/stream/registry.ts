@@ -41,7 +41,7 @@ export class StreamRegistry {
 	 * at the lowest-priority position instead of the default highest.
 	 */
 	register(factory: IStreamFactory, prepend?: boolean): void {
-		const existing = this.factories.findIndex(f => f.id === factory.id);
+		const existing = this.factories.findIndex(streamFactory => streamFactory.id === factory.id);
 		if (existing >= 0)
 			this.factories.splice(existing, 1);
 
@@ -53,7 +53,7 @@ export class StreamRegistry {
 
 	/** Remove the factory with the given `id`. No-op if it was never registered. */
 	unregister(id: string): void {
-		const idx = this.factories.findIndex(f => f.id === id);
+		const idx = this.factories.findIndex(streamFactory => streamFactory.id === id);
 		if (idx >= 0)
 			this.factories.splice(idx, 1);
 	}
@@ -91,17 +91,17 @@ export class StreamRegistry {
 
 	/** `true` if a factory with the given `id` is registered. */
 	has(id: string): boolean {
-		return this.factories.some(f => f.id === id);
+		return this.factories.some(streamFactory => streamFactory.id === id);
 	}
 
 	/** Return the factory registered under `id`, or `undefined` if absent. */
 	findById(id: string): IStreamFactory | undefined {
-		return this.factories.find(f => f.id === id);
+		return this.factories.find(streamFactory => streamFactory.id === id);
 	}
 
 	/** Factory ids in resolution order (highest priority first). */
 	list(): string[] {
-		return this.factories.map(f => f.id).reverse();
+		return this.factories.map(streamFactory => streamFactory.id).reverse();
 	}
 
 	/**

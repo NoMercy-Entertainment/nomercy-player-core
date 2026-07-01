@@ -157,29 +157,29 @@ describe('VisualizationPlugin', () => {
 			// AudioContext is unavailable.
 			expect(typeof (globalThis as any).AudioContext).toBe('undefined');
 
-			const p = makePlayer('viz-degrade').setup({});
-			await p.ready();
+			const mockPlayer = makePlayer('viz-degrade').setup({});
+			await mockPlayer.ready();
 
 			const failures: string[] = [];
-			p.on('plugin:failed' as any, (data: any) => { failures.push(data?.id); });
+			mockPlayer.on('plugin:failed' as any, (data: any) => { failures.push(data?.id); });
 
-			p.addPlugin(AudioGraphPlugin);
+			mockPlayer.addPlugin(AudioGraphPlugin);
 			await new Promise(r => setTimeout(r, 0));
 
 			expect(failures).toContain('audio-graph');
 			// AudioGraph is NOT in _plugins after failing.
-			expect(p.getPluginById('audio-graph')).toBeUndefined();
+			expect(mockPlayer.getPluginById('audio-graph')).toBeUndefined();
 		});
 
 		it('addPlugin(SpectrumPlugin) throws missing-dep when AudioGraph failed', async () => {
-			const p = makePlayer('viz-degrade2').setup({});
-			await p.ready();
+			const mockPlayer = makePlayer('viz-degrade2').setup({});
+			await mockPlayer.ready();
 
-			p.addPlugin(AudioGraphPlugin);
+			mockPlayer.addPlugin(AudioGraphPlugin);
 			await new Promise(r => setTimeout(r, 0));
 
 			// Spectrum requires audio-graph which is not in _plugins.
-			expect(() => p.addPlugin(SpectrumPlugin)).toThrow('missing-dep');
+			expect(() => mockPlayer.addPlugin(SpectrumPlugin)).toThrow('missing-dep');
 		});
 	});
 

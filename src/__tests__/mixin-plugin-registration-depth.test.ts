@@ -387,7 +387,7 @@ describe('_registerPlugin — failure + cascade', () => {
 		player.addPlugin(FailingPlugin);
 		await failedP;
 
-		expect(player.plugins().map(p => (p.constructor as PluginCtorWithId).id)).not.toContain('failing');
+		expect(player.plugins().map(plugin => (plugin.constructor as PluginCtorWithId).id)).not.toContain('failing');
 	});
 
 	it('emits plugin:failed when use() throws asynchronously', async () => {
@@ -427,7 +427,7 @@ describe('_registerPlugin — failure + cascade', () => {
 
 		await waitForEvent(player, 'plugin:failed');
 
-		const activeIds = player.plugins().map(p => (p.constructor as PluginCtorWithId).id);
+		const activeIds = player.plugins().map(plugin => (plugin.constructor as PluginCtorWithId).id);
 		// The plugin whose use() threw is disabled...
 		expect(activeIds).not.toContain('failing-with-dep');
 		// ...and its dependent is cascade-disabled too (_cascadeDisable).
@@ -500,7 +500,7 @@ describe('removePluginById — cascade semantics', () => {
 
 		player.removePluginById('alpha');
 
-		const ids = player.plugins().map(p => (p.constructor as PluginCtorWithId).id);
+		const ids = player.plugins().map(plugin => (plugin.constructor as PluginCtorWithId).id);
 		expect(ids).not.toContain('alpha');
 		expect(ids).not.toContain('beta');
 	});
@@ -517,7 +517,7 @@ describe('removePluginById — cascade semantics', () => {
 		// gamma → beta → alpha. Removing the root must cascade the whole chain.
 		player.removePluginById('alpha');
 
-		const ids = player.plugins().map(p => (p.constructor as PluginCtorWithId).id);
+		const ids = player.plugins().map(plugin => (plugin.constructor as PluginCtorWithId).id);
 		expect(ids).not.toContain('alpha');
 		expect(ids).not.toContain('beta');
 		expect(ids).not.toContain('gamma');
@@ -562,7 +562,7 @@ describe('enabledPlugins() — priority ordering', () => {
 		await highP;
 
 		const enabled = player.enabledPlugins();
-		const ids = enabled.map(p => (p.constructor as PluginCtorWithId).id);
+		const ids = enabled.map(plugin => (plugin.constructor as PluginCtorWithId).id);
 		expect(ids[0]).toBe('high-priority');
 		expect(ids[1]).toBe('low-priority');
 	});

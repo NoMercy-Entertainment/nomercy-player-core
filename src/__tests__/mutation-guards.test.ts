@@ -80,8 +80,8 @@ function makePlayer(divId: string): MockPlayer {
 	return new MockPlayer(divId);
 }
 
-function seedQueue(p: MockPlayer): void {
-	p.queue([
+function seedQueue(mockPlayer: MockPlayer): void {
+	mockPlayer.queue([
 		{ id: 'a' },
 		{ id: 'b' },
 		{ id: 'c' },
@@ -101,17 +101,17 @@ describe('mutationGuards config + beforeMutation event', () => {
 	// ── 1. Default config (undefined) — normal mutations fire, hot ones skip ──
 
 	it('default config: current() fires beforeMutation, volume does not', async () => {
-		const p = makePlayer('mg-default').setup({});
-		await p.ready();
-		seedQueue(p);
+		const mockPlayer = makePlayer('mg-default').setup({});
+		await mockPlayer.ready();
+		seedQueue(mockPlayer);
 
 		const seen: string[] = [];
-		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
-			seen.push(e.data.method);
+		mockPlayer.on('beforeMutation', (beforeEvent: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
+			seen.push(beforeEvent.data.method);
 		});
 
-		p.item('a');
-		p.volume(0.5);
+		mockPlayer.item('a');
+		mockPlayer.volume(0.5);
 
 		expect(seen).toContain('current');
 		expect(seen).not.toContain('volume');
@@ -120,17 +120,17 @@ describe('mutationGuards config + beforeMutation event', () => {
 	// ── 2. mutationGuards: false — nothing fires ──
 
 	it('mutationGuards:false: neither current() nor volume fires beforeMutation', async () => {
-		const p = makePlayer('mg-false').setup({ mutationGuards: false });
-		await p.ready();
-		seedQueue(p);
+		const mockPlayer = makePlayer('mg-false').setup({ mutationGuards: false });
+		await mockPlayer.ready();
+		seedQueue(mockPlayer);
 
 		const seen: string[] = [];
-		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
-			seen.push(e.data.method);
+		mockPlayer.on('beforeMutation', (beforeEvent: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
+			seen.push(beforeEvent.data.method);
 		});
 
-		p.item('a');
-		p.volume(0.5);
+		mockPlayer.item('a');
+		mockPlayer.volume(0.5);
 
 		expect(seen).toEqual([]);
 	});
@@ -138,17 +138,17 @@ describe('mutationGuards config + beforeMutation event', () => {
 	// ── 3. mutationGuards: 'all' — both fire ──
 
 	it('mutationGuards:\'all\': both current() and volume fire beforeMutation', async () => {
-		const p = makePlayer('mg-all').setup({ mutationGuards: 'all' });
-		await p.ready();
-		seedQueue(p);
+		const mockPlayer = makePlayer('mg-all').setup({ mutationGuards: 'all' });
+		await mockPlayer.ready();
+		seedQueue(mockPlayer);
 
 		const seen: string[] = [];
-		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
-			seen.push(e.data.method);
+		mockPlayer.on('beforeMutation', (beforeEvent: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
+			seen.push(beforeEvent.data.method);
 		});
 
-		p.item('a');
-		p.volume(0.5);
+		mockPlayer.item('a');
+		mockPlayer.volume(0.5);
 
 		expect(seen).toContain('current');
 		expect(seen).toContain('volume');
@@ -157,32 +157,32 @@ describe('mutationGuards config + beforeMutation event', () => {
 	// ── 4. mutationGuards: ['volume'] — normal still fires, named hot fires ──
 
 	it('mutationGuards:[\'volume\']: current() fires (normal always fires), volume fires (named hot)', async () => {
-		const p = makePlayer('mg-array').setup({ mutationGuards: ['volume'] });
-		await p.ready();
-		seedQueue(p);
+		const mockPlayer = makePlayer('mg-array').setup({ mutationGuards: ['volume'] });
+		await mockPlayer.ready();
+		seedQueue(mockPlayer);
 
 		const seen: string[] = [];
-		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
-			seen.push(e.data.method);
+		mockPlayer.on('beforeMutation', (beforeEvent: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
+			seen.push(beforeEvent.data.method);
 		});
 
-		p.item('a');
-		p.volume(0.5);
+		mockPlayer.item('a');
+		mockPlayer.volume(0.5);
 
 		expect(seen).toContain('current');
 		expect(seen).toContain('volume');
 	});
 
 	it('mutationGuards:[\'volume\']: a non-named hot method (playbackRate) still skips', async () => {
-		const p = makePlayer('mg-array-skip').setup({ mutationGuards: ['volume'] });
-		await p.ready();
+		const mockPlayer = makePlayer('mg-array-skip').setup({ mutationGuards: ['volume'] });
+		await mockPlayer.ready();
 
 		const seen: string[] = [];
-		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
-			seen.push(e.data.method);
+		mockPlayer.on('beforeMutation', (beforeEvent: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
+			seen.push(beforeEvent.data.method);
 		});
 
-		p.playbackRate(1.5);
+		mockPlayer.playbackRate(1.5);
 
 		expect(seen).not.toContain('playbackRate');
 	});
@@ -190,60 +190,60 @@ describe('mutationGuards config + beforeMutation event', () => {
 	// ── 5. preventDefault cancels mutation, emits mutationPrevented ──
 
 	it('preventDefault() cancels the mutation AND emits mutationPrevented', async () => {
-		const p = makePlayer('mg-prevent').setup({});
-		await p.ready();
-		seedQueue(p);
-		p.item('a');
-		const before = p.index();
+		const mockPlayer = makePlayer('mg-prevent').setup({});
+		await mockPlayer.ready();
+		seedQueue(mockPlayer);
+		mockPlayer.item('a');
+		const before = mockPlayer.index();
 
 		let preventedPayload: { method: string; reason: string } | undefined;
-		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
-			if (e.data.method === 'current')
-				e.preventDefault();
+		mockPlayer.on('beforeMutation', (beforeEvent: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
+			if (beforeEvent.data.method === 'current')
+				beforeEvent.preventDefault();
 		});
-		p.on('mutationPrevented', (data: { method: string; reason: string }) => {
+		mockPlayer.on('mutationPrevented', (data: { method: string; reason: string }) => {
 			preventedPayload = data;
 		});
 
-		p.item('c');
+		mockPlayer.item('c');
 
 		expect(preventedPayload).toEqual({ method: 'current', reason: 'listener-prevented' });
-		expect(p.index()).toBe(before);
+		expect(mockPlayer.index()).toBe(before);
 	});
 
 	it('preventDefault() on volume (mutationGuards:all) cancels the volume change', async () => {
-		const p = makePlayer('mg-prevent-volume').setup({ mutationGuards: 'all' });
-		await p.ready();
-		const before = p.volume();
+		const mockPlayer = makePlayer('mg-prevent-volume').setup({ mutationGuards: 'all' });
+		await mockPlayer.ready();
+		const before = mockPlayer.volume();
 
 		let preventedPayload: { method: string; reason: string } | undefined;
-		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
-			if (e.data.method === 'volume')
-				e.preventDefault();
+		mockPlayer.on('beforeMutation', (beforeEvent: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
+			if (beforeEvent.data.method === 'volume')
+				beforeEvent.preventDefault();
 		});
-		p.on('mutationPrevented', (data: { method: string; reason: string }) => {
+		mockPlayer.on('mutationPrevented', (data: { method: string; reason: string }) => {
 			preventedPayload = data;
 		});
 
-		p.volume(0.25);
+		mockPlayer.volume(0.25);
 
 		expect(preventedPayload).toEqual({ method: 'volume', reason: 'listener-prevented' });
-		expect(p.volume()).toBe(before);
+		expect(mockPlayer.volume()).toBe(before);
 	});
 
 	// ── 6. Payload shape ──
 
 	it('beforeMutation payload: { method, args, phase, dispatchStack }', async () => {
-		const p = makePlayer('mg-payload').setup({ mutationGuards: 'all' });
-		await p.ready();
+		const mockPlayer = makePlayer('mg-payload').setup({ mutationGuards: 'all' });
+		await mockPlayer.ready();
 
 		let captured: { method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> } | undefined;
-		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
-			if (e.data.method === 'volume')
-				captured = e.data;
+		mockPlayer.on('beforeMutation', (beforeEvent: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
+			if (beforeEvent.data.method === 'volume')
+				captured = beforeEvent.data;
 		});
 
-		p.volume(0.42);
+		mockPlayer.volume(0.42);
 
 		expect(captured).toBeDefined();
 		expect(captured!.method).toBe('volume');
@@ -255,19 +255,19 @@ describe('mutationGuards config + beforeMutation event', () => {
 	});
 
 	it('beforeMutation.dispatchStack is populated when called inside another event handler', async () => {
-		const p = makePlayer('mg-stack').setup({ mutationGuards: 'all' });
-		await p.ready();
+		const mockPlayer = makePlayer('mg-stack').setup({ mutationGuards: 'all' });
+		await mockPlayer.ready();
 
 		let captured: ReadonlyArray<string> | undefined;
-		p.on('beforeMutation', (e: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
-			if (e.data.method === 'volume')
-				captured = e.data.dispatchStack;
+		mockPlayer.on('beforeMutation', (beforeEvent: BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: string; dispatchStack: ReadonlyArray<string> }>) => {
+			if (beforeEvent.data.method === 'volume')
+				captured = beforeEvent.data.dispatchStack;
 		});
-		p.on('beforePlay', () => {
-			p.volume(0.3);
+		mockPlayer.on('beforePlay', () => {
+			mockPlayer.volume(0.3);
 		});
 
-		await p.play();
+		await mockPlayer.play();
 
 		expect(captured).toBeDefined();
 		expect(captured!.length).toBeGreaterThanOrEqual(1);

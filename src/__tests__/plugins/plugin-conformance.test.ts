@@ -432,7 +432,7 @@ describePlugin(EqualizerPlugin, (ctx) => {
 
 	it('addCustomPreset() makes the preset available via presets()', () => {
 		ctx.plugin.addCustomPreset({ name: 'TestCustom', values: [{ frequency: 70, gain: 5 }] });
-		const names = ctx.plugin.presets().map(p => p.name);
+		const names = ctx.plugin.presets().map(eqPreset => eqPreset.name);
 		expect(names).toContain('TestCustom');
 	});
 }, {

@@ -66,10 +66,10 @@ function makePlayer(divId: string, opts?: object): MockPlayer {
 	const div = document.createElement('div');
 	div.id = divId;
 	document.body.appendChild(div);
-	const p = new MockPlayer(divId);
+	const mockPlayer = new MockPlayer(divId);
 	if (opts)
-		(p as any).options = opts;
-	return p;
+		(mockPlayer as any).options = opts;
+	return mockPlayer;
 }
 
 describe('metricsMethods extended', () => {
@@ -85,57 +85,57 @@ describe('metricsMethods extended', () => {
 
 	describe('announce()', () => {
 		it('appends an aria-live div to the container', () => {
-			const p = makePlayer('met-1');
-			p.announce('Loading…');
-			const node = p.container.querySelector('[aria-live]');
+			const mockPlayer = makePlayer('met-1');
+			mockPlayer.announce('Loading…');
+			const node = mockPlayer.container.querySelector('[aria-live]');
 			expect(node).not.toBeNull();
 			expect(node?.textContent).toBe('Loading…');
 		});
 
 		it('uses aria-live="polite" by default', () => {
-			const p = makePlayer('met-2');
-			p.announce('Info');
-			const node = p.container.querySelector('[aria-live="polite"]');
+			const mockPlayer = makePlayer('met-2');
+			mockPlayer.announce('Info');
+			const node = mockPlayer.container.querySelector('[aria-live="polite"]');
 			expect(node).not.toBeNull();
 		});
 
 		it('uses aria-live="assertive" when level is "assertive"', () => {
-			const p = makePlayer('met-3');
-			p.announce('Alert!', 'assertive');
-			const node = p.container.querySelector('[aria-live="assertive"]');
+			const mockPlayer = makePlayer('met-3');
+			mockPlayer.announce('Alert!', 'assertive');
+			const node = mockPlayer.container.querySelector('[aria-live="assertive"]');
 			expect(node).not.toBeNull();
 		});
 
 		it('sets role="status" on the announcement node', () => {
-			const p = makePlayer('met-4');
-			p.announce('Status');
-			const node = p.container.querySelector('[role="status"]');
+			const mockPlayer = makePlayer('met-4');
+			mockPlayer.announce('Status');
+			const node = mockPlayer.container.querySelector('[role="status"]');
 			expect(node).not.toBeNull();
 		});
 
 		it('positions the node off-screen', () => {
-			const p = makePlayer('met-5');
-			p.announce('Off-screen');
-			const node = p.container.querySelector('[aria-live]') as HTMLElement | null;
+			const mockPlayer = makePlayer('met-5');
+			mockPlayer.announce('Off-screen');
+			const node = mockPlayer.container.querySelector('[aria-live]') as HTMLElement | null;
 			expect(node?.style.left).toBe('-9999px');
 		});
 
 		it('removes the node after 1500ms via setTimeout', async () => {
 			vi.useFakeTimers();
-			const p = makePlayer('met-6');
-			p.announce('Transient');
-			expect(p.container.querySelector('[aria-live]')).not.toBeNull();
+			const mockPlayer = makePlayer('met-6');
+			mockPlayer.announce('Transient');
+			expect(mockPlayer.container.querySelector('[aria-live]')).not.toBeNull();
 			vi.advanceTimersByTime(1500);
-			expect(p.container.querySelector('[aria-live]')).toBeNull();
+			expect(mockPlayer.container.querySelector('[aria-live]')).toBeNull();
 			vi.useRealTimers();
 		});
 
 		it('does not remove the node if it was already removed before the timeout fires', async () => {
 			vi.useFakeTimers();
-			const p = makePlayer('met-7');
-			p.announce('Will be manually removed');
-			const node = p.container.querySelector('[aria-live]') as HTMLElement;
-			p.container.removeChild(node);
+			const mockPlayer = makePlayer('met-7');
+			mockPlayer.announce('Will be manually removed');
+			const node = mockPlayer.container.querySelector('[aria-live]') as HTMLElement;
+			mockPlayer.container.removeChild(node);
 			expect(() => vi.advanceTimersByTime(1500)).not.toThrow();
 			vi.useRealTimers();
 		});
@@ -143,9 +143,9 @@ describe('metricsMethods extended', () => {
 
 	describe('now()', () => {
 		it('returns Date.now() when no clockSource is configured', () => {
-			const p = makePlayer('met-8');
+			const mockPlayer = makePlayer('met-8');
 			const before = Date.now();
-			const ts = p.now();
+			const ts = mockPlayer.now();
 			const after = Date.now();
 			expect(ts).toBeGreaterThanOrEqual(before);
 			expect(ts).toBeLessThanOrEqual(after);
@@ -153,8 +153,8 @@ describe('metricsMethods extended', () => {
 
 		it('returns the result of clockSource when configured', () => {
 			const clockSource = vi.fn().mockReturnValue(42_000);
-			const p = makePlayer('met-9', { clockSource });
-			expect(p.now()).toBe(42_000);
+			const mockPlayer = makePlayer('met-9', { clockSource });
+			expect(mockPlayer.now()).toBe(42_000);
 			expect(clockSource).toHaveBeenCalled();
 		});
 	});

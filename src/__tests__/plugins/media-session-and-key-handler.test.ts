@@ -153,15 +153,15 @@ describe('MediaSessionPlugin', () => {
 	}
 
 	it('registers, runs use() without throwing, and dispose() clears metadata', async () => {
-		const p = makePlayer('ms-1').setup({});
-		expect(() => p.addPlugin(MediaSessionPlugin)).not.toThrow();
-		await p.ready();
+		const mockPlayer = makePlayer('ms-1').setup({});
+		expect(() => mockPlayer.addPlugin(MediaSessionPlugin)).not.toThrow();
+		await mockPlayer.ready();
 
-		const inst = p.getPluginById('media-session');
+		const inst = mockPlayer.getPluginById('media-session');
 		expect(inst).toBeDefined();
 
 		// Push the current item so metadata gets set.
-		p.emit('item', { item: { id: 1, title: 'Track A', artist: 'Band', album: 'LP' }, index: 0 });
+		mockPlayer.emit('item', { item: { id: 1, title: 'Track A', artist: 'Band', album: 'LP' }, index: 0 });
 		await flushMicrotasks();
 		expect((navigator.mediaSession as any).metadata).toBeTruthy();
 		expect(((navigator.mediaSession as any).metadata as { title: string }).title).toBe('Track A');
@@ -173,7 +173,7 @@ describe('MediaSessionPlugin', () => {
 		expect(handlers.get('nexttrack')).toBeTypeOf('function');
 		expect(handlers.get('seekforward')).toBeTypeOf('function');
 
-		p.removePlugin(MediaSessionPlugin);
+		mockPlayer.removePlugin(MediaSessionPlugin);
 		expect((navigator.mediaSession as any).metadata).toBeNull();
 		// Action handlers were torn down (set to null).
 		expect(handlers.get('play')).toBeNull();
@@ -181,11 +181,11 @@ describe('MediaSessionPlugin', () => {
 	});
 
 	it('populates artwork from item.image field (VideoPlaylistItem shape)', async () => {
-		const p = makePlayer('ms-artwork-image').setup({});
-		p.addPlugin(MediaSessionPlugin);
-		await p.ready();
+		const mockPlayer = makePlayer('ms-artwork-image').setup({});
+		mockPlayer.addPlugin(MediaSessionPlugin);
+		await mockPlayer.ready();
 
-		p.emit('item', {
+		mockPlayer.emit('item', {
 			item: { id: 2, title: 'Movie', image: 'https://cdn.example.com/poster.jpg' },
 			index: 0,
 		});
@@ -200,11 +200,11 @@ describe('MediaSessionPlugin', () => {
 	});
 
 	it('populates artwork from item.cover field (MusicPlaylistItem shape)', async () => {
-		const p = makePlayer('ms-artwork-cover').setup({});
-		p.addPlugin(MediaSessionPlugin);
-		await p.ready();
+		const mockPlayer = makePlayer('ms-artwork-cover').setup({});
+		mockPlayer.addPlugin(MediaSessionPlugin);
+		await mockPlayer.ready();
 
-		p.emit('item', {
+		mockPlayer.emit('item', {
 			item: { id: 3, title: 'Song', cover: 'https://cdn.example.com/album.png' },
 			index: 0,
 		});
@@ -218,11 +218,11 @@ describe('MediaSessionPlugin', () => {
 	});
 
 	it('prefers item.image over item.poster over item.thumbnail over item.cover', async () => {
-		const p = makePlayer('ms-artwork-priority').setup({});
-		p.addPlugin(MediaSessionPlugin);
-		await p.ready();
+		const mockPlayer = makePlayer('ms-artwork-priority').setup({});
+		mockPlayer.addPlugin(MediaSessionPlugin);
+		await mockPlayer.ready();
 
-		p.emit('item', {
+		mockPlayer.emit('item', {
 			item: {
 				id: 4,
 				title: 'Episode',
@@ -241,11 +241,11 @@ describe('MediaSessionPlugin', () => {
 	});
 
 	it('leaves artwork absent when item has no image field', async () => {
-		const p = makePlayer('ms-artwork-none').setup({});
-		p.addPlugin(MediaSessionPlugin);
-		await p.ready();
+		const mockPlayer = makePlayer('ms-artwork-none').setup({});
+		mockPlayer.addPlugin(MediaSessionPlugin);
+		await mockPlayer.ready();
 
-		p.emit('item', {
+		mockPlayer.emit('item', {
 			item: { id: 5, title: 'Track', artist: 'Artist' },
 			index: 0,
 		});
@@ -275,10 +275,10 @@ describe('KeyHandlerPlugin', () => {
 	};
 
 	it('bind() registers a key; firing keydown calls the handler', async () => {
-		const p = makePlayer('kh-1').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
-		const inst = p.getPluginById('key-handler');
+		const mockPlayer = makePlayer('kh-1').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler');
 		expect(inst).toBeDefined();
 
 		const fn = vi.fn();
@@ -288,10 +288,10 @@ describe('KeyHandlerPlugin', () => {
 	});
 
 	it('unbind() removes a key; subsequent keydown does not call the handler', async () => {
-		const p = makePlayer('kh-2').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
-		const inst = p.getPluginById('key-handler');
+		const mockPlayer = makePlayer('kh-2').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler');
 
 		const fn = vi.fn();
 		inst.bind('p', fn);
@@ -301,10 +301,10 @@ describe('KeyHandlerPlugin', () => {
 	});
 
 	it('ignores keydown when the target is an <input>', async () => {
-		const p = makePlayer('kh-3').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
-		const inst = p.getPluginById('key-handler');
+		const mockPlayer = makePlayer('kh-3').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler');
 
 		const fn = vi.fn();
 		inst.bind('p', fn);
@@ -318,10 +318,10 @@ describe('KeyHandlerPlugin', () => {
 	});
 
 	it('default bindings include space / arrows / m', async () => {
-		const p = makePlayer('kh-4').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
-		const inst = p.getPluginById('key-handler');
+		const mockPlayer = makePlayer('kh-4').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler');
 
 		const map = inst.bindings();
 		expect(map.has(' ')).toBe(true);
@@ -333,10 +333,10 @@ describe('KeyHandlerPlugin', () => {
 	});
 
 	it('default bindings include W3C hardware media keys', async () => {
-		const p = makePlayer('kh-5').setup({});
-		p.addPlugin(KeyHandlerPlugin);
-		await p.ready();
-		const inst = p.getPluginById('key-handler');
+		const mockPlayer = makePlayer('kh-5').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin);
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler');
 
 		const map = inst.bindings();
 		expect(map.has('MediaPlay')).toBe(true);
@@ -351,11 +351,11 @@ describe('KeyHandlerPlugin', () => {
 
 	it('disableMediaControls suppresses hardware media keys', async () => {
 		const toggleFn = vi.fn();
-		const p = makePlayer('kh-6').setup({});
-		p.addPlugin(KeyHandlerPlugin, { disableMediaControls: true });
-		await p.ready();
+		const mockPlayer = makePlayer('kh-6').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { disableMediaControls: true });
+		await mockPlayer.ready();
 
-		p.togglePlayback = toggleFn;
+		mockPlayer.togglePlayback = toggleFn;
 
 		const ev = new KeyboardEvent('keydown', { key: 'MediaPlayPause', bubbles: true, cancelable: true });
 		document.dispatchEvent(ev);
