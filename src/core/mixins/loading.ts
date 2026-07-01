@@ -134,6 +134,10 @@ export const loadingMethods = {
 		this._loadEpoch = epoch;
 		const isLatest = (): boolean => this._loadEpoch === epoch;
 
+		// Reset the itemEndingSoon one-shot latch so the event fires exactly once
+		// for each new item that starts loading.
+		this._itemEndingSoonEmitted = false;
+
 		const startAt = typeof opts?.startAt === 'number' && opts.startAt > 0 ? opts.startAt : undefined;
 
 		try {

@@ -346,6 +346,13 @@ export interface BasePlayerConfig {
 	// ── Preload + transition ──────────────────────────────────────────────────
 
 	/**
+	 * Seconds before the natural end at which `itemEndingSoon` fires.
+	 * Plugins and consumers listen to `itemEndingSoon` for preload and crossfade
+	 * cues. Default `10`.
+	 */
+	itemEndingSoonThreshold?: number;
+
+	/**
 	 * How many seconds before the outgoing item ends the player begins prefetching
 	 * the next item's assets (manifest, first segments, poster, sidecars).
 	 * Default `10`. Set to `0` to disable preloading.

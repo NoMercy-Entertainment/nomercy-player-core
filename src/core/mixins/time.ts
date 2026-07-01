@@ -191,4 +191,50 @@ export const timeMethods = {
 	playbackRates(this: Internals): number[] {
 		return [0.5, 0.75, 1, 1.25, 1.5, 2];
 	},
+
+	/**
+	 * Called by per-library timeupdate handlers on every backend tick to check
+	 * whether the `itemEndingSoon` threshold has been crossed.
+	 *
+	 * Fires `itemEndingSoon` at most once per item — the latch
+	 * `_itemEndingSoonEmitted` prevents re-firing. The latch is reset by
+	 * `resetItemEndingSoonLatch()` whenever a new item begins loading.
+	 *
+	 * `currentTime` and `duration` are passed in (not re-read from internals)
+	 * so callers that already have the values from the backend avoid a second
+	 * read.
+	 */
+	_checkItemEndingSoon(this: Internals, currentTime: number, duration: number): void {
+		if (this._itemEndingSoonEmitted)
+			return;
+
+		if (duration <= 0)
+			return;
+
+		const threshold = this.options?.itemEndingSoonThreshold ?? 10;
+		const remaining = duration - currentTime;
+
+		if (remaining > threshold)
+			return;
+
+		this._itemEndingSoonEmitted = true;
+
+		const currentItem = this.item?.();
+		if (!currentItem)
+			return;
+
+		this.emit('itemEndingSoon', {
+			remaining,
+			item: currentItem,
+		});
+	},
+
+	/**
+	 * Resets the `itemEndingSoon` one-shot latch. Call this whenever the active
+	 * item changes (new load, next, previous) so the event fires exactly once
+	 * per item.
+	 */
+	resetItemEndingSoonLatch(this: Internals): void {
+		this._itemEndingSoonEmitted = false;
+	},
 } as const;

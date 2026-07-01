@@ -237,6 +237,20 @@ export interface BaseEventMap<I extends BasePlaylistItem = BasePlaylistItem> {
 	'backlog:remove': { id: string | number; index: number; item: I };
 	'backlog:clear': { previousLength: number };
 
+	// ── Item ending soon ─────────────────────────────────────────────────────
+	// Fires once per item, `itemEndingSoonThreshold` seconds before the natural
+	// end. The latch resets whenever the cursor changes or a new item loads.
+	// Consumers use this to preload the next item, start a crossfade, or display
+	// a "coming up next" overlay. `remaining` is seconds left at the moment the
+	// threshold was crossed.
+
+	/**
+	 * Fires once per item when `remaining <= itemEndingSoonThreshold` (default 10 s).
+	 * `item` is the currently-playing item at the moment the threshold was crossed.
+	 * The latch resets on each new item so the event fires exactly once per item.
+	 */
+	'itemEndingSoon': { remaining: number; item: I };
+
 	// ── Duration ──────────────────────────────────────────────────────────────
 	// Re-emitted when the backend resolves the total duration of the active
 	// item. Useful for UIs that need an up-front "duration ready" signal

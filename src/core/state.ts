@@ -156,6 +156,13 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_internalDuration: number;
 
+	/**
+	 * One-shot latch that prevents `itemEndingSoon` from firing more than once
+	 * per item. Set to `true` when the event fires; reset to `false` whenever
+	 * the cursor changes or a new item begins loading.
+	 */
+	_itemEndingSoonEmitted: boolean;
+
 	// ── Track selection mode (co-written by player-state + media-tracks) ───────
 
 	/** Quality selection mode. Written by `qualityMode(target)` and `quality(idx)`. Defaults to `QualityState.AUTO`. */
@@ -418,6 +425,7 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._volumeBeforeMute = 100;
 	target._internalCurrentTime = 0;
 	target._internalDuration = 0;
+	target._itemEndingSoonEmitted = false;
 	target._playbackRate = 1;
 	target._queueList = new MediaList();
 	target._backlogList = new MediaList();
