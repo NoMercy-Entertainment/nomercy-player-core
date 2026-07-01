@@ -37,7 +37,11 @@ export interface TimeInternalState {
 
 function _emptyTimeRanges(): TimeRanges {
 	// Stub implements the TimeRanges shape; the DOM interface has no constructor — opaque cast required.
-	const stub: unknown = { length: 0, start: (): number => 0, end: (): number => 0 };
+	const stub: unknown = {
+		length: 0,
+		start: (): number => 0,
+		end: (): number => 0,
+	};
 	return stub as unknown as TimeRanges; // opaque: DOM interface has no constructor
 }
 

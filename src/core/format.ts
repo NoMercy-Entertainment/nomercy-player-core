@@ -18,7 +18,7 @@
  * Escape a string for safe insertion into HTML attribute values and text nodes.
  * Replaces `&`, `<`, `>`, `"`, and `'` with their HTML entities.
  *
- * @param s - The raw string to escape.
+ * @param str - The raw string to escape.
  */
 export function escapeHtml(str: string): string {
 	return str.replace(/[&<>"']/g, (char) => {

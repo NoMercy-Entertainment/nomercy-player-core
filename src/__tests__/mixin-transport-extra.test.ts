@@ -221,7 +221,7 @@ describe('forward()', () => {
 		setCurrentTime(player, 30);
 
 		player.on('beforeSeek' as never, (data: { time: number; preventDefault: () => void }) => {
-					data.preventDefault();
+			data.preventDefault();
 		});
 
 		const seekPrevented: unknown[] = [];
@@ -297,7 +297,7 @@ describe('rewind()', () => {
 		setCurrentTime(player, 30);
 
 		player.on('beforeSeek' as never, (data: { time: number; preventDefault: () => void }) => {
-					data.preventDefault();
+			data.preventDefault();
 		});
 
 		const seekPrevented: unknown[] = [];
@@ -356,7 +356,7 @@ describe('restart()', () => {
 		installBackend(player, backend);
 
 		player.on('beforeSeek' as never, (data: { time: number; preventDefault: () => void }) => {
-					data.preventDefault();
+			data.preventDefault();
 		});
 
 		await player.restart();
@@ -367,7 +367,7 @@ describe('restart()', () => {
 	it('restart() emits seekPrevented when beforeSeek is prevented', async () => {
 		const player = setupPlayer();
 		player.on('beforeSeek' as never, (data: { time: number; preventDefault: () => void }) => {
-					data.preventDefault();
+			data.preventDefault();
 		});
 		const seekPrevented: unknown[] = [];
 		player.on('seekPrevented' as never, (data: unknown) => seekPrevented.push(data));
@@ -389,7 +389,7 @@ describe('play() beforePlay preventDefault', () => {
 	it('beforePlay preventDefault emits playPrevented and does not change playState', async () => {
 		const player = setupPlayer();
 		player.on('beforePlay' as never, (data: { preventDefault: () => void }) => {
-					data.preventDefault();
+			data.preventDefault();
 		});
 		const playPrevented: unknown[] = [];
 		player.on('playPrevented' as never, (data: unknown) => playPrevented.push(data));
@@ -410,7 +410,7 @@ describe('pause() beforePause preventDefault', () => {
 		await player.play();
 
 		player.on('beforePause' as never, (data: { preventDefault: () => void }) => {
-					data.preventDefault();
+			data.preventDefault();
 		});
 		const pausePrevented: unknown[] = [];
 		player.on('pausePrevented' as never, (data: unknown) => pausePrevented.push(data));
@@ -431,7 +431,7 @@ describe('stop() beforeStop preventDefault', () => {
 		await player.play();
 
 		player.on('beforeStop' as never, (data: { preventDefault: () => void }) => {
-					data.preventDefault();
+			data.preventDefault();
 		});
 		const stopPrevented: unknown[] = [];
 		player.on('stopPrevented' as never, (data: unknown) => stopPrevented.push(data));
@@ -551,7 +551,7 @@ describe('next() — repeat modes', () => {
 	it('next() beforeNext preventDefault emits nextPrevented', async () => {
 		const player = setupPlayer();
 		player.on('beforeNext' as never, (data: { preventDefault: () => void }) => {
-					data.preventDefault();
+			data.preventDefault();
 		});
 		const nextPrevented: unknown[] = [];
 		player.on('nextPrevented' as never, (data: unknown) => nextPrevented.push(data));
@@ -585,7 +585,7 @@ describe('previous() — edge cases', () => {
 	it('previous() beforePrevious preventDefault emits previousPrevented', async () => {
 		const player = setupPlayer();
 		player.on('beforePrevious' as never, (data: { preventDefault: () => void }) => {
-					data.preventDefault();
+			data.preventDefault();
 		});
 		const previousPrevented: unknown[] = [];
 		player.on('previousPrevented' as never, (data: unknown) => previousPrevented.push(data));

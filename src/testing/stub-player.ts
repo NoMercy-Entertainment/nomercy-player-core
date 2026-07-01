@@ -813,12 +813,20 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	}
 
 	bufferedRanges(): TimeRanges {
-		const stub: unknown = { length: 0, start: (_index: number) => 0, end: (_index: number) => 0 };
+		const stub: unknown = {
+			length: 0,
+			start: (_index: number) => 0,
+			end: (_index: number) => 0,
+		};
 		return stub as unknown as TimeRanges; // opaque: DOM TimeRanges has no constructor
 	}
 
 	seekable(): TimeRanges {
-		const stub: unknown = { length: 0, start: (_index: number) => 0, end: (_index: number) => 0 };
+		const stub: unknown = {
+			length: 0,
+			start: (_index: number) => 0,
+			end: (_index: number) => 0,
+		};
 		return stub as unknown as TimeRanges; // opaque: DOM TimeRanges has no constructor
 	}
 

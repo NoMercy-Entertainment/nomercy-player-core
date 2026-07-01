@@ -148,7 +148,7 @@ export function describePluginAgainst<C extends typeof Plugin<any, any, any>, P 
 
 		afterEach(async () => {
 			// removePlugin/dispose are mixin methods not on IPlayer — accessed via structural narrowing.
-		const playerWithRemove = ctx.player as unknown as { removePlugin?: (PluginCtor: C) => void; dispose?: () => void };
+			const playerWithRemove = ctx.player as unknown as { removePlugin?: (PluginCtor: C) => void; dispose?: () => void };
 			if (typeof playerWithRemove.removePlugin === 'function') {
 				playerWithRemove.removePlugin(PluginClass);
 			}

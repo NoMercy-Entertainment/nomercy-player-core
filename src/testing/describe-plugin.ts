@@ -138,7 +138,7 @@ export function describePlugin<C extends typeof Plugin<any, any, any>>(
 
 			if (!opts?.skipLeakAssertion) {
 				// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
-			const after = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
+				const after = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
 				const leaked = after - listenerBaseline;
 				if (leaked > 0) {
 					throw new StateError({
