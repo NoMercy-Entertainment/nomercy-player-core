@@ -226,7 +226,7 @@ export type PreventedReason
 		| 'delay-timeout'; // a delay() promise exceeded beforeEventTimeoutMs
 
 /**
- * The argument accepted by the `nmplayer()` / `nmMPlayer()` factory function.
+ * The argument accepted by the `nmplayer()` factory function.
  * Three forms are supported:
  *
  *  - `nmplayer()` — no arg. Returns the **first** registered instance from the
