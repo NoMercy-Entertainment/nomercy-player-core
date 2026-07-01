@@ -30,7 +30,7 @@ export interface AuthState {
 }
 
 /**
- * Returns a copy of `cfg` with token-bearing fields (`bearerToken`, `accessToken`)
+ * Returns a copy of `cfg` with the token-bearing field (`bearerToken`)
  * stripped. Used by `auth()` to produce a safe public snapshot and by `resolveUrl`
  * to produce a safe `UrlResolverContext.auth` handed to consumer code.
  *
@@ -38,7 +38,7 @@ export interface AuthState {
  * `refreshOnUnauthenticated`, `retryAfterRefresh` — are retained.
  */
 function redactTokenFields(cfg: AuthConfig): Readonly<AuthConfig> {
-	const { bearerToken: _b, accessToken: _a, ...safe } = cfg;
+	const { bearerToken: _b, ...safe } = cfg;
 	return Object.freeze(safe);
 }
 
@@ -53,8 +53,8 @@ export const authMethods = {
 	 * Read or write the auth config.
 	 *
 	 * `auth()` — returns a **redacted** read-only frozen snapshot of the current
-	 * auth config, or `undefined` when none has been set. Token-bearing fields
-	 * (`bearerToken`, `accessToken`) are stripped from the snapshot so that the
+	 * auth config, or `undefined` when none has been set. The token-bearing field
+	 * (`bearerToken`) is stripped from the snapshot so that the
 	 * bearer secret is unreachable from public consumer code. Non-secret fields
 	 * (`credentials`, `headers`, `transformUrl`, `signRequest`,
 	 * `refreshOnUnauthenticated`, `retryAfterRefresh`) are retained.

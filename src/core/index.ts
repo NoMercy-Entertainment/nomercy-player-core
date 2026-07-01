@@ -87,11 +87,7 @@ export type {
 	Internals,
 	MixinSurface,
 	PlayerCoreState,
-	PlayStateToken,
-	RepeatStateToken,
-	ShuffleStateToken,
 	SidecarSubtitleContext,
-	VolumeStateToken,
 } from './state';
 
 /**

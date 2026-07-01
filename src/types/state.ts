@@ -118,9 +118,6 @@ export enum ShuffleState {
 
 /**
  * Top-level playback lifecycle state. Returned by `player.playState()`.
- *
- * String values are identical to the v1 `PlayStateToken` union so no runtime
- * migration is needed; only the type changes from a string union to a proper enum.
  */
 export enum PlayState {
 	/** Player constructed; `load()` not yet called. */

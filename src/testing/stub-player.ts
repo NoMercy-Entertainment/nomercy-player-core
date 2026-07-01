@@ -302,7 +302,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		if (configOrPartial === undefined) {
 			if (!this._authConfig)
 				return undefined;
-			const { bearerToken: _b, accessToken: _a, ...safe } = this._authConfig;
+			const { bearerToken: _b, ...safe } = this._authConfig;
 			return Object.freeze(safe) as Readonly<AuthConfig>;
 		}
 		this._authConfig = {

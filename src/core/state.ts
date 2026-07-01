@@ -44,8 +44,8 @@ import type { QueueState } from './mixins/queue';
 import type { StateMutatorsState } from './mixins/state-mutators';
 import type { StreamRegistrationState } from './mixins/stream-registration';
 import type { TimeInternalState } from './mixins/time';
-import type { PlayStateToken, TransportState } from './mixins/transport';
-import type { VolumeMixinState, VolumeStateToken } from './mixins/volume';
+import type { TransportState } from './mixins/transport';
+import type { VolumeMixinState } from './mixins/volume';
 import type { TokenRegistry } from './title-tokens';
 import { CueParserRegistry } from '../adapters/cue-parser/registry';
 import { MediaList } from '../adapters/media-list/default';
@@ -68,22 +68,12 @@ import { RepeatState, ShuffleState } from './mixins/state-mutators';
 // ──────────────────────────────────────────────────────────────────────────
 
 export type { SidecarSubtitleContext };
-export type { PlayStateToken, VolumeStateToken };
 export {
 	PlayState,
 	RepeatState,
 	ShuffleState,
 	VolumeState,
 };
-
-/** @deprecated Use `RepeatState` instead. */
-export type RepeatStateToken = RepeatState;
-/** @deprecated Use `ShuffleState` instead. */
-export type ShuffleStateToken = ShuffleState;
-/** @deprecated Use `PlayState` instead — string values are identical. */
-export type { PlayStateToken as PlayStateAlias };
-/** @deprecated Use `VolumeState` instead — string values are identical. */
-export type { VolumeStateToken as VolumeStateAlias };
 
 // ──────────────────────────────────────────────────────────────────────────
 // PlayerCoreState — the shared internal field surface
@@ -431,8 +421,8 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._translator = undefined;
 	target._cueParsers = new CueParserRegistry();
 	target._overrides = new Map();
-	target._playState = 'idle';
-	target._volumeState = 'unmuted';
+	target._playState = PlayState.IDLE;
+	target._volumeState = VolumeState.UNMUTED;
 	target._repeatState = RepeatState.OFF;
 	target._shuffleState = ShuffleState.OFF;
 	target._internalVolume = 100;

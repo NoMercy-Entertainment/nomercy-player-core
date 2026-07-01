@@ -7,26 +7,13 @@
 // -----------------------------------------------------------------------------
 
 import type { Internals } from '../state';
-
-export const VOLUME_STATE = {
-	UNMUTED: 'unmuted',
-	MUTED: 'muted',
-} as const;
-
-/**
- * Mute state token. Written by `volumeMethods.mute` / `volumeMethods.unmute`.
- * Read by `volume()` (returns 0 when `'muted'`) and the container-class emitter.
- */
-export type VolumeStateToken = typeof VOLUME_STATE[keyof typeof VOLUME_STATE];
+import { VolumeState } from '../state';
 
 /**
  * The volume mixin's slice of player state — composed into `PlayerCoreState`.
- * Declared here, beside the mixin that writes it; read elsewhere through the
- * composed `Internals` surface (the `volumeState()` accessor, lifecycle metrics).
  */
 export interface VolumeMixinState {
-	/** Mute state. */
-	_volumeState: VolumeStateToken;
+	_volumeState: VolumeState;
 
 	/** Stored on the 0-100 scale to match the public volume() API. */
 	_internalVolume: number;
@@ -53,7 +40,7 @@ export const volumeMethods = {
 	 */
 	volume(this: Internals, v?: number): number | void {
 		if (v === undefined) {
-			return this._volumeState === 'muted' ? 0 : this._internalVolume;
+			return this._volumeState === VolumeState.MUTED ? 0 : this._internalVolume;
 		}
 
 		if (!this._emitBeforeMutation('volume', [v]))
@@ -66,13 +53,13 @@ export const volumeMethods = {
 		// this, dragging the slider while muted silently writes _internalVolume
 		// but `volume()` keeps returning 0, so the user sees the slider snap
 		// back to 0 and hears nothing.
-		if (this._volumeState === 'muted' && this._internalVolume > 0) {
-			this._volumeState = 'unmuted';
+		if (this._volumeState === VolumeState.MUTED && this._internalVolume > 0) {
+			this._volumeState = VolumeState.UNMUTED;
 			this._volumeBeforeMute = this._internalVolume;
 			this.emit('mute', { muted: false });
 			this._resolveBackend()?.unmute?.();
 		}
-		else if (this._volumeState !== 'muted') {
+		else if (this._volumeState !== VolumeState.MUTED) {
 			this._volumeBeforeMute = this._internalVolume;
 		}
 
@@ -86,11 +73,11 @@ export const volumeMethods = {
 	 * No-op when already muted.
 	 */
 	mute(this: Internals): void {
-		if (this._volumeState === 'muted')
+		if (this._volumeState === VolumeState.MUTED)
 			return;
 
 		this._volumeBeforeMute = this._internalVolume;
-		this._volumeState = 'muted';
+		this._volumeState = VolumeState.MUTED;
 		this.emit('mute', { muted: true });
 
 		this._resolveBackend()?.mute?.();
@@ -101,10 +88,10 @@ export const volumeMethods = {
 	 * already unmuted.
 	 */
 	unmute(this: Internals): void {
-		if (this._volumeState === 'unmuted')
+		if (this._volumeState === VolumeState.UNMUTED)
 			return;
 
-		this._volumeState = 'unmuted';
+		this._volumeState = VolumeState.UNMUTED;
 		this._internalVolume = this._volumeBeforeMute;
 		this.emit('mute', { muted: false });
 
@@ -112,7 +99,7 @@ export const volumeMethods = {
 	},
 	/** Toggle between muted and unmuted. Delegates to `mute()` or `unmute()`. */
 	toggleMute(this: Internals): void {
-		if (this._volumeState === 'muted')
+		if (this._volumeState === VolumeState.MUTED)
 			this.unmute();
 		else this.mute();
 	},

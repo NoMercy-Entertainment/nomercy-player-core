@@ -30,16 +30,7 @@ export class Logger implements ILogger {
 	private readonly sinks: LogSink[] = [];
 
 	constructor(opts?: LoggerOptions) {
-		// Explicit `level` wins; fall back to legacy `debug` boolean, then default.
-		if (opts?.level) {
-			this._level = opts.level;
-		}
-		else if (opts?.debug === true) {
-			this._level = 'debug';
-		}
-		else {
-			this._level = 'info';
-		}
+		this._level = opts?.level ?? 'info';
 		this.prefix = opts?.prefix ? `[${opts.prefix}]` : '[nmplayer]';
 	}
 

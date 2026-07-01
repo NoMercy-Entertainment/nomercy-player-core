@@ -710,20 +710,20 @@ describe('StubPlayer auth()', () => {
 
 	it('auth(config) stores the config — snapshot is frozen and token fields are redacted', () => {
 		const p = new StubPlayer();
-		p.auth({ accessToken: 'tok123', credentials: 'include' } as any);
+		p.auth({ bearerToken: 'tok123', credentials: 'include' });
 		const stored = p.auth();
 		expect(stored).toBeDefined();
 		expect(Object.isFrozen(stored)).toBe(true);
-		expect((stored as any).accessToken).toBeUndefined();
+		expect((stored as any).bearerToken).toBeUndefined();
 		expect((stored as any).credentials).toBe('include');
 	});
 
 	it('auth(partial) merges into existing config — non-secret fields visible', () => {
 		const p = new StubPlayer();
-		p.auth({ accessToken: 'tok1', credentials: 'include' } as any);
+		p.auth({ bearerToken: 'tok1', credentials: 'include' });
 		p.auth({ retryAfterRefresh: 3 } as any);
 		const config = p.auth() as any;
-		expect(config.accessToken).toBeUndefined();
+		expect(config.bearerToken).toBeUndefined();
 		expect(config.credentials).toBe('include');
 		expect(config.retryAfterRefresh).toBe(3);
 	});

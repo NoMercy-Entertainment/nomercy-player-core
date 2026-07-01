@@ -194,17 +194,8 @@ export interface BaseEventMap<I extends BasePlaylistItem = BasePlaylistItem> {
 	// ── Cursor / item change ──────────────────────────────────────────────────
 	// Fires every time the active item pointer moves (load, next, previous,
 	// item(target)). `item` is `undefined` when the queue is empty after a clear.
-	//
-	// `'current'` is kept as a DEPRECATED alias that will be removed in the next
-	// major release. Prefer `'item'` in all new code.
 
 	'item': { item: I | undefined; index: number };
-
-	/**
-	 * @deprecated Use `'item'` instead. Emitted alongside `'item'` for one beta
-	 * cycle to prevent silent breakage. Will be removed in the next major release.
-	 */
-	'current': { item: I | undefined; index: number };
 
 	// ── Queue mutation events ─────────────────────────────────────────────────
 	// Re-emitted from the internal MediaList<T> instance whenever the queue

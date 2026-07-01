@@ -71,8 +71,6 @@ function _wireQueue(self: Internals): void {
 	self._queueList.on('current', (data) => {
 		self._disposeSidecarSubtitle();
 		self.emit('item', data);
-		// Deprecated alias — kept for one beta cycle; remove in the next major release.
-		self.emit('current', data);
 		void self._resolveAndEmitChapters(data.item?.id);
 	});
 

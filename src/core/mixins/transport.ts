@@ -9,38 +9,13 @@
 import type { ActionOptions, BasePlaylistItem, LoadOptions } from '../../types';
 
 import type { Internals } from '../state';
-import { RepeatState } from '../state';
-
-export const PLAYER_STATE = {
-	IDLE: 'idle',
-	LOADING: 'loading',
-	PLAYING: 'playing',
-	PAUSED: 'paused',
-	STOPPED: 'stopped',
-	ERROR: 'error',
-} as const;
-
-/**
- * Coarse playback lifecycle token. Written by `transportMethods` / `lifecycleMethods`.
- * Read by the consumer (via `playState()`) and by container-class emit logic.
- *
- * - `'idle'` — player constructed, `setup()` not yet called.
- * - `'loading'` — item is being fetched / initialised by the backend.
- * - `'playing'` — backend is actively advancing the clock.
- * - `'paused'` — playback is suspended; position held.
- * - `'stopped'` — playback stopped; position may be reset.
- * - `'error'` — unrecoverable failure; consumer should surface a message.
- */
-export type PlayStateToken = typeof PLAYER_STATE[keyof typeof PLAYER_STATE];
+import { PlayState, RepeatState } from '../state';
 
 /**
  * The transport mixin's slice of player state — composed into `PlayerCoreState`.
- * Declared here, beside the methods that write it; read elsewhere through the
- * composed `Internals` surface (`playState()`, the container-class emitter).
  */
 export interface TransportState {
-	/** Coarse play-state label. Written by transport / lifecycle methods; read by `playState()` and the container-class emitter. */
-	_playState: PlayStateToken;
+	_playState: PlayState;
 }
 
 /**
@@ -159,7 +134,7 @@ export const transportMethods = {
 			});
 			return;
 		}
-		this._playState = 'playing';
+		this._playState = PlayState.PLAYING;
 		if (this._phase === 'ready' || this._phase === 'paused') {
 			this._transitionPhase('starting');
 		}
@@ -184,7 +159,7 @@ export const transportMethods = {
 			});
 			return;
 		}
-		this._playState = 'paused';
+		this._playState = PlayState.PAUSED;
 		if (this._phase === 'playing' || this._phase === 'starting') {
 			this._transitionPhase('paused');
 		}
@@ -209,7 +184,7 @@ export const transportMethods = {
 			});
 			return;
 		}
-		this._playState = 'stopped';
+		this._playState = PlayState.STOPPED;
 		this._transitionPhase('stopped');
 		this.emit('stop', result.data);
 
@@ -223,7 +198,7 @@ export const transportMethods = {
 	 */
 	async togglePlayback(this: Internals, opts?: ActionOptions): Promise<void> {
 		this._assertReady();
-		if (this._playState === 'playing')
+		if (this._playState === PlayState.PLAYING)
 			await this.pause(opts);
 		else await this.play(opts);
 	},

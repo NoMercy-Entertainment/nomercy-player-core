@@ -84,8 +84,8 @@ export const lifecycleMethods = {
 	/**
 	 * Configure the player and start the async setup pipeline.
 	 *
-	 * Synchronously: normalises options (debug / accessToken back-compat shims),
-	 * seeds internal state from config, wires every cross-cutting concern
+	 * Synchronously: snapshots options, seeds internal state from config,
+	 * wires every cross-cutting concern
 	 * (visibility, network, wake-lock, metrics, progress, preload+transition,
 	 * window expose), and emits `beforeSetup` followed by a `setup` phase
 	 * transition.
@@ -279,12 +279,7 @@ function _guardSetup(self: Internals): void {
 	}
 }
 
-/**
- * Snapshot the config onto `self.options`. The v1 legacy fields (`debug`,
- * `accessToken`) are normalised at the library boundary — inside each
- * per-library factory's `setup()` wrapper — before reaching here, so core
- * only ever sees the canonical `BasePlayerConfig` surface.
- */
+/** Snapshot the config onto `self.options`. */
 function _normalizeOptions(self: Internals, config: BasePlayerConfig): void {
 	self.options = { ...config };
 }

@@ -15,35 +15,6 @@ import { RepeatState, ShuffleState } from '../../types/state';
 export { RepeatState, ShuffleState };
 
 /**
- * @deprecated Use `RepeatState` enum from `nomercy-player-core`. Kept for one
- * beta cycle so existing imports resolve. Will be removed in the next major release.
- */
-export const REPEAT_STATE = {
-	OFF: RepeatState.OFF,
-	ALL: RepeatState.ALL,
-	ONE: RepeatState.ONE,
-} as const;
-
-/**
- * @deprecated Use `RepeatState` from `nomercy-player-core` instead.
- */
-export type RepeatStateToken = RepeatState;
-
-/**
- * @deprecated Use `ShuffleState` enum from `nomercy-player-core`. Kept for one
- * beta cycle so existing imports resolve. Will be removed in the next major release.
- */
-export const SHUFFLE_STATE = {
-	OFF: ShuffleState.OFF,
-	ON: ShuffleState.ON,
-} as const;
-
-/**
- * @deprecated Use `ShuffleState` from `nomercy-player-core` instead.
- */
-export type ShuffleStateToken = ShuffleState;
-
-/**
  * The state-mutators mixin's slice of player state — composed into
  * `PlayerCoreState`. Declared here, beside the methods that write it.
  */
@@ -117,8 +88,8 @@ export const stateMethods = {
 	/**
 	 * Read or write the repeat mode.
 	 *
-	 * `repeatState()` — returns the current `RepeatStateToken`
-	 * (`'none'` / `'one'` / `'all'`).
+	 * `repeatState()` — returns the current `RepeatState`
+	 * (`'off'` / `'one'` / `'all'`).
 	 *
 	 * `repeatState(state)` — set the repeat mode and emit `repeat` with the
 	 * new token. The transport mixin honours this token inside `next()` to
@@ -134,7 +105,7 @@ export const stateMethods = {
 	/**
 	 * Read or write the shuffle mode.
 	 *
-	 * `shuffleState()` — returns the current `ShuffleStateToken`
+	 * `shuffleState()` — returns the current `ShuffleState`
 	 * (`'on'` / `'off'`).
 	 *
 	 * `shuffleState('on')` — randomises the queue order immediately via
@@ -146,7 +117,7 @@ export const stateMethods = {
 	 * (shuffled) order is kept. Consumers that want the original order must
 	 * re-supply the queue.
 	 *
-	 * Accepts a `ShuffleStateToken` or a plain boolean (`true` → `'on'`,
+	 * Accepts a `ShuffleState` or a plain boolean (`true` → `'on'`,
 	 * `false` → `'off'`).
 	 */
 	shuffleState(this: Internals, state?: ShuffleState | boolean): ShuffleState | void {

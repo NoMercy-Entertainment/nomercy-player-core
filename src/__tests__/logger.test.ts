@@ -65,14 +65,8 @@ describe('Logger', () => {
 			expect(consoleSpies.debug).toHaveBeenCalled();
 		});
 
-		it('legacy `debug: true` maps to level "debug"', () => {
-			const logger = new Logger({ debug: true });
-			logger.debug('hello');
-			expect(consoleSpies.debug).toHaveBeenCalled();
-		});
-
-		it('explicit level overrides legacy debug flag', () => {
-			const logger = new Logger({ level: 'silent', debug: true });
+		it('level "silent" suppresses error output', () => {
+			const logger = new Logger({ level: 'silent' });
 			logger.error('hello');
 			expect(consoleSpies.error).not.toHaveBeenCalled();
 		});

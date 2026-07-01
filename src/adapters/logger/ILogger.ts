@@ -43,8 +43,6 @@ export const LEVEL_RANK: Record<LogLevel, number> = {
 export type LogSink = (level: LogLevel, prefix: string, args: unknown[]) => void;
 
 export interface LoggerOptions {
-	/** @deprecated Use `level: 'debug'` instead. */
-	debug?: boolean;
 	/** Verbosity threshold. Default `'info'`. */
 	level?: LogLevel;
 	prefix?: string;

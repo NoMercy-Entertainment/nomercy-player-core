@@ -195,13 +195,7 @@ export {
 	volumeMethods,
 } from './base-player';
 
-export type {
-	PlayerCtorResolution,
-	PlayStateToken,
-	RepeatStateToken,
-	ShuffleStateToken,
-	VolumeStateToken,
-} from './base-player';
+export type { PlayerCtorResolution } from './base-player';
 export { preloadStrategyMethods } from './base-player';
 
 // URL-param auth helper for non-HLS / native-HLS-fallback element.src paths

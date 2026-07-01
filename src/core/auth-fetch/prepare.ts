@@ -36,7 +36,7 @@ async function resolveHeader(value: AuthHeaderValue): Promise<string> {
  * Construct the `Request` that gets handed to `fetch()`.
  *
  * Header layering (later wins on collision):
- *  1. `Authorization: Bearer <token>` from `auth.bearerToken` / `auth.accessToken`.
+ *  1. `Authorization: Bearer <token>` from `auth.bearerToken`.
  *  2. Static `auth.headers` (resolved through `resolveHeader` so a function-valued
  *     header gets invoked per request — useful for tenant ids, request signatures).
  *  3. Per-request `opts.headers` (highest priority; lets a DRM POST override the
@@ -48,7 +48,7 @@ async function resolveHeader(value: AuthHeaderValue): Promise<string> {
 export async function buildRequest(url: string, opts: AuthFetchBase): Promise<Request> {
 	const headers = new Headers();
 
-	const effectiveBearer = opts.auth?.bearerToken ?? opts.auth?.accessToken;
+	const effectiveBearer = opts.auth?.bearerToken;
 	if (effectiveBearer !== undefined) {
 		const token = await resolveHeader(effectiveBearer);
 		if (token)

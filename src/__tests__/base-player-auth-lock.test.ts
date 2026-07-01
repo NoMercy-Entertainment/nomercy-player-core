@@ -16,8 +16,8 @@
  *     affect the internal state.
  *  4. The reactive getter pattern: `bearerToken: () => mutableRef.value` — the
  *     Authorization header reflects the current ref value per-request via `authFetch`.
- *  5. `auth()` NEVER exposes the bearer token — `bearerToken` and `accessToken` are
- *     absent from the public snapshot regardless of whether they are strings or functions.
+ *  5. `auth()` NEVER exposes the bearer token — `bearerToken` is
+ *     absent from the public snapshot regardless of whether it is a string or a function.
  *  6. The encapsulation proof (adversarial surface walk): the sentinel token cannot
  *     be reached through ANY public avenue — property enumeration, JSON serialisation,
  *     public method returns, emitted event payloads, or string coercion.
@@ -195,12 +195,6 @@ describe('auth-lock contract', () => {
 			expect(player.auth()?.['bearerToken']).toBeUndefined();
 		});
 
-		it('auth() snapshot does not contain accessToken', () => {
-			const player = setupPlayer();
-			player.auth({ accessToken: 'original', credentials: 'include' });
-			expect(player.auth()?.['accessToken']).toBeUndefined();
-		});
-
 		it('auth() snapshot retains non-secret fields', () => {
 			const player = setupPlayer();
 			player.auth({ bearerToken: 'tok', credentials: 'include', retryAfterRefresh: 2 });
@@ -348,11 +342,10 @@ describe('token encapsulation — adversarial surface walk', () => {
 
 	// ── Public getter methods ────────────────────────────────────────────────
 
-	it('auth() snapshot has no bearerToken or accessToken fields', () => {
+	it('auth() snapshot has no bearerToken field', () => {
 		const snapshot = player.auth();
 		expect(snapshot).toBeDefined();
 		expect((snapshot as Record<string, unknown>)['bearerToken']).toBeUndefined();
-		expect((snapshot as Record<string, unknown>)['accessToken']).toBeUndefined();
 	});
 
 	it('auth() snapshot string-ified does not contain the sentinel', () => {

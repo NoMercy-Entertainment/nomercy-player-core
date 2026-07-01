@@ -11,7 +11,7 @@ import type { AddClasses, CreateElement } from '../adapters/element-factory';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { IStreamFactory } from '../adapters/stream/IStreamSource';
 import type { DispatchTarget } from '../core/dispatch';
-import type { RepeatStateToken, ShuffleStateToken } from '../core/mixins/state-mutators';
+import type { RepeatState, ShuffleState } from '../core/mixins/state-mutators';
 
 import type { Plugin } from '../core/plugin';
 import type { Chapter } from './chapter';
@@ -479,8 +479,8 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	 * Read or write the auth config.
 	 *
 	 * `auth()` — redacted frozen snapshot of the current config, or `undefined`.
-	 * Token-bearing fields (`bearerToken`, `accessToken`) are stripped from the
-	 * snapshot; they are only accessible through the internal fetch pipeline.
+	 * The token-bearing field (`bearerToken`) is stripped from the
+	 * snapshot; it is only accessible through the internal fetch pipeline.
 	 * `auth(config)` — replace wholesale; emits `auth:refreshed`.
 	 * `auth(partial)` — shallow-merge; emits `auth:refreshed`.
 	 * `auth(null)` — clear the auth config; emits `auth:refreshed`.
@@ -795,14 +795,14 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	// ── Repeat / shuffle ──
 
 	/** Returns the current repeat mode token (`'off'` / `'one'` / `'all'`). */
-	repeatState(): RepeatStateToken;
+	repeatState(): RepeatState;
 	/** Set the repeat mode and emit `repeat`. */
-	repeatState(state: RepeatStateToken): void;
+	repeatState(state: RepeatState): void;
 
 	/** Returns the current shuffle mode token (`'off'` / `'on'`). */
-	shuffleState(): ShuffleStateToken;
+	shuffleState(): ShuffleState;
 	/** Set the shuffle mode and emit `shuffle`. Accepts a boolean shorthand. */
-	shuffleState(state: ShuffleStateToken | boolean): void;
+	shuffleState(state: ShuffleState | boolean): void;
 
 	// ── Load ──
 

@@ -44,16 +44,6 @@ export interface AuthConfig {
 	 */
 	bearerToken?: AuthHeaderValue;
 
-	/**
-	 * Alias for `bearerToken`. Lets consumers use the field name they already know
-	 * from the top-level deprecated `accessToken` config: `auth: { accessToken: () => store.token }`.
-	 * When both are set, `bearerToken` wins.
-	 *
-	 * @deprecated Prefer `bearerToken`. This alias exists to ease migration from the
-	 * top-level `BasePlayerConfig.accessToken` field.
-	 */
-	accessToken?: AuthHeaderValue;
-
 	/** Arbitrary headers — static, sync getter, or async getter. */
 	headers?: Record<string, AuthHeaderValue>;
 
