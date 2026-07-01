@@ -256,11 +256,13 @@ export { perceptualGain } from './core/volume-curve';
 // Errors
 export {
 	AuthError,
+	browserPolicyError,
 	BrowserPolicyError,
 	DEFAULT_RETRY_POLICY,
 	DrmError,
 	formatCode,
 	makeCode,
+	mediaFormatError,
 	MediaFormatError,
 	NetworkError,
 	NotImplementedError,
