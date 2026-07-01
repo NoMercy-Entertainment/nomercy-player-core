@@ -71,14 +71,14 @@ export interface DescribePluginAgainstOptions<C extends typeof Plugin<any, any, 
  * ```ts
  * import { describePluginAgainst } from '@nomercy-entertainment/nomercy-player-core/testing';
  * import { LyricsPlugin } from '../lyrics';
- * import { nmMPlayer } from '../../index';
+ * import { nmplayer } from '../../index';
  *
  * describePluginAgainst(LyricsPlugin, ({ player, plugin }) => {
  *   it('emits plugin:lyrics:line on real time event', async () => {
  *     // ...
  *   });
  * }, {
- *   player: () => nmMPlayer('test').setup({}),
+ *   player: () => nmplayer('test').setup({}),
  * });
  * ```
  *

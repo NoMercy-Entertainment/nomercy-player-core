@@ -405,8 +405,8 @@ export interface BasePlayerConfig {
 	 * Attach the player instance to `window.player` for console debugging.
 	 * Cleaned up on `dispose()`. Default `false`.
 	 *
-	 * The library factory (`nmplayer` / `nmMPlayer`) additionally attaches
-	 * itself to `window.nmplayer` / `window.nmMPlayer` when this is `true`.
+	 * The library factory (`nmplayer`) additionally attaches itself to
+	 * `window.nmplayer` when this is `true`.
 	 */
 	expose?: boolean;
 }
