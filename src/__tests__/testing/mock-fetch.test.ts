@@ -65,10 +65,10 @@ describe('mockFetch', () => {
 			const mock = mockFetch();
 			mock.respondWith('first');
 			mock.respondWith('second');
-			const a = await mock.fetch<string>('https://a');
-			const b = await mock.fetch<string>('https://b');
-			expect(a).toBe('first');
-			expect(b).toBe('second');
+			const resultA = await mock.fetch<string>('https://a');
+			const resultB = await mock.fetch<string>('https://b');
+			expect(resultA).toBe('first');
+			expect(resultB).toBe('second');
 		});
 
 		it('resolves with undefined when no response is queued', async () => {

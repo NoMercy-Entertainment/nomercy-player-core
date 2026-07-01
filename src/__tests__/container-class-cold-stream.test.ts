@@ -9,15 +9,15 @@
 /**
  * Regression: cold-stream play sequence.
  *
- * Live trace that exposed both bugs:
+ * Live trace that exposed two container-class issues:
  *   1. phase:loading  → cls=loading (bootstrap)
  *   2. ev:play        → cls=playing, _playState=playing
  *   3. ev:waiting     → cls=buffering (cold HLS stall)
- *   4. phase:ready    → cls=PAUSED   ✗ BUG 1 — phase:ready forced paused while playing
+ *   4. phase:ready    → cls=PAUSED   — phase:ready forced paused while playing
  *   5. ev:canplay     → cls=paused (buffering dropped but no playing restored)
- *   6. ev:playing     → cls=PAUSED   ✗ BUG 2 — `playing` event had no rule
+ *   6. ev:playing     → cls=PAUSED   — `playing` event had no rule
  *
- * Both bugs are fixed:
+ * Both are fixed:
  *   - phase:ready respects _playState — stays `playing` when player is playing.
  *   - `playing` event is now wired as a swap → restores `.playing`, removes buffering.
  */
@@ -45,7 +45,7 @@ class StatefulContainerEmitter extends EventEmitter<Record<string, unknown>> {
 const PLAY_STATE_CLASSES = ['playing', 'paused', 'stopped', 'ended', 'loading', 'buffering'];
 
 function presentClasses(container: HTMLElement): string[] {
-	return PLAY_STATE_CLASSES.filter(c => container.classList.contains(c));
+	return PLAY_STATE_CLASSES.filter(cls => container.classList.contains(cls));
 }
 
 afterEach(() => {
@@ -73,7 +73,7 @@ describe('container-class cold-stream regression', () => {
 		expect(container.classList.contains('playing')).toBe(false);
 
 		// Step 4 — phase:ready fires mid-playback (buffering recovery on cold stream)
-		// BUG 1 was: this forced .paused even though _playState is 'playing'
+		// Regression guard: phase:ready must not force .paused when _playState is 'playing'.
 		player.emit('phase', { from: 'loading', to: 'ready' });
 		expect(container.classList.contains('playing')).toBe(true);
 		expect(container.classList.contains('paused')).toBe(false);
@@ -83,7 +83,7 @@ describe('container-class cold-stream regression', () => {
 		expect(container.classList.contains('buffering')).toBe(false);
 
 		// Step 6 — playing event fires when backend actually starts decoding
-		// BUG 2 was: no rule for `playing` event → class was not restored
+		// Regression guard: the `playing` event must have a rule to restore the class.
 		player.emit('playing');
 		expect(container.classList.contains('playing')).toBe(true);
 		expect(container.classList.contains('paused')).toBe(false);

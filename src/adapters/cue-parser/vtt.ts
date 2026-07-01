@@ -194,7 +194,7 @@ function parseRaw(text: string): RawCue[] {
 	if (!text)
 		return [];
 
-	// Strip UTF-8 BOM if present (W3C WebVTT 1.0 §4 — many editors save with BOM).
+	// Strip UTF-8 BOM if present — W3C WebVTT 1.0 allows it and many editors save with BOM.
 	const stripped = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
 
 	const normalized = stripped.replace(/\r\n|\r/g, '\n');
@@ -203,7 +203,7 @@ function parseRaw(text: string): RawCue[] {
 	if (blocks.length === 0)
 		return [];
 
-	// First block must contain WEBVTT magic. Per W3C WebVTT 1.0 §4, the
+	// First block must contain WEBVTT magic. Per W3C WebVTT 1.0, the
 	// "WEBVTT" string must be followed by a U+0020 SPACE, U+0009 TAB, end of
 	// line, or end of file — `WEBVTTfoo` is NOT valid.
 	const first = blocks[0]?.trim();
@@ -249,7 +249,7 @@ function parseRaw(text: string): RawCue[] {
 		if (Number.isNaN(start) || Number.isNaN(end))
 			continue;
 
-		// W3C WebVTT 1.0 §5.5 — cue settings on the same timing line (`align:start line:50%`).
+		// W3C WebVTT 1.0 cue settings appear on the same timing line (`align:start line:50%`).
 		const settings = parseCueSettings(tsMatch[3]);
 
 		const body = lines.slice(tsLineIdx + 1).join('\n')
@@ -267,7 +267,7 @@ function parseRaw(text: string): RawCue[] {
 
 /**
  * Parse the cue-settings string that follows the end timestamp on a WebVTT
- * timing line (W3C WebVTT 1.0 §5.5). Recognises `align`, `line`, and `size`.
+ * timing line (W3C WebVTT 1.0). Recognises `align`, `line`, and `size`.
  * `vertical:` and `position:` are intentionally dropped — out of scope for the
  * cue-list use cases.
  *

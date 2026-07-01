@@ -8,9 +8,8 @@
 
 /**
  * Per-plugin leak-harness sweep — every kit plugin gets `addPlugin → ready →
- * removePlugin` exercised; the listener-count delta must be ≤ 0 (i.e., no
- * leaks). Per spec §6 / design.md §6 — leak harness is mandatory for every
- * plugin before merge.
+ * removePlugin` exercised; the listener-count delta must be ≤ 0 (no leaks).
+ * The leak harness is mandatory for every plugin before merge.
  */
 
 import type { Plugin } from '../index';

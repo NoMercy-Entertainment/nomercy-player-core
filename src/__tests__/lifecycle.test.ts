@@ -91,17 +91,17 @@ describe('LifecycleRegistry', () => {
 		});
 
 		it('continues running other cleanups when one throws', () => {
-			const a = vi.fn();
-			const b = vi.fn(() => {
+			const cleanupA = vi.fn();
+			const cleanupB = vi.fn(() => {
 				throw new Error('boom');
 			});
-			const c = vi.fn();
-			registry.addCleanup(a);
-			registry.addCleanup(b);
-			registry.addCleanup(c);
+			const cleanupC = vi.fn();
+			registry.addCleanup(cleanupA);
+			registry.addCleanup(cleanupB);
+			registry.addCleanup(cleanupC);
 			registry.dispose();
-			expect(a).toHaveBeenCalled();
-			expect(c).toHaveBeenCalled();
+			expect(cleanupA).toHaveBeenCalled();
+			expect(cleanupC).toHaveBeenCalled();
 		});
 
 		it('logs error when a cleanup throws', () => {
@@ -322,13 +322,13 @@ describe('LifecycleRegistry', () => {
 		});
 
 		it('multiple abortables all abort on dispose', () => {
-			const a = registry.abortable();
-			const b = registry.abortable();
-			const c = registry.abortable();
+			const ctrlA = registry.abortable();
+			const ctrlB = registry.abortable();
+			const ctrlC = registry.abortable();
 			registry.dispose();
-			expect(a.signal.aborted).toBe(true);
-			expect(b.signal.aborted).toBe(true);
-			expect(c.signal.aborted).toBe(true);
+			expect(ctrlA.signal.aborted).toBe(true);
+			expect(ctrlB.signal.aborted).toBe(true);
+			expect(ctrlC.signal.aborted).toBe(true);
 		});
 	});
 
@@ -340,16 +340,16 @@ describe('LifecycleRegistry', () => {
 		it('runs the callback once per RAF tick', async () => {
 			const cb = vi.fn();
 			registry.frame(cb);
-			await new Promise(r => requestAnimationFrame(() => r(undefined)));
-			await new Promise(r => requestAnimationFrame(() => r(undefined)));
+			await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+			await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
 			expect(cb.mock.calls.length).toBeGreaterThanOrEqual(1);
 		});
 
 		it('passes deltaMs and time to the callback', async () => {
 			const cb = vi.fn();
 			registry.frame(cb);
-			await new Promise(r => requestAnimationFrame(() => r(undefined)));
-			await new Promise(r => requestAnimationFrame(() => r(undefined)));
+			await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+			await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
 			if (cb.mock.calls.length > 0) {
 				const [delta, time] = cb.mock.calls[0]!;
 				expect(typeof delta).toBe('number');
@@ -360,10 +360,10 @@ describe('LifecycleRegistry', () => {
 		it('stops calling the callback after dispose', async () => {
 			const cb = vi.fn();
 			registry.frame(cb);
-			await new Promise(r => requestAnimationFrame(() => r(undefined)));
+			await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
 			const callsBefore = cb.mock.calls.length;
 			registry.dispose();
-			await new Promise(r => setTimeout(r, 50));
+			await new Promise(resolve => setTimeout(resolve, 50));
 			const callsAfter = cb.mock.calls.length;
 			expect(callsAfter).toBeLessThanOrEqual(callsBefore + 1);
 		});
@@ -372,7 +372,7 @@ describe('LifecycleRegistry', () => {
 			registry.dispose();
 			const cb = vi.fn();
 			registry.frame(cb);
-			await new Promise(r => setTimeout(r, 50));
+			await new Promise(resolve => setTimeout(resolve, 50));
 			expect(cb).not.toHaveBeenCalled();
 		});
 
@@ -380,8 +380,8 @@ describe('LifecycleRegistry', () => {
 			registry.frame(() => {
 				throw new Error('boom');
 			});
-			await new Promise(r => requestAnimationFrame(() => r(undefined)));
-			await new Promise(r => requestAnimationFrame(() => r(undefined)));
+			await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+			await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
 			expect(consoleErrorSpy).toHaveBeenCalled();
 			registry.dispose();
 		});

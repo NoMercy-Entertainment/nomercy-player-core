@@ -738,7 +738,7 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	 * Sort the queue in-place using `compare`. Same contract as
 	 * `Array.prototype.sort`. Emits `queue:sort`.
 	 */
-	queueSort(compare: (a: BasePlaylistItem, b: BasePlaylistItem) => number, opts?: ActionOptions): void;
+	queueSort(compare: (itemA: BasePlaylistItem, itemB: BasePlaylistItem) => number, opts?: ActionOptions): void;
 
 	/** Returns the backlog as a read-only array. */
 	backlog(): ReadonlyArray<BasePlaylistItem>;

@@ -203,7 +203,7 @@ export const queueMethods = {
 	 * Sort the queue in-place using `compare` (same contract as
 	 * `Array.prototype.sort`). Emits `queue:sort`.
 	 */
-	queueSort(this: Internals, compare: (a: BasePlaylistItem, b: BasePlaylistItem) => number, _opts?: ActionOptions): void {
+	queueSort(this: Internals, compare: (itemA: BasePlaylistItem, itemB: BasePlaylistItem) => number, _opts?: ActionOptions): void {
 		_wireQueue(this);
 		this._queueList.sort(compare);
 	},

@@ -31,8 +31,9 @@ interface VitestGlobals {
 }
 
 function getGlobals(): VitestGlobals {
-	const g = globalThis as unknown as Partial<VitestGlobals>;
-	if (!g.describe || !g.it || !g.beforeEach || !g.afterEach) {
+	// Vitest injects test globals at runtime; not typed on globalThis — narrowed via local interface.
+	const globals = globalThis as unknown as Partial<VitestGlobals>;
+	if (!globals.describe || !globals.it || !globals.beforeEach || !globals.afterEach) {
 		throw new StateError({
 			code: 'core:test/vitest-globals-missing',
 			severity: 'fatal',
@@ -41,7 +42,7 @@ function getGlobals(): VitestGlobals {
 			suggestion: 'Ensure vitest.config has `test.globals: true` and the test runner is Vitest.',
 		});
 	}
-	return g as VitestGlobals;
+	return globals as VitestGlobals;
 }
 
 /**
@@ -103,12 +104,13 @@ export function describePlugin<C extends typeof Plugin<any, any, any>>(
 	opts?: DescribePluginOptions<C>,
 ): void {
 	const { describe, beforeEach, afterEach } = getGlobals();
+	// Plugin class static `id` is not on the TS constructor type — accessed via structural narrowing.
 	const id = (PluginClass as unknown as { id?: string }).id ?? 'plugin';
 
 	describe(`Plugin: ${id}`, () => {
 		const ctx: PluginTestContext<C> = {
-			player: undefined as unknown as StubPlayer,
-			plugin: undefined as unknown as InstanceType<C>,
+			player: undefined as unknown as StubPlayer, // Populated in beforeEach; undefined is the pre-init sentinel.
+			plugin: undefined as unknown as InstanceType<C>, // Populated in beforeEach; undefined is the pre-init sentinel.
 		};
 
 		let lifecycle: LifecycleRegistry;
@@ -116,10 +118,13 @@ export function describePlugin<C extends typeof Plugin<any, any, any>>(
 
 		beforeEach(async () => {
 			ctx.player = opts?.createPlayer?.() ?? new StubPlayer();
+			// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
 			listenerBaseline = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
 
 			lifecycle = new LifecycleRegistry();
+			// Plugin constructor takes no args; options go through initialize() — type-erased to concrete base.
 			ctx.plugin = new (PluginClass as unknown as new () => InstanceType<C>)();
+			// StubPlayer satisfies IPlayer at runtime; cast required because StubPlayer is test-local.
 			ctx.plugin.initialize(ctx.player as unknown as IPlayer, opts?.opts as InstanceType<C>['opts'], lifecycle);
 
 			const useResult = ctx.plugin.use();
@@ -132,7 +137,8 @@ export function describePlugin<C extends typeof Plugin<any, any, any>>(
 			lifecycle.dispose();
 
 			if (!opts?.skipLeakAssertion) {
-				const after = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
+				// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
+			const after = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
 				const leaked = after - listenerBaseline;
 				if (leaked > 0) {
 					throw new StateError({

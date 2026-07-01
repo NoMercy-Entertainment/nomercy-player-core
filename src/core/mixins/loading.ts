@@ -180,7 +180,7 @@ export const loadingMethods = {
 				const steps = 20;
 				const stepMs = (opts.fadeIn * 1000) / steps;
 				for (let stepIndex = 1; stepIndex <= steps; stepIndex++) {
-					await new Promise(r => setTimeout(r, stepMs));
+					await new Promise(resolve => setTimeout(resolve, stepMs));
 					if (!isLatest())
 						return;
 					this.volume((target * stepIndex) / steps);

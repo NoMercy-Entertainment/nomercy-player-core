@@ -35,7 +35,7 @@ interface Item {
 
 const makeItem = (id: string | number, name?: string): Item => ({ id, name: name ?? `item-${id}` });
 function makeItems(count: number, prefix = 'i'): Item[] {
-	return Array.from({ length: count }, (_, idx) => makeItem(`${prefix}${idx}`));
+	return Array.from({ length: count }, (_item, idx) => makeItem(`${prefix}${idx}`));
 }
 
 describe('MediaList<T>', () => {

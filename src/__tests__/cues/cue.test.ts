@@ -44,7 +44,7 @@ describe('createCueList()', () => {
 				cue(0, 5, 'A'),
 				cue(10, 15, 'B'),
 			]);
-			expect(list.cues.map(c => c.payload.name)).toEqual(['A', 'B', 'C']);
+			expect(list.cues.map(cue => cue.payload.name)).toEqual(['A', 'B', 'C']);
 		});
 
 		it('preserves input order for cues with same start', () => {
@@ -53,7 +53,7 @@ describe('createCueList()', () => {
 				cue(0, 5, 'B'),
 				cue(0, 5, 'C'),
 			]);
-			expect(list.cues.map(c => c.payload.name)).toEqual(['A', 'B', 'C']);
+			expect(list.cues.map(cue => cue.payload.name)).toEqual(['A', 'B', 'C']);
 		});
 
 		it('does NOT mutate the input array', () => {
@@ -80,8 +80,8 @@ describe('createCueList()', () => {
 				cue(0, 10, 'A'),
 				cue(20, 30, 'B'),
 			]);
-			expect(list.active(5).map(c => c.payload.name)).toEqual(['A']);
-			expect(list.active(25).map(c => c.payload.name)).toEqual(['B']);
+			expect(list.active(5).map(cue => cue.payload.name)).toEqual(['A']);
+			expect(list.active(25).map(cue => cue.payload.name)).toEqual(['B']);
 		});
 
 		it('returns ALL overlapping cues', () => {
@@ -91,7 +91,7 @@ describe('createCueList()', () => {
 				cue(10, 15, 'C'),
 			]);
 			const active = list.active(12);
-			expect(active.map(c => c.payload.name).sort()).toEqual(['A', 'B', 'C']);
+			expect(active.map(cue => cue.payload.name).sort()).toEqual(['A', 'B', 'C']);
 		});
 
 		it('start boundary is inclusive', () => {
@@ -119,7 +119,7 @@ describe('createCueList()', () => {
 				cue(20, 30, 'C'),
 			]);
 			const active = list.active(25);
-			expect(active.map(c => c.payload.name)).toEqual(['A', 'B', 'C']);
+			expect(active.map(cue => cue.payload.name)).toEqual(['A', 'B', 'C']);
 		});
 	});
 
@@ -196,7 +196,7 @@ describe('createMutableCueList()', () => {
 
 	it('seeds and sorts the initial buffer', () => {
 		const list = createMutableCueList<Payload>([cue(20, 25, 'C'), cue(0, 5, 'A')]);
-		expect(list.cues.map(c => c.payload.name)).toEqual(['A', 'C']);
+		expect(list.cues.map(cue => cue.payload.name)).toEqual(['A', 'C']);
 	});
 
 	it('add() inserts in sorted order', () => {
@@ -204,13 +204,13 @@ describe('createMutableCueList()', () => {
 		list.add(cue(20, 25, 'C'));
 		list.add(cue(0, 5, 'A'));
 		list.add(cue(10, 15, 'B'));
-		expect(list.cues.map(c => c.payload.name)).toEqual(['A', 'B', 'C']);
+		expect(list.cues.map(cue => cue.payload.name)).toEqual(['A', 'B', 'C']);
 	});
 
 	it('active/next/prev see live data after add()', () => {
 		const list = createMutableCueList<Payload>();
 		list.add(cue(0, 10, 'A'));
-		expect(list.active(5).map(c => c.payload.name)).toEqual(['A']);
+		expect(list.active(5).map(cue => cue.payload.name)).toEqual(['A']);
 		list.add(cue(20, 30, 'B'));
 		expect(list.next(5)?.payload.name).toBe('B');
 		expect(list.prev(15)?.payload.name).toBe('A');
@@ -221,7 +221,7 @@ describe('createMutableCueList()', () => {
 		list.add({ start: 0, end: 5, payload: { name: 'A' }, id: 'a' });
 		list.add({ start: 10, end: 15, payload: { name: 'B' }, id: 'b' });
 		expect(list.remove('a')).toBe(true);
-		expect(list.cues.map(c => c.payload.name)).toEqual(['B']);
+		expect(list.cues.map(cue => cue.payload.name)).toEqual(['B']);
 	});
 
 	it('remove(id) returns false when no cue matches', () => {

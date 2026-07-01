@@ -148,11 +148,11 @@ describe('makePlayerErrorEvent()', () => {
 	});
 
 	it('each event instance has independent state', () => {
-		const a = makeEvent();
-		const b = makeEvent();
-		a.markHandled();
-		expect(a.isHandled()).toBe(true);
-		expect(b.isHandled()).toBe(false);
+		const eventA = makeEvent();
+		const eventB = makeEvent();
+		eventA.markHandled();
+		expect(eventA.isHandled()).toBe(true);
+		expect(eventB.isHandled()).toBe(false);
 	});
 });
 

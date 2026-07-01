@@ -64,11 +64,11 @@ export interface BackendShape {
 	load?: (url: string, hints?: BackendLoadHints) => Promise<void>;
 	/** `true` when the backend consumes `BackendLoadHints.startTime` natively — the kit then skips its post-load seek fallback. */
 	canStartAt?: boolean;
-	currentTime?: (t: number) => void;
+	currentTime?: (seconds: number) => void;
 	buffered?: () => number;
 	bufferedRanges?: () => TimeRanges;
 	seekable?: () => TimeRanges;
-	volume?: (v: number) => void;
+	volume?: (level: number) => void;
 	mute?: () => void;
 	unmute?: () => void;
 	playbackRate?: (rate: number) => void;

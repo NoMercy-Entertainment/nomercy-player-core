@@ -94,13 +94,13 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: any) => Promise<void>;
 	declare forward: (seconds?: number, opts?: any) => Promise<void>;
 	declare restart: (opts?: any) => Promise<void>;
-	declare time: { (): number; (t: number, opts?: any): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: any): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => any;
 	declare playbackRate: { (): number; (rate: number): void };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare mute: () => void;
 	declare unmute: () => void;
 	declare toggleMute: () => void;

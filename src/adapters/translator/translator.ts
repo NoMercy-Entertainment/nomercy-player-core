@@ -77,7 +77,7 @@ export class DefaultTranslator implements ITranslator {
 
 		if (!vars)
 			return resolved;
-		return resolved.replace(VAR_RE, (_, name: string) => vars[name] ?? `{${name}}`);
+		return resolved.replace(VAR_RE, (_match, name: string) => vars[name] ?? `{${name}}`);
 	}
 
 	/**
@@ -170,8 +170,8 @@ export class DefaultTranslator implements ITranslator {
 
 	removeTranslations(prefix: string, lang?: string): void {
 		const langs = lang ? [lang] : Object.keys(this.bundles);
-		for (const l of langs) {
-			const bundle = this.bundles[l];
+		for (const lang of langs) {
+			const bundle = this.bundles[lang];
 			if (!bundle)
 				continue;
 			for (const k of Object.keys(bundle)) {

@@ -120,7 +120,7 @@ export class Logger implements ILogger {
 
 		// When no sinks are registered, write directly to the console.
 		if (this.sinks.length === 0 && typeof console !== 'undefined') {
-			const consoleFor: Record<LogLevel, (...a: unknown[]) => void> = {
+			const consoleFor: Record<LogLevel, (...args: unknown[]) => void> = {
 				trace: console.trace,
 				debug: console.debug ?? console.log,
 				info: console.info ?? console.log,

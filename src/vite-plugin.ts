@@ -105,7 +105,7 @@ export function nomercyTranslationsPlugin(opts: NomercyTranslationsPluginOptions
 				return null;
 
 			pattern.lastIndex = 0;
-			const next = code.replace(pattern, (_, quote: string, glob: string) => {
+			const next = code.replace(pattern, (_match, quote: string, glob: string) => {
 				// Widen *.ts to *.{ts,js}: the same literal survives into package
 				// dists where the bundle files are .js — a bare .ts glob there
 				// silently matches nothing.

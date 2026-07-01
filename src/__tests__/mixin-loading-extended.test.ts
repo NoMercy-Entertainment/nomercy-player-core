@@ -56,7 +56,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare phase: () => string;
 	declare load: (item: BasePlaylistItem, opts?: Record<string, unknown>) => Promise<void>;
 	declare loadQueue: <T extends BasePlaylistItem>(url: string, parser?: (raw: string) => T[]) => Promise<void>;
-	declare time: { (): number; (t: number): number | Promise<void> };
+	declare time: { (): number; (seconds: number): number | Promise<void> };
 	declare queue: { (): ReadonlyArray<BasePlaylistItem>; (items: BasePlaylistItem[]): void };
 
 	constructor(id?: string | number) {
@@ -90,7 +90,7 @@ function wireBackend(
 	backend: {
 		load: (url: string, hints?: unknown) => Promise<void>;
 		canStartAt?: boolean;
-		currentTime?: (t: number) => void;
+		currentTime?: (seconds: number) => void;
 	},
 ): void {
 	(player as unknown as { backend: () => unknown }).backend = (): unknown => backend;
@@ -119,8 +119,8 @@ describe('loadingMethods — extended (LOAD-E)', () => {
 
 			const phases: string[] = [];
 			player.on('phase' as keyof BaseEventMap, (data: unknown) => {
-				const p = data as { from: string; to: string };
-				phases.push(p.to);
+				const phaseData = data as { from: string; to: string };
+				phases.push(phaseData.to);
 			});
 
 			wireBackend(player, { load: async (): Promise<void> => {} });
@@ -156,9 +156,9 @@ describe('loadingMethods — extended (LOAD-E)', () => {
 
 			const timeCallArgs: number[] = [];
 			const origTime = player.time.bind(player);
-			(player as unknown as { time: unknown }).time = (t?: number): number | Promise<void> => {
-				if (t !== undefined) {
-					timeCallArgs.push(t);
+			(player as unknown as { time: unknown }).time = (seconds?: number): number | Promise<void> => {
+				if (seconds !== undefined) {
+					timeCallArgs.push(seconds);
 					return Promise.resolve();
 				}
 				return origTime();
@@ -180,9 +180,9 @@ describe('loadingMethods — extended (LOAD-E)', () => {
 
 			const timeCallArgs: number[] = [];
 			const origTime = player.time.bind(player);
-			(player as unknown as { time: unknown }).time = (t?: number): number | Promise<void> => {
-				if (t !== undefined) {
-					timeCallArgs.push(t);
+			(player as unknown as { time: unknown }).time = (seconds?: number): number | Promise<void> => {
+				if (seconds !== undefined) {
+					timeCallArgs.push(seconds);
 					return Promise.resolve();
 				}
 				return origTime();
@@ -204,9 +204,9 @@ describe('loadingMethods — extended (LOAD-E)', () => {
 
 			const timeCallArgs: number[] = [];
 			const origTime = player.time.bind(player);
-			(player as unknown as { time: unknown }).time = (t?: number): number | Promise<void> => {
-				if (t !== undefined) {
-					timeCallArgs.push(t);
+			(player as unknown as { time: unknown }).time = (seconds?: number): number | Promise<void> => {
+				if (seconds !== undefined) {
+					timeCallArgs.push(seconds);
 					return Promise.resolve();
 				}
 				return origTime();

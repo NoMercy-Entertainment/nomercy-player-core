@@ -80,7 +80,7 @@ function makeAudioParam(initial: number = 0): AudioParam {
 	let value = initial;
 	return {
 		get value() { return value; },
-		set value(v: number) { value = v; },
+		set value(level: number) { value = level; },
 		setTargetAtTime: vi.fn((_target: number, _time: number, _tau: number) => {}),
 	} as unknown as AudioParam;
 }
@@ -239,8 +239,8 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 
 			const bandChanged: Array<{ band: EqBand }> = [];
 			const changes: unknown[] = [];
-			player.on('plugin:equalizer:band:changed' as never, (d: { band: EqBand }) => bandChanged.push(d));
-			player.on('plugin:equalizer:change' as never, (d: unknown) => changes.push(d));
+			player.on('plugin:equalizer:band:changed' as never, (data: { band: EqBand }) => bandChanged.push(data));
+			player.on('plugin:equalizer:change' as never, (data: unknown) => changes.push(data));
 
 			plugin.band({ frequency: 1000, gain: 6 });
 
@@ -290,7 +290,7 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 			const { plugin, player } = wireEqPlugin();
 
 			const bandChanged: Array<{ band: EqBand }> = [];
-			player.on('plugin:equalizer:band:changed' as never, (d: { band: EqBand }) => bandChanged.push(d));
+			player.on('plugin:equalizer:band:changed' as never, (data: { band: EqBand }) => bandChanged.push(data));
 
 			plugin.preGain(1.5);
 
@@ -366,8 +366,8 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 
 			const presetChanged: Array<{ name: string | undefined }> = [];
 			const changes: unknown[] = [];
-			player.on('plugin:equalizer:preset:changed' as never, (d: { name: string | undefined }) => presetChanged.push(d));
-			player.on('plugin:equalizer:change' as never, (d: unknown) => changes.push(d));
+			player.on('plugin:equalizer:preset:changed' as never, (data: { name: string | undefined }) => presetChanged.push(data));
+			player.on('plugin:equalizer:change' as never, (data: unknown) => changes.push(data));
 
 			plugin.preset('Rock');
 
@@ -432,8 +432,8 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 
 			const presetChanged: Array<{ name: string | undefined }> = [];
 			const changes: unknown[] = [];
-			player.on('plugin:equalizer:preset:changed' as never, (d: { name: string | undefined }) => presetChanged.push(d));
-			player.on('plugin:equalizer:change' as never, (d: unknown) => changes.push(d));
+			player.on('plugin:equalizer:preset:changed' as never, (data: { name: string | undefined }) => presetChanged.push(data));
+			player.on('plugin:equalizer:change' as never, (data: unknown) => changes.push(data));
 
 			plugin.preset('Rock');
 			presetChanged.length = 0;
@@ -578,8 +578,8 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 			const { plugin, player } = wireEqPlugin();
 
 			let lastChange: { bands: EqBand[]; selectedPreset: string | undefined } | undefined;
-			player.on('plugin:equalizer:change' as never, (d: { bands: EqBand[]; selectedPreset: string | undefined }) => {
-				lastChange = d;
+			player.on('plugin:equalizer:change' as never, (data: { bands: EqBand[]; selectedPreset: string | undefined }) => {
+				lastChange = data;
 			});
 
 			plugin.preset('Rock');

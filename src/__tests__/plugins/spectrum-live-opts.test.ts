@@ -31,10 +31,10 @@ function makeAnalyserStub(initialFftSize: number = 2048): AnalyserNode {
 	let smoothingTimeConstant = 0.8;
 	return {
 		get fftSize() { return fftSize; },
-		set fftSize(v: number) { fftSize = v; },
+		set fftSize(val: number) { fftSize = val; },
 		get frequencyBinCount() { return fftSize / 2; },
 		get smoothingTimeConstant() { return smoothingTimeConstant; },
-		set smoothingTimeConstant(v: number) { smoothingTimeConstant = v; },
+		set smoothingTimeConstant(val: number) { smoothingTimeConstant = val; },
 		getByteFrequencyData: (buf: Uint8Array) => { buf.fill(0); },
 		getByteTimeDomainData: (buf: Uint8Array) => { buf.fill(128); },
 		getFloatFrequencyData: (buf: Float32Array) => { buf.fill(-100); },

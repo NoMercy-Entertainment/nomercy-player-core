@@ -48,6 +48,7 @@ export interface AudioGraphEvents {
 
 /** Resolve a global AudioContext constructor across browsers. Returns `undefined` if unsupported. */
 function resolveAudioContextCtor(): (new (opts?: AudioContextOptions) => AudioContext) | undefined {
+	// WebKit prefixed AudioContext is not in lib.dom — accessed via local structural cast.
 	const audioGlobal = globalThis as unknown as {
 		AudioContext?: new (opts?: AudioContextOptions) => AudioContext;
 		webkitAudioContext?: new (opts?: AudioContextOptions) => AudioContext;
@@ -206,7 +207,6 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.player.on('play', resumeOnPlay);
 		this.lifecycle.addCleanup(() => this.player.off('play', resumeOnPlay));
 
-		// Bug 3 fix — crossfade source-swap remount:
 		// After a crossfade, WebAudioBackend promotes the secondary element to
 		// primary and emits 'backend:sourceswap' with the new source node. If
 		// this plugin's source still references the old (now-disconnected) node,
@@ -223,7 +223,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 
 		try {
 			const backend = this.player.backend?.() as
-				| { on?: (event: string, fn: (p: { sourceNode: AudioNode; analysisNode?: AudioNode }) => void) => void; off?: (event: string, fn: (p: { sourceNode: AudioNode; analysisNode?: AudioNode }) => void) => void }
+				| { on?: (event: string, fn: (payload: { sourceNode: AudioNode; analysisNode?: AudioNode }) => void) => void; off?: (event: string, fn: (payload: { sourceNode: AudioNode; analysisNode?: AudioNode }) => void) => void }
 				| undefined;
 
 			if (typeof backend?.on === 'function') {
@@ -423,7 +423,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	 * Safe to call if the pair was never routed — no-op in that case.
 	 */
 	unroute(from: AudioNode, to: AudioNode): void {
-		const idx = this.routes.findIndex(([f, t]) => f === from && t === to);
+		const idx = this.routes.findIndex(([fromNode, toNode]) => fromNode === from && toNode === to);
 		if (idx >= 0)
 			this.routes.splice(idx, 1);
 		try {
@@ -536,8 +536,8 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 
 		// Disconnect every owned node from any prior wiring.
 		this.disconnectSafe(this.source);
-		for (const n of this.preEffects) this.disconnectSafe(n);
-		for (const n of this.postEffects) this.disconnectSafe(n);
+		for (const node of this.preEffects) this.disconnectSafe(node);
+		for (const node of this.postEffects) this.disconnectSafe(node);
 
 		const chain: AudioNode[] = [this.source, ...this.preEffects, ...this.postEffects];
 		for (let i = 0; i < chain.length - 1; i++) {

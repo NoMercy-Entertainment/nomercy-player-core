@@ -64,8 +64,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare pause: (opts?: any) => Promise<void>;
 	declare stop: (opts?: any) => Promise<void>;
 	declare t: (key: string, vars?: Record<string, string>) => string;
-	declare time: { (): number; (t: number, opts?: any): Promise<void> };
-	declare volume: { (): number; (v: number): void };
+	declare time: { (): number; (seconds: number, opts?: any): Promise<void> };
+	declare volume: { (): number; (level: number): void };
 	declare experimental: any;
 
 	constructor(id?: string | number) {
@@ -164,7 +164,7 @@ describe('VisualizationPlugin', () => {
 			mockPlayer.on('plugin:failed' as any, (data: any) => { failures.push(data?.id); });
 
 			mockPlayer.addPlugin(AudioGraphPlugin);
-			await new Promise(r => setTimeout(r, 0));
+			await new Promise(resolve => setTimeout(resolve, 0));
 
 			expect(failures).toContain('audio-graph');
 			// AudioGraph is NOT in _plugins after failing.
@@ -176,7 +176,7 @@ describe('VisualizationPlugin', () => {
 			await mockPlayer.ready();
 
 			mockPlayer.addPlugin(AudioGraphPlugin);
-			await new Promise(r => setTimeout(r, 0));
+			await new Promise(resolve => setTimeout(resolve, 0));
 
 			// Spectrum requires audio-graph which is not in _plugins.
 			expect(() => mockPlayer.addPlugin(SpectrumPlugin)).toThrow('missing-dep');

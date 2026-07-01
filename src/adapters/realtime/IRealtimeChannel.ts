@@ -21,7 +21,7 @@ export interface IRealtimeChannel {
 
 	/**
 	 * Close the connection. `code` and `reason` follow the WebSocket close
-	 * handshake convention (RFC 6455 §7.4). Omit both for a clean 1000 close.
+	 * handshake convention (RFC 6455). Omit both for a clean 1000 close.
 	 */
 	close(code?: number, reason?: string): void;
 

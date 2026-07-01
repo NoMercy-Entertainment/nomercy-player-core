@@ -87,7 +87,7 @@ export function parseLrc(text: string): CueList<LrcPayload> {
 		}
 	}
 
-	rawCues.sort((a, b) => a.start - b.start);
+	rawCues.sort((itemA, itemB) => itemA.start - itemB.start);
 
 	const cues: Cue<LrcPayload>[] = rawCues.map((cue, idx) => {
 		const nextStart = rawCues[idx + 1]?.start;

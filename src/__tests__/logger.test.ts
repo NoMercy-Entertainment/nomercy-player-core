@@ -45,7 +45,7 @@ describe('Logger', () => {
 	});
 
 	afterEach(() => {
-		Object.values(consoleSpies).forEach(s => s.mockRestore());
+		Object.values(consoleSpies).forEach(spy => spy.mockRestore());
 	});
 
 	// ─────────────────────────────────────────────────────────────────────
@@ -204,13 +204,13 @@ describe('Logger', () => {
 
 		it('multiple sinks all receive each log line', () => {
 			const logger = new Logger();
-			const a = vi.fn();
-			const b = vi.fn();
-			logger.addSink(a);
-			logger.addSink(b);
+			const sinkA = vi.fn();
+			const sinkB = vi.fn();
+			logger.addSink(sinkA);
+			logger.addSink(sinkB);
 			logger.info('hello');
-			expect(a).toHaveBeenCalledTimes(1);
-			expect(b).toHaveBeenCalledTimes(1);
+			expect(sinkA).toHaveBeenCalledTimes(1);
+			expect(sinkB).toHaveBeenCalledTimes(1);
 		});
 
 		it('console fallback is suppressed when at least one sink is registered', () => {
@@ -232,14 +232,14 @@ describe('Logger', () => {
 
 		it('throwing sink does not kill the dispatch chain', () => {
 			const logger = new Logger();
-			const a = vi.fn(() => {
+			const throwingSink = vi.fn(() => {
 				throw new Error('boom');
 			});
-			const b = vi.fn();
-			logger.addSink(a);
-			logger.addSink(b);
+			const normalSink = vi.fn();
+			logger.addSink(throwingSink);
+			logger.addSink(normalSink);
 			expect(() => logger.info('hello')).not.toThrow();
-			expect(b).toHaveBeenCalled();
+			expect(normalSink).toHaveBeenCalled();
 		});
 	});
 

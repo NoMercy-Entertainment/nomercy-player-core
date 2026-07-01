@@ -63,8 +63,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare pause: (opts?: unknown) => Promise<void>;
 	declare stop: (opts?: unknown) => Promise<void>;
 	declare t: (key: string, vars?: Record<string, string>) => string;
-	declare time: { (): number; (t: number, opts?: unknown): Promise<void> };
-	declare volume: { (): number; (v: number): void };
+	declare time: { (): number; (seconds: number, opts?: unknown): Promise<void> };
+	declare volume: { (): number; (level: number): void };
 	declare experimental: unknown;
 
 	constructor(id?: string | number) {
@@ -181,7 +181,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const timeCalls: number[] = [];
-			(mockPlayer as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
+			(mockPlayer as unknown as { time: (seconds: number) => void }).time = (seconds: number) => { timeCalls.push(seconds); };
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -200,7 +200,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
 			const volumeCalls: number[] = [];
-			(mockPlayer as unknown as { volume: (v: number) => void }).volume = (v: number) => { volumeCalls.push(v); };
+			(mockPlayer as unknown as { volume: (level: number) => void }).volume = (level: number) => { volumeCalls.push(level); };
 
 			(inst as unknown as { handleCommand: (cmd: unknown) => void }).handleCommand({
 				type: 'nm:command',
@@ -304,12 +304,12 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 			await mockPlayer.ready();
 			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
-			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://old.example.com')).toBe(true);
+			expect((inst as unknown as { isOriginAllowed: (opts: string) => boolean }).isOriginAllowed('https://old.example.com')).toBe(true);
 
 			inst.options({ allowedOrigins: ['https://new.example.com'] });
 
-			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://old.example.com')).toBe(false);
-			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://new.example.com')).toBe(true);
+			expect((inst as unknown as { isOriginAllowed: (opts: string) => boolean }).isOriginAllowed('https://old.example.com')).toBe(false);
+			expect((inst as unknown as { isOriginAllowed: (opts: string) => boolean }).isOriginAllowed('https://new.example.com')).toBe(true);
 		});
 
 		it('options({ allowedOrigins: "*" }) accepts any origin', async () => {
@@ -320,7 +320,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 
 			inst.options({ allowedOrigins: '*' });
 
-			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://any.origin.com')).toBe(true);
+			expect((inst as unknown as { isOriginAllowed: (opts: string) => boolean }).isOriginAllowed('https://any.origin.com')).toBe(true);
 		});
 	});
 
@@ -357,7 +357,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 
 			inst.allowedOrigins(['https://replaced.com']);
 
-			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://replaced.com')).toBe(true);
+			expect((inst as unknown as { isOriginAllowed: (opts: string) => boolean }).isOriginAllowed('https://replaced.com')).toBe(true);
 		});
 
 		it('setter(string) wraps in array', async () => {
@@ -368,7 +368,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 
 			inst.allowedOrigins('https://single.com');
 
-			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://single.com')).toBe(true);
+			expect((inst as unknown as { isOriginAllowed: (opts: string) => boolean }).isOriginAllowed('https://single.com')).toBe(true);
 		});
 	});
 
@@ -381,7 +381,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 			await mockPlayer.ready();
 			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
-			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://anything.com')).toBe(false);
+			expect((inst as unknown as { isOriginAllowed: (opts: string) => boolean }).isOriginAllowed('https://anything.com')).toBe(false);
 		});
 
 		it('"*" in list accepts any origin', async () => {
@@ -390,7 +390,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 			await mockPlayer.ready();
 			const inst = mockPlayer.getPlugin(EmbedPlugin)!;
 
-			expect((inst as unknown as { isOriginAllowed: (o: string) => boolean }).isOriginAllowed('https://random.com')).toBe(true);
+			expect((inst as unknown as { isOriginAllowed: (opts: string) => boolean }).isOriginAllowed('https://random.com')).toBe(true);
 		});
 	});
 
@@ -503,7 +503,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 				mockPlayer.addPlugin(EmbedPlugin, { allowedOrigins: 'https://host.example.com' });
 				await mockPlayer.ready();
 
-				(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', { source: 'user' });
+				(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('play', { source: 'user' });
 
 				expect(stub.postMessage).toHaveBeenCalledWith(
 					expect.objectContaining({ type: 'nm:event', name: 'play' }),
@@ -525,10 +525,10 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 				});
 				await mockPlayer.ready();
 
-				(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('pause', {});
+				(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('pause', {});
 				expect(stub.postMessage).not.toHaveBeenCalled();
 
-				(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', {});
+				(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('play', {});
 				expect(stub.postMessage).toHaveBeenCalledOnce();
 			}
 			finally {
@@ -552,7 +552,7 @@ describe('EmbedPlugin — deep behavioral coverage', () => {
 				// Reset call count — ready event was forwarded during p.ready() above.
 				stub.postMessage.mockClear();
 
-				(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', {});
+				(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('play', {});
 				expect(stub.postMessage).not.toHaveBeenCalled();
 			}
 			finally {

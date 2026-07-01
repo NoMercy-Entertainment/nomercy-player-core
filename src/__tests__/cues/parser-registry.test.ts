@@ -41,11 +41,11 @@ describe('CueParserRegistry', () => {
 		});
 
 		it('replaces a parser with the same id', () => {
-			const a = makeParser('vtt');
-			const b = makeParser('vtt');
-			registry.register(a);
-			registry.register(b);
-			expect(registry.findById('vtt')).toBe(b);
+			const parserA = makeParser('vtt');
+			const parserB = makeParser('vtt');
+			registry.register(parserA);
+			registry.register(parserB);
+			expect(registry.findById('vtt')).toBe(parserB);
 		});
 
 		it('default registration appends to the list (most-recent gets resolution priority)', () => {
@@ -76,11 +76,11 @@ describe('CueParserRegistry', () => {
 
 	describe('resolve()', () => {
 		it('returns the first matching parser (most-recently-registered wins)', () => {
-			const a = makeParser('a', true);
-			const b = makeParser('b', true);
-			registry.register(a);
-			registry.register(b);
-			expect(registry.resolve('foo.lrc')).toBe(b);
+			const parserA = makeParser('a', true);
+			const parserB = makeParser('b', true);
+			registry.register(parserA);
+			registry.register(parserB);
+			expect(registry.resolve('foo.lrc')).toBe(parserB);
 		});
 
 		it('skips parsers whose canParse returns false', () => {

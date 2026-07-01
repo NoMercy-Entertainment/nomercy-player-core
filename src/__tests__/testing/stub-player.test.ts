@@ -243,12 +243,12 @@ describe('StubPlayer', () => {
 
 		it('register replaces same-id parser', () => {
 			const player = new StubPlayer();
-			const a = dummy('vtt');
-			const b = dummy('vtt');
-			player.registerCueParser(a);
-			player.registerCueParser(b);
+			const parserA = dummy('vtt');
+			const parserB = dummy('vtt');
+			player.registerCueParser(parserA);
+			player.registerCueParser(parserB);
 			expect(player.cueParsers()).toHaveLength(1);
-			expect(player.cueParsers()[0]).toBe(b);
+			expect(player.cueParsers()[0]).toBe(parserB);
 		});
 
 		it('register prepends when prepend=true', () => {

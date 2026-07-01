@@ -54,8 +54,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare pause: (opts?: any) => Promise<void>;
 	declare stop: (opts?: any) => Promise<void>;
 	declare t: (key: string, vars?: Record<string, string>) => string;
-	declare time: { (): number; (t: number, opts?: any): Promise<void> };
-	declare volume: { (): number; (v: number): void };
+	declare time: { (): number; (seconds: number, opts?: any): Promise<void> };
+	declare volume: { (): number; (level: number): void };
 	declare experimental: any;
 
 	constructor(id?: string | number) {
@@ -310,7 +310,7 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			// (built on top of setTimeout) actually fires. Direct awaits on
 			// requestAnimationFrame microtasks don't always yield to the
 			// macrotask queue under happy-dom.
-			await new Promise<void>(r => setTimeout(r, 80));
+			await new Promise<void>(resolve => setTimeout(resolve, 80));
 
 			expect(fn).toHaveBeenCalled();
 			const lastCall = fn.mock.calls[fn.mock.calls.length - 1]!;
@@ -329,14 +329,14 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			const fn = vi.fn();
 			inst.addRenderer(fn);
 
-			await new Promise<void>(r => setTimeout(r, 80));
+			await new Promise<void>(resolve => setTimeout(resolve, 80));
 			const callsBefore = fn.mock.calls.length;
 			expect(callsBefore).toBeGreaterThan(0);
 
 			inst.removeRenderer(fn);
 
 			// Snapshot count, wait again, expect no growth.
-			await new Promise<void>(r => setTimeout(r, 80));
+			await new Promise<void>(resolve => setTimeout(resolve, 80));
 			const callsAfter = fn.mock.calls.length;
 			expect(callsAfter).toBe(callsBefore);
 		});

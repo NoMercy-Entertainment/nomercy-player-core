@@ -7,7 +7,7 @@
 // -----------------------------------------------------------------------------
 
 /**
- * Spec §T metrics instrumentation lock-in.
+ * Metrics instrumentation lock-in.
  *
  * Tests the per-event hooks installed during `setup()`:
  *  - TTFF (time-to-first-frame): captured on first `play` → `firstFrame` pair.
@@ -85,7 +85,7 @@ describe('metrics instrumentation', () => {
 		expect(mockPlayer.metrics().ttff).toBe(0);
 
 		mockPlayer.emit('play', {});
-		await new Promise(r => setTimeout(r, 30));
+		await new Promise(resolve => setTimeout(resolve, 30));
 		mockPlayer.emit('firstFrame');
 
 		const ttff = mockPlayer.metrics().ttff;
@@ -98,13 +98,13 @@ describe('metrics instrumentation', () => {
 		await mockPlayer.ready();
 
 		mockPlayer.emit('play', {});
-		await new Promise(r => setTimeout(r, 20));
+		await new Promise(resolve => setTimeout(resolve, 20));
 		mockPlayer.emit('firstFrame');
 		const firstTtff = mockPlayer.metrics().ttff;
 
 		// Second play+frame — should NOT reset TTFF.
 		mockPlayer.emit('play', {});
-		await new Promise(r => setTimeout(r, 50));
+		await new Promise(resolve => setTimeout(resolve, 50));
 		mockPlayer.emit('firstFrame');
 
 		expect(mockPlayer.metrics().ttff).toBe(firstTtff);
@@ -117,7 +117,7 @@ describe('metrics instrumentation', () => {
 		expect(mockPlayer.metrics().joinTime).toBe(0);
 
 		mockPlayer.emit('play', {});
-		await new Promise(r => setTimeout(r, 25));
+		await new Promise(resolve => setTimeout(resolve, 25));
 		mockPlayer.emit('firstFrame');
 
 		expect(mockPlayer.metrics().joinTime).toBeGreaterThan(0);
@@ -131,12 +131,12 @@ describe('metrics instrumentation', () => {
 
 		// Stall 1
 		mockPlayer.emit('backend:waiting');
-		await new Promise(r => setTimeout(r, 30));
+		await new Promise(resolve => setTimeout(resolve, 30));
 		mockPlayer.emit('backend:loaded');
 
 		// Stall 2
 		mockPlayer.emit('backend:waiting');
-		await new Promise(r => setTimeout(r, 30));
+		await new Promise(resolve => setTimeout(resolve, 30));
 		mockPlayer.emit('play', {});
 
 		const ratio = mockPlayer.metrics().rebufferRatio;
@@ -158,7 +158,7 @@ describe('metrics instrumentation', () => {
 		const mockPlayer = make('m6', { metricsIntervalMs: 0 });
 		await mockPlayer.ready();
 
-		await new Promise(r => setTimeout(r, 30));
+		await new Promise(resolve => setTimeout(resolve, 30));
 		const snap = mockPlayer.metrics();
 		expect(snap.sessionDurationMs).toBeGreaterThan(0);
 	});
@@ -170,7 +170,7 @@ describe('metrics instrumentation', () => {
 		const seen: any[] = [];
 		mockPlayer.on('playback:metrics', (data: unknown) => seen.push(data));
 
-		await new Promise(r => setTimeout(r, 130));
+		await new Promise(resolve => setTimeout(resolve, 130));
 
 		expect(seen.length).toBeGreaterThanOrEqual(2);
 	});
@@ -182,7 +182,7 @@ describe('metrics instrumentation', () => {
 		const seen: any[] = [];
 		mockPlayer.on('playback:metrics', (data: unknown) => seen.push(data));
 
-		await new Promise(r => setTimeout(r, 100));
+		await new Promise(resolve => setTimeout(resolve, 100));
 
 		expect(seen.length).toBe(0);
 	});

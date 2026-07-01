@@ -188,12 +188,12 @@ describe('playerStateMethods — extended (PS-E)', () => {
 	describe('_transitionPhase no-op when same phase', () => {
 		it('does not emit phase event when transitioning to current phase', () => {
 			const player = makePlayer('pse-noop');
-			(player as unknown as { _transitionPhase: (p: string) => void })._transitionPhase('idle');
+			(player as unknown as { _transitionPhase: (phase: string) => void })._transitionPhase('idle');
 
 			const phases: unknown[] = [];
 			player.on('phase' as keyof BaseEventMap, (data: unknown) => { phases.push(data); });
 
-			(player as unknown as { _transitionPhase: (p: string) => void })._transitionPhase('idle');
+			(player as unknown as { _transitionPhase: (phase: string) => void })._transitionPhase('idle');
 
 			expect(phases).toHaveLength(0);
 		});
@@ -238,7 +238,7 @@ describe('playerStateMethods — extended (PS-E)', () => {
 	describe('_assertReady() guard branches', () => {
 		it('throws core:player/disposed when phase is "disposed"', () => {
 			const player = makePlayer('pse-disposed');
-			const setup = player.setup as unknown as ((c: Record<string, unknown>) => MockPlayer);
+			const setup = player.setup as unknown as ((config: Record<string, unknown>) => MockPlayer);
 			setup.call(player, {});
 			(player as unknown as { _phase: string })._phase = 'disposed';
 

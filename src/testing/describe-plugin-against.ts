@@ -26,8 +26,9 @@ interface VitestGlobals {
 }
 
 function getGlobals(): VitestGlobals {
-	const g = globalThis as unknown as Partial<VitestGlobals>;
-	if (!g.describe || !g.it || !g.beforeEach || !g.afterEach) {
+	// Vitest injects test globals at runtime; not typed on globalThis — narrowed via local interface.
+	const globals = globalThis as unknown as Partial<VitestGlobals>;
+	if (!globals.describe || !globals.it || !globals.beforeEach || !globals.afterEach) {
 		throw new StateError({
 			code: 'core:test/vitest-globals-missing',
 			severity: 'fatal',
@@ -36,7 +37,7 @@ function getGlobals(): VitestGlobals {
 			suggestion: 'Ensure vitest.config has `test.globals: true`.',
 		});
 	}
-	return g as VitestGlobals;
+	return globals as VitestGlobals;
 }
 
 export interface PluginAgainstTestContext<C extends typeof Plugin<any, any, any>, P extends IPlayer> {
@@ -93,25 +94,28 @@ export function describePluginAgainst<C extends typeof Plugin<any, any, any>, P 
 	opts: DescribePluginAgainstOptions<C, P>,
 ): void {
 	const { describe, beforeEach, afterEach } = getGlobals();
+	// Plugin class static `id` is not on the TS constructor type — accessed via structural narrowing.
 	const id = (PluginClass as unknown as { id?: string }).id ?? 'plugin';
 
 	describe(`Plugin (real-player): ${id}`, () => {
 		const ctx: PluginAgainstTestContext<C, P> = {
-			player: undefined as unknown as P,
-			plugin: undefined as unknown as InstanceType<C>,
+			player: undefined as unknown as P, // Populated in beforeEach; undefined is the pre-init sentinel.
+			plugin: undefined as unknown as InstanceType<C>, // Populated in beforeEach; undefined is the pre-init sentinel.
 		};
 
 		let listenerBaseline = 0;
 
 		beforeEach(async () => {
 			ctx.player = await opts.player();
+			// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
 			listenerBaseline = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
 
 			// Real player owns plugin registration. Caller's player factory is expected
 			// to return a player ready for plugin registration (post-setup).
+			// addPlugin/getPlugin are part of the player mixin surface but not on IPlayer — accessed via structural narrowing.
 			const playerWithAddPlugin = ctx.player as unknown as {
-				addPlugin?: (P: C, opts?: unknown) => unknown;
-				getPlugin?: (P: C) => InstanceType<C>;
+				addPlugin?: (PluginCtor: C, opts?: unknown) => unknown;
+				getPlugin?: (PluginCtor: C) => InstanceType<C>;
 			};
 			if (typeof playerWithAddPlugin.addPlugin !== 'function') {
 				throw new StateError({
@@ -143,7 +147,8 @@ export function describePluginAgainst<C extends typeof Plugin<any, any, any>, P 
 		});
 
 		afterEach(async () => {
-			const playerWithRemove = ctx.player as unknown as { removePlugin?: (P: C) => void; dispose?: () => void };
+			// removePlugin/dispose are mixin methods not on IPlayer — accessed via structural narrowing.
+		const playerWithRemove = ctx.player as unknown as { removePlugin?: (PluginCtor: C) => void; dispose?: () => void };
 			if (typeof playerWithRemove.removePlugin === 'function') {
 				playerWithRemove.removePlugin(PluginClass);
 			}
@@ -154,6 +159,7 @@ export function describePluginAgainst<C extends typeof Plugin<any, any, any>, P 
 				playerWithRemove.dispose();
 
 			if (!opts.skipLeakAssertion) {
+				// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
 				const after = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
 				const leaked = after - listenerBaseline;
 				if (leaked > 0) {

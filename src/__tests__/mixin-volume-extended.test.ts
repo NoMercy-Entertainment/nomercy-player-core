@@ -50,7 +50,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare setup: (config: Record<string, unknown>) => this;
 	declare ready: () => Promise<void>;
 	declare dispose: () => void;
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare mute: () => void;
 	declare unmute: () => void;
 	declare toggleMute: () => void;
@@ -92,7 +92,7 @@ interface MockBackend {
 function wireBackend(player: MockPlayer): MockBackend {
 	const mockBackend: MockBackend = { volumeCalls: [], muteCalls: 0, unmuteCalls: 0 };
 	(player as unknown as { backend: () => unknown }).backend = (): unknown => ({
-		volume: (v: number): void => { mockBackend.volumeCalls.push(v); },
+		volume: (level: number): void => { mockBackend.volumeCalls.push(level); },
 		mute: (): void => { mockBackend.muteCalls++; },
 		unmute: (): void => { mockBackend.unmuteCalls++; },
 	});
@@ -213,7 +213,7 @@ describe('volumeMethods — extended (VOL-E)', () => {
 		player.volume(50);
 
 		expect(player.volume()).toBe(50);
-		expect(muteEvents.some(e => e.muted === false)).toBe(true);
+		expect(muteEvents.some(event => event.muted === false)).toBe(true);
 	});
 
 	it('VOL-E12: volumeUp(10) raises volume by 10', () => {

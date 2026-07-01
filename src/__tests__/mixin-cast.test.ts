@@ -73,13 +73,13 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare forward: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare restart: (opts?: unknown) => Promise<void>;
-	declare time: { (): number; (t: number, opts?: unknown): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: unknown): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => unknown;
 	declare playbackRate: { (): number; (rate: number): void };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare mute: () => void;
 	declare unmute: () => void;
 	declare toggleMute: () => void;
@@ -155,7 +155,7 @@ interface CastGlobal {
 	cast?: {
 		framework?: {
 			CastContext?: {
-				getInstance: () => { requestSession: () => Promise<void>; setOptions: (o: unknown) => void };
+				getInstance: () => { requestSession: () => Promise<void>; setOptions: (options: unknown) => void };
 			};
 		};
 		chrome?: {
@@ -258,7 +258,7 @@ describe('transferTo("cast")', () => {
 
 		const player = setupPlayer({ cast: { autoLoad: false } });
 		const stateEvents: CastState[] = [];
-		player.on('castState' as never, (d: { state: CastState }) => stateEvents.push(d.state));
+		player.on('castState' as never, (data: { state: CastState }) => stateEvents.push(data.state));
 
 		await player.transferTo('cast');
 
@@ -280,7 +280,7 @@ describe('transferTo("cast")', () => {
 
 		const player = setupPlayer({ cast: { autoLoad: false } });
 		const stateEvents: CastState[] = [];
-		player.on('castState' as never, (d: { state: CastState }) => stateEvents.push(d.state));
+		player.on('castState' as never, (data: { state: CastState }) => stateEvents.push(data.state));
 
 		await expect(player.transferTo('cast')).rejects.toThrow('user cancelled');
 
@@ -326,7 +326,7 @@ describe('transferTo("airplay")', () => {
 		} as unknown as MockPlayer['videoElement'];
 
 		const stateEvents: CastState[] = [];
-		player.on('castState' as never, (d: { state: CastState }) => stateEvents.push(d.state));
+		player.on('castState' as never, (data: { state: CastState }) => stateEvents.push(data.state));
 
 		await player.transferTo('airplay');
 
@@ -340,7 +340,7 @@ describe('transferTo("airplay")', () => {
 		player.videoElement = undefined;
 
 		const stateEvents: CastState[] = [];
-		player.on('castState' as never, (d: { state: CastState }) => stateEvents.push(d.state));
+		player.on('castState' as never, (data: { state: CastState }) => stateEvents.push(data.state));
 
 		await player.transferTo('airplay');
 		expect(stateEvents).toContain(CastState.CONNECTING);
@@ -406,7 +406,7 @@ describe('transferTo("remote-playback")', () => {
 		});
 
 		const stateEvents: CastState[] = [];
-		player.on('castState' as never, (d: { state: CastState }) => stateEvents.push(d.state));
+		player.on('castState' as never, (data: { state: CastState }) => stateEvents.push(data.state));
 
 		await player.transferTo('remote-playback');
 
@@ -434,7 +434,7 @@ describe('transferTo("remote-playback")', () => {
 		});
 
 		const stateEvents: CastState[] = [];
-		player.on('castState' as never, (d: { state: CastState }) => stateEvents.push(d.state));
+		player.on('castState' as never, (data: { state: CastState }) => stateEvents.push(data.state));
 
 		await expect(player.transferTo('remote-playback')).rejects.toThrow('user dismissed');
 		expect(stateEvents[stateEvents.length - 1]).toBe(CastState.AVAILABLE);
@@ -457,7 +457,7 @@ describe('transferTo("local") and unknown targets', () => {
 	it('transferTo("local") emits DISCONNECTED state', async () => {
 		const player = setupPlayer();
 		const stateEvents: CastState[] = [];
-		player.on('castState' as never, (d: { state: CastState }) => stateEvents.push(d.state));
+		player.on('castState' as never, (data: { state: CastState }) => stateEvents.push(data.state));
 
 		await player.transferTo('local');
 

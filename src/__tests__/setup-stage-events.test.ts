@@ -7,7 +7,7 @@
 // -----------------------------------------------------------------------------
 
 /**
- * Lock-in test for the canonical setup-stage event order. Spec §14:
+ * Lock-in test for the canonical setup-stage event order:
  *
  *   beforeSetup → setupStart → configResolved → pluginsRegistering →
  *   pluginsRegistered → streamsReady → authReady → playlistResolving? →

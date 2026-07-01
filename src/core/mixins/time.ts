@@ -36,11 +36,9 @@ export interface TimeInternalState {
 // ──────────────────────────────────────────────────────────────────────────
 
 function _emptyTimeRanges(): TimeRanges {
-	return {
-		length: 0,
-		start: (): number => 0,
-		end: (): number => 0,
-	} as unknown as TimeRanges;
+	// Stub implements the TimeRanges shape; the DOM interface has no constructor — opaque cast required.
+	const stub: unknown = { length: 0, start: (): number => 0, end: (): number => 0 };
+	return stub as unknown as TimeRanges; // opaque: DOM interface has no constructor
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -62,11 +60,11 @@ export const timeMethods = {
 	 * Negative values are clamped to 0. `opts.source` flows through to the
 	 * `seek` / `seeked` payloads so listeners can attribute the seek origin.
 	 */
-	time(this: Internals, t?: number, opts: ActionOptions = {}): number | Promise<void> {
-		if (t === undefined)
+	time(this: Internals, seconds?: number, opts: ActionOptions = {}): number | Promise<void> {
+		if (seconds === undefined)
 			return this._internalCurrentTime;
 		this._assertReady();
-		const target = Math.max(0, t);
+		const target = Math.max(0, seconds);
 
 		return (async () => {
 			const result = await this._dispatchBefore<{ time: number; source?: string }>('beforeSeek', {

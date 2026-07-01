@@ -8,7 +8,7 @@
 
 /**
  * Locks the platform-policy wires (`pauseWhenHidden`, `onOffline`, `wakeLock`)
- * and the `now()` clock source per spec §G. Builds a custom in-memory IPlatform
+ * and the `now()` clock source. Builds a custom in-memory IPlatform
  * so visibility / network / wake-lock state changes are deterministic.
  */
 
@@ -80,8 +80,8 @@ interface FakeHandles {
 }
 
 function buildFakePlatform(): FakeHandles {
-	const visListeners = new Set<(v: boolean) => void>();
-	const netListeners = new Set<(s: { online: boolean; type: any }) => void>();
+	const visListeners = new Set<(visible: boolean) => void>();
+	const netListeners = new Set<(state: { online: boolean; type: any }) => void>();
 	let online = true;
 	let visible = true;
 	let held = false;
@@ -124,9 +124,9 @@ function buildFakePlatform(): FakeHandles {
 
 	return {
 		platform,
-		flipVisibility(v: boolean) {
-			visible = v;
-			for (const fn of visListeners) fn(v);
+		flipVisibility(isVisible: boolean) {
+			visible = isVisible;
+			for (const fn of visListeners) fn(isVisible);
 		},
 		flipNetwork(state: boolean) {
 			online = state;
@@ -185,7 +185,7 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 		});
 
 		fake.flipVisibility(false);
-		await new Promise(r => setTimeout(r, 10));
+		await new Promise(resolve => setTimeout(resolve, 10));
 
 		expect(pauseFired).toBe(false);
 	});
@@ -231,7 +231,7 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 		});
 
 		fake.flipNetwork(false);
-		await new Promise(r => setTimeout(r, 10));
+		await new Promise(resolve => setTimeout(resolve, 10));
 
 		expect(events).toContain('network:offline');
 		expect(pauseFired).toBe(false);
@@ -254,7 +254,7 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 		});
 
 		fake.flipNetwork(false);
-		await new Promise(r => setTimeout(r, 10));
+		await new Promise(resolve => setTimeout(resolve, 10));
 
 		expect(events).not.toContain('network:offline');
 		expect(pauseFired).toBe(false);

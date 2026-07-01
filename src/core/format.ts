@@ -20,8 +20,8 @@
  *
  * @param s - The raw string to escape.
  */
-export function escapeHtml(s: string): string {
-	return s.replace(/[&<>"']/g, (c) => {
+export function escapeHtml(str: string): string {
+	return str.replace(/[&<>"']/g, (char) => {
 		const entities: Record<string, string> = {
 			'&': '&amp;',
 			'<': '&lt;',
@@ -30,7 +30,7 @@ export function escapeHtml(s: string): string {
 			'\'': '&#39;',
 		};
 
-		return entities[c]!;
+		return entities[char]!;
 	});
 }
 

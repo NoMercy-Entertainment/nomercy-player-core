@@ -156,7 +156,7 @@ describe('MixerPlugin extended', () => {
 			const mockPlayer = makePlayer('mx-2');
 			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			const events: Array<{ muted: boolean }> = [];
-			mockPlayer.on('plugin:mixer:mute:changed' as any, (d: { muted: boolean }) => events.push(d));
+			mockPlayer.on('plugin:mixer:mute:changed' as any, (data: { muted: boolean }) => events.push(data));
 
 			mixer.muted(true);
 
@@ -170,7 +170,7 @@ describe('MixerPlugin extended', () => {
 			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			mixer.muted(true);
 			const events: Array<{ muted: boolean }> = [];
-			mockPlayer.on('plugin:mixer:mute:changed' as any, (d: { muted: boolean }) => events.push(d));
+			mockPlayer.on('plugin:mixer:mute:changed' as any, (data: { muted: boolean }) => events.push(data));
 
 			mixer.muted(false);
 
@@ -183,7 +183,7 @@ describe('MixerPlugin extended', () => {
 			const mockPlayer = makePlayer('mx-4');
 			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			const events: unknown[] = [];
-			mockPlayer.on('plugin:mixer:mute:changed' as any, (d: unknown) => events.push(d));
+			mockPlayer.on('plugin:mixer:mute:changed' as any, (data: unknown) => events.push(data));
 
 			mixer.muted(false);
 
@@ -258,7 +258,7 @@ describe('MixerPlugin extended', () => {
 			const mockPlayer = makePlayer('mx-12');
 			const { mixer } = makeInstrumentedMixer(mockPlayer);
 			const events: unknown[] = [];
-			mockPlayer.on('plugin:mixer:saved' as any, (d: unknown) => events.push(d));
+			mockPlayer.on('plugin:mixer:saved' as any, (data: unknown) => events.push(data));
 			mixer.save();
 			expect(events).toHaveLength(0);
 		});
@@ -269,7 +269,7 @@ describe('MixerPlugin extended', () => {
 			const { mixer } = makeInstrumentedMixer(mockPlayer, { persistKey: 'mixer-state' });
 			(mixer as any).storage = storageMock;
 			const events: unknown[] = [];
-			mockPlayer.on('plugin:mixer:saved' as any, (d: unknown) => events.push(d));
+			mockPlayer.on('plugin:mixer:saved' as any, (data: unknown) => events.push(data));
 			mixer.save();
 			expect(events).toHaveLength(1);
 			expect(storageMock.set).toHaveBeenCalledWith('mixer-state', expect.any(String));

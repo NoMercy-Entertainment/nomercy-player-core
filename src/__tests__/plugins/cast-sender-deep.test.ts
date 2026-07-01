@@ -356,7 +356,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			const plugin = wirePluginForPlayer(player);
 			await plugin.connect();
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('play', { source: 'user' });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('play', { source: 'user' });
 
 			expect(fakeSdk.controller.playOrPause).toHaveBeenCalledOnce();
 		});
@@ -369,7 +369,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			const plugin = wirePluginForPlayer(player);
 			await plugin.connect();
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('play', { source: 'cast' });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('play', { source: 'cast' });
 
 			expect(fakeSdk.controller.playOrPause).not.toHaveBeenCalled();
 		});
@@ -380,7 +380,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			const plugin = wirePluginForPlayer(player);
 			await plugin.connect();
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('stop', { source: 'user' });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('stop', { source: 'user' });
 
 			expect(fakeSdk.controller.stop).toHaveBeenCalledOnce();
 		});
@@ -391,7 +391,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			const plugin = wirePluginForPlayer(player);
 			await plugin.connect();
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('seek', { time: 45 });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('seek', { time: 45 });
 
 			expect(fakeSdk.remote.currentTime).toBe(45);
 			expect(fakeSdk.controller.seek).toHaveBeenCalledOnce();
@@ -403,7 +403,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			const plugin = wirePluginForPlayer(player);
 			await plugin.connect();
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('seek', { time: -10 });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('seek', { time: -10 });
 
 			expect(fakeSdk.remote.currentTime).toBe(0);
 		});
@@ -414,7 +414,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			const plugin = wirePluginForPlayer(player);
 			await plugin.connect();
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('volume', { level: 75 });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('volume', { level: 75 });
 
 			expect(fakeSdk.remote.volumeLevel).toBeCloseTo(0.75);
 			expect(fakeSdk.controller.setVolumeLevel).toHaveBeenCalledOnce();
@@ -426,10 +426,10 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			const plugin = wirePluginForPlayer(player);
 			await plugin.connect();
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('volume', { level: 150 });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('volume', { level: 150 });
 			expect(fakeSdk.remote.volumeLevel).toBe(1);
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('volume', { level: -20 });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('volume', { level: -20 });
 			expect(fakeSdk.remote.volumeLevel).toBe(0);
 		});
 
@@ -440,7 +440,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			const plugin = wirePluginForPlayer(player);
 			await plugin.connect();
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('mute', { muted: true });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('mute', { muted: true });
 
 			expect(fakeSdk.controller.muteOrUnmute).toHaveBeenCalledOnce();
 			expect(fakeSdk.remote.isMuted).toBe(true);
@@ -453,7 +453,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			const plugin = wirePluginForPlayer(player);
 			await plugin.connect();
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('mute', { muted: true });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('mute', { muted: true });
 
 			expect(fakeSdk.controller.muteOrUnmute).not.toHaveBeenCalled();
 		});
@@ -561,8 +561,8 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 				playCalls.push(opts);
 			};
 			const timeCalls: unknown[] = [];
-			const timeOverride: (t: number, opts?: unknown) => Promise<void> = async (t, opts) => {
-				timeCalls.push({ t, opts });
+			const timeOverride: (seconds: number, opts?: unknown) => Promise<void> = async (seconds, opts) => {
+				timeCalls.push({ seconds, opts });
 			};
 			(player as unknown as Record<string, unknown>)['time'] = timeOverride;
 			const plugin = wirePluginForPlayer(player);
@@ -575,7 +575,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			await new Promise<void>(resolve => setTimeout(resolve, 0));
 
 			expect(timeCalls).toHaveLength(1);
-			expect((timeCalls[0] as { t: number }).t).toBe(60);
+			expect((timeCalls[0] as { seconds: number }).seconds).toBe(60);
 			expect(playCalls).toHaveLength(1);
 		});
 	});
@@ -618,7 +618,7 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			// Reset call count after connect's own forwardCurrent.
 			fakeSdk.session.loadMedia.mockClear();
 
-			(player as typeof player & { emit: (e: string, d: unknown) => void }).emit('item', { item: { url: 'https://example.com/track.mp3' } });
+			(player as typeof player & { emit: (eventName: string, data: unknown) => void }).emit('item', { item: { url: 'https://example.com/track.mp3' } });
 			await new Promise<void>(resolve => setTimeout(resolve, 0));
 
 			expect(fakeSdk.session.loadMedia).toHaveBeenCalled();

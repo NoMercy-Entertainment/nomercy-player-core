@@ -260,20 +260,20 @@ describe('EqualizerPlugin', () => {
 				name: 'JsonOne',
 				values: [{ frequency: 1000, gain: 7 }],
 			});
-			const resolved = (inst as unknown as { resolvePreset: (p: string) => EqPreset | undefined }).resolvePreset(json);
+			const resolved = (inst as unknown as { resolvePreset: (presetStr: string) => EqPreset | undefined }).resolvePreset(json);
 			expect(resolved?.name).toBe('JsonOne');
 			expect(resolved?.values[0]?.gain).toBe(7);
 		});
 
 		it('returns undefined for an unknown preset name', () => {
 			const inst = bareInstance();
-			const resolved = (inst as unknown as { resolvePreset: (p: string) => EqPreset | undefined }).resolvePreset('NoSuchPreset');
+			const resolved = (inst as unknown as { resolvePreset: (presetStr: string) => EqPreset | undefined }).resolvePreset('NoSuchPreset');
 			expect(resolved).toBeUndefined();
 		});
 
 		it('returns undefined for malformed JSON', () => {
 			const inst = bareInstance();
-			const resolved = (inst as unknown as { resolvePreset: (p: string) => EqPreset | undefined }).resolvePreset('{not json');
+			const resolved = (inst as unknown as { resolvePreset: (presetStr: string) => EqPreset | undefined }).resolvePreset('{not json');
 			expect(resolved).toBeUndefined();
 		});
 	});
@@ -281,14 +281,14 @@ describe('EqualizerPlugin', () => {
 	describe('pre-gain sticky-zero snap (Fillz parity, ±0.05 → 0)', () => {
 		it('values within ±0.05 snap to 0', () => {
 			const inst = bareInstance();
-			const snap = (inst as unknown as { snapPreGain: (n: number) => number }).snapPreGain;
+			const snap = (inst as unknown as { snapPreGain: (value: number) => number }).snapPreGain;
 			expect(snap.call(inst, 0.04)).toBe(0);
 			expect(snap.call(inst, -0.05)).toBe(0);
 		});
 
 		it('values outside the threshold pass through unchanged', () => {
 			const inst = bareInstance();
-			const snap = (inst as unknown as { snapPreGain: (n: number) => number }).snapPreGain;
+			const snap = (inst as unknown as { snapPreGain: (value: number) => number }).snapPreGain;
 			expect(snap.call(inst, 0.5)).toBe(0.5);
 			expect(snap.call(inst, -1.25)).toBe(-1.25);
 		});
@@ -308,9 +308,9 @@ describe('EqualizerPlugin', () => {
 			});
 
 			mockPlayer.addPlugin(AudioGraphPlugin);
-			await new Promise(r => setTimeout(r, 0));
+			await new Promise(resolve => setTimeout(resolve, 0));
 
-			expect(failures.some(f => f instanceof BrowserPolicyError)).toBe(true);
+			expect(failures.some(failure => failure instanceof BrowserPolicyError)).toBe(true);
 
 			// AudioGraph failed, so it is NOT in _plugins.
 			expect(mockPlayer.getPluginById('audio-graph')).toBeUndefined();
@@ -321,7 +321,7 @@ describe('EqualizerPlugin', () => {
 			await mockPlayer.ready();
 
 			mockPlayer.addPlugin(AudioGraphPlugin);
-			await new Promise(r => setTimeout(r, 0));
+			await new Promise(resolve => setTimeout(resolve, 0));
 
 			// AudioGraph is not in _plugins after failing. Adding Equalizer must throw missing-dep.
 			expect(() => mockPlayer.addPlugin(EqualizerPlugin)).toThrow('missing-dep');

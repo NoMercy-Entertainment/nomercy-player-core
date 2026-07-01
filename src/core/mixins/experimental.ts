@@ -45,8 +45,10 @@ export const experimentalDescriptor = {
 	 * for the full contract.
 	 */
 	get experimental(): PlayerExperimental {
+		// Mixin `this` is typed as the base class; internal fields require the full Internals shape.
 		const self = this as unknown as Internals;
 		const overrides = self._overrides;
+		// Player methods are accessed by string key for the override registry; opaque cast is intentional.
 		const player: Record<string, unknown> = self as unknown as Record<string, unknown>;
 		const getOriginals = (): Map<string, ((...args: unknown[]) => unknown) | undefined> => {
 			let originals = self._overrideOriginals;

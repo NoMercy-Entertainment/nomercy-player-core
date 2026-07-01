@@ -48,6 +48,6 @@ export interface IMediaList<T extends BasePlaylistItem> {
 	move(from: number, to: number): void;
 	clear(): void;
 	shuffle(): void;
-	sort(compare: (a: T, b: T) => number): void;
+	sort(compare: (itemA: T, itemB: T) => number): void;
 	dispose(): void;
 }

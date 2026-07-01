@@ -62,16 +62,16 @@ describe('EventEmitter — on(\'all\') firehose', () => {
 
 	it('off(\'all\', fn) removes only that firehose listener', () => {
 		const bus = new EventEmitter();
-		const a = vi.fn();
-		const b = vi.fn();
-		bus.on('all', a);
-		bus.on('all', b);
+		const handlerA = vi.fn();
+		const handlerB = vi.fn();
+		bus.on('all', handlerA);
+		bus.on('all', handlerB);
 
-		bus.off('all', a);
+		bus.off('all', handlerA);
 		bus.emit('x');
 
-		expect(a).not.toHaveBeenCalled();
-		expect(b).toHaveBeenCalledWith('x', undefined);
+		expect(handlerA).not.toHaveBeenCalled();
+		expect(handlerB).toHaveBeenCalledWith('x', undefined);
 	});
 
 	it('off(\'all\') without fn still nukes everything, firehose included', () => {

@@ -82,8 +82,8 @@ function stubBackend(player: MockPlayer, opts?: { canStartAt?: boolean }): Backe
 		},
 		play: async () => {},
 		pause: () => {},
-		currentTime: (t: number) => {
-			spy.seekCalls.push(t);
+		currentTime: (seconds: number) => {
+			spy.seekCalls.push(seconds);
 		},
 	});
 	return spy;

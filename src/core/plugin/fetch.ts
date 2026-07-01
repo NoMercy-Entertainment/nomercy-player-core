@@ -61,7 +61,7 @@ export function pluginFetch<T = string>(host: PluginFetchHost, url: string, opti
 	const liveAuth = host.player._rawAuth?.();
 	const auth = liveAuth ?? config.auth;
 	const scope = options?.scope ?? 'plugin';
-	return authFetch<T>({
+	const fetchOpts: InternalFetchOptions<T> = {
 		...options,
 		url,
 		auth,
@@ -69,5 +69,6 @@ export function pluginFetch<T = string>(host: PluginFetchHost, url: string, opti
 		pluginId: host.id,
 		scope,
 		emit: (event: string, data: unknown) => host.player.emit(event, data),
-	} as InternalFetchOptions<T>);
+	};
+	return authFetch<T>(fetchOpts);
 }

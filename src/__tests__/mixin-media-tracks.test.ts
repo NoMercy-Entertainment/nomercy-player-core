@@ -72,13 +72,13 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare forward: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare restart: (opts?: unknown) => Promise<void>;
-	declare time: { (): number; (t: number, opts?: unknown): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: unknown): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => unknown;
 	declare playbackRate: { (): number; (rate: number): void };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare mute: () => void;
 	declare unmute: () => void;
 	declare toggleMute: () => void;
@@ -208,8 +208,8 @@ describe('subtitle() — setter paths', () => {
 
 		const subtitleEvents: Array<{ track: number | null }> = [];
 		const cueEvents: Array<{ cues: unknown[] }> = [];
-		player.on('subtitle' as never, (d: { track: number | null }) => subtitleEvents.push(d));
-		player.on('subtitleCue' as never, (d: { cues: unknown[] }) => cueEvents.push(d));
+		player.on('subtitle' as never, (data: { track: number | null }) => subtitleEvents.push(data));
+		player.on('subtitleCue' as never, (data: { cues: unknown[] }) => cueEvents.push(data));
 
 		player.subtitle(null);
 
@@ -224,7 +224,7 @@ describe('subtitle() — setter paths', () => {
 	it('subtitle(-1) is treated as "off" — sets null, emits subtitle { track: null }', () => {
 		const player = setupPlayer();
 		const subtitleEvents: Array<{ track: number | null }> = [];
-		player.on('subtitle' as never, (d: { track: number | null }) => subtitleEvents.push(d));
+		player.on('subtitle' as never, (data: { track: number | null }) => subtitleEvents.push(data));
 
 		player.subtitle(-1);
 
@@ -242,7 +242,7 @@ describe('subtitle() — setter paths', () => {
 		(player as unknown as { backend: () => unknown }).backend = () => backend;
 
 		const subtitleEvents: Array<{ track: number | null }> = [];
-		player.on('subtitle' as never, (d: { track: number | null }) => subtitleEvents.push(d));
+		player.on('subtitle' as never, (data: { track: number | null }) => subtitleEvents.push(data));
 
 		player.subtitle(0);
 
@@ -283,7 +283,7 @@ describe('subtitle() — setter paths', () => {
 		const player = setupPlayer();
 		// no backend tracks, so index 0 goes into sidecar path, but no item active
 		const cueEvents: Array<{ cues: unknown[] }> = [];
-		player.on('subtitleCue' as never, (d: { cues: unknown[] }) => cueEvents.push(d));
+		player.on('subtitleCue' as never, (data: { cues: unknown[] }) => cueEvents.push(data));
 
 		player.subtitle(0);
 
@@ -408,8 +408,8 @@ describe('audioTracks() / audioTrack()', () => {
 
 		const audioTrackEvents: Array<{ id: number }> = [];
 		const audioTrackStateEvents: Array<{ state: string }> = [];
-		player.on('audioTrack' as never, (d: { id: number }) => audioTrackEvents.push(d));
-		player.on('audioTrackState' as never, (d: { state: string }) => audioTrackStateEvents.push(d));
+		player.on('audioTrack' as never, (data: { id: number }) => audioTrackEvents.push(data));
+		player.on('audioTrackState' as never, (data: { state: string }) => audioTrackStateEvents.push(data));
 
 		player.audioTrack(1);
 
@@ -486,7 +486,7 @@ describe('qualityLevels() / quality()', () => {
 	it('quality("auto") sets AUTO state, emits qualityState', () => {
 		const player = setupPlayer();
 		const stateEvents: Array<{ state: string }> = [];
-		player.on('qualityState' as never, (d: { state: string }) => stateEvents.push(d));
+		player.on('qualityState' as never, (data: { state: string }) => stateEvents.push(data));
 
 		player.quality('auto');
 
@@ -503,7 +503,7 @@ describe('qualityLevels() / quality()', () => {
 		(player as unknown as { backend: () => unknown }).backend = () => backend;
 
 		const stateEvents: Array<{ state: string }> = [];
-		player.on('qualityState' as never, (d: { state: string }) => stateEvents.push(d));
+		player.on('qualityState' as never, (data: { state: string }) => stateEvents.push(data));
 
 		player.quality(0);
 
@@ -563,7 +563,7 @@ describe('chapters() / chapter navigation', () => {
 		(player as unknown as { _internalCurrentTime: number })._internalCurrentTime = currentTime;
 
 		// Stub time() to capture seek calls — real time() would require _assertReady
-		(player as unknown as { time: (t: number, opts?: unknown) => void }).time = vi.fn();
+		(player as unknown as { time: (seconds: number, opts?: unknown) => void }).time = vi.fn();
 
 		return player;
 	}
@@ -590,7 +590,7 @@ describe('chapters() / chapter navigation', () => {
 		const player = setupWithChapters(chapters);
 
 		const chapterEvents: Array<{ index: number; title: string }> = [];
-		player.on('chapter' as never, (d: { index: number; title: string }) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: { index: number; title: string }) => chapterEvents.push(data));
 
 		player.seekToChapter(0);
 
@@ -606,7 +606,7 @@ describe('chapters() / chapter navigation', () => {
 		];
 		const player = setupWithChapters(chapters);
 		const chapterEvents: unknown[] = [];
-		player.on('chapter' as never, (d: unknown) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: unknown) => chapterEvents.push(data));
 
 		player.seekToChapter(99);
 
@@ -616,7 +616,7 @@ describe('chapters() / chapter navigation', () => {
 	it('nextChapter() no-ops when chapter list is empty', () => {
 		const player = setupWithChapters([]);
 		const chapterEvents: unknown[] = [];
-		player.on('chapter' as never, (d: unknown) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: unknown) => chapterEvents.push(data));
 
 		player.nextChapter();
 		expect(chapterEvents).toHaveLength(0);
@@ -630,7 +630,7 @@ describe('chapters() / chapter navigation', () => {
 		];
 		const player = setupWithChapters(chapters, 30);
 		const chapterEvents: Array<{ index: number; title: string }> = [];
-		player.on('chapter' as never, (d: { index: number; title: string }) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: { index: number; title: string }) => chapterEvents.push(data));
 
 		player.nextChapter();
 
@@ -645,7 +645,7 @@ describe('chapters() / chapter navigation', () => {
 		];
 		const player = setupWithChapters(chapters, 200);
 		const chapterEvents: unknown[] = [];
-		player.on('chapter' as never, (d: unknown) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: unknown) => chapterEvents.push(data));
 
 		player.nextChapter();
 		expect(chapterEvents).toHaveLength(0);
@@ -654,7 +654,7 @@ describe('chapters() / chapter navigation', () => {
 	it('previousChapter() no-ops when chapter list is empty', () => {
 		const player = setupWithChapters([]);
 		const chapterEvents: unknown[] = [];
-		player.on('chapter' as never, (d: unknown) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: unknown) => chapterEvents.push(data));
 
 		player.previousChapter();
 		expect(chapterEvents).toHaveLength(0);
@@ -667,7 +667,7 @@ describe('chapters() / chapter navigation', () => {
 		];
 		const player = setupWithChapters(chapters, 85);
 		const chapterEvents: Array<{ index: number; title: string }> = [];
-		player.on('chapter' as never, (d: { index: number; title: string }) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: { index: number; title: string }) => chapterEvents.push(data));
 
 		player.previousChapter();
 
@@ -682,7 +682,7 @@ describe('chapters() / chapter navigation', () => {
 		];
 		const player = setupWithChapters(chapters, 65);
 		const chapterEvents: Array<{ index: number; title: string }> = [];
-		player.on('chapter' as never, (d: { index: number; title: string }) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: { index: number; title: string }) => chapterEvents.push(data));
 
 		player.previousChapter();
 
@@ -696,7 +696,7 @@ describe('chapters() / chapter navigation', () => {
 		];
 		const player = setupWithChapters(chapters, 10);
 		const chapterEvents: unknown[] = [];
-		player.on('chapter' as never, (d: unknown) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: unknown) => chapterEvents.push(data));
 
 		player.previousChapter();
 		expect(chapterEvents).toHaveLength(0);
@@ -709,7 +709,7 @@ describe('chapters() / chapter navigation', () => {
 		];
 		const player = setupWithChapters(chapters, 5);
 		const chapterEvents: Array<{ index: number; title: string }> = [];
-		player.on('chapter' as never, (d: { index: number; title: string }) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: { index: number; title: string }) => chapterEvents.push(data));
 
 		player.previousChapter();
 
@@ -747,7 +747,7 @@ describe('chapters() / chapter navigation', () => {
 		];
 		const player = setupWithChapters(chapters);
 		const chapterEvents: Array<{ index: number; title: string }> = [];
-		player.on('chapter' as never, (d: { index: number; title: string }) => chapterEvents.push(d));
+		player.on('chapter' as never, (data: { index: number; title: string }) => chapterEvents.push(data));
 
 		player.chapter(1);
 
@@ -950,7 +950,7 @@ describe('_resolveAndEmitChapters()', () => {
 	it('no-ops when the item id is not found in the queue', async () => {
 		const player = setupPlayer();
 		const chapterEvents: unknown[] = [];
-		player.on('chapters' as never, (d: unknown) => chapterEvents.push(d));
+		player.on('chapters' as never, (data: unknown) => chapterEvents.push(data));
 
 		await (player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> })
 			._resolveAndEmitChapters('non-existent-id');
@@ -965,7 +965,7 @@ describe('_resolveAndEmitChapters()', () => {
 		player.queue([{ id: 'item1', title: 'Movie', chapters }] as never);
 
 		const chapterEvents: unknown[] = [];
-		player.on('chapters' as never, (d: unknown) => chapterEvents.push(d));
+		player.on('chapters' as never, (data: unknown) => chapterEvents.push(data));
 
 		await (player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> })
 			._resolveAndEmitChapters('item1');
@@ -979,7 +979,7 @@ describe('_resolveAndEmitChapters()', () => {
 		player.queue([{ id: 'item1', title: 'Movie', chapters: [{ title: 'Intro', start: 0, end: 30 }] }] as never);
 
 		const chapterEvents: unknown[] = [];
-		player.on('chapters' as never, (d: unknown) => chapterEvents.push(d));
+		player.on('chapters' as never, (data: unknown) => chapterEvents.push(data));
 
 		const internals = player as unknown as { _chapterEpoch?: number; _resolveAndEmitChapters: (id: string) => Promise<void> };
 
@@ -996,7 +996,7 @@ describe('_resolveAndEmitChapters()', () => {
 		player.queue([{ id: 'item-notracks', title: 'Movie', tracks: [] }] as never);
 
 		const chapterEvents: unknown[] = [];
-		player.on('chapters' as never, (d: unknown) => chapterEvents.push(d));
+		player.on('chapters' as never, (data: unknown) => chapterEvents.push(data));
 
 		const internals = player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> };
 		await internals._resolveAndEmitChapters('item-notracks');
@@ -1022,7 +1022,7 @@ describe('_resolveAndEmitChapters()', () => {
 		}] as never);
 
 		const chapterEvents: Array<{ chapters: unknown[] }> = [];
-		player.on('chapters' as never, (d: { chapters: unknown[] }) => chapterEvents.push(d));
+		player.on('chapters' as never, (data: { chapters: unknown[] }) => chapterEvents.push(data));
 
 		const internals = player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> };
 

@@ -198,7 +198,7 @@ export class CastSenderPlugin<
 	 * `unknown` (not `any`) and breaks at compile time if the interface changes.
 	 */
 	private _readCurrentItem(): TItem | undefined {
-		const playerWithItem = this.player as unknown as WithCurrentItem<TItem>;
+		const playerWithItem = this.player as unknown as WithCurrentItem<TItem>; // Generic mixin surface not visible on IPlayer — narrowed via local interface.
 		return playerWithItem.item();
 	}
 
@@ -366,7 +366,8 @@ export class CastSenderPlugin<
 
 	/** Resolve the global cast.framework, or null if absent. */
 	private castFramework(): CastFrameworkGlobal['framework'] | null {
-		const castGlobal = (typeof globalThis !== 'undefined' ? globalThis : ({} as unknown)) as { cast?: CastFrameworkGlobal };
+		const emptyFallback: unknown = {};
+		const castGlobal = (typeof globalThis !== 'undefined' ? globalThis : emptyFallback) as { cast?: CastFrameworkGlobal };
 		return castGlobal.cast?.framework ?? null;
 	}
 
@@ -383,7 +384,8 @@ export class CastSenderPlugin<
 
 	/** Resolve the chrome.cast.media constructors, or null if absent. */
 	protected chromeCastMedia(): ChromeCastMediaCtors | null {
-		const chromeGlobal = (typeof globalThis !== 'undefined' ? globalThis : ({} as unknown)) as { chrome?: ChromeCastGlobal };
+		const emptyFallback: unknown = {};
+		const chromeGlobal = (typeof globalThis !== 'undefined' ? globalThis : emptyFallback) as { chrome?: ChromeCastGlobal };
 		return chromeGlobal.chrome?.cast?.media ?? null;
 	}
 

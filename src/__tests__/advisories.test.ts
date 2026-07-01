@@ -9,7 +9,7 @@
 /**
  * Locks `static advisories` lookup + auto-fire on `beforeMutation`.
  *
- * Spec §C: declarative advisories — pure data — fire as info/warning/error
+ * Declarative advisories — pure data — fire as info/warning/error
  * with code `plugin:<plugin-id>/<reason>` when their `method` + `duringPhase`
  * + `duringEvent` constraints all match.
  */
@@ -165,8 +165,8 @@ describe('static advisories — declarative phase-aware advisories', () => {
 		mockPlayer.queue([{ id: 'x' }]);
 		const infos: unknown[] = [];
 		const errors: unknown[] = [];
-		mockPlayer.on('info', (d: unknown) => infos.push(d));
-		mockPlayer.on('error', (d: unknown) => errors.push(d));
+		mockPlayer.on('info', (data: unknown) => infos.push(data));
+		mockPlayer.on('error', (data: unknown) => errors.push(data));
 
 		mockPlayer.item(0);
 

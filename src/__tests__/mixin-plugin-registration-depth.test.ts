@@ -76,13 +76,13 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare forward: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare restart: (opts?: unknown) => Promise<void>;
-	declare time: { (): number; (t: number, opts?: unknown): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: unknown): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => unknown;
 	declare playbackRate: { (): number; (rate: number): void };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare mute: () => void;
 	declare unmute: () => void;
 	declare toggleMute: () => void;
@@ -230,7 +230,7 @@ function setupPlayer(opts: Record<string, unknown> = {}): MockPlayer {
 
 function waitForEvent(player: MockPlayer, event: string): Promise<unknown> {
 	return new Promise((resolve) => {
-		player.on(event as never, (d: unknown) => resolve(d));
+		player.on(event as never, (data: unknown) => resolve(data));
 	});
 }
 
@@ -349,9 +349,9 @@ describe('addPlugin — replaces', () => {
 		player.addPlugin(AlphaV2);
 
 		const queue = (player as unknown as { _pluginQueue: Array<{ ctor: PluginCtorWithId }> })._pluginQueue;
-		const alphaInQueue = queue.some(q => q.ctor.id === 'alpha');
+		const alphaInQueue = queue.some(queued => queued.ctor.id === 'alpha');
 		expect(alphaInQueue).toBe(false);
-		const alphaV2InQueue = queue.some(q => q.ctor.id === 'alpha-v2');
+		const alphaV2InQueue = queue.some(queued => queued.ctor.id === 'alpha-v2');
 		expect(alphaV2InQueue).toBe(true);
 	});
 });
@@ -371,7 +371,7 @@ describe('_registerPlugin — failure + cascade', () => {
 	it('emits plugin:failed when use() throws synchronously', async () => {
 		const player = setupPlayer();
 		const failedPayloads: Array<{ id: string; error: Error }> = [];
-		player.on('plugin:failed' as never, (d: { id: string; error: Error }) => failedPayloads.push(d));
+		player.on('plugin:failed' as never, (data: { id: string; error: Error }) => failedPayloads.push(data));
 
 		const failedP = waitForEvent(player, 'plugin:failed');
 		player.addPlugin(FailingPlugin);
@@ -393,7 +393,7 @@ describe('_registerPlugin — failure + cascade', () => {
 	it('emits plugin:failed when use() throws asynchronously', async () => {
 		const player = setupPlayer();
 		const failedPayloads: Array<{ id: string; error: Error }> = [];
-		player.on('plugin:failed' as never, (d: { id: string; error: Error }) => failedPayloads.push(d));
+		player.on('plugin:failed' as never, (data: { id: string; error: Error }) => failedPayloads.push(data));
 
 		const failedP = waitForEvent(player, 'plugin:failed');
 		player.addPlugin(AsyncFailingPlugin);
@@ -440,7 +440,7 @@ describe('_registerPlugin — failure + cascade', () => {
 		try {
 			const player = setupPlayer({ pluginInitTimeoutMs: 50 });
 			const failedPayloads: Array<{ id: string; error: Error }> = [];
-			player.on('plugin:failed' as never, (d: { id: string; error: Error }) => failedPayloads.push(d));
+			player.on('plugin:failed' as never, (data: { id: string; error: Error }) => failedPayloads.push(data));
 
 			player.addPlugin(SlowPlugin);
 
@@ -454,7 +454,7 @@ describe('_registerPlugin — failure + cascade', () => {
 			await Promise.resolve();
 			await Promise.resolve();
 
-			expect(failedPayloads.some(p => p.id === 'slow')).toBe(true);
+			expect(failedPayloads.some(entry => entry.id === 'slow')).toBe(true);
 		}
 		finally {
 			vi.useRealTimers();
@@ -530,7 +530,7 @@ describe('removePluginById — cascade semantics', () => {
 		await installedP;
 
 		const disposedEvents: Array<{ id: string }> = [];
-		player.on('plugin:disposed' as never, (d: { id: string }) => disposedEvents.push(d));
+		player.on('plugin:disposed' as never, (data: { id: string }) => disposedEvents.push(data));
 
 		player.removePlugin(AlphaPlugin);
 

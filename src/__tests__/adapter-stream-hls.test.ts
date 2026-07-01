@@ -82,7 +82,7 @@ vi.mock('hls.js', () => {
 
 		off(event: string, fn: HlsListener): void {
 			const list = this._handlers.get(event) ?? [];
-			this._handlers.set(event, list.filter(f => f !== fn));
+			this._handlers.set(event, list.filter(handler => handler !== fn));
 		}
 
 		detachMedia(): void {}
@@ -148,8 +148,8 @@ function makeNonNativeElement(): HTMLMediaElement {
  * After attaching, optionally fire MANIFEST_PARSED to move state to 'ready'.
  */
 async function attachAndFireManifest(source: HlsStreamSource, el: HTMLMediaElement): Promise<FakeHlsInstance> {
-	const p = source.attach(el);
-	await p;
+	const attachPromise = source.attach(el);
+	await attachPromise;
 	const hls = getLastHlsInstance();
 	// MANIFEST_PARSED fires state transition to 'ready'
 	hls._fire(HLS_EVENTS.MANIFEST_PARSED, undefined);
@@ -405,11 +405,11 @@ describe('HlsStreamSource', () => {
 			source.on('error', data => errorEvents.push(data));
 
 			// Start attach but don't await — fire element error before loadedmetadata
-			const p = source.attach(el);
+			const attachPromise = source.attach(el);
 			el.dispatchEvent(new Event('error'));
 
 			// The boundElementError listener fires; loadedmetadata never fires → rejection
-			return expect(p).rejects.toBeDefined();
+			return expect(attachPromise).rejects.toBeDefined();
 		});
 
 		it('native path: detach clears src', async () => {

@@ -49,11 +49,11 @@ describe('StreamRegistry', () => {
 		});
 
 		it('replaces a factory with the same id', () => {
-			const a = makeFactory('hls', true);
-			const b = makeFactory('hls', false);
-			registry.register(a);
-			registry.register(b);
-			expect(registry.findById('hls')).toBe(b);
+			const factoryA = makeFactory('hls', true);
+			const factoryB = makeFactory('hls', false);
+			registry.register(factoryA);
+			registry.register(factoryB);
+			expect(registry.findById('hls')).toBe(factoryB);
 		});
 
 		it('appends by default (most-recent at end)', () => {
@@ -86,19 +86,19 @@ describe('StreamRegistry', () => {
 
 	describe('resolve()', () => {
 		it('most-recently-registered factory wins when multiple canPlay return true', () => {
-			const a = makeFactory('a', true);
-			const b = makeFactory('b', true);
-			registry.register(a);
-			registry.register(b);
+			const factoryA = makeFactory('a', true);
+			const factoryB = makeFactory('b', true);
+			registry.register(factoryA);
+			registry.register(factoryB);
 			const resolved = registry.resolve({ url: 'foo.m3u8' });
-			// b registered last, so it gets the call
+			// factoryB registered last, so it gets the call
 			expect(resolved.kind).toBe('native');
 		});
 
 		it('skips factories whose canPlay returns false', () => {
 			let bCalled = false;
-			const a = makeFactory('a', false);
-			const b: IStreamFactory = {
+			const factoryA = makeFactory('a', false);
+			const factoryB: IStreamFactory = {
 				id: 'b',
 				canPlay: () => {
 					bCalled = true;
@@ -108,8 +108,8 @@ describe('StreamRegistry', () => {
 					kind: 'native' as const,
 				} as IStreamSource),
 			};
-			registry.register(a);
-			registry.register(b);
+			registry.register(factoryA);
+			registry.register(factoryB);
 			registry.resolve({ url: 'x' });
 			expect(bCalled).toBe(true);
 		});

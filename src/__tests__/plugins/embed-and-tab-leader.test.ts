@@ -52,8 +52,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare pause: (opts?: any) => Promise<void>;
 	declare stop: (opts?: any) => Promise<void>;
 	declare t: (key: string, vars?: Record<string, string>) => string;
-	declare time: { (): number; (t: number, opts?: any): Promise<void> };
-	declare volume: { (): number; (v: number): void };
+	declare time: { (): number; (seconds: number, opts?: any): Promise<void> };
+	declare volume: { (): number; (level: number): void };
 	declare experimental: any;
 
 	constructor(id?: string | number) {

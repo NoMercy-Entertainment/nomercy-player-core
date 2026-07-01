@@ -60,7 +60,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare queueMove: (from: number, to: number) => void;
 	declare queueClear: () => void;
 	declare queueShuffle: () => void;
-	declare queueSort: (compare: (a: BasePlaylistItem, b: BasePlaylistItem) => number) => void;
+	declare queueSort: (compare: (itemA: BasePlaylistItem, itemB: BasePlaylistItem) => number) => void;
 	declare queueLength: () => number;
 	declare queueIndexOf: (id: string | number) => number;
 	declare peekNext: () => BasePlaylistItem | undefined;
@@ -99,7 +99,7 @@ function makePlayer(divId: string): MockPlayer {
 	return new MockPlayer(divId);
 }
 
-const t = (id: string): BasePlaylistItem => ({ id, title: id, url: `https://example.com/${id}.mp3` } as BasePlaylistItem);
+const makeItem = (id: string): BasePlaylistItem => ({ id, title: id, url: `https://example.com/${id}.mp3` } as BasePlaylistItem);
 
 describe('queueMethods — extended (Q-E)', () => {
 	beforeEach(() => {
@@ -113,14 +113,14 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E1: queuePrepend prepends and emits queue:prepend', () => {
 		const player = makePlayer('q-1');
-		player.queue([t('b'), t('c')]);
+		player.queue([makeItem('b'), makeItem('c')]);
 
 		let prependEvent: unknown;
 		player.on('queue:prepend' as keyof BaseEventMap, (data: unknown) => {
 			prependEvent = data;
 		});
 
-		player.queuePrepend(t('a'));
+		player.queuePrepend(makeItem('a'));
 
 		expect((player.queue() as BasePlaylistItem[])[0]!.id).toBe('a');
 		expect(prependEvent).toBeDefined();
@@ -128,14 +128,14 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E2: queueInsert inserts at given index and emits queue:insert', () => {
 		const player = makePlayer('q-2');
-		player.queue([t('a'), t('c')]);
+		player.queue([makeItem('a'), makeItem('c')]);
 
 		let insertEvent: unknown;
 		player.on('queue:insert' as keyof BaseEventMap, (data: unknown) => {
 			insertEvent = data;
 		});
 
-		player.queueInsert(t('b'), 1);
+		player.queueInsert(makeItem('b'), 1);
 
 		const items = player.queue() as BasePlaylistItem[];
 		expect(items[1]!.id).toBe('b');
@@ -145,7 +145,7 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E3: queueRemoveAt removes item at index and emits queue:remove', () => {
 		const player = makePlayer('q-3');
-		player.queue([t('a'), t('b'), t('c')]);
+		player.queue([makeItem('a'), makeItem('b'), makeItem('c')]);
 
 		let removeEvent: unknown;
 		player.on('queue:remove' as keyof BaseEventMap, (data: unknown) => {
@@ -162,7 +162,7 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E4: queueMove swaps positions and emits queue:move', () => {
 		const player = makePlayer('q-4');
-		player.queue([t('a'), t('b'), t('c')]);
+		player.queue([makeItem('a'), makeItem('b'), makeItem('c')]);
 
 		let moveEvent: unknown;
 		player.on('queue:move' as keyof BaseEventMap, (data: unknown) => {
@@ -178,7 +178,7 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E5: queueSort sorts in-place and emits queue:sort', () => {
 		const player = makePlayer('q-5');
-		player.queue([t('c'), t('a'), t('b')]);
+		player.queue([makeItem('c'), makeItem('a'), makeItem('b')]);
 
 		let sortFired = false;
 		player.on('queue:sort' as keyof BaseEventMap, () => {
@@ -194,7 +194,7 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E6: queueShuffle reorders in-place and emits queue:shuffle', () => {
 		const player = makePlayer('q-6');
-		player.queue([t('a'), t('b'), t('c'), t('d'), t('e')]);
+		player.queue([makeItem('a'), makeItem('b'), makeItem('c'), makeItem('d'), makeItem('e')]);
 
 		let shuffleFired = false;
 		player.on('queue:shuffle' as keyof BaseEventMap, () => {
@@ -211,13 +211,13 @@ describe('queueMethods — extended (Q-E)', () => {
 		const player = makePlayer('q-7');
 		expect(player.queueLength()).toBe(0);
 
-		player.queue([t('a'), t('b'), t('c')]);
+		player.queue([makeItem('a'), makeItem('b'), makeItem('c')]);
 		expect(player.queueLength()).toBe(3);
 	});
 
 	it('Q-E8: queueIndexOf returns zero-based index or -1', () => {
 		const player = makePlayer('q-8');
-		player.queue([t('a'), t('b'), t('c')]);
+		player.queue([makeItem('a'), makeItem('b'), makeItem('c')]);
 
 		expect(player.queueIndexOf('a')).toBe(0);
 		expect(player.queueIndexOf('c')).toBe(2);
@@ -226,7 +226,7 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E9: seekToIndex(1) navigates to the first item by 1-based ordinal', () => {
 		const player = makePlayer('q-9');
-		player.queue([t('a'), t('b'), t('c')]);
+		player.queue([makeItem('a'), makeItem('b'), makeItem('c')]);
 		player.item('b');
 
 		player.seekToIndex(1);
@@ -236,7 +236,7 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E10: seekToIndex with non-positive integer throws RangeError', () => {
 		const player = makePlayer('q-10');
-		player.queue([t('a'), t('b')]);
+		player.queue([makeItem('a'), makeItem('b')]);
 
 		expect(() => player.seekToIndex(0)).toThrow(RangeError);
 		expect(() => player.seekToIndex(-1)).toThrow(RangeError);
@@ -244,14 +244,14 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E10b: seekToIndex with non-integer throws RangeError', () => {
 		const player = makePlayer('q-10b');
-		player.queue([t('a'), t('b')]);
+		player.queue([makeItem('a'), makeItem('b')]);
 
 		expect(() => player.seekToIndex(1.5)).toThrow(RangeError);
 	});
 
 	it('Q-E11: seekToIndex with out-of-range ordinal is a no-op', () => {
 		const player = makePlayer('q-11');
-		player.queue([t('a'), t('b')]);
+		player.queue([makeItem('a'), makeItem('b')]);
 		player.item('a');
 
 		player.seekToIndex(99);
@@ -261,7 +261,7 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E12: item(predicate) function predicate finds and sets cursor', () => {
 		const player = makePlayer('q-12');
-		player.queue([t('a'), t('b'), t('c')]);
+		player.queue([makeItem('a'), makeItem('b'), makeItem('c')]);
 
 		player.item((item: BasePlaylistItem) => item.id === 'b');
 
@@ -270,7 +270,7 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E13: index() returns zero-based cursor position', () => {
 		const player = makePlayer('q-13');
-		player.queue([t('a'), t('b'), t('c')]);
+		player.queue([makeItem('a'), makeItem('b'), makeItem('c')]);
 		player.item('c');
 
 		expect(player.index()).toBe(2);
@@ -283,7 +283,7 @@ describe('queueMethods — extended (Q-E)', () => {
 			appendFired = true;
 		});
 
-		player.backlogAppend(t('x'));
+		player.backlogAppend(makeItem('x'));
 
 		expect((player.backlog() as BasePlaylistItem[]).some(i => i.id === 'x')).toBe(true);
 		expect(appendFired).toBe(true);
@@ -291,7 +291,7 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('item(target) on an idle player sets cursor but does not trigger load', () => {
 		const player = makePlayer('q-idle');
-		player.queue([t('a'), t('b')]);
+		player.queue([makeItem('a'), makeItem('b')]);
 
 		let mediaReadyFired = false;
 		player.on('mediaReady' as keyof BaseEventMap, () => { mediaReadyFired = true; });
@@ -304,7 +304,7 @@ describe('queueMethods — extended (Q-E)', () => {
 
 	it('Q-E15: backlogRemove removes by id and emits backlog:remove', () => {
 		const player = makePlayer('q-15');
-		player.backlog([t('x'), t('y')]);
+		player.backlog([makeItem('x'), makeItem('y')]);
 
 		let removeFired = false;
 		player.on('backlog:remove' as keyof BaseEventMap, () => {

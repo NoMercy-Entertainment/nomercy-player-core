@@ -77,7 +77,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: any) => Promise<void>;
 	declare forward: (seconds?: number, opts?: any) => Promise<void>;
 	declare restart: (opts?: any) => Promise<void>;
-	declare time: { (): number; (t: number, opts?: any): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: any): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare bufferedRanges: () => TimeRanges;
@@ -86,7 +86,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare seekByPercentage: (pct: number, opts?: any) => void;
 	declare playbackRate: { (): number; (rate: number): void };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare mute: () => void;
 	declare unmute: () => void;
 	declare toggleMute: () => void;
@@ -236,10 +236,10 @@ describe('adapter-injection', () => {
 
 		await player.ready();
 
-		const a = makeItem('a');
-		const b = makeItem('b');
-		const c = makeItem('c');
-		player.queue([a, b, c]);
+		const itemA = makeItem('a');
+		const itemB = makeItem('b');
+		const itemC = makeItem('c');
+		player.queue([itemA, itemB, itemC]);
 
 		player.queueShuffle();
 

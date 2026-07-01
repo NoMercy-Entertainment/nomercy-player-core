@@ -195,9 +195,9 @@ function extractBundle(mod: GlobModule, tag: string): Record<string, string> | n
 		return null;
 
 	const bundle: Record<string, string> = {};
-	for (const [k, v] of Object.entries(candidate as Record<string, unknown>)) {
-		if (typeof v === 'string')
-			bundle[k] = v;
+	for (const [key, value] of Object.entries(candidate as Record<string, unknown>)) {
+		if (typeof value === 'string')
+			bundle[key] = value;
 	}
 	return bundle;
 }
@@ -207,7 +207,8 @@ function extractBundle(mod: GlobModule, tag: string): Record<string, string> | n
  * for eager bundles. Used by the kit's plugin chain registration — plugin
  * authors don't call this.
  */
-export function getLazyTranslationLoader(t: Translations): LazyTranslationLoader | null {
-	const markerValue = (t as unknown as { [k: symbol]: unknown })[LAZY_TRANSLATIONS_MARKER];
+export function getLazyTranslationLoader(translations: Translations): LazyTranslationLoader | null {
+	// Symbol-keyed marker is not in the Translations public type — accessed via opaque cast.
+	const markerValue = (translations as unknown as { [k: symbol]: unknown })[LAZY_TRANSLATIONS_MARKER];
 	return typeof markerValue === 'function' ? (markerValue as LazyTranslationLoader) : null;
 }

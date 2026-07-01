@@ -135,8 +135,8 @@ export class CueTracker<T> {
 	}
 
 	/** Recently-entered cues, newest-first, capped at `historyMax`. */
-	history(n?: number): Cue<T>[] {
-		const cap = n ?? this.historyBuffer.length;
+	history(count?: number): Cue<T>[] {
+		const cap = count ?? this.historyBuffer.length;
 		return this.historyBuffer.slice(-cap).reverse();
 	}
 

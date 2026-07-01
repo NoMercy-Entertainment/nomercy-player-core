@@ -192,13 +192,13 @@ export abstract class MediaElementBackend<
 	// ── Time / position ───────────────────────────────────────────────────────
 
 	currentTime(): number;
-	currentTime(t: number): void;
-	currentTime(t?: number): number | void {
-		if (t === undefined) {
+	currentTime(seconds: number): void;
+	currentTime(seconds?: number): number | void {
+		if (seconds === undefined) {
 			return this.element.currentTime;
 		}
 		try {
-			this.element.currentTime = t;
+			this.element.currentTime = seconds;
 		}
 		catch {
 			/* element not seekable yet — best effort */
@@ -206,8 +206,8 @@ export abstract class MediaElementBackend<
 	}
 
 	duration(): number {
-		const d = this.element.duration;
-		return Number.isFinite(d) ? d : 0;
+		const raw = this.element.duration;
+		return Number.isFinite(raw) ? raw : 0;
 	}
 
 	bufferedRanges(): TimeRanges {

@@ -80,13 +80,13 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare forward: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare restart: (opts?: unknown) => Promise<void>;
-	declare time: { (): number; (t: number, opts?: unknown): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: unknown): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => unknown;
 	declare playbackRate: { (): number; (rate: number): void };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare mute: () => void;
 	declare unmute: () => void;
 	declare toggleMute: () => void;
@@ -187,7 +187,7 @@ describe('forward()', () => {
 		const player = setupPlayer();
 		setCurrentTime(player, 30);
 		const seekedEvents: Array<{ time: number }> = [];
-		player.on('seeked' as never, (d: { time: number }) => seekedEvents.push(d));
+		player.on('seeked' as never, (data: { time: number }) => seekedEvents.push(data));
 
 		await player.forward();
 
@@ -198,7 +198,7 @@ describe('forward()', () => {
 		const player = setupPlayer();
 		setCurrentTime(player, 20);
 		const seekedEvents: Array<{ time: number }> = [];
-		player.on('seeked' as never, (d: { time: number }) => seekedEvents.push(d));
+		player.on('seeked' as never, (data: { time: number }) => seekedEvents.push(data));
 
 		await player.forward(10);
 
@@ -220,12 +220,12 @@ describe('forward()', () => {
 		const player = setupPlayer();
 		setCurrentTime(player, 30);
 
-		player.on('beforeSeek' as never, (d: { time: number; preventDefault: () => void }) => {
-			d.preventDefault();
+		player.on('beforeSeek' as never, (data: { time: number; preventDefault: () => void }) => {
+					data.preventDefault();
 		});
 
 		const seekPrevented: unknown[] = [];
-		player.on('seekPrevented' as never, (d: unknown) => seekPrevented.push(d));
+		player.on('seekPrevented' as never, (data: unknown) => seekPrevented.push(data));
 
 		await player.forward(5);
 
@@ -240,7 +240,7 @@ describe('forward()', () => {
 		// _dispatchBefore calls listeners with a BeforeEvent object, not the plain data.
 		// Access the value via .data.time.
 		const beforeSeekPayloads: Array<{ data: { time: number } }> = [];
-		player.on('beforeSeek' as never, (d: { data: { time: number } }) => beforeSeekPayloads.push(d));
+		player.on('beforeSeek' as never, (data: { data: { time: number } }) => beforeSeekPayloads.push(data));
 
 		await player.forward(7);
 
@@ -260,7 +260,7 @@ describe('rewind()', () => {
 		const player = setupPlayer();
 		setCurrentTime(player, 30);
 		const seekedEvents: Array<{ time: number }> = [];
-		player.on('seeked' as never, (d: { time: number }) => seekedEvents.push(d));
+		player.on('seeked' as never, (data: { time: number }) => seekedEvents.push(data));
 
 		await player.rewind();
 
@@ -271,7 +271,7 @@ describe('rewind()', () => {
 		const player = setupPlayer();
 		setCurrentTime(player, 3);
 		const seekedEvents: Array<{ time: number }> = [];
-		player.on('seeked' as never, (d: { time: number }) => seekedEvents.push(d));
+		player.on('seeked' as never, (data: { time: number }) => seekedEvents.push(data));
 
 		await player.rewind(5);
 
@@ -285,7 +285,7 @@ describe('rewind()', () => {
 		// _dispatchBefore calls listeners with a BeforeEvent object, not the plain data.
 		// Access the value via .data.time.
 		const beforeSeekPayloads: Array<{ data: { time: number } }> = [];
-		player.on('beforeSeek' as never, (d: { data: { time: number } }) => beforeSeekPayloads.push(d));
+		player.on('beforeSeek' as never, (data: { data: { time: number } }) => beforeSeekPayloads.push(data));
 
 		await player.rewind(5);
 
@@ -296,12 +296,12 @@ describe('rewind()', () => {
 		const player = setupPlayer();
 		setCurrentTime(player, 30);
 
-		player.on('beforeSeek' as never, (d: { time: number; preventDefault: () => void }) => {
-			d.preventDefault();
+		player.on('beforeSeek' as never, (data: { time: number; preventDefault: () => void }) => {
+					data.preventDefault();
 		});
 
 		const seekPrevented: unknown[] = [];
-		player.on('seekPrevented' as never, (d: unknown) => seekPrevented.push(d));
+		player.on('seekPrevented' as never, (data: unknown) => seekPrevented.push(data));
 
 		await player.rewind(5);
 
@@ -355,8 +355,8 @@ describe('restart()', () => {
 		const backend = makeSimpleBackend();
 		installBackend(player, backend);
 
-		player.on('beforeSeek' as never, (d: { time: number; preventDefault: () => void }) => {
-			d.preventDefault();
+		player.on('beforeSeek' as never, (data: { time: number; preventDefault: () => void }) => {
+					data.preventDefault();
 		});
 
 		await player.restart();
@@ -366,11 +366,11 @@ describe('restart()', () => {
 
 	it('restart() emits seekPrevented when beforeSeek is prevented', async () => {
 		const player = setupPlayer();
-		player.on('beforeSeek' as never, (d: { time: number; preventDefault: () => void }) => {
-			d.preventDefault();
+		player.on('beforeSeek' as never, (data: { time: number; preventDefault: () => void }) => {
+					data.preventDefault();
 		});
 		const seekPrevented: unknown[] = [];
-		player.on('seekPrevented' as never, (d: unknown) => seekPrevented.push(d));
+		player.on('seekPrevented' as never, (data: unknown) => seekPrevented.push(data));
 
 		await player.restart();
 
@@ -388,11 +388,11 @@ describe('play() beforePlay preventDefault', () => {
 
 	it('beforePlay preventDefault emits playPrevented and does not change playState', async () => {
 		const player = setupPlayer();
-		player.on('beforePlay' as never, (d: { preventDefault: () => void }) => {
-			d.preventDefault();
+		player.on('beforePlay' as never, (data: { preventDefault: () => void }) => {
+					data.preventDefault();
 		});
 		const playPrevented: unknown[] = [];
-		player.on('playPrevented' as never, (d: unknown) => playPrevented.push(d));
+		player.on('playPrevented' as never, (data: unknown) => playPrevented.push(data));
 
 		await player.play();
 
@@ -409,11 +409,11 @@ describe('pause() beforePause preventDefault', () => {
 		const player = setupPlayer();
 		await player.play();
 
-		player.on('beforePause' as never, (d: { preventDefault: () => void }) => {
-			d.preventDefault();
+		player.on('beforePause' as never, (data: { preventDefault: () => void }) => {
+					data.preventDefault();
 		});
 		const pausePrevented: unknown[] = [];
-		player.on('pausePrevented' as never, (d: unknown) => pausePrevented.push(d));
+		player.on('pausePrevented' as never, (data: unknown) => pausePrevented.push(data));
 
 		await player.pause();
 
@@ -430,11 +430,11 @@ describe('stop() beforeStop preventDefault', () => {
 		const player = setupPlayer();
 		await player.play();
 
-		player.on('beforeStop' as never, (d: { preventDefault: () => void }) => {
-			d.preventDefault();
+		player.on('beforeStop' as never, (data: { preventDefault: () => void }) => {
+					data.preventDefault();
 		});
 		const stopPrevented: unknown[] = [];
-		player.on('stopPrevented' as never, (d: unknown) => stopPrevented.push(d));
+		player.on('stopPrevented' as never, (data: unknown) => stopPrevented.push(data));
 
 		await player.stop();
 
@@ -456,7 +456,7 @@ describe('togglePlayback()', () => {
 		expect(player.playState()).not.toBe('playing');
 
 		const playEvents: unknown[] = [];
-		player.on('play' as never, (d: unknown) => playEvents.push(d));
+		player.on('play' as never, (data: unknown) => playEvents.push(data));
 
 		await player.togglePlayback();
 
@@ -469,7 +469,7 @@ describe('togglePlayback()', () => {
 		expect(player.playState()).toBe('playing');
 
 		const pauseEvents: unknown[] = [];
-		player.on('pause' as never, (d: unknown) => pauseEvents.push(d));
+		player.on('pause' as never, (data: unknown) => pauseEvents.push(data));
 
 		await player.togglePlayback();
 
@@ -497,7 +497,7 @@ describe('next() — repeat modes', () => {
 		player.item(items[0]!);
 
 		const nextEvents: unknown[] = [];
-		player.on('next' as never, (d: unknown) => nextEvents.push(d));
+		player.on('next' as never, (data: unknown) => nextEvents.push(data));
 
 		// Mock load to avoid actual backend ops
 		const loadSpy = vi.fn().mockResolvedValue(undefined);
@@ -520,7 +520,7 @@ describe('next() — repeat modes', () => {
 		player.item(items[1]!);
 
 		const nextEvents: unknown[] = [];
-		player.on('next' as never, (d: unknown) => nextEvents.push(d));
+		player.on('next' as never, (data: unknown) => nextEvents.push(data));
 
 		const loadSpy = vi.fn().mockResolvedValue(undefined);
 		(player as unknown as { load: (item: unknown, opts: unknown) => Promise<void> }).load = loadSpy;
@@ -541,7 +541,7 @@ describe('next() — repeat modes', () => {
 		player.item(items[0]!);
 
 		const exhaustedEvents: unknown[] = [];
-		player.on('queue:exhausted' as never, (d: unknown) => exhaustedEvents.push(d));
+		player.on('queue:exhausted' as never, (data: unknown) => exhaustedEvents.push(data));
 
 		await player.next();
 
@@ -550,11 +550,11 @@ describe('next() — repeat modes', () => {
 
 	it('next() beforeNext preventDefault emits nextPrevented', async () => {
 		const player = setupPlayer();
-		player.on('beforeNext' as never, (d: { preventDefault: () => void }) => {
-			d.preventDefault();
+		player.on('beforeNext' as never, (data: { preventDefault: () => void }) => {
+					data.preventDefault();
 		});
 		const nextPrevented: unknown[] = [];
-		player.on('nextPrevented' as never, (d: unknown) => nextPrevented.push(d));
+		player.on('nextPrevented' as never, (data: unknown) => nextPrevented.push(data));
 
 		await player.next();
 
@@ -575,7 +575,7 @@ describe('previous() — edge cases', () => {
 		player.item(items[0]!);
 
 		const previousEvents: unknown[] = [];
-		player.on('previous' as never, (d: unknown) => previousEvents.push(d));
+		player.on('previous' as never, (data: unknown) => previousEvents.push(data));
 
 		await player.previous();
 
@@ -584,11 +584,11 @@ describe('previous() — edge cases', () => {
 
 	it('previous() beforePrevious preventDefault emits previousPrevented', async () => {
 		const player = setupPlayer();
-		player.on('beforePrevious' as never, (d: { preventDefault: () => void }) => {
-			d.preventDefault();
+		player.on('beforePrevious' as never, (data: { preventDefault: () => void }) => {
+					data.preventDefault();
 		});
 		const previousPrevented: unknown[] = [];
-		player.on('previousPrevented' as never, (d: unknown) => previousPrevented.push(d));
+		player.on('previousPrevented' as never, (data: unknown) => previousPrevented.push(data));
 
 		await player.previous();
 
@@ -605,7 +605,7 @@ describe('previous() — edge cases', () => {
 		player.item(items[1]!);
 
 		const previousEvents: unknown[] = [];
-		player.on('previous' as never, (d: unknown) => previousEvents.push(d));
+		player.on('previous' as never, (data: unknown) => previousEvents.push(data));
 
 		const loadSpy = vi.fn().mockResolvedValue(undefined);
 		(player as unknown as { load: (item: unknown, opts: unknown) => Promise<void> }).load = loadSpy;
@@ -632,7 +632,7 @@ describe('_seekingTransition()', () => {
 
 		// phase event payload is { from, to } — collect .to values.
 		const phaseChanges: string[] = [];
-		player.on('phase' as never, (d: { from: string; to: string }) => phaseChanges.push(d.to));
+		player.on('phase' as never, (data: { from: string; to: string }) => phaseChanges.push(data.to));
 
 		// Use time() setter which uses _seekingTransition internally
 		await player.time(5);
@@ -651,7 +651,7 @@ describe('_seekingTransition()', () => {
 
 		// phase event payload is { from, to } — collect .to values.
 		const phaseChanges: string[] = [];
-		player.on('phase' as never, (d: { from: string; to: string }) => phaseChanges.push(d.to));
+		player.on('phase' as never, (data: { from: string; to: string }) => phaseChanges.push(data.to));
 
 		await player.time(10);
 

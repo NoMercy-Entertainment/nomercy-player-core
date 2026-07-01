@@ -302,11 +302,11 @@ export interface MixinSurface {
 	// volumeMethods (see mixins/volume.ts)
 	mute(): void;
 	unmute(): void;
-	volume(v?: number): number | void;
+	volume(level?: number): number | void;
 
 	// timeMethods (see mixins/time.ts)
 	time(): number;
-	time(t: number, opts?: ActionOptions): Promise<void>;
+	time(seconds: number, opts?: ActionOptions): Promise<void>;
 	duration(): number;
 	buffered(): number;
 	seekByPercentage(pct: number, opts?: ActionOptions): void;

@@ -62,8 +62,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare stop: (opts?: unknown) => Promise<void>;
 	declare togglePlayback: (opts?: unknown) => Promise<void>;
 	declare t: (key: string, vars?: Record<string, string>) => string;
-	declare time: { (): number; (t: number, opts?: unknown): Promise<void> };
-	declare volume: { (): number; (v: number): void };
+	declare time: { (): number; (seconds: number, opts?: unknown): Promise<void> };
+	declare volume: { (): number; (level: number): void };
 	declare duration: () => number;
 	declare playbackRate: () => number;
 	declare experimental: unknown;
@@ -189,7 +189,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			mockPlayer.addPlugin(MediaSessionPlugin);
 			await mockPlayer.ready();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('play', {});
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('play', {});
 
 			expect(session.playbackState).toBe('playing');
 		});
@@ -199,7 +199,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			mockPlayer.addPlugin(MediaSessionPlugin);
 			await mockPlayer.ready();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('pause', {});
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('pause', {});
 
 			expect(session.playbackState).toBe('paused');
 		});
@@ -209,7 +209,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			mockPlayer.addPlugin(MediaSessionPlugin);
 			await mockPlayer.ready();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('ended', undefined);
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('ended', undefined);
 
 			expect(session.playbackState).toBe('none');
 		});
@@ -225,7 +225,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			mockPlayer.addPlugin(MediaSessionPlugin);
 			await mockPlayer.ready();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 30 });
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('time', { time: 30 });
 
 			expect(positionCalls).toHaveLength(1);
 			expect(positionCalls[0]?.position).toBe(30);
@@ -238,7 +238,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			mockPlayer.addPlugin(MediaSessionPlugin);
 			await mockPlayer.ready();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('seek', { time: 60 });
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('seek', { time: 60 });
 
 			expect(positionCalls.length).toBeGreaterThan(0);
 		});
@@ -249,7 +249,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			mockPlayer.addPlugin(MediaSessionPlugin);
 			await mockPlayer.ready();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 10 });
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('time', { time: 10 });
 
 			expect(positionCalls).toHaveLength(0);
 		});
@@ -260,7 +260,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			mockPlayer.addPlugin(MediaSessionPlugin);
 			await mockPlayer.ready();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 10 });
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('time', { time: 10 });
 
 			expect(positionCalls).toHaveLength(0);
 		});
@@ -271,7 +271,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			mockPlayer.addPlugin(MediaSessionPlugin);
 			await mockPlayer.ready();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 10 });
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('time', { time: 10 });
 
 			expect(positionCalls).toHaveLength(0);
 		});
@@ -283,7 +283,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			mockPlayer.addPlugin(MediaSessionPlugin);
 			await mockPlayer.ready();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('time', { time: 200 });
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('time', { time: 200 });
 
 			expect(positionCalls[0]?.position).toBe(100);
 		});
@@ -402,7 +402,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			await mockPlayer.ready();
 
 			const timeCalls: number[] = [];
-			(mockPlayer as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
+			(mockPlayer as unknown as { time: (seconds: number) => void }).time = (seconds: number) => { timeCalls.push(seconds); };
 
 			session._handlers.get('seekto')!({ seekTime: 45 } as MediaSessionActionDetails);
 			expect(timeCalls[0]).toBe(45);
@@ -414,7 +414,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			await mockPlayer.ready();
 
 			const timeCalls: number[] = [];
-			(mockPlayer as unknown as { time: (t: number) => void }).time = (t: number) => { timeCalls.push(t); };
+			(mockPlayer as unknown as { time: (seconds: number) => void }).time = (seconds: number) => { timeCalls.push(seconds); };
 
 			session._handlers.get('seekto')!({} as MediaSessionActionDetails);
 			expect(timeCalls).toHaveLength(0);
@@ -430,7 +430,7 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			await mockPlayer.ready();
 			const inst = mockPlayer.getPluginById('media-session') as MediaSessionPlugin;
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('item', {
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('item', {
 				item: { id: 1, title: 'Track' },
 				index: 0,
 			});
@@ -475,14 +475,14 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			mockPlayer.addPlugin(MediaSessionPlugin);
 			await mockPlayer.ready();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('item', {
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('item', {
 				item: { id: 1, title: 'Track' },
 				index: 0,
 			});
 			await flush();
 			expect(session.metadata).toBeTruthy();
 
-			(mockPlayer as MockPlayer & { emit: (e: string, d: unknown) => void }).emit('item', { item: null, index: -1 });
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('item', { item: null, index: -1 });
 			await flush();
 			expect(session.metadata).toBeNull();
 		});

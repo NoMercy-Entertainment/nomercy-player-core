@@ -647,6 +647,7 @@ export class Plugin<
 				break;
 
 			case 'retry-once': {
+				// Optional extension method; checked before calling — structural narrowing required because it's not on Plugin.
 				const selfWithRetry = this as unknown as { retryLastOperation?: () => void };
 				if (typeof selfWithRetry.retryLastOperation === 'function') {
 					try {
@@ -661,6 +662,7 @@ export class Plugin<
 			}
 
 			case 'fallback': {
+				// Optional extension method; checked before calling — structural narrowing required because it's not on Plugin.
 				const selfWithFallback = this as unknown as { activateFallback?: () => void };
 				if (typeof selfWithFallback.activateFallback === 'function') {
 					try {
@@ -980,6 +982,7 @@ export class Plugin<
 		opts: Partial<InstanceType<C>['opts']>,
 		newId?: string,
 	): C {
+		// `this` is the Plugin subclass constructor; TS can't extend a generic class-typed `this` directly — opaque cast to concrete base type required.
 		class Derived extends (this as unknown as new () => Plugin) {
 			override initialize(player: any, consumerOpts: any, lifecycle: any): void {
 				const merged = {
@@ -996,7 +999,7 @@ export class Plugin<
 				configurable: false,
 			});
 		}
-		return Derived as unknown as C;
+		return Derived as unknown as C; // Derived extends the ctor generically; C is the return constraint imposed by the caller.
 	}
 
 	/**
@@ -1007,6 +1010,7 @@ export class Plugin<
 	clone(): typeof Plugin {
 		const exported = this.export();
 		const Ctor = this.constructor as typeof Plugin;
+		// `derive` is defined on the Plugin class but TS doesn't see it on `typeof Plugin` after constructor-typing — accessed via structural cast.
 		return (Ctor as unknown as { derive: (opts: unknown) => typeof Plugin }).derive(exported);
 	}
 

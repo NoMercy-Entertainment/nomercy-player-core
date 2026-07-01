@@ -180,7 +180,7 @@ function browserCapabilitiesProbe(): ICapabilitiesProbe {
 				};
 			}
 			try {
-				const info = await navigator.mediaCapabilities.decodingInfo({
+				const decodingConfig: MediaDecodingConfiguration = {
 					type: 'media-source',
 					video: profile.width && profile.height && profile.bitrate && profile.framerate
 						? {
@@ -194,7 +194,8 @@ function browserCapabilitiesProbe(): ICapabilitiesProbe {
 					audio: !profile.width
 						? { contentType: profile.contentType }
 						: undefined,
-				} as MediaDecodingConfiguration);
+				};
+				const info = await navigator.mediaCapabilities.decodingInfo(decodingConfig);
 				return {
 					supported: info.supported,
 					smooth: info.smooth,
@@ -294,6 +295,7 @@ interface PipVideoLike {
 function browserPipController(): IPipController {
 	return {
 		async enter(element) {
+			// HTMLElement doesn't include PIP-specific methods — narrowed via local interface.
 			const el = element as unknown as PipVideoLike;
 			if (!el.requestPictureInPicture) {
 				throw new BrowserPolicyError({
@@ -306,17 +308,20 @@ function browserPipController(): IPipController {
 			await el.requestPictureInPicture();
 		},
 		async exit() {
+			// Document doesn't include PIP-specific props in lib.dom — narrowed via local interface.
 			const doc = document as unknown as PipDocumentLike;
 			if (doc.exitPictureInPicture && doc.pictureInPictureElement)
 				await doc.exitPictureInPicture();
 		},
 		isActive() {
+			// Document doesn't include PIP-specific props in lib.dom — narrowed via local interface.
 			const doc = document as unknown as PipDocumentLike;
 			return !!doc.pictureInPictureElement;
 		},
 		isSupported() {
 			if (typeof document === 'undefined')
 				return false;
+			// Document doesn't include PIP-specific props in lib.dom — narrowed via local interface.
 			return !!(document as unknown as PipDocumentLike).exitPictureInPicture;
 		},
 		subscribe(fn) {

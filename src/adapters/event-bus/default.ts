@@ -115,7 +115,7 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 		// Spread-through so firehose listeners receive both (event, data) args.
 		const wrapper = (...args: unknown[]): void => {
 			this.off(event, fn);
-			(fn as (...a: unknown[]) => void)(...args);
+			(fn as (...args: unknown[]) => void)(...args);
 		};
 		this.onceWrappers.set(fn, wrapper);
 		this.on(event, wrapper);

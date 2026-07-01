@@ -213,13 +213,13 @@ async function _startSidecarSubtitle(
  * `SubtitleCue` event shape — same fields the backend emits for native
  * tracks. Renderers see a single payload type and never branch on origin.
  */
-function _toSubtitleCue(p: VTTSubtitlePayload): SubtitleCuePayload {
+function _toSubtitleCue(payload: VTTSubtitlePayload): SubtitleCuePayload {
 	return {
-		text: p.markup ?? p.text,
-		plainText: p.text,
-		line: p.linePosition,
-		align: p.alignment ?? 'center',
-		size: typeof p.size === 'number' ? p.size : 100,
+		text: payload.markup ?? payload.text,
+		plainText: payload.text,
+		line: payload.linePosition,
+		align: payload.alignment ?? 'center',
+		size: typeof payload.size === 'number' ? payload.size : 100,
 	};
 }
 

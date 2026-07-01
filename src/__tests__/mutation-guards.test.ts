@@ -8,10 +8,7 @@
 
 /**
  * Locks the `mutationGuards` config + `beforeMutation` event contract.
- *
- * Spec §C: every state-mutating method (e.g. `current`, `volume`) emits
- * `beforeMutation` with `{ method, args, phase, dispatchStack }`. Hot-path
- * mutations (`volume`, `time`, `playbackRate`, `bandwidth`,
+ * Hot-path mutations (`volume`, `time`, `playbackRate`, `bandwidth`,
  * `recordMetric`) skip the guard by default; opt in via `mutationGuards`.
  *
  * Mirrors the MockPlayer pattern in `tier1-features.test.ts`.
@@ -44,7 +41,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare phase: () => string;
 	declare play: (opts?: any) => Promise<void>;
 	declare pause: (opts?: any) => Promise<void>;
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare queue: {
 		(): ReadonlyArray<any>;
 		(items: any[]): void;

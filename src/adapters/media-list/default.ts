@@ -384,7 +384,7 @@ export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaLis
 	 * Sort the list in place using `compare`. The cursor follows the current
 	 * item to its new position. Fires `sort` then `change`.
 	 */
-	sort(compare: (a: T, b: T) => number): void {
+	sort(compare: (itemA: T, itemB: T) => number): void {
 		if (this.items.length <= 1)
 			return;
 

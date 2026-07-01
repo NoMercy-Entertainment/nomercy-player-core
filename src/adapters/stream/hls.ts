@@ -105,13 +105,13 @@ export class HlsStreamSource implements IStreamSource {
 			this._state = 'ready';
 			this.emit('manifest-loaded', undefined);
 		});
-		this.hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+		this.hls.on(Hls.Events.LEVEL_SWITCHED, (_eventName, data) => {
 			if (typeof data?.level === 'number')
 				this.currentLevelIdx = data.level;
 			this.emit('level-switched', data);
 		});
-		this.hls.on(Hls.Events.FRAG_LOADED, (_, data) => this.emit('fragment-loaded', data));
-		this.hls.on(Hls.Events.ERROR, (_, data) => {
+		this.hls.on(Hls.Events.FRAG_LOADED, (_eventName, data) => this.emit('fragment-loaded', data));
+		this.hls.on(Hls.Events.ERROR, (_eventName, data) => {
 			if (data?.fatal) {
 				this._state = 'error';
 				this.emit('error', data);
@@ -128,7 +128,7 @@ export class HlsStreamSource implements IStreamSource {
 				cleanup();
 				resolve();
 			};
-			const onErr = (_: string, data: ErrorData) => {
+			const onErr = (_eventName: string, data: ErrorData) => {
 				if (data.fatal) {
 					cleanup();
 					reject(new StreamError({
@@ -304,6 +304,7 @@ interface HlsWithDefaultConfig {
  *   dynamic import resolves — never imported at module top-level).
  */
 function makeInterceptingLoader(HlsCtor: typeof import('hls.js').default, registry: StreamRegistry): (new (config: HlsConfig) => Loader<LoaderContext>) | undefined {
+	// hls.js exposes DefaultConfig on the class but the public TS types omit it — accessed via local interface.
 	const Base = (HlsCtor as unknown as HlsWithDefaultConfig).DefaultConfig?.loader;
 	if (!Base)
 		return undefined;

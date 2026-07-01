@@ -148,27 +148,27 @@ describe('nativeWebSocketAdapter', () => {
 
 		it('multiple listeners on same event all fire', () => {
 			const channel = nativeWebSocketAdapter('wss://x');
-			const a = vi.fn();
-			const b = vi.fn();
-			channel.on('message', a);
-			channel.on('message', b);
+			const handlerA = vi.fn();
+			const handlerB = vi.fn();
+			channel.on('message', handlerA);
+			channel.on('message', handlerB);
 			constructedSockets[0]!.dispatchEvent(new MessageEvent('message', { data: 'x' }));
-			expect(a).toHaveBeenCalled();
-			expect(b).toHaveBeenCalled();
+			expect(handlerA).toHaveBeenCalled();
+			expect(handlerB).toHaveBeenCalled();
 		});
 
 		it('listener throw does not break dispatch chain', () => {
 			const channel = nativeWebSocketAdapter('wss://x');
-			const a = vi.fn(() => {
+			const throwingHandler = vi.fn(() => {
 				throw new Error('boom');
 			});
-			const b = vi.fn();
-			channel.on('message', a);
-			channel.on('message', b);
+			const normalHandler = vi.fn();
+			channel.on('message', throwingHandler);
+			channel.on('message', normalHandler);
 			expect(() => {
 				constructedSockets[0]!.dispatchEvent(new MessageEvent('message', { data: 'x' }));
 			}).not.toThrow();
-			expect(b).toHaveBeenCalled();
+			expect(normalHandler).toHaveBeenCalled();
 		});
 	});
 

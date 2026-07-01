@@ -38,15 +38,15 @@ export const volumeMethods = {
 	 * spec). Fires `beforeMutation` (cancellable) then `volume`. No-op when the
 	 * mutation is cancelled.
 	 */
-	volume(this: Internals, v?: number): number | void {
-		if (v === undefined) {
+	volume(this: Internals, level?: number): number | void {
+		if (level === undefined) {
 			return this._volumeState === VolumeState.MUTED ? 0 : this._internalVolume;
 		}
 
-		if (!this._emitBeforeMutation('volume', [v]))
+		if (!this._emitBeforeMutation('volume', [level]))
 			return;
 
-		this._internalVolume = Math.max(0, Math.min(100, v));
+		this._internalVolume = Math.max(0, Math.min(100, level));
 
 		// User-driven volume change while muted = unmute. Standard player UX
 		// (every consumer-facing slider, hardware media key, gesture). Without

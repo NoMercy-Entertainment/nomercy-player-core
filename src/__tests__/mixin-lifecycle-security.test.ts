@@ -62,7 +62,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 		(): Readonly<Record<string, unknown>> | undefined;
 		(cfg: Record<string, unknown>): void;
 		(partial: Partial<Record<string, unknown>>): void;
-		(v: null): void;
+		(value: null): void;
 	};
 
 	declare queue: {

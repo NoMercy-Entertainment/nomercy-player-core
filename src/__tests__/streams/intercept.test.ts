@@ -36,15 +36,15 @@ describe('streams/intercept wiring', () => {
 
 		it('only removes the unsubscribed fn when multiple are registered', async () => {
 			const registry = new StreamRegistry();
-			const a = vi.fn(async (_url: string, response: Response) => response);
-			const b = vi.fn(async (_url: string, response: Response) => response);
-			const unsubA = registry.intercept(a);
-			registry.intercept(b);
+			const interceptorA = vi.fn(async (_url: string, response: Response) => response);
+			const interceptorB = vi.fn(async (_url: string, response: Response) => response);
+			const unsubA = registry.intercept(interceptorA);
+			registry.intercept(interceptorB);
 
 			unsubA();
 			await registry.runInterceptors('https://x', new Response(''));
-			expect(a).not.toHaveBeenCalled();
-			expect(b).toHaveBeenCalledOnce();
+			expect(interceptorA).not.toHaveBeenCalled();
+			expect(interceptorB).toHaveBeenCalledOnce();
 		});
 	});
 

@@ -43,7 +43,7 @@ class ContainerEmitter extends EventEmitter<Record<string, unknown>> {
 const PLAY_STATE_CLASSES = ['playing', 'paused', 'stopped', 'ended', 'loading', 'buffering'];
 
 function presentClasses(container: HTMLElement): string[] {
-	return PLAY_STATE_CLASSES.filter(c => container.classList.contains(c));
+	return PLAY_STATE_CLASSES.filter(cls => container.classList.contains(cls));
 }
 
 afterEach(() => {

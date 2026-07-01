@@ -47,10 +47,10 @@ function makeAnalyserNode(fftSize: number = 2048): AnalyserNode {
 	let _smoothing = 0.8;
 	return {
 		get fftSize() { return _fftSize; },
-		set fftSize(v: number) { _fftSize = v; },
+		set fftSize(val: number) { _fftSize = val; },
 		get frequencyBinCount() { return _fftSize / 2; },
 		get smoothingTimeConstant() { return _smoothing; },
-		set smoothingTimeConstant(v: number) { _smoothing = v; },
+		set smoothingTimeConstant(val: number) { _smoothing = val; },
 		connect: vi.fn(),
 		disconnect: vi.fn(),
 		getByteFrequencyData: vi.fn(),
@@ -316,7 +316,7 @@ describe('AudioGraphPlugin — deep behavioral coverage', () => {
 			(plugin as unknown as { opts: object }).opts = {};
 
 			const unsupported: Array<{ reason: string }> = [];
-			player.on('plugin:audio-graph:unsupported' as never, (d: { reason: string }) => unsupported.push(d));
+			player.on('plugin:audio-graph:unsupported' as never, (data: { reason: string }) => unsupported.push(data));
 
 			expect(() => plugin.use()).toThrow('AudioContext is not available');
 			expect(unsupported).toHaveLength(1);

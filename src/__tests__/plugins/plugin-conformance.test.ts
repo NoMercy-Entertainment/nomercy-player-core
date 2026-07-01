@@ -70,10 +70,10 @@ function makeAnalyserNode(): AnalyserNode {
 	let _smoothing = 0.8;
 	return {
 		get fftSize() { return _fftSize; },
-		set fftSize(v: number) { _fftSize = v; },
+		set fftSize(val: number) { _fftSize = val; },
 		get frequencyBinCount() { return _fftSize / 2; },
 		get smoothingTimeConstant() { return _smoothing; },
-		set smoothingTimeConstant(v: number) { _smoothing = v; },
+		set smoothingTimeConstant(val: number) { _smoothing = val; },
 		connect: vi.fn(),
 		disconnect: vi.fn(),
 		getByteFrequencyData: vi.fn(),
@@ -192,7 +192,7 @@ describePlugin(AudioGraphPlugin, (ctx) => {
 		const spy = vi.spyOn(ctx.player, 'emit');
 		const node = makeAudioNode();
 		ctx.plugin.insertEffect(node, 'post');
-		const rebuiltCalls = spy.mock.calls.filter(([e]) => e === 'plugin:audio-graph:chain:rebuilt');
+		const rebuiltCalls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:audio-graph:chain:rebuilt');
 		expect(rebuiltCalls.length).toBeGreaterThanOrEqual(1);
 	});
 
@@ -202,7 +202,7 @@ describePlugin(AudioGraphPlugin, (ctx) => {
 
 		const spy = vi.spyOn(ctx.player, 'emit');
 		ctx.plugin.removeEffect(node);
-		const rebuiltCalls = spy.mock.calls.filter(([e]) => e === 'plugin:audio-graph:chain:rebuilt');
+		const rebuiltCalls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:audio-graph:chain:rebuilt');
 		expect(rebuiltCalls.length).toBeGreaterThanOrEqual(1);
 	});
 
@@ -212,15 +212,15 @@ describePlugin(AudioGraphPlugin, (ctx) => {
 	});
 
 	it('analyserSource() returns the same node on repeated calls (singleton)', () => {
-		const a = ctx.plugin.analyserSource();
-		const b = ctx.plugin.analyserSource();
-		expect(a).toBe(b);
+		const nodeA = ctx.plugin.analyserSource();
+		const nodeB = ctx.plugin.analyserSource();
+		expect(nodeA).toBe(nodeB);
 	});
 
 	it('dispose() emits context:closed on the player', () => {
 		const spy = vi.spyOn(ctx.player, 'emit');
 		ctx.plugin.dispose();
-		const closedCalls = spy.mock.calls.filter(([e]) => e === 'plugin:audio-graph:context:closed');
+		const closedCalls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:audio-graph:context:closed');
 		expect(closedCalls.length).toBe(1);
 	});
 
@@ -257,7 +257,7 @@ describePlugin(CanvasPlugin, (ctx) => {
 	it('size() write emits resized event on the player', () => {
 		const spy = vi.spyOn(ctx.player, 'emit');
 		ctx.plugin.size(320, 240);
-		const resizedCalls = spy.mock.calls.filter(([e]) => e === 'plugin:canvas:resized');
+		const resizedCalls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:canvas:resized');
 		expect(resizedCalls.length).toBeGreaterThanOrEqual(1);
 		const payload = resizedCalls[0]?.[1] as { width: number; height: number } | undefined;
 		expect(payload?.width).toBe(320);
@@ -265,9 +265,9 @@ describePlugin(CanvasPlugin, (ctx) => {
 	});
 
 	it('size() read returns an object with width and height', () => {
-		const s = ctx.plugin.size();
-		expect(typeof s.width).toBe('number');
-		expect(typeof s.height).toBe('number');
+		const state = ctx.plugin.size();
+		expect(typeof state.width).toBe('number');
+		expect(typeof state.height).toBe('number');
 	});
 
 	it('addRenderer() returns an unregister function', () => {
@@ -310,7 +310,7 @@ describePlugin(CastSenderPlugin, (ctx) => {
 	it('connect() emits plugin:cast-sender:unsupported on the player when SDK is absent', async () => {
 		const spy = vi.spyOn(ctx.player, 'emit');
 		await ctx.plugin.connect().catch(() => {});
-		const calls = spy.mock.calls.filter(([e]) => e === 'plugin:cast-sender:unsupported');
+		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:cast-sender:unsupported');
 		expect(calls.length).toBeGreaterThanOrEqual(1);
 	});
 
@@ -389,7 +389,7 @@ describePlugin(EqualizerPlugin, (ctx) => {
 	it('band() write emits plugin:equalizer:band:changed on the player', () => {
 		const spy = vi.spyOn(ctx.player, 'emit');
 		ctx.plugin.band({ frequency: 180, gain: -3 });
-		const calls = spy.mock.calls.filter(([e]) => e === 'plugin:equalizer:band:changed');
+		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:equalizer:band:changed');
 		expect(calls.length).toBe(1);
 		expect(((calls[0]![1] as { band: { frequency: number } }).band).frequency).toBe(180);
 	});
@@ -406,7 +406,7 @@ describePlugin(EqualizerPlugin, (ctx) => {
 		ctx.plugin.preset(first.name);
 
 		expect(ctx.plugin.preset()).toBe(first.name);
-		const calls = spy.mock.calls.filter(([e]) => e === 'plugin:equalizer:preset:changed');
+		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:equalizer:preset:changed');
 		expect(calls.length).toBeGreaterThanOrEqual(1);
 	});
 
@@ -418,7 +418,7 @@ describePlugin(EqualizerPlugin, (ctx) => {
 		ctx.plugin.reset();
 
 		expect(ctx.plugin.preset()).toBeUndefined();
-		const calls = spy.mock.calls.filter(([e]) => e === 'plugin:equalizer:preset:changed');
+		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:equalizer:preset:changed');
 		expect(calls.length).toBeGreaterThanOrEqual(1);
 	});
 
@@ -658,7 +658,7 @@ describePlugin(MixerPlugin, (ctx) => {
 	it('gain() emits plugin:mixer:gain:changed on the player', () => {
 		const spy = vi.spyOn(ctx.player, 'emit');
 		ctx.plugin.gain(3);
-		const calls = spy.mock.calls.filter(([e]) => e === 'plugin:mixer:gain:changed');
+		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:mixer:gain:changed');
 		expect(calls.length).toBe(1);
 		expect((calls[0]![1] as { gain: number }).gain).toBe(3);
 	});
@@ -682,7 +682,7 @@ describePlugin(MixerPlugin, (ctx) => {
 	it('pan() emits plugin:mixer:pan:changed on the player', () => {
 		const spy = vi.spyOn(ctx.player, 'emit');
 		ctx.plugin.pan(0.5);
-		const calls = spy.mock.calls.filter(([e]) => e === 'plugin:mixer:pan:changed');
+		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:mixer:pan:changed');
 		expect(calls.length).toBe(1);
 		expect((calls[0]![1] as { pan: number }).pan).toBe(0.5);
 	});
@@ -699,7 +699,7 @@ describePlugin(MixerPlugin, (ctx) => {
 	it('muted() emits plugin:mixer:mute:changed on the player', () => {
 		const spy = vi.spyOn(ctx.player, 'emit');
 		ctx.plugin.muted(true);
-		const calls = spy.mock.calls.filter(([e]) => e === 'plugin:mixer:mute:changed');
+		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:mixer:mute:changed');
 		expect(calls.length).toBe(1);
 		expect((calls[0]![1] as { muted: boolean }).muted).toBe(true);
 	});
@@ -708,7 +708,7 @@ describePlugin(MixerPlugin, (ctx) => {
 		const spy = vi.spyOn(ctx.player, 'emit');
 		ctx.plugin.muted(false);
 		ctx.plugin.muted(false);
-		const calls = spy.mock.calls.filter(([e]) => e === 'plugin:mixer:mute:changed');
+		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:mixer:mute:changed');
 		expect(calls.length).toBe(0);
 	});
 }, {
@@ -853,8 +853,8 @@ describePlugin(WaveformVisualization, (ctx) => {
 	});
 
 	it('requires list contains canvas and spectrum plugin ids', () => {
-		const ids = (WaveformVisualization.requires ?? []).map((r) => {
-			const ctor = typeof r === 'object' && 'plugin' in r ? r.plugin : r;
+		const ids = (WaveformVisualization.requires ?? []).map((reqEntry) => {
+			const ctor = typeof reqEntry === 'object' && 'plugin' in reqEntry ? reqEntry.plugin : reqEntry;
 			return (ctor as { id: string }).id;
 		});
 		expect(ids).toContain('canvas');
@@ -873,7 +873,7 @@ describePlugin(WaveformVisualization, (ctx) => {
 		freshPlugin.initialize(ctx.player as unknown as IPlayer, {} as VisualizationOptions, lc);
 		freshPlugin.use();
 
-		const calls = spy.mock.calls.filter(([e]) => e === 'plugin:fillz:waveform:unsupported');
+		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:fillz:waveform:unsupported');
 		expect(calls.length).toBeGreaterThanOrEqual(1);
 
 		freshPlugin.dispose();

@@ -109,14 +109,14 @@ describe('streamRegistrationMethods', () => {
 
 		it('re-registering same id replaces the factory', () => {
 			const mockPlayer = makePlayer('sr-3');
-			const a = makeFactory('same-id');
-			const b = makeFactory('same-id');
-			mockPlayer.registerStream(a);
-			mockPlayer.registerStream(b);
+			const factoryA = makeFactory('same-id');
+			const factoryB = makeFactory('same-id');
+			mockPlayer.registerStream(factoryA);
+			mockPlayer.registerStream(factoryB);
 			const list = mockPlayer.streams();
 			const count = list.filter(id => id === 'same-id').length;
 			expect(count).toBe(1);
-			expect(mockPlayer.getStreamFactory('same-id')).toBe(b);
+			expect(mockPlayer.getStreamFactory('same-id')).toBe(factoryB);
 		});
 
 		it('prepend=true places factory at low-priority end', () => {

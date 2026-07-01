@@ -290,8 +290,8 @@ describe('token encapsulation — adversarial surface walk', () => {
 
 	it('Object.keys(player) values do not contain the sentinel', () => {
 		const values = Object.keys(player).map(k => (player as unknown as Record<string, unknown>)[k]);
-		for (const v of values) {
-			expect(String(v ?? '')).not.toContain(SENTINEL);
+		for (const value of values) {
+			expect(String(value ?? '')).not.toContain(SENTINEL);
 		}
 	});
 
@@ -300,9 +300,9 @@ describe('token encapsulation — adversarial surface walk', () => {
 		for (const name of names) {
 			const descriptor = Object.getOwnPropertyDescriptor(player, name);
 			if (descriptor && 'value' in descriptor) {
-				const v = descriptor.value;
-				if (typeof v === 'string') {
-					expect(v).not.toContain(SENTINEL);
+				const propValue = descriptor.value;
+				if (typeof propValue === 'string') {
+					expect(propValue).not.toContain(SENTINEL);
 				}
 			}
 		}

@@ -158,7 +158,7 @@ export async function runDispatchBefore<TData>(
 			let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 			const settled = await Promise.race([
 				Promise.allSettled(delayedPromises).then((results) => {
-					const first = results.find(r => r.status === 'rejected') as
+					const first = results.find(result => result.status === 'rejected') as
 						| PromiseRejectedResult
 						| undefined;
 					if (first)

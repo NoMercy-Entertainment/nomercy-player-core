@@ -782,15 +782,15 @@ describe('Plugin base class', () => {
 		});
 
 		it('idempotent: same name returns the SAME element', () => {
-			const a = plugin.publicMount('toast');
-			const b = plugin.publicMount('toast');
-			expect(a).toBe(b);
+			const mountA = plugin.publicMount('toast');
+			const mountB = plugin.publicMount('toast');
+			expect(mountA).toBe(mountB);
 		});
 
 		it('different names return different elements', () => {
-			const a = plugin.publicMount('toast');
-			const b = plugin.publicMount('overlay');
-			expect(a).not.toBe(b);
+			const mountA = plugin.publicMount('toast');
+			const mountB = plugin.publicMount('overlay');
+			expect(mountA).not.toBe(mountB);
 		});
 
 		it('mount nodes auto-removed on lifecycle dispose', () => {
@@ -901,8 +901,8 @@ describe('Plugin base class', () => {
 
 		it('listeners receive a BeforeEvent with mutable data', async () => {
 			let received: any;
-			player.on('plugin:test:beforeFoo' as any, (e: any) => {
-				received = e;
+			player.on('plugin:test:beforeFoo' as any, (event: any) => {
+				received = event;
 			});
 			await plugin.publicDispatchBefore('beforeFoo', { x: 1 });
 			expect(received.data).toEqual({ x: 1 });
@@ -911,16 +911,16 @@ describe('Plugin base class', () => {
 		});
 
 		it('listener mutating e.data is reflected in result', async () => {
-			player.on('plugin:test:beforeFoo' as any, (e: any) => {
-				e.data = { x: 99 };
+			player.on('plugin:test:beforeFoo' as any, (event: any) => {
+				event.data = { x: 99 };
 			});
 			const result = await plugin.publicDispatchBefore('beforeFoo', { x: 1 });
 			expect(result.data).toEqual({ x: 99 });
 		});
 
 		it('preventDefault sets prevented=true with reason listener-prevented', async () => {
-			player.on('plugin:test:beforeFoo' as any, (e: any) => {
-				e.preventDefault();
+			player.on('plugin:test:beforeFoo' as any, (event: any) => {
+				event.preventDefault();
 			});
 			const result = await plugin.publicDispatchBefore('beforeFoo', { x: 1 });
 			expect(result.prevented).toBe(true);
@@ -929,8 +929,8 @@ describe('Plugin base class', () => {
 
 		it('stopImmediatePropagation skips remaining listeners', async () => {
 			const second = vi.fn();
-			player.on('plugin:test:beforeFoo' as any, (e: any) => {
-				e.stopImmediatePropagation();
+			player.on('plugin:test:beforeFoo' as any, (event: any) => {
+				event.stopImmediatePropagation();
 			});
 			player.on('plugin:test:beforeFoo' as any, second);
 			await plugin.publicDispatchBefore('beforeFoo', {});
@@ -938,8 +938,8 @@ describe('Plugin base class', () => {
 		});
 
 		it('stopImmediatePropagation does NOT prevent default by itself', async () => {
-			player.on('plugin:test:beforeFoo' as any, (e: any) => {
-				e.stopImmediatePropagation();
+			player.on('plugin:test:beforeFoo' as any, (event: any) => {
+				event.stopImmediatePropagation();
 			});
 			const result = await plugin.publicDispatchBefore('beforeFoo', {});
 			expect(result.prevented).toBe(false);
@@ -947,16 +947,16 @@ describe('Plugin base class', () => {
 
 		it('delay(promise) waits for the promise to settle before resolving', async () => {
 			let resolveDelay: (() => void) | undefined;
-			const delayed = new Promise<void>((r) => { resolveDelay = r; });
-			player.on('plugin:test:beforeFoo' as any, (e: any) => {
-				e.delay(delayed);
+			const delayed = new Promise<void>((resolve) => { resolveDelay = resolve; });
+			player.on('plugin:test:beforeFoo' as any, (event: any) => {
+				event.delay(delayed);
 			});
 
 			let dispatchResolved = false;
 			const promise = plugin.publicDispatchBefore('beforeFoo', {}).then(() => {
 				dispatchResolved = true;
 			});
-			await new Promise(r => setTimeout(r, 5));
+			await new Promise(resolve => setTimeout(resolve, 5));
 			expect(dispatchResolved).toBe(false);
 			resolveDelay!();
 			await promise;
@@ -965,8 +965,8 @@ describe('Plugin base class', () => {
 
 		it('multiple delay() promises compose via Promise.all', async () => {
 			const promises = [Promise.resolve(), Promise.resolve(), Promise.resolve()];
-			player.on('plugin:test:beforeFoo' as any, (e: any) => {
-				promises.forEach(p => e.delay(p));
+			player.on('plugin:test:beforeFoo' as any, (event: any) => {
+				promises.forEach(pending => event.delay(pending));
 			});
 			const result = await plugin.publicDispatchBefore('beforeFoo', {});
 			expect(result.prevented).toBe(false);
@@ -974,8 +974,8 @@ describe('Plugin base class', () => {
 
 		it('rejected delay promise becomes prevented with reason delay-rejected', async () => {
 			const cause = new Error('async fail');
-			player.on('plugin:test:beforeFoo' as any, (e: any) => {
-				e.delay(Promise.reject(cause));
+			player.on('plugin:test:beforeFoo' as any, (event: any) => {
+				event.delay(Promise.reject(cause));
 			});
 			const result = await plugin.publicDispatchBefore('beforeFoo', {});
 			expect(result.prevented).toBe(true);
@@ -985,8 +985,8 @@ describe('Plugin base class', () => {
 
 		it('delay timeout becomes prevented with reason delay-timeout', async () => {
 			const neverResolves = new Promise<void>(() => {});
-			player.on('plugin:test:beforeFoo' as any, (e: any) => {
-				e.delay(neverResolves);
+			player.on('plugin:test:beforeFoo' as any, (event: any) => {
+				event.delay(neverResolves);
 			});
 			const result = await plugin.publicDispatchBefore('beforeFoo', {}, { timeoutMs: 20 });
 			expect(result.prevented).toBe(true);

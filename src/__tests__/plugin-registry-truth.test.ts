@@ -65,7 +65,7 @@ class RegistryTruthPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare forward: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare restart: (opts?: unknown) => Promise<void>;
-	declare time: { (): number; (t: number, opts?: unknown): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: unknown): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare bufferedRanges: () => TimeRanges;
@@ -74,7 +74,7 @@ class RegistryTruthPlayer extends EventEmitter<BaseEventMap> {
 	declare seekByPercentage: (pct: number, opts?: unknown) => void;
 	declare playbackRate: { (): number; (rate: number): void };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare mute: () => void;
 	declare unmute: () => void;
 	declare toggleMute: () => void;
@@ -89,7 +89,7 @@ class RegistryTruthPlayer extends EventEmitter<BaseEventMap> {
 	declare queueMove: (from: number, to: number, opts?: unknown) => void;
 	declare queueClear: (opts?: unknown) => void;
 	declare queueShuffle: (opts?: unknown) => void;
-	declare queueSort: (compare: (a: BasePlaylistItem, b: BasePlaylistItem) => number, opts?: unknown) => void;
+	declare queueSort: (compare: (itemA: BasePlaylistItem, itemB: BasePlaylistItem) => number, opts?: unknown) => void;
 	declare peekNext: () => BasePlaylistItem | undefined;
 	declare peekPrevious: () => BasePlaylistItem | undefined;
 	declare queueLength: () => number;

@@ -105,6 +105,7 @@ function _ensureCastLoaded(cfg: CastConfig | undefined): Promise<void> {
 	const timeoutMs = cfg?.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
 
 	_castLoadPromise = new Promise<void>((resolve, reject) => {
+		// Google Cast SDK attaches __onGCastApiAvailable to window; not in lib.dom — accessed via local interface.
 		const win = window as unknown as _CastApiGlobal;
 		const previous = win.__onGCastApiAvailable;
 		let settled = false;
@@ -171,6 +172,7 @@ function _initCastContext(cfg: CastConfig | undefined): void {
 	if (_castContextConfigured)
 		return;
 
+	// Google Cast SDK injects `cast` onto globalThis; not in lib types — accessed via local interface.
 	const castGlobal = globalThis as unknown as _CastGlobal;
 	if (!castGlobal.cast?.framework?.CastContext)
 		return;
@@ -237,9 +239,9 @@ export const castMethods = {
 	 * supported" UI instead of an opaque failure.
 	 */
 	async transferTo(this: Internals, target: CastTarget): Promise<void> {
-		const setState = (s: _CastStateEnum): void => {
-			this._castState = s;
-			this.emit('castState', { state: s });
+		const setState = (state: _CastStateEnum): void => {
+			this._castState = state;
+			this.emit('castState', { state });
 		};
 
 		switch (target) {
@@ -257,6 +259,7 @@ export const castMethods = {
 				setState(_CastStateEnum.CONNECTING);
 				try {
 					_initCastContext(cfg);
+					// Google Cast SDK injects `cast` onto globalThis; not in lib types — accessed via local interface.
 					const castGlobal = globalThis as unknown as _CastGlobal;
 					await castGlobal.cast.framework.CastContext.getInstance().requestSession();
 					setState(_CastStateEnum.CONNECTED);

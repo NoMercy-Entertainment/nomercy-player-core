@@ -498,8 +498,8 @@ describe('authFetch', () => {
 				emit: (event, data) => emitted.push({ event, data }),
 				scope: 'player',
 			});
-			expect(emitted.find(e => e.event === 'fetch:start')).toBeDefined();
-			expect(emitted.find(e => e.event === 'fetch:complete')).toBeDefined();
+			expect(emitted.find(event => event.event === 'fetch:start')).toBeDefined();
+			expect(emitted.find(event => event.event === 'fetch:complete')).toBeDefined();
 		});
 
 		it('emits plugin:<id>:fetch:* events when scope=plugin and pluginId is set', async () => {
@@ -538,7 +538,7 @@ describe('authFetch', () => {
 				emit: event => emitted.push(event),
 				pluginId: 'lyrics',
 			});
-			expect(emitted.some(e => e.startsWith('plugin:lyrics:fetch:'))).toBe(true);
+			expect(emitted.some(eventName => eventName.startsWith('plugin:lyrics:fetch:'))).toBe(true);
 			expect(emitted.includes('fetch:start')).toBe(false);
 		});
 
@@ -565,7 +565,7 @@ describe('authFetch', () => {
 				emit: (event, data) => emitted.push({ event, data }),
 				scope: 'player',
 			});
-			expect(emitted.find(e => e.event === 'fetch:retry')).toBeDefined();
+			expect(emitted.find(event => event.event === 'fetch:retry')).toBeDefined();
 		});
 	});
 

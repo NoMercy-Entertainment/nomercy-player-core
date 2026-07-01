@@ -75,13 +75,13 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: any) => Promise<void>;
 	declare forward: (seconds?: number, opts?: any) => Promise<void>;
 	declare restart: (opts?: any) => Promise<void>;
-	declare time: { (): number; (t: number, opts?: any): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: any): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => any;
 	declare playbackRate: { (): number; (rate: number): void };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare mute: () => void;
 	declare unmute: () => void;
 	declare toggleMute: () => void;
@@ -237,9 +237,9 @@ describe('player-core mixins (kit)', () => {
 			const div = document.createElement('div');
 			div.id = 'idem';
 			document.body.appendChild(div);
-			const a = new MockPlayer('idem');
-			const b = new MockPlayer('idem');
-			expect(a).toBe(b);
+			const first = new MockPlayer('idem');
+			const second = new MockPlayer('idem');
+			expect(first).toBe(second);
 		});
 	});
 
@@ -366,8 +366,8 @@ describe('player-core mixins (kit)', () => {
 		it('beforePlay receives mutable data; mutation flows to play event', async () => {
 			const mockPlayer = setupPlayer();
 			let received: { source?: string } | undefined;
-			mockPlayer.on('beforePlay' as any, (e: any) => {
-				e.data.source = 'remote';
+			mockPlayer.on('beforePlay' as any, (event: any) => {
+				event.data.source = 'remote';
 			});
 			mockPlayer.on('play' as any, (data: any) => {
 				received = data;
@@ -380,8 +380,8 @@ describe('player-core mixins (kit)', () => {
 			const mockPlayer = setupPlayer();
 			let played = false;
 			let reason: string | undefined;
-			mockPlayer.on('beforePlay' as any, (e: any) => {
-				e.preventDefault();
+			mockPlayer.on('beforePlay' as any, (event: any) => {
+				event.preventDefault();
 			});
 			mockPlayer.on('play' as any, () => {
 				played = true;
@@ -397,9 +397,9 @@ describe('player-core mixins (kit)', () => {
 		it('stopImmediatePropagation skips later listeners', async () => {
 			const mockPlayer = setupPlayer();
 			const calls: string[] = [];
-			mockPlayer.on('beforePlay' as any, (e: any) => {
+			mockPlayer.on('beforePlay' as any, (event: any) => {
 				calls.push('a');
-				e.stopImmediatePropagation();
+				event.stopImmediatePropagation();
 			});
 			mockPlayer.on('beforePlay' as any, () => {
 				calls.push('b');
@@ -469,8 +469,8 @@ describe('player-core mixins (kit)', () => {
 			const mockPlayer = setupPlayer();
 			let stopped = false;
 			let prevented: { reason?: string } | undefined;
-			mockPlayer.on('beforeStop' as any, (e: any) => {
-				e.preventDefault();
+			mockPlayer.on('beforeStop' as any, (event: any) => {
+				event.preventDefault();
 			});
 			mockPlayer.on('stop' as any, () => {
 				stopped = true;
@@ -502,8 +502,8 @@ describe('player-core mixins (kit)', () => {
 		it('rewind emits beforeSeek with negative delta', () => {
 			const mockPlayer = setupPlayer();
 			let beforeSeekTime: number | undefined;
-			mockPlayer.on('beforeSeek' as any, (e: any) => {
-				beforeSeekTime = e.data.time;
+			mockPlayer.on('beforeSeek' as any, (event: any) => {
+				beforeSeekTime = event.data.time;
 			});
 			mockPlayer.rewind(5);
 			expect(beforeSeekTime).toBe(-5);
@@ -512,8 +512,8 @@ describe('player-core mixins (kit)', () => {
 		it('forward emits beforeSeek with positive delta', () => {
 			const mockPlayer = setupPlayer();
 			let beforeSeekTime: number | undefined;
-			mockPlayer.on('beforeSeek' as any, (e: any) => {
-				beforeSeekTime = e.data.time;
+			mockPlayer.on('beforeSeek' as any, (event: any) => {
+				beforeSeekTime = event.data.time;
 			});
 			mockPlayer.forward(10);
 			expect(beforeSeekTime).toBe(10);
@@ -633,8 +633,8 @@ describe('player-core mixins (kit)', () => {
 		it('time(t) preventDefault leaves the value unchanged', async () => {
 			const mockPlayer = setupPlayer();
 			await mockPlayer.time(7);
-			mockPlayer.on('beforeSeek' as any, (e: any) => {
-				e.preventDefault();
+			mockPlayer.on('beforeSeek' as any, (event: any) => {
+				event.preventDefault();
 			});
 			await mockPlayer.time(99);
 			expect(mockPlayer.time()).toBe(7);
@@ -734,23 +734,23 @@ describe('player-core mixins (kit)', () => {
 		it('override + restore + overrides round-trip', () => {
 			const mockPlayer = setupPlayer();
 			const unbind = mockPlayer.experimental.override('foo', () => 1);
-			expect(mockPlayer.experimental.overrides().some((o: any) => o.method === 'foo')).toBe(true);
+			expect(mockPlayer.experimental.overrides().some((overrideEntry: any) => overrideEntry.method === 'foo')).toBe(true);
 			unbind();
-			expect(mockPlayer.experimental.overrides().some((o: any) => o.method === 'foo')).toBe(false);
+			expect(mockPlayer.experimental.overrides().some((overrideEntry: any) => overrideEntry.method === 'foo')).toBe(false);
 		});
 
 		it('restore(name) clears a named method', () => {
 			const mockPlayer = setupPlayer();
 			mockPlayer.experimental.override('bar', () => 2);
 			mockPlayer.experimental.restore('bar');
-			expect(mockPlayer.experimental.overrides().some((o: any) => o.method === 'bar')).toBe(false);
+			expect(mockPlayer.experimental.overrides().some((overrideEntry: any) => overrideEntry.method === 'bar')).toBe(false);
 		});
 	});
 
 	// ── Queue + cursor + backlog ──
 
 	describe('queue + cursor + backlog', () => {
-		const t = (id: string): BasePlaylistItem => ({ id });
+		const makeItem = (id: string): BasePlaylistItem => ({ id });
 
 		it('queue() empty initially; queue([items]) replaces and emits "queue"', () => {
 			const mockPlayer = setupPlayer();
@@ -759,7 +759,7 @@ describe('player-core mixins (kit)', () => {
 			mockPlayer.on('queue' as any, (items: any) => {
 				emitted = items;
 			});
-			mockPlayer.queue([t('a'), t('b')]);
+			mockPlayer.queue([makeItem('a'), makeItem('b')]);
 			expect(mockPlayer.queue().length).toBe(2);
 			expect(emitted?.length).toBe(2);
 		});
@@ -770,8 +770,8 @@ describe('player-core mixins (kit)', () => {
 			mockPlayer.on('queue:append' as any, (data: any) => {
 				from = data.from;
 			});
-			mockPlayer.queue([t('a')]);
-			mockPlayer.queueAppend(t('b'));
+			mockPlayer.queue([makeItem('a')]);
+			mockPlayer.queueAppend(makeItem('b'));
 			expect(from).toBe(1);
 		});
 
@@ -781,7 +781,7 @@ describe('player-core mixins (kit)', () => {
 			mockPlayer.on('queue:remove' as any, (data: any) => {
 				removedId = data.id;
 			});
-			mockPlayer.queue([t('a'), t('b')]);
+			mockPlayer.queue([makeItem('a'), makeItem('b')]);
 			mockPlayer.queueRemove('a');
 			expect(removedId).toBe('a');
 		});
@@ -792,7 +792,7 @@ describe('player-core mixins (kit)', () => {
 			mockPlayer.on('queue:clear' as any, (data: any) => {
 				cleared = data;
 			});
-			mockPlayer.queue([t('a'), t('b'), t('c')]);
+			mockPlayer.queue([makeItem('a'), makeItem('b'), makeItem('c')]);
 			mockPlayer.queueClear();
 			expect(cleared?.previousLength).toBe(3);
 			expect(mockPlayer.queue()).toEqual([]);
@@ -800,7 +800,7 @@ describe('player-core mixins (kit)', () => {
 
 		it('item() moves the cursor and emits "item"', () => {
 			const mockPlayer = setupPlayer();
-			mockPlayer.queue([t('a'), t('b'), t('c')]);
+			mockPlayer.queue([makeItem('a'), makeItem('b'), makeItem('c')]);
 			let payload: { index: number } | undefined;
 			mockPlayer.on('item' as any, (data: any) => {
 				payload = data;
@@ -812,7 +812,7 @@ describe('player-core mixins (kit)', () => {
 
 		it('peekNext / peekPrevious work off the cursor', () => {
 			const mockPlayer = setupPlayer();
-			mockPlayer.queue([t('a'), t('b')]);
+			mockPlayer.queue([makeItem('a'), makeItem('b')]);
 			expect(mockPlayer.peekNext()?.id).toBe('b');
 			expect(mockPlayer.peekPrevious()).toBeUndefined();
 		});
@@ -827,7 +827,7 @@ describe('player-core mixins (kit)', () => {
 			mockPlayer.on('backlog' as any, (items: any) => {
 				emitted = items;
 			});
-			mockPlayer.backlog([t('a'), t('b')]);
+			mockPlayer.backlog([makeItem('a'), makeItem('b')]);
 			expect(emitted?.length).toBe(2);
 		});
 
@@ -837,7 +837,7 @@ describe('player-core mixins (kit)', () => {
 			mockPlayer.on('backlog:clear' as any, (data: any) => {
 				cleared = data;
 			});
-			mockPlayer.backlog([t('a')]);
+			mockPlayer.backlog([makeItem('a')]);
 			mockPlayer.backlogClear();
 			expect(cleared?.previousLength).toBe(1);
 		});

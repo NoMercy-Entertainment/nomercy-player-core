@@ -179,10 +179,10 @@ describe('MemoryStorageBackend', () => {
 
 	describe('isolation', () => {
 		it('two MemoryStorageBackend instances do not share state', async () => {
-			const a = new MemoryStorageBackend();
-			const b = new MemoryStorageBackend();
-			a.set('shared', 'a-only');
-			expect(await b.get('shared')).toBeNull();
+			const backendA = new MemoryStorageBackend();
+			const backendB = new MemoryStorageBackend();
+			backendA.set('shared', 'a-only');
+			expect(await backendB.get('shared')).toBeNull();
 		});
 
 		it('does not persist across construction', async () => {

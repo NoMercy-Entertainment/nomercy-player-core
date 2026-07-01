@@ -79,7 +79,7 @@ describe('composeMixins()', () => {
 			_x = '';
 		}
 		const mixin = {
-			set value(v: string) { (this as any)._x = `set:${v}`; },
+			set value(val: string) { (this as any)._x = `set:${val}`; },
 		};
 		composeMixins(Target.prototype, mixin);
 		const instance = new Target() as Target & { value: string };

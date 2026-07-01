@@ -7,7 +7,7 @@
 // -----------------------------------------------------------------------------
 
 /**
- * Locks the `seeking` phase round-trip per spec §D.
+ * Locks the `seeking` phase round-trip.
  *
  * Every seek action — `time(t)`, `rewind`, `forward`, `restart` — must
  * transition `priorPhase → seeking → priorPhase` when the prior phase is one of
@@ -43,9 +43,9 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare phase: () => string;
 	declare play: (opts?: any) => Promise<void>;
 	declare pause: (opts?: any) => Promise<void>;
-	declare time: { (): number; (t: number, opts?: any): Promise<void> };
-	declare rewind: (s?: number, opts?: any) => Promise<void>;
-	declare forward: (s?: number, opts?: any) => Promise<void>;
+	declare time: { (): number; (seconds: number, opts?: any): Promise<void> };
+	declare rewind: (secs?: number, opts?: any) => Promise<void>;
+	declare forward: (secs?: number, opts?: any) => Promise<void>;
 	declare restart: (opts?: any) => Promise<void>;
 
 	constructor(id?: string | number) {

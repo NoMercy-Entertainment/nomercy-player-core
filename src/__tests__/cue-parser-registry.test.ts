@@ -10,8 +10,8 @@
  * Cue parser registry behavior — kit-default registration, resolution order,
  * consumer override.
  *
- * Spec §G / §24.7: kit-default parsers (LRC, VTT-subtitle, sprite-VTT) auto-
- * register in `setup()` AS LOW-PRIORITY entries, so consumer-supplied parsers
+ * Kit-default parsers (LRC, VTT-subtitle, sprite-VTT) auto-register in
+ * `setup()` AS LOW-PRIORITY entries, so consumer-supplied parsers
  * registered via `setup({ cueParsers })` win the resolution.
  */
 

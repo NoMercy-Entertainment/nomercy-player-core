@@ -127,7 +127,7 @@ describe('Audio chain plugins (audio-graph / mixer / spectrum)', () => {
 
 			mockPlayer.addPlugin(AudioGraphPlugin);
 			// Allow the kit's async install path to settle.
-			await new Promise(r => setTimeout(r, 0));
+			await new Promise(resolve => setTimeout(resolve, 0));
 
 			expect(captured).toBeInstanceOf(BrowserPolicyError);
 			expect((captured as BrowserPolicyError).code).toBe('core:policy/audioContextUnsupported');

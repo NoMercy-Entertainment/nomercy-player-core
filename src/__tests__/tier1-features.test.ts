@@ -9,12 +9,12 @@
 /**
  * Tier 1 plugin-spec features. Locks the just-landed kit behaviour so a
  * future regression on:
- *  - `static replaces` swap (spec §3.1)
+ *  - `static replaces` swap
  *  - `requires.minVersion` enforcement
  *  - `static minCoreVersion` enforcement
  *  - `static priority` ordering in `enabledPlugins()`
- *  - per-plugin namespaced lifecycle events (spec §1.5)
- *  - phase machine transitions (spec §D — partial: play / pause / stop)
+ *  - per-plugin namespaced lifecycle events
+ *  - phase machine transitions (partial: play / pause / stop)
  *
  * Mirrors the conventions in `base-player.test.ts`: a self-contained MockPlayer
  * built on the kit's shared mixins so we exercise the real spine, not a stub.
@@ -58,8 +58,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare pause: (opts?: any) => Promise<void>;
 	declare stop: (opts?: any) => Promise<void>;
 	declare t: (key: string, vars?: Record<string, string>) => string;
-	declare time: { (): number; (t: number, opts?: any): Promise<void> };
-	declare volume: { (): number; (v: number): void };
+	declare time: { (): number; (seconds: number, opts?: any): Promise<void> };
+	declare volume: { (): number; (level: number): void };
 	declare experimental: {
 		override: (method: string, fn: (...args: any[]) => any) => () => void;
 		restore: (method: string) => void;
@@ -103,7 +103,7 @@ describe('Tier 1 plugin features', () => {
 		document.body.innerHTML = '';
 	});
 
-	// ── A. static `replaces` swap (spec §3.1) ───────────────────────────────
+	// ── A. static `replaces` swap ───────────────────────────────────────────
 
 	describe('static replaces swap', () => {
 		class FooV1 extends Plugin {
@@ -308,7 +308,7 @@ describe('Tier 1 plugin features', () => {
 		});
 	});
 
-	// ── E. Per-plugin namespaced lifecycle events (spec §1.5) ───────────────
+	// ── E. Per-plugin namespaced lifecycle events ───────────────────────────
 
 	describe('per-plugin namespaced lifecycle events', () => {
 		class Hello extends Plugin {
@@ -408,7 +408,7 @@ describe('Tier 1 plugin features', () => {
 			expect(global).toBeDefined();
 			expect(global!.id).toBe('hello');
 			expect(global!.opts).toMatchObject({ foo: 'bar' });
-			// Spec §1.5 requires the namespaced channel to fire; the kit also
+			// The namespaced channel must fire; the kit also
 			// echoes via the plugin's own emit() (see plugin.ts setOptions),
 			// so accept >= 1.
 			expect(scopedSeen).toBeGreaterThanOrEqual(1);
@@ -433,7 +433,7 @@ describe('Tier 1 plugin features', () => {
 			await mockPlayer.ready();
 			const unbind = mockPlayer.experimental.override('volume', () => 0);
 			const list = mockPlayer.experimental.overrides();
-			expect(list.find(o => o.method === 'volume')?.by).toBe('consumer');
+			expect(list.find(overrideEntry => overrideEntry.method === 'volume')?.by).toBe('consumer');
 			unbind();
 		});
 
@@ -446,9 +446,9 @@ describe('Tier 1 plugin features', () => {
 		});
 	});
 
-	// ── F. Phase transitions (spec §D — partial) ────────────────────────────
+	// ── F. Phase transitions (partial) ──────────────────────────────────────
 
-	describe('phase transitions (spec §D)', () => {
+	describe('phase transitions', () => {
 		it('walks idle → setup → ready → starting → paused → stopped', async () => {
 			const mockPlayer = makePlayer('f-phase');
 			const transitions: Array<{ from: string; to: string }> = [];

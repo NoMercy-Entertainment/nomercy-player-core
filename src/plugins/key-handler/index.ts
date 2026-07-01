@@ -192,7 +192,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	 * strings are normalised before storage — `'Shift+arrowleft'` and
 	 * `'shift+ArrowLeft'` resolve to the same entry.
 	 */
-	bind(combo: string, fn: (p: P) => void): void {
+	bind(combo: string, fn: (player: P) => void): void {
 		this._bindings.set(this.normalizeCombo(combo), () => fn(this.player));
 	}
 
@@ -209,7 +209,7 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	 * provided as a semantic alias for callers that want to communicate intent
 	 * (swapping, not adding).
 	 */
-	replace(combo: string, fn: (p: P) => void): void {
+	replace(combo: string, fn: (player: P) => void): void {
 		this.bind(combo, fn);
 	}
 
@@ -218,14 +218,14 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	 * `Map` values are `(player) => void` wrappers — mutation of the snapshot
 	 * does not affect the live binding table.
 	 */
-	bindings(): ReadonlyMap<string, (p: P) => void> {
-		const out = new Map<string, (p: P) => void>();
+	bindings(): ReadonlyMap<string, (player: P) => void> {
+		const out = new Map<string, (player: P) => void>();
 		for (const key of this._bindings.keys()) {
-			out.set(key, (p: P) => {
+			out.set(key, (player: P) => {
 				const handler = this._bindings.get(key);
 				if (handler)
 					handler(new KeyboardEvent('keydown', { key }));
-				void p;
+				void player;
 			});
 		}
 		return out;

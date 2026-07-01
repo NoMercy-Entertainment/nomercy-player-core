@@ -21,7 +21,7 @@ export async function decodeBody<T>(response: Response, ctx: AttemptCtx<T>): Pro
 		const buffer = await response.arrayBuffer();
 		return {
 			kind: 'value',
-			value: buffer as unknown as T,
+			value: buffer as unknown as T, // ArrayBuffer proven by responseType branch; generic T can't be narrowed further.
 		};
 	}
 
@@ -60,6 +60,6 @@ export async function decodeBody<T>(response: Response, ctx: AttemptCtx<T>): Pro
 
 	return {
 		kind: 'value',
-		value: text as unknown as T,
+		value: text as unknown as T, // string proven by text() branch; generic T can't be narrowed further.
 	};
 }

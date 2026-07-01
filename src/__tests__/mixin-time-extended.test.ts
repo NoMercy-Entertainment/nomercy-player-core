@@ -48,7 +48,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare setup: (config: Record<string, unknown>) => this;
 	declare ready: () => Promise<void>;
 	declare dispose: () => void;
-	declare time: { (): number; (t: number, opts?: Record<string, unknown>): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: Record<string, unknown>): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => { position: number; duration: number; buffered: number; remaining: number; percentage: number };
@@ -164,9 +164,9 @@ describe('timeMethods — extended (TM-E)', () => {
 
 			const seekCalls: number[] = [];
 			const origTime = player.time.bind(player);
-			(player as unknown as { time: unknown }).time = (t?: number): number | Promise<void> => {
-				if (t !== undefined) {
-					seekCalls.push(t);
+			(player as unknown as { time: unknown }).time = (seconds?: number): number | Promise<void> => {
+				if (seconds !== undefined) {
+					seekCalls.push(seconds);
 					return Promise.resolve();
 				}
 				return origTime();
@@ -183,9 +183,9 @@ describe('timeMethods — extended (TM-E)', () => {
 
 			const seekCalls: number[] = [];
 			const origTime = player.time.bind(player);
-			(player as unknown as { time: unknown }).time = (t?: number): number | Promise<void> => {
-				if (t !== undefined) {
-					seekCalls.push(t);
+			(player as unknown as { time: unknown }).time = (seconds?: number): number | Promise<void> => {
+				if (seconds !== undefined) {
+					seekCalls.push(seconds);
 					return Promise.resolve();
 				}
 				return origTime();
@@ -202,9 +202,9 @@ describe('timeMethods — extended (TM-E)', () => {
 
 			const seekCalls: number[] = [];
 			const origTime = player.time.bind(player);
-			(player as unknown as { time: unknown }).time = (t?: number): number | Promise<void> => {
-				if (t !== undefined) {
-					seekCalls.push(t);
+			(player as unknown as { time: unknown }).time = (seconds?: number): number | Promise<void> => {
+				if (seconds !== undefined) {
+					seekCalls.push(seconds);
 					return Promise.resolve();
 				}
 				return origTime();
@@ -243,7 +243,7 @@ describe('timeMethods — extended (TM-E)', () => {
 			const player = makePlayer('tm-10');
 			const backendCalls: number[] = [];
 			(player as unknown as { backend: () => unknown }).backend = (): unknown => ({
-				playbackRate: (r: number): void => { backendCalls.push(r); },
+				playbackRate: (rate: number): void => { backendCalls.push(rate); },
 			});
 
 			const emitted: Array<{ rate: number }> = [];
@@ -280,7 +280,7 @@ describe('timeMethods — extended (TM-E)', () => {
 
 		const seekArgs: number[] = [];
 		(player as unknown as { backend: () => unknown }).backend = (): unknown => ({
-			currentTime: (t: number): void => { seekArgs.push(t); },
+			currentTime: (seconds: number): void => { seekArgs.push(seconds); },
 		});
 
 		await player.time(-5);

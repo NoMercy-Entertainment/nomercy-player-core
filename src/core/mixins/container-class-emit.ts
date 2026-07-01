@@ -44,27 +44,27 @@ const CONTAINER_CLASS_RULES: ReadonlyMap<string, ContainerClassRule> = new Map<s
 	['play', {
 		kind: 'swap',
 		add: 'playing',
-		remove: PLAY_STATE_CLASSES.filter(c => c !== 'playing'),
+		remove: PLAY_STATE_CLASSES.filter(cls => cls !== 'playing'),
 	}],
 	['playing', {
 		kind: 'swap',
 		add: 'playing',
-		remove: PLAY_STATE_CLASSES.filter(c => c !== 'playing'),
+		remove: PLAY_STATE_CLASSES.filter(cls => cls !== 'playing'),
 	}],
 	['pause', {
 		kind: 'swap',
 		add: 'paused',
-		remove: PLAY_STATE_CLASSES.filter(c => c !== 'paused'),
+		remove: PLAY_STATE_CLASSES.filter(cls => cls !== 'paused'),
 	}],
 	['stop', {
 		kind: 'swap',
 		add: 'stopped',
-		remove: PLAY_STATE_CLASSES.filter(c => c !== 'stopped'),
+		remove: PLAY_STATE_CLASSES.filter(cls => cls !== 'stopped'),
 	}],
 	['ended', {
 		kind: 'swap',
 		add: 'ended',
-		remove: PLAY_STATE_CLASSES.filter(c => c !== 'ended'),
+		remove: PLAY_STATE_CLASSES.filter(cls => cls !== 'ended'),
 	}],
 	['waiting', {
 		kind: 'swap',

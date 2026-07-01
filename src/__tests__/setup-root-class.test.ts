@@ -71,13 +71,13 @@ class RootClassPlayer extends EventEmitter<BaseEventMap> {
 	declare rewind: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare forward: (seconds?: number, opts?: unknown) => Promise<void>;
 	declare restart: (opts?: unknown) => Promise<void>;
-	declare time: { (): number; (t: number, opts?: unknown): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: unknown): Promise<void> };
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => unknown;
 	declare playbackRate: { (): number; (rate: number): void };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare mute: () => void;
 	declare unmute: () => void;
 	declare toggleMute: () => void;
@@ -164,7 +164,7 @@ describe('setup() self-applies .nomercyplayer (S00-R2)', () => {
 
 		new RootClassPlayer('root-class-pre').setup({});
 
-		const count = [...div.classList].filter(c => c === 'nomercyplayer').length;
+		const count = [...div.classList].filter(cls => cls === 'nomercyplayer').length;
 		expect(count).toBe(1);
 	});
 

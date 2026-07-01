@@ -201,12 +201,12 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		this.preGainNode = preGain;
 
 		const filterBands = this._bands.filter((eqBand): eqBand is EqBand & { frequency: number } => eqBand.frequency !== 'Pre');
-		this.filterNodes = filterBands.map((b) => {
+		this.filterNodes = filterBands.map((band) => {
 			const node = ctx.createBiquadFilter();
-			node.type = b.type ?? 'peaking';
-			node.frequency.value = b.frequency;
-			node.Q.value = b.q ?? 1;
-			node.gain.value = b.gain;
+			node.type = band.type ?? 'peaking';
+			node.frequency.value = band.frequency;
+			node.Q.value = band.q ?? 1;
+			node.gain.value = band.gain;
 			return node;
 		});
 
@@ -420,8 +420,8 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	 */
 	presets(): EqPreset[] {
 		const out: EqPreset[] = [];
-		for (const p of BUILTIN_PRESETS) out.push(this.clonePreset(p));
-		for (const p of this.customPresets.values()) out.push(this.clonePreset(p));
+		for (const preset of BUILTIN_PRESETS) out.push(this.clonePreset(preset));
+		for (const preset of this.customPresets.values()) out.push(this.clonePreset(preset));
 		// Consumer-supplied `opts.presets` extends/replaces the catalogue.
 		if (this.opts?.presets) {
 			const seen = new Set(out.map(eqPreset => eqPreset.name));

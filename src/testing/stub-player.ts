@@ -109,7 +109,11 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	constructor(opts?: { id?: string; container?: HTMLElement; phase?: PlayerPhase; translations?: Translations }) {
 		super();
 		this.playerId = opts?.id ?? 'stub-player';
-		this.container = opts?.container ?? (typeof document !== 'undefined' ? document.createElement('div') : ({} as HTMLElement));
+		// In non-DOM environments (Node/test), use an empty object typed as HTMLElement for the container stub.
+		const domFallback: HTMLElement = typeof document !== 'undefined'
+			? document.createElement('div')
+			: Object.create(null) as unknown as HTMLElement; // opaque: no DOM in Node test env
+		this.container = opts?.container ?? domFallback;
 		if (opts?.phase)
 			this._phase = opts.phase;
 		if (opts?.translations)
@@ -246,7 +250,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		const raw = bundle?.[key] ?? key;
 		if (!vars)
 			return raw;
-		return raw.replace(/\{(\w+)\}/g, (_, name: string) => vars[name] ?? `{${name}}`);
+		return raw.replace(/\{(\w+)\}/g, (_match, name: string) => vars[name] ?? `{${name}}`);
 	}
 
 	language(): string;
@@ -282,8 +286,8 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	removeTranslations(prefix: string, lang?: string): void {
 		const langs = lang ? [lang] : Object.keys(this._translations);
-		for (const l of langs) {
-			const bundle = this._translations[l];
+		for (const langCode of langs) {
+			const bundle = this._translations[langCode];
 			if (!bundle)
 				continue;
 			for (const k of Object.keys(bundle)) {
@@ -456,7 +460,9 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		_id: string,
 		_unique?: boolean,
 	): CreateElement<HTMLElementTagNameMap[K]> {
-		return { el: document.createElement(type) } as unknown as CreateElement<HTMLElementTagNameMap[K]>;
+		// CreateElement is a test-helper wrapper shape; the DOM interface has no constructor — opaque cast required.
+		const stub: unknown = { el: document.createElement(type) };
+		return stub as unknown as CreateElement<HTMLElementTagNameMap[K]>; // opaque: test-helper wrapper, no constructor
 	}
 
 	/** Returns a real jsdom `<button>` — same rationale as `createElement`. */
@@ -502,7 +508,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	/** Pass-through — returns the element unchanged with the fluent type. */
 	addClasses<T extends Element>(el: T, _names: string[]): AddClasses<T> {
-		return el as unknown as AddClasses<T>;
+		return el as unknown as AddClasses<T>; // AddClasses is a fluent helper type; el satisfies it at runtime — opaque cast required.
 	}
 
 	/** Pass-through — returns the element unchanged. */
@@ -648,7 +654,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	queueAppend(_item: BasePlaylistItem | BasePlaylistItem[], _opts?: ActionOptions): void {}
 
-	queueSort(_compare: (a: BasePlaylistItem, b: BasePlaylistItem) => number, _opts?: ActionOptions): void {}
+	queueSort(_compare: (itemA: BasePlaylistItem, itemB: BasePlaylistItem) => number, _opts?: ActionOptions): void {}
 
 	backlog(): ReadonlyArray<BasePlaylistItem>;
 	backlog(items: BasePlaylistItem[]): void;
@@ -757,7 +763,16 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	// ── Device / ABR ──
 
 	device(): DeviceCapabilities {
-		return {} as DeviceCapabilities;
+		return {
+			isTv: false,
+			isMobile: false,
+			isDesktop: true,
+			pipSupported: false,
+			fullscreenSupported: false,
+			webLocksSupported: false,
+			autoplayAllowed: 'unknown',
+			preferred: 'smooth',
+		};
 	}
 
 	bandwidth(): number {
@@ -798,19 +813,13 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	}
 
 	bufferedRanges(): TimeRanges {
-		return {
-			length: 0,
-			start: (_index: number) => 0,
-			end: (_index: number) => 0,
-		} as unknown as TimeRanges;
+		const stub: unknown = { length: 0, start: (_index: number) => 0, end: (_index: number) => 0 };
+		return stub as unknown as TimeRanges; // opaque: DOM TimeRanges has no constructor
 	}
 
 	seekable(): TimeRanges {
-		return {
-			length: 0,
-			start: (_index: number) => 0,
-			end: (_index: number) => 0,
-		} as unknown as TimeRanges;
+		const stub: unknown = { length: 0, start: (_index: number) => 0, end: (_index: number) => 0 };
+		return stub as unknown as TimeRanges; // opaque: DOM TimeRanges has no constructor
 	}
 
 	// ── Coarse state tokens ──

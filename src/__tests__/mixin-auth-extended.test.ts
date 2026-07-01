@@ -51,7 +51,7 @@ class AuthMockPlayer extends EventEmitter<BaseEventMap> {
 	declare auth: {
 		(): Readonly<Record<string, unknown>> | undefined;
 		(cfg: Record<string, unknown>): void;
-		(v: null): void;
+		(value: null): void;
 	};
 
 	declare resolveUrl: (url: string, category?: string) => Promise<{ href: string; relative: boolean }>;
@@ -403,10 +403,10 @@ describe('auth mixin — resolveUrl() real mixin baseImageUrl branch', () => {
 		authMockPlayer.setup({ baseImageUrl: 'https://image.tmdb.org/t/p/w780' });
 		await authMockPlayer.ready();
 
-		const r = await authMockPlayer.resolveUrl('/poster.jpg', 'poster');
+		const resolved = await authMockPlayer.resolveUrl('/poster.jpg', 'poster');
 
-		expect((r as { relative: boolean }).relative).toBe(false);
-		expect((r as { href: string }).href).toBe('https://image.tmdb.org/t/p/w780/poster.jpg');
+		expect((resolved as { relative: boolean }).relative).toBe(false);
+		expect((resolved as { href: string }).href).toBe('https://image.tmdb.org/t/p/w780/poster.jpg');
 	});
 
 	it('defaultResolve fallback fires when custom resolver returns a non-object', async () => {
@@ -416,8 +416,8 @@ describe('auth mixin — resolveUrl() real mixin baseImageUrl branch', () => {
 
 		authMockPlayer.urlResolver(() => null as unknown as ReturnType<IUrlResolver>);
 
-		const r = await authMockPlayer.resolveUrl('https://cdn.example.com/x.mp4', 'media');
+		const resolved = await authMockPlayer.resolveUrl('https://cdn.example.com/x.mp4', 'media');
 
-		expect((r as { href: string }).href).toBe('https://cdn.example.com/x.mp4');
+		expect((resolved as { href: string }).href).toBe('https://cdn.example.com/x.mp4');
 	});
 });

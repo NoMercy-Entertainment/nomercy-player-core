@@ -56,13 +56,13 @@ describe('EventEmitter', () => {
 		});
 
 		it('registers multiple listeners on the same event', () => {
-			const a = vi.fn();
-			const b = vi.fn();
-			emitter.on('greet', a);
-			emitter.on('greet', b);
+			const handlerA = vi.fn();
+			const handlerB = vi.fn();
+			emitter.on('greet', handlerA);
+			emitter.on('greet', handlerB);
 			emitter.emit('greet', { who: 'x' });
-			expect(a).toHaveBeenCalledTimes(1);
-			expect(b).toHaveBeenCalledTimes(1);
+			expect(handlerA).toHaveBeenCalledTimes(1);
+			expect(handlerB).toHaveBeenCalledTimes(1);
 		});
 
 		it('does NOT double-register the same fn (Set semantics)', () => {
@@ -105,37 +105,37 @@ describe('EventEmitter', () => {
 		});
 
 		it('removes only the matching listener (others remain)', () => {
-			const a = vi.fn();
-			const b = vi.fn();
-			emitter.on('greet', a);
-			emitter.on('greet', b);
-			emitter.off('greet', a);
+			const handlerA = vi.fn();
+			const handlerB = vi.fn();
+			emitter.on('greet', handlerA);
+			emitter.on('greet', handlerB);
+			emitter.off('greet', handlerA);
 			emitter.emit('greet', { who: 'x' });
-			expect(a).not.toHaveBeenCalled();
-			expect(b).toHaveBeenCalled();
+			expect(handlerA).not.toHaveBeenCalled();
+			expect(handlerB).toHaveBeenCalled();
 		});
 
 		it('without fn argument, removes all listeners for the event', () => {
-			const a = vi.fn();
-			const b = vi.fn();
-			emitter.on('greet', a);
-			emitter.on('greet', b);
+			const handlerA = vi.fn();
+			const handlerB = vi.fn();
+			emitter.on('greet', handlerA);
+			emitter.on('greet', handlerB);
 			emitter.off('greet');
 			emitter.emit('greet', { who: 'x' });
-			expect(a).not.toHaveBeenCalled();
-			expect(b).not.toHaveBeenCalled();
+			expect(handlerA).not.toHaveBeenCalled();
+			expect(handlerB).not.toHaveBeenCalled();
 		});
 
 		it('off("all") clears every event registration', () => {
-			const a = vi.fn();
-			const b = vi.fn();
-			emitter.on('greet', a);
-			emitter.on('tick', b);
+			const handlerA = vi.fn();
+			const handlerB = vi.fn();
+			emitter.on('greet', handlerA);
+			emitter.on('tick', handlerB);
 			emitter.off('all');
 			emitter.emit('greet', { who: 'x' });
 			emitter.emit('tick', { time: 1 });
-			expect(a).not.toHaveBeenCalled();
-			expect(b).not.toHaveBeenCalled();
+			expect(handlerA).not.toHaveBeenCalled();
+			expect(handlerB).not.toHaveBeenCalled();
 		});
 
 		it('no-op when removing from a non-existent event', () => {
@@ -196,13 +196,13 @@ describe('EventEmitter', () => {
 		});
 
 		it('multiple once handlers on same event all fire on first emit', () => {
-			const a = vi.fn();
-			const b = vi.fn();
-			emitter.once('greet', a);
-			emitter.once('greet', b);
+			const handlerA = vi.fn();
+			const handlerB = vi.fn();
+			emitter.once('greet', handlerA);
+			emitter.once('greet', handlerB);
 			emitter.emit('greet', { who: 'x' });
-			expect(a).toHaveBeenCalledTimes(1);
-			expect(b).toHaveBeenCalledTimes(1);
+			expect(handlerA).toHaveBeenCalledTimes(1);
+			expect(handlerB).toHaveBeenCalledTimes(1);
 		});
 	});
 
@@ -241,17 +241,17 @@ describe('EventEmitter', () => {
 		});
 
 		it('listener removing another listener during dispatch may or may not affect that listener', () => {
-			const b = vi.fn();
-			const a = vi.fn(() => emitter.off('tick', b));
-			emitter.on('tick', a);
-			emitter.on('tick', b);
+			const handlerB = vi.fn();
+			const handlerA = vi.fn(() => emitter.off('tick', handlerB));
+			emitter.on('tick', handlerA);
+			emitter.on('tick', handlerB);
 			emitter.emit('tick', { time: 1 });
-			expect(a).toHaveBeenCalledTimes(1);
-			// Snapshot is taken before iteration; b is still in the snapshot
-			expect(b).toHaveBeenCalledTimes(1);
-			// Second emit: b is gone
+			expect(handlerA).toHaveBeenCalledTimes(1);
+			// Snapshot is taken before iteration; handlerB is still in the snapshot
+			expect(handlerB).toHaveBeenCalledTimes(1);
+			// Second emit: handlerB is gone
 			emitter.emit('tick', { time: 2 });
-			expect(b).toHaveBeenCalledTimes(1);
+			expect(handlerB).toHaveBeenCalledTimes(1);
 		});
 	});
 
@@ -261,15 +261,15 @@ describe('EventEmitter', () => {
 
 	describe('error handling during dispatch', () => {
 		it('catches a throw from one listener and continues to the next', () => {
-			const a = vi.fn(() => {
+			const throwingHandler = vi.fn(() => {
 				throw new Error('boom');
 			});
-			const b = vi.fn();
-			emitter.on('greet', a);
-			emitter.on('greet', b);
+			const normalHandler = vi.fn();
+			emitter.on('greet', throwingHandler);
+			emitter.on('greet', normalHandler);
 			emitter.emit('greet', { who: 'x' });
-			expect(a).toHaveBeenCalled();
-			expect(b).toHaveBeenCalled();
+			expect(throwingHandler).toHaveBeenCalled();
+			expect(normalHandler).toHaveBeenCalled();
 		});
 
 		it('logs the error to console.error', () => {

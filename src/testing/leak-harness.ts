@@ -28,6 +28,7 @@ export interface LeakAssertionResult {
  * method, returns `0` and the harness reports zero leaks (no false positives).
  */
 export function countAllListeners(player: IPlayer): number {
+	// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
 	const fn = (player as unknown as { listenerCount?: () => number }).listenerCount;
 	return typeof fn === 'function' ? fn.call(player) : 0;
 }

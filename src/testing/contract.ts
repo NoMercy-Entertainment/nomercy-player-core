@@ -40,8 +40,9 @@ interface VitestGlobals {
 }
 
 function getGlobals(): VitestGlobals {
-	const g = globalThis as unknown as Partial<VitestGlobals>;
-	if (!g.describe || !g.it || !g.beforeEach || !g.afterEach || !g.expect) {
+	// Vitest injects test globals at runtime; not typed on globalThis — narrowed via local interface.
+	const globals = globalThis as unknown as Partial<VitestGlobals>;
+	if (!globals.describe || !globals.it || !globals.beforeEach || !globals.afterEach || !globals.expect) {
 		throw new StateError({
 			code: 'core:test/vitest-globals-missing',
 			severity: 'fatal',
@@ -50,7 +51,7 @@ function getGlobals(): VitestGlobals {
 			suggestion: 'Ensure vitest.config has `test.globals: true`.',
 		});
 	}
-	return g as VitestGlobals;
+	return globals as VitestGlobals;
 }
 
 /**
@@ -236,20 +237,20 @@ export function runIPlayerContract<P extends IPlayer<BaseEventMap>>(opts: {
 				expect(typeof unbind).toBe('function');
 				const list = player.experimental.overrides();
 				expect(Array.isArray(list)).toBe(true);
-				expect(list.some(o => o.method === 'foo')).toBe(true);
+				expect(list.some(overrideEntry => overrideEntry.method === 'foo')).toBe(true);
 				unbind();
 			});
 
 			it('the unbinder removes the entry from overrides()', () => {
 				const unbind = player.experimental.override('bar', () => 2);
 				unbind();
-				expect(player.experimental.overrides().some(o => o.method === 'bar')).toBe(false);
+				expect(player.experimental.overrides().some(overrideEntry => overrideEntry.method === 'bar')).toBe(false);
 			});
 
 			it('restore() clears a named method', () => {
 				player.experimental.override('baz', () => 3);
 				player.experimental.restore('baz');
-				expect(player.experimental.overrides().some(o => o.method === 'baz')).toBe(false);
+				expect(player.experimental.overrides().some(overrideEntry => overrideEntry.method === 'baz')).toBe(false);
 			});
 		});
 
@@ -295,9 +296,9 @@ export function runIPlayerContract<P extends IPlayer<BaseEventMap>>(opts: {
 			});
 
 			it('language(lang) resolves to a Promise', async () => {
-				const p = player.language('en');
-				expect(p).toBeInstanceOf(Promise);
-				await p;
+				const langPromise = player.language('en');
+				expect(langPromise).toBeInstanceOf(Promise);
+				await langPromise;
 			});
 		});
 

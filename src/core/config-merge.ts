@@ -26,7 +26,7 @@ export function mergeConfig<T>(defaults: T, user?: Partial<T> | undefined): T {
 	}
 
 	if (!isPlainObject(defaults) || !isPlainObject(user)) {
-		return (user as unknown as T) ?? defaults;
+		return (user as unknown as T) ?? defaults; // Non-plain-object branch: user value overrides entirely; T verified by caller's generic constraint.
 	}
 
 	const result: Record<string, unknown> = { ...(defaults as Record<string, unknown>) };

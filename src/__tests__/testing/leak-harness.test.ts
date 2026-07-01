@@ -140,11 +140,11 @@ describe('assertNoListenerLeak()', () => {
 			subjectId: 'async',
 			player,
 			setup: async () => {
-				await new Promise(r => setTimeout(r, 1));
+				await new Promise(resolve => setTimeout(resolve, 1));
 				player.on('play', handler);
 			},
 			teardown: async () => {
-				await new Promise(r => setTimeout(r, 1));
+				await new Promise(resolve => setTimeout(resolve, 1));
 				player.off('play', handler);
 			},
 		});

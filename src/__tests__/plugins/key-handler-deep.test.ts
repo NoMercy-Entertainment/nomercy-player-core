@@ -67,8 +67,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare stop: (opts?: unknown) => Promise<void>;
 	declare togglePlayback: (opts?: unknown) => Promise<void>;
 	declare t: (key: string, vars?: Record<string, string>) => string;
-	declare time: { (): number; (t: number, opts?: unknown): Promise<void> };
-	declare volume: { (): number; (v: number): void };
+	declare time: { (): number; (seconds: number, opts?: unknown): Promise<void> };
+	declare volume: { (): number; (level: number): void };
 	declare experimental: unknown;
 
 	constructor(id?: string | number) {
@@ -386,7 +386,7 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 		await mockPlayer.ready();
 
 		const rewindFn = vi.fn();
-		(mockPlayer as MockPlayer & { rewind: (n: number) => void }).rewind = rewindFn;
+		(mockPlayer as MockPlayer & { rewind: (secs: number) => void }).rewind = rewindFn;
 
 		dispatch('ArrowLeft');
 		expect(rewindFn).toHaveBeenCalledWith(5);
@@ -398,7 +398,7 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 		await mockPlayer.ready();
 
 		const forwardFn = vi.fn();
-		(mockPlayer as MockPlayer & { forward: (n: number) => void }).forward = forwardFn;
+		(mockPlayer as MockPlayer & { forward: (secs: number) => void }).forward = forwardFn;
 
 		dispatch('ArrowRight');
 		expect(forwardFn).toHaveBeenCalledWith(5);

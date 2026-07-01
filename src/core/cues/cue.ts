@@ -59,7 +59,7 @@ export interface MutableCueList<T = unknown> extends CueList<T> {
  * `next(t)` and `prev(t)` locate the cue immediately after and before `t`.
  */
 export function createCueList<T>(cues: ReadonlyArray<Cue<T>>): CueList<T> {
-	const sorted = [...cues].sort((a, b) => a.start - b.start);
+	const sorted = [...cues].sort((itemA, itemB) => itemA.start - itemB.start);
 
 	// Returns the first index whose start > time (sorted.length when none exists).
 	const upperBound = (time: number): number => {
@@ -126,7 +126,7 @@ export function createCueList<T>(cues: ReadonlyArray<Cue<T>>): CueList<T> {
  * Subscriber errors are swallowed so a bad consumer cannot corrupt the list.
  */
 export function createMutableCueList<T>(initial?: ReadonlyArray<Cue<T>>): MutableCueList<T> {
-	const sorted: Cue<T>[] = initial ? [...initial].sort((a, b) => a.start - b.start) : [];
+	const sorted: Cue<T>[] = initial ? [...initial].sort((itemA, itemB) => itemA.start - itemB.start) : [];
 	const subs = new Set<(cues: ReadonlyArray<Cue<T>>) => void>();
 
 	const upperBound = (time: number): number => {

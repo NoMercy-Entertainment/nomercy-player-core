@@ -74,7 +74,7 @@ function makePlayerLogger(self: Internals, scope: string): Logger {
 function _cascadeDisable(self: Internals, failedId: string, reason: string, findDependents: (id: string) => string[]): void {
 	const dependents = findDependents(failedId);
 	for (const depId of dependents) {
-		const entry = self._plugins.find(p => p.ctor.id === depId);
+		const entry = self._plugins.find(plugin => plugin.ctor.id === depId);
 		if (!entry)
 			continue;
 		if (!entry.instance.enabled())
@@ -93,15 +93,15 @@ function _cascadeDisable(self: Internals, failedId: string, reason: string, find
 /**
  * Three-way semver compare: returns -1, 0, or +1 for `a` vs `b`. Tolerates
  * missing patch / minor (`'2'` → `'2.0.0'`). Pre-release tags follow semver
- * §11 precedence: dot-separated identifiers compared left-to-right; numeric
+ * precedence: dot-separated identifiers compared left-to-right; numeric
  * identifiers compare numerically; a numeric identifier has lower precedence
  * than an alphanumeric one; a longer pre-release wins when all shared
  * identifiers are equal; a final release always beats any pre-release.
  */
-function _compareSemver(a: string, b: string): -1 | 0 | 1 {
-	const parse = (v: string): { nums: number[]; pre: string } => {
-		const [main, pre = ''] = v.split('-', 2);
-		const nums = (main ?? '').split('.').map(s => Number.parseInt(s, 10) || 0);
+function _compareSemver(verA: string, verB: string): -1 | 0 | 1 {
+	const parse = (ver: string): { nums: number[]; pre: string } => {
+		const [main, pre = ''] = ver.split('-', 2);
+		const nums = (main ?? '').split('.').map(segment => Number.parseInt(segment, 10) || 0);
 		while (nums.length < 3) nums.push(0);
 		return {
 			nums,
@@ -109,8 +109,8 @@ function _compareSemver(a: string, b: string): -1 | 0 | 1 {
 		};
 	};
 
-	const aP = parse(a);
-	const bP = parse(b);
+	const aP = parse(verA);
+	const bP = parse(verB);
 
 	for (let i = 0; i < 3; i++) {
 		const an = aP.nums[i] ?? 0;
@@ -251,7 +251,7 @@ export const pluginRegistrationMethods = {
 	 */
 	async _registerPlugin(this: Internals, ctor: PluginCtorWithId, opts: unknown, timeoutMs: number): Promise<void> {
 		const id = ctor.id;
-		if (this._plugins.some(p => p.ctor.id === id)) {
+		if (this._plugins.some(plugin => plugin.ctor.id === id)) {
 			return;
 		}
 
@@ -259,7 +259,9 @@ export const pluginRegistrationMethods = {
 		const lifecycle = new LifecycleRegistry();
 		let instance: Plugin;
 		try {
+			// Plugin constructors take no args at new-time; options are passed via initialize. Type-erased here because ctor is a generic PluginCtorWithId.
 			instance = new (ctor as unknown as _InstantiableCtor)();
+			// `this` is the host player; IPlayer is the public contract the plugin receives.
 			instance.initialize(this as unknown as IPlayer, opts, lifecycle);
 		}
 		catch (err) {
@@ -317,7 +319,7 @@ export const pluginRegistrationMethods = {
 			const result = instance.use();
 			if (result instanceof Promise) {
 				let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-				const timeout = new Promise<never>((_, reject) => {
+				const timeout = new Promise<never>((_resolve, reject) => {
 					timeoutHandle = setTimeout(
 						() => reject(stateError('core:plugin/init-timeout', `Plugin "${id}" use() exceeded ${timeoutMs}ms`, {
 							id,
@@ -343,6 +345,7 @@ export const pluginRegistrationMethods = {
 		if (useFailed) {
 			const failError = useError instanceof Error ? useError : new Error(String(useError));
 
+			// Accessing the plugin's logger field before it's fully registered — opaque cast via structural interface.
 			const pluginLogger = (instance as unknown as { logger?: { error: (...args: unknown[]) => void } }).logger
 				?? makePlayerLogger(this, id);
 			pluginLogger.error('plugin use() failed — plugin will not be registered', failError);
@@ -422,8 +425,8 @@ export const pluginRegistrationMethods = {
 		// one registers (which will fire `plugin:installed`). Non-matching id
 		// is not an error — registration proceeds as a fresh install.
 		if (PluginClass.replaces) {
-			const existingIdx = this._plugins.findIndex(p => p.ctor.id === PluginClass.replaces);
-			const queuedIdx = this._pluginQueue.findIndex(q => q.ctor.id === PluginClass.replaces);
+			const existingIdx = this._plugins.findIndex(plugin => plugin.ctor.id === PluginClass.replaces);
+			const queuedIdx = this._pluginQueue.findIndex(queued => queued.ctor.id === PluginClass.replaces);
 			if (existingIdx >= 0) {
 				this.removePluginById(PluginClass.replaces);
 			}
@@ -432,7 +435,7 @@ export const pluginRegistrationMethods = {
 			}
 		}
 
-		if (this._plugins.some(p => p.ctor.id === id) || this._pluginQueue.some(q => q.ctor.id === id)) {
+		if (this._plugins.some(plugin => plugin.ctor.id === id) || this._pluginQueue.some(queued => queued.ctor.id === id)) {
 			throw pluginError('core:plugin/duplicate-id', `Plugin "${id}" is already registered.`, { context: { id } });
 		}
 
@@ -444,8 +447,8 @@ export const pluginRegistrationMethods = {
 			const optional = typeof spec === 'function' ? false : (spec.optional ?? false);
 			const minVersion = typeof spec === 'function' ? undefined : spec.minVersion;
 			const reqId = requiredCtor.id;
-			const present = this._plugins.some(p => p.ctor.id === reqId)
-				|| this._pluginQueue.some(q => q.ctor.id === reqId);
+			const present = this._plugins.some(plugin => plugin.ctor.id === reqId)
+				|| this._pluginQueue.some(queued => queued.ctor.id === reqId);
 			if (!present && !optional) {
 				throw pluginError('core:plugin/missing-dep', `Plugin "${id}" requires "${reqId}" but it is not registered.`, {
 					context: {
@@ -456,8 +459,8 @@ export const pluginRegistrationMethods = {
 			}
 			if (present && minVersion !== undefined) {
 				// Resolve the actual ctor we'd be using (registered first, queued fallback).
-				const reg = this._plugins.find(p => p.ctor.id === reqId);
-				const queued = this._pluginQueue.find(q => q.ctor.id === reqId);
+				const reg = this._plugins.find(plugin => plugin.ctor.id === reqId);
+				const queued = this._pluginQueue.find(qEntry => qEntry.ctor.id === reqId);
 				const installedVersion = (reg?.ctor.version ?? queued?.ctor.version ?? '0.0.0');
 				if (_compareSemver(installedVersion, minVersion) < 0) {
 					throw pluginError(
@@ -575,12 +578,12 @@ export const pluginRegistrationMethods = {
 
 		// Also clear pending queue entries so a queued-then-removed plugin
 		// doesn't get registered later.
-		const queueIdx = this._pluginQueue.findIndex(q => q.ctor.id === id);
+		const queueIdx = this._pluginQueue.findIndex(queued => queued.ctor.id === id);
 		if (queueIdx >= 0) {
 			this._pluginQueue.splice(queueIdx, 1);
 		}
 
-		const idx = this._plugins.findIndex(p => p.ctor.id === id);
+		const idx = this._plugins.findIndex(plugin => plugin.ctor.id === id);
 		if (idx < 0)
 			return;
 		const { instance, lifecycle, ctor } = this._plugins[idx]!;
@@ -601,7 +604,7 @@ export const pluginRegistrationMethods = {
 	 * internal list. For only-enabled, ordered by priority, use `enabledPlugins`.
 	 */
 	plugins(this: Internals): ReadonlyArray<Plugin> {
-		return this._plugins.map(p => p.instance);
+		return this._plugins.map(plugin => plugin.instance);
 	},
 
 	/**
@@ -617,12 +620,12 @@ export const pluginRegistrationMethods = {
 				index,
 			}))
 			.filter(({ entry }) => entry.instance.enabled());
-		enabled.sort((a, b) => {
-			const ap = a.entry.ctor.priority ?? 0;
-			const bp = b.entry.ctor.priority ?? 0;
+		enabled.sort((itemA, itemB) => {
+			const ap = itemA.entry.ctor.priority ?? 0;
+			const bp = itemB.entry.ctor.priority ?? 0;
 			if (ap !== bp)
 				return bp - ap;
-			return a.index - b.index;
+			return itemA.index - itemB.index;
 		});
 		return enabled.map(({ entry }) => entry.instance);
 	},

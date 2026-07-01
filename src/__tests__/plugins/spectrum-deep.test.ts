@@ -60,10 +60,10 @@ function makeAnalyserStub(fftSize: number = 2048): AnalyserNode {
 
 	return {
 		get fftSize() { return _fftSize; },
-		set fftSize(v: number) { _fftSize = v; },
+		set fftSize(val: number) { _fftSize = val; },
 		get frequencyBinCount() { return _fftSize / 2; },
 		get smoothingTimeConstant() { return _smoothing; },
-		set smoothingTimeConstant(v: number) { _smoothing = v; },
+		set smoothingTimeConstant(val: number) { _smoothing = val; },
 		getByteFrequencyData: vi.fn((buf: Uint8Array) => { buf.set(freqData.slice(0, buf.length)); }),
 		getByteTimeDomainData: vi.fn((buf: Uint8Array) => { buf.set(waveData.slice(0, buf.length)); }),
 		getFloatFrequencyData: vi.fn((buf: Float32Array) => { buf.set(freqFloatData.slice(0, buf.length)); }),
@@ -98,7 +98,7 @@ function wirePlugin(
 	(player as EventEmitter<BaseEventMap> & { getPlugin: (ctor: unknown) => unknown }).getPlugin = () => fakeGraph;
 
 	let capturedTickFn: (deltaMs: number, time: number) => void = () => {};
-	(plugin as unknown as { frame: (fn: (d: number, t: number) => void) => void }).frame = (fn) => {
+	(plugin as unknown as { frame: (fn: (data: number, time: number) => void) => void }).frame = (fn) => {
 		capturedTickFn = fn;
 	};
 

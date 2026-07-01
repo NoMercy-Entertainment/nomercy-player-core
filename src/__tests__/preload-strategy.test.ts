@@ -56,14 +56,14 @@ class PreloadTestPlayer extends EventEmitter<BaseEventMap> {
 	declare queueAppend: (item: any, opts?: any) => void;
 	declare queueLength: () => number;
 	declare peekNext: () => any;
-	declare time: { (): number; (t: number, opts?: any): Promise<void> };
+	declare time: { (): number; (seconds: number, opts?: any): Promise<void> };
 	declare duration: () => number;
 	declare play: (opts?: any) => Promise<void>;
 	declare pause: (opts?: any) => Promise<void>;
 	declare stop: (opts?: any) => Promise<void>;
 	declare next: (opts?: any) => Promise<void>;
 	declare previous: (opts?: any) => Promise<void>;
-	declare volume: { (): number; (v: number): void };
+	declare volume: { (): number; (level: number): void };
 	declare addPlugin: <P extends Plugin>(PluginClass: new () => P, opts?: P['opts']) => this;
 	declare getPlugin: (PluginClass: any) => any;
 	declare removePlugin: (PluginClass: any) => void;
