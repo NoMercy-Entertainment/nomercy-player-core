@@ -117,6 +117,37 @@ export enum ShuffleState {
 }
 
 /**
+ * Top-level playback lifecycle state. Returned by `player.playState()`.
+ *
+ * String values are identical to the v1 `PlayStateToken` union so no runtime
+ * migration is needed; only the type changes from a string union to a proper enum.
+ */
+export enum PlayState {
+	/** Player constructed; `load()` not yet called. */
+	IDLE = 'idle',
+	/** Item is being fetched / initialised by the backend. */
+	LOADING = 'loading',
+	/** Backend is actively advancing the clock. */
+	PLAYING = 'playing',
+	/** Playback is suspended; position held. */
+	PAUSED = 'paused',
+	/** Playback stopped; position may be reset. */
+	STOPPED = 'stopped',
+	/** Unrecoverable failure; consumer should surface a message. */
+	ERROR = 'error',
+}
+
+/**
+ * Volume gain stage. Returned by `player.volumeState()`.
+ */
+export enum VolumeState {
+	/** Audio output is active (gain > 0). */
+	UNMUTED = 'unmuted',
+	/** Audio output is suppressed regardless of the volume level. */
+	MUTED = 'muted',
+}
+
+/**
  * Cast / handoff state for the active Cast session. Returned by
  * `player.castState()` and carried on the `castState` event.
  */

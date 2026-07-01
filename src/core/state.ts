@@ -45,12 +45,17 @@ import type { StateMutatorsState } from './mixins/state-mutators';
 import type { StreamRegistrationState } from './mixins/stream-registration';
 import type { TimeInternalState } from './mixins/time';
 import type { PlayStateToken, TransportState } from './mixins/transport';
-import type { VolumeState, VolumeStateToken } from './mixins/volume';
+import type { VolumeMixinState, VolumeStateToken } from './mixins/volume';
 import type { TokenRegistry } from './title-tokens';
 import { CueParserRegistry } from '../adapters/cue-parser/registry';
 import { MediaList } from '../adapters/media-list/default';
 import { DefaultPreloadStrategy } from '../adapters/preload/default';
-import { AudioTrackState, QualityState } from '../types';
+import {
+	AudioTrackState,
+	PlayState,
+	QualityState,
+	VolumeState,
+} from '../types';
 import { RepeatState, ShuffleState } from './mixins/state-mutators';
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -64,12 +69,21 @@ import { RepeatState, ShuffleState } from './mixins/state-mutators';
 
 export type { SidecarSubtitleContext };
 export type { PlayStateToken, VolumeStateToken };
-export { RepeatState, ShuffleState };
+export {
+	PlayState,
+	RepeatState,
+	ShuffleState,
+	VolumeState,
+};
 
 /** @deprecated Use `RepeatState` instead. */
 export type RepeatStateToken = RepeatState;
 /** @deprecated Use `ShuffleState` instead. */
 export type ShuffleStateToken = ShuffleState;
+/** @deprecated Use `PlayState` instead — string values are identical. */
+export type { PlayStateToken as PlayStateAlias };
+/** @deprecated Use `VolumeState` instead — string values are identical. */
+export type { VolumeStateToken as VolumeStateAlias };
 
 // ──────────────────────────────────────────────────────────────────────────
 // PlayerCoreState — the shared internal field surface
@@ -90,7 +104,7 @@ export type ShuffleStateToken = ShuffleState;
  */
 export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, C extends BasePlayerConfig = BasePlayerConfig, E extends BaseEventMap = BaseEventMap> extends
 	EventEmitter<E>,
-	VolumeState,
+	VolumeMixinState,
 	TransportState,
 	TimeInternalState,
 	StateMutatorsState,

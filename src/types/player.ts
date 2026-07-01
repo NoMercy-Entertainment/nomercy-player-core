@@ -14,7 +14,6 @@ import type { DispatchTarget } from '../core/dispatch';
 import type { RepeatStateToken, ShuffleStateToken } from '../core/mixins/state-mutators';
 
 import type { Plugin } from '../core/plugin';
-import type { PlayStateToken, VolumeStateToken } from '../core/state';
 import type { Chapter } from './chapter';
 import type { AuthConfig, CastTarget } from './config';
 import type { DeviceCapabilities } from './device';
@@ -29,9 +28,11 @@ import type {
 	BufferState,
 	CastState,
 	NetworkState,
+	PlayState,
 	QualityState,
 	SetupState,
 	VisibilityState,
+	VolumeState,
 } from './state';
 import type {
 	AudioTrack,
@@ -937,17 +938,16 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	// ── Coarse state tokens ──
 
 	/**
-	 * Coarse play-state token (`'idle'` / `'loading'` / `'playing'` /
-	 * `'paused'` / `'stopped'` / `'error'`). Read-only snapshot — subscribe
-	 * to `play` / `pause` / `stop` events to track changes reactively.
+	 * Coarse play-state. Read-only snapshot — subscribe to `play` / `pause` /
+	 * `stop` events to track changes reactively.
 	 */
-	playState(): PlayStateToken;
+	playState(): PlayState;
 
 	/**
-	 * Mute-state token (`'unmuted'` or `'muted'`). Read-only snapshot —
-	 * subscribe to the `mute` event to track changes reactively.
+	 * Mute state. Read-only snapshot — subscribe to the `mute` event to track
+	 * changes reactively.
 	 */
-	volumeState(): VolumeStateToken;
+	volumeState(): VolumeState;
 
 	// ── Chapter navigation ──
 

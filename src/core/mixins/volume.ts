@@ -24,7 +24,7 @@ export type VolumeStateToken = typeof VOLUME_STATE[keyof typeof VOLUME_STATE];
  * Declared here, beside the mixin that writes it; read elsewhere through the
  * composed `Internals` surface (the `volumeState()` accessor, lifecycle metrics).
  */
-export interface VolumeState {
+export interface VolumeMixinState {
 	/** Mute state. */
 	_volumeState: VolumeStateToken;
 

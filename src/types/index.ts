@@ -40,11 +40,13 @@ export {
 	BufferState,
 	CastState,
 	NetworkState,
+	PlayState,
 	QualityState,
 	RepeatState,
 	SetupState,
 	ShuffleState,
 	VisibilityState,
+	VolumeState,
 } from './state';
 export type {
 	AudioTrack,

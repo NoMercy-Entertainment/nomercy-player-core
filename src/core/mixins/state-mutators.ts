@@ -6,13 +6,9 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type {
-	Internals,
-	PlayStateToken,
-	VolumeStateToken,
+import type { PlayState, VolumeState } from '../../types/state';
 
-} from '../state';
-
+import type { Internals } from '../state';
 import { makePlayerErrorEvent, pluginError } from '../../errors';
 import { RepeatState, ShuffleState } from '../../types/state';
 
@@ -103,21 +99,19 @@ function _shouldGuardMutation(self: Internals, method: string): boolean {
 
 export const stateMethods = {
 	/**
-	 * Return the current play-state token (`'playing'`, `'paused'`, `'stopped'`,
-	 * …). Read-only snapshot — subscribe to `play` / `pause` / `stop` events to
-	 * track changes reactively.
+	 * Return the current play state. Read-only snapshot — subscribe to `play` /
+	 * `pause` / `stop` events to track changes reactively.
 	 */
-	playState(this: Internals): PlayStateToken {
-		return this._playState;
+	playState(this: Internals): PlayState {
+		return this._playState as PlayState;
 	},
 
 	/**
-	 * Return the current volume-state token (`'unmuted'` or `'muted'`).
-	 * Read-only snapshot — subscribe to `volume` / `mute` events to track
-	 * changes reactively.
+	 * Return the current volume state. Read-only snapshot — subscribe to
+	 * `volume` / `mute` events to track changes reactively.
 	 */
-	volumeState(this: Internals): VolumeStateToken {
-		return this._volumeState;
+	volumeState(this: Internals): VolumeState {
+		return this._volumeState as VolumeState;
 	},
 
 	/**

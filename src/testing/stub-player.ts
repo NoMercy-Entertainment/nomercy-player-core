@@ -11,7 +11,6 @@ import type { AddClasses, CreateElement } from '../adapters/element-factory';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { IStreamFactory } from '../adapters/stream/IStreamSource';
 import type { Plugin } from '../core/plugin';
-import type { PlayStateToken, VolumeStateToken } from '../core/state';
 import type {
 	ActionOptions,
 	AriaLiveLevel,
@@ -54,6 +53,7 @@ import {
 	SetupState,
 	VisibilityState,
 } from '../types';
+import { PlayState, VolumeState } from '../types/state';
 
 /**
  * Lightweight `IPlayer` test double for plugin and unit tests. It is real
@@ -815,12 +815,12 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	// ── Coarse state tokens ──
 
-	playState(): PlayStateToken {
-		return 'idle';
+	playState(): PlayState {
+		return PlayState.IDLE;
 	}
 
-	volumeState(): VolumeStateToken {
-		return 'unmuted';
+	volumeState(): VolumeState {
+		return VolumeState.UNMUTED;
 	}
 
 	// ── Chapter navigation ──
