@@ -37,6 +37,10 @@
 			"types": "./dist/adapters/clock/index.d.ts",
 			"import": "./dist/adapters/clock/index.js"
 		},
+		"./adapters/media-element": {
+			"types": "./dist/adapters/media-element/index.d.ts",
+			"import": "./dist/adapters/media-element/index.js"
+		},
 		"./adapters/cue-parser": {
 			"types": "./dist/adapters/cue-parser/index.d.ts",
 			"import": "./dist/adapters/cue-parser/index.js"
