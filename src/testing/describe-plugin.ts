@@ -10,7 +10,6 @@ import type { Plugin } from '../core/plugin';
 import type { IPlayer } from '../types';
 import { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
 import { StateError } from '../errors';
-import { assertNoListenerLeak } from './leak-harness';
 import { StubPlayer } from './stub-player';
 
 /**
@@ -164,8 +163,4 @@ export function describePlugin<C extends typeof Plugin<any, any, any>>(
 
 		fn(ctx);
 	});
-
-	// Suppress unused-import warnings; `assertNoListenerLeak` is exported for
-	// authors who want to run leak assertions inside specific tests too.
-	void assertNoListenerLeak;
 }
