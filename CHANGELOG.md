@@ -1,5 +1,11 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.20] — 2026-07-02
+
+### Changed
+
+- Backend layer de-duplicated. The hls.js `xhrSetup` Authorization closure (previously copy-pasted across every backend) is now `createAuthorizationXhrSetup` in core; the DOM play-state bridge (previously reimplemented per library and drifted) is now `bridgeBackendPlayState`; `destroyHlsInstance` is the single HLS teardown path. Internal only; no public export, signature, or event-shape change.
+
 ## [2.0.0-rc.15] — 2026-06-29
 
 ### Security
