@@ -44,7 +44,7 @@ This guide covers kit-level changes: subpath imports, the five-layer architectur
 Public API is stable. Import names did not change. If your code does:
 
 ```ts
-import { nmplayer, NMMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
+import { NMMusicPlayer, nmplayer } from '@nomercy-entertainment/nomercy-music-player';
 import { IPlayer, LocalStorageBackend, Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { nmplayer, NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 ```

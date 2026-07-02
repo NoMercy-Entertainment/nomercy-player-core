@@ -42,7 +42,7 @@ export default {
 			},
 		],
 		messages: {
-			singleLetter: "Single-letter name '{{name}}' — use a descriptive word (allowed only: {{allowed}}).",
+			singleLetter: 'Single-letter name \'{{name}}\' — use a descriptive word (allowed only: {{allowed}}).',
 		},
 	},
 

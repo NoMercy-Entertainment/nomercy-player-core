@@ -51,8 +51,8 @@ export default {
 			},
 		],
 		messages: {
-			bannedIdentifier: "Compat vocabulary '{{name}}' is banned in v2 — {{hint}}",
-			bannedComment: "Compat marker '{{marker}}' in a comment — v2 carries no compat layer; drop it or move the rationale to the commit message.",
+			bannedIdentifier: 'Compat vocabulary \'{{name}}\' is banned in v2 — {{hint}}',
+			bannedComment: 'Compat marker \'{{marker}}\' in a comment — v2 carries no compat layer; drop it or move the rationale to the commit message.',
 		},
 	},
 

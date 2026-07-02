@@ -37,7 +37,7 @@ export default {
 		],
 		messages: {
 			bugHistory: 'Bug-number history in a comment — that belongs in the commit message, not the code.',
-			specCitation: "Spec citation ('§') in a comment — link the spec from docs; don't cite section markers in code.",
+			specCitation: 'Spec citation (\'§\') in a comment — link the spec from docs; don\'t cite section markers in code.',
 			nakedTodo: 'TODO/FIXME without an issue reference — file an issue and reference it, or remove the note.',
 		},
 	},
