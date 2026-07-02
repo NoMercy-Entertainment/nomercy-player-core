@@ -157,18 +157,35 @@ export const lifecycleMethods = {
 	/**
 	 * Tear down the player. Idempotent — a second call is a no-op.
 	 *
-	 * Drains the policy cleanup queue (everything `setup()`'s `_wire*` helpers
-	 * registered: subscriptions, event listeners, intervals, RAF handles) BEFORE
-	 * emitting `dispose`, so handlers observing the transition see a sensible
-	 * final state. Phase moves `→ disposing → disposed`, the `ready()` promise
-	 * rejects if it hadn't resolved yet, and all listeners are removed.
+	 * Dispatches `beforeDispose` first; a listener may `preventDefault()` to
+	 * cancel, in which case `disposePrevented` fires and the player stays
+	 * fully alive (no cleanup runs, no listeners are removed). Otherwise
+	 * drains the policy cleanup queue (everything `setup()`'s `_wire*` helpers
+	 * registered: subscriptions, event listeners, intervals, RAF handles)
+	 * BEFORE emitting `dispose`, so handlers observing the transition see a
+	 * sensible final state. Phase moves `→ disposing → disposed`, the
+	 * `ready()` promise rejects if it hadn't resolved yet, and all listeners
+	 * are removed.
 	 *
 	 * After this call the instance is dead — re-setup requires constructing a
-	 * new player.
+	 * new player. Returns a `Promise<void>` so callers can await the full
+	 * cancellable cycle; per-library `dispose()` wrappers that tear down their
+	 * own backend check `phase() === 'disposed'` after awaiting this to know
+	 * whether teardown actually proceeded.
 	 */
-	dispose(this: Internals): void {
+	async dispose(this: Internals): Promise<void> {
 		if (this._phase === 'disposed' || this._phase === 'disposing')
 			return;
+
+		const result = await this._dispatchBefore<void>('beforeDispose', undefined);
+		if (result.prevented) {
+			this.emit('disposePrevented', {
+				reason: result.reason ?? 'listener-prevented',
+				cause: result.cause,
+			});
+			return;
+		}
+
 		const wasReady = this._phase === 'ready';
 		this._transitionPhase('disposing');
 		for (const cleanup of this._policyCleanup) {

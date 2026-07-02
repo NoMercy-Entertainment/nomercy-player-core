@@ -101,6 +101,14 @@ describe('StubPlayer.resolveUrl', () => {
 		expect(resolvedUrl.ext).toBe('ass');
 	});
 
+	it('keeps the base path when baseUrl has no trailing slash and the media path is root-relative', async () => {
+		const stubPlayer = new StubPlayer();
+		stubPlayer.baseUrl('https://cdn.example.com/base');
+		const resolvedUrl = await stubPlayer.resolveUrl('/dir/sub.ass', 'media');
+		expect(resolvedUrl.href).toBe('https://cdn.example.com/base/dir/sub.ass');
+		expect(resolvedUrl.relative).toBe(false);
+	});
+
 	it('invokes a custom resolver with the right context', async () => {
 		const stubPlayer = new StubPlayer();
 		stubPlayer.baseUrl('https://cdn.example.com/');

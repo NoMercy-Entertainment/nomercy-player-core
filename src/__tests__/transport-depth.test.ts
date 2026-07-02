@@ -55,7 +55,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare options: any;
 	declare setup: (config: any) => this;
 	declare ready: () => Promise<void>;
-	declare dispose: () => void;
+	declare dispose: () => Promise<void>;
 	declare phase: () => string;
 	declare dispatching: () => ReadonlyArray<string>;
 	declare baseUrl: { (): string | undefined; (url: string): void };
@@ -85,18 +85,18 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => any;
-	declare playbackRate: { (): number; (rate: number): void };
+	declare playbackRate: { (): number; (rate: number): Promise<void> };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (level: number): void };
-	declare mute: () => void;
-	declare unmute: () => void;
+	declare volume: { (): number; (level: number): Promise<void> };
+	declare mute: () => Promise<void>;
+	declare unmute: () => Promise<void>;
 	declare toggleMute: () => void;
 	declare volumeUp: (step?: number) => void;
 	declare volumeDown: (step?: number) => void;
 	declare playState: () => string;
 	declare volumeState: () => string;
-	declare repeatState: { (): string; (state: any): void };
-	declare shuffleState: { (): string; (state: any): void };
+	declare repeatState: { (): string; (state: any): Promise<void> };
+	declare shuffleState: { (): string; (state: any): Promise<void> };
 	declare queue: { (): ReadonlyArray<any>; (items: any[], opts?: any): void };
 	declare queueAppend: (item: any, opts?: any) => void;
 	declare queuePrepend: (item: any, opts?: any) => void;
@@ -210,7 +210,7 @@ describe('transport-depth (slice 02)', () => {
 
 	// ── Test 3: phase() during dispose listener sees 'disposing' then 'disposed' ──
 
-	it('phase() inside dispose listener is "disposing"; after dispose() returns it is "disposed"', () => {
+	it('phase() inside dispose listener is "disposing"; after dispose() returns it is "disposed"', async () => {
 		const player = setupPlayer();
 		let phaseInsideListener = '';
 
@@ -218,7 +218,7 @@ describe('transport-depth (slice 02)', () => {
 			phaseInsideListener = player.phase();
 		});
 
-		player.dispose();
+		await player.dispose();
 
 		expect(phaseInsideListener).toBe('disposing');
 		expect(player.phase()).toBe('disposed');
@@ -241,7 +241,7 @@ describe('transport-depth (slice 02)', () => {
 
 	// ── Test 5: volume(v) emits 'volume' event with { level: newValue } ──────
 
-	it('volume(v) emits "volume" event with the new level and volume() returns it', () => {
+	it('volume(v) emits "volume" event with the new level and volume() returns it', async () => {
 		const player = setupPlayer();
 		let emittedLevel: number | undefined;
 
@@ -249,7 +249,7 @@ describe('transport-depth (slice 02)', () => {
 			emittedLevel = data.level;
 		});
 
-		player.volume(42);
+		await player.volume(42);
 
 		expect(emittedLevel).toBe(42);
 		expect(player.volume()).toBe(42);
@@ -262,7 +262,7 @@ describe('transport-depth (slice 02)', () => {
 	// This test pins the REAL contract. See Findings: MEDIUM — spec description was
 	// misleading but the implementation is intentional (matches the event map).
 
-	it('mute() emits "mute" with { muted: true }; unmute() emits "mute" with { muted: false }', () => {
+	it('mute() emits "mute" with { muted: true }; unmute() emits "mute" with { muted: false }', async () => {
 		const player = setupPlayer();
 		const mutePayloads: Array<{ muted: boolean }> = [];
 
@@ -270,8 +270,8 @@ describe('transport-depth (slice 02)', () => {
 			mutePayloads.push({ muted: data.muted });
 		});
 
-		player.mute();
-		player.unmute();
+		await player.mute();
+		await player.unmute();
 
 		expect(mutePayloads).toHaveLength(2);
 		expect(mutePayloads[0]).toEqual({ muted: true });
@@ -281,7 +281,7 @@ describe('transport-depth (slice 02)', () => {
 	// ── Test 7: playbackRate(0) is clamped to 0.25 (v1 oracle: clamp [0.25, 2]) ──
 	// GREEN fix: clamp applied in time.ts playbackRate setter.
 
-	it('playbackRate(0) is clamped to 0.25 and backend:ratechange carries the clamped value', () => {
+	it('playbackRate(0) is clamped to 0.25 and backend:ratechange carries the clamped value', async () => {
 		const player = setupPlayer();
 		let emittedRate: number | undefined;
 
@@ -289,22 +289,22 @@ describe('transport-depth (slice 02)', () => {
 			emittedRate = data.rate;
 		});
 
-		player.playbackRate(0);
+		await player.playbackRate(0);
 
 		expect(player.playbackRate()).toBeGreaterThan(0);
 		expect(player.playbackRate()).toBe(0.25);
 		expect(emittedRate).toBe(0.25);
 	});
 
-	it('playbackRate(3) is clamped to 2', () => {
+	it('playbackRate(3) is clamped to 2', async () => {
 		const player = setupPlayer();
-		player.playbackRate(3);
+		await player.playbackRate(3);
 		expect(player.playbackRate()).toBe(2);
 	});
 
 	// ── Test 8: 'repeat' event carries the new state in its payload ───────────
 
-	it('"repeat" event payload contains the new repeatState value', () => {
+	it('"repeat" event payload contains the new repeatState value', async () => {
 		const player = setupPlayer();
 		let repeatPayload: { state: string } | undefined;
 
@@ -312,7 +312,7 @@ describe('transport-depth (slice 02)', () => {
 			repeatPayload = data;
 		});
 
-		player.repeatState(RepeatState.ALL);
+		await player.repeatState(RepeatState.ALL);
 
 		expect(repeatPayload).toBeDefined();
 		expect(repeatPayload?.state).toBe(RepeatState.ALL);

@@ -1,5 +1,11 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.21] — 2026-07-02
+
+### Fixed
+
+- `baseUrl` now prepends to relative media paths as a raw string prefix, keeping its own path segment, the same way `baseImageUrl` already did. Previously media resolution used `new URL(path, baseUrl)`, which dropped the base path when the path started with a slash (the shape the media server sends), so `baseUrl` plus a root-relative item path resolved to a 404. Setting `baseUrl` and giving items relative paths now works as intended.
+
 ## [2.0.0-rc.20] — 2026-07-02
 
 ### Changed

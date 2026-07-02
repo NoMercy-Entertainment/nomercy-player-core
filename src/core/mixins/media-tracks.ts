@@ -452,11 +452,15 @@ export const mediaTracksMethods = {
 	 * `subtitle()` — returns `{ index, track }` for the currently-selected
 	 * subtitle track, or `null` when subtitles are off.
 	 *
-	 * `subtitle(idx)` — select subtitle track at `idx`. Pass `null`
-	 * (or a negative number) to disable subtitles. Fires the `subtitle` event
-	 * with `{ track: idx | null }`.
+	 * `subtitle(idx)` — dispatches `beforeSubtitle` with the requested index.
+	 * A listener may `preventDefault()` to cancel, in which case
+	 * `subtitlePrevented` fires and the selection is unchanged. Otherwise
+	 * selects the subtitle track at `idx` (pass `null`, or a negative number,
+	 * to disable subtitles) and fires the `subtitle` event with
+	 * `{ track: idx | null }`. Returns a `Promise<void>` so callers can await
+	 * the full cancellable cycle.
 	 */
-	subtitle(this: Internals, idx?: number | null): CurrentSubtitleSelection | null | void {
+	subtitle(this: Internals, idx?: number | null): CurrentSubtitleSelection | null | Promise<void> {
 		if (idx === undefined) {
 			const storedIdx = this._currentSubtitleIdx;
 			if (storedIdx === null)
@@ -471,54 +475,66 @@ export const mediaTracksMethods = {
 			};
 		}
 
-		// Tear down any in-flight sidecar tracker first; switching tracks
-		// (or to null) must release the prior cue stream so it doesn't
-		// keep emitting active cues from the old track.
-		this._disposeSidecarSubtitle();
+		return (async () => {
+			const result = await this._dispatchBefore<{ track: number | null }>('beforeSubtitle', { track: idx });
+			if (result.prevented) {
+				this.emit('subtitlePrevented', {
+					reason: result.reason ?? 'listener-prevented',
+					cause: result.cause,
+				});
+				return;
+			}
+			const targetIdx = result.data.track;
 
-		const backend = this._peekBackendTyped<_BackendWithSubtitleTracks>();
-		const backendCount = (typeof backend?.subtitleTracks === 'function')
-			? (backend.subtitleTracks() ?? []).length
-			: 0;
+			// Tear down any in-flight sidecar tracker first; switching tracks
+			// (or to null) must release the prior cue stream so it doesn't
+			// keep emitting active cues from the old track.
+			this._disposeSidecarSubtitle();
 
-		// "Off" — clear backend selection AND emit an empty cue list so
-		// renderers wipe their overlays.
-		if (idx === null || idx < 0) {
-			this._currentSubtitleIdx = null;
+			const backend = this._peekBackendTyped<_BackendWithSubtitleTracks>();
+			const backendCount = (typeof backend?.subtitleTracks === 'function')
+				? (backend.subtitleTracks() ?? []).length
+				: 0;
+
+			// "Off" — clear backend selection AND emit an empty cue list so
+			// renderers wipe their overlays.
+			if (targetIdx === null || targetIdx < 0) {
+				this._currentSubtitleIdx = null;
+				backend?.setSubtitleTrack?.(null);
+				this.emit('subtitle', { track: null });
+				this.emit('subtitleCue', {
+					cues: [],
+					language: undefined,
+				});
+				return;
+			}
+
+			// Backend-managed: index falls within the backend's track count.
+			// Backend will emit `subtitleCue` itself via its cuechange hook.
+			if (targetIdx < backendCount) {
+				this._currentSubtitleIdx = targetIdx;
+				backend?.setSubtitleTrack?.(targetIdx);
+				this.emit('subtitle', { track: targetIdx });
+				return;
+			}
+
+			// Sidecar VTT: index past the backend's tracks points into the
+			// active item's `tracks: [{ kind: 'subtitles', file, language }]`.
+			// Disable any backend track first so the two streams don't both
+			// fire `subtitleCue`.
+			this._currentSubtitleIdx = targetIdx;
 			backend?.setSubtitleTrack?.(null);
-			this.emit('subtitle', { track: null });
-			this.emit('subtitleCue', {
-				cues: [],
-				language: undefined,
-			});
-			return;
-		}
-
-		// Backend-managed: index falls within the backend's track count.
-		// Backend will emit `subtitleCue` itself via its cuechange hook.
-		if (idx < backendCount) {
-			this._currentSubtitleIdx = idx;
-			backend?.setSubtitleTrack?.(idx);
-			this.emit('subtitle', { track: idx });
-			return;
-		}
-
-		// Sidecar VTT: index past the backend's tracks points into the
-		// active item's `tracks: [{ kind: 'subtitles', file, language }]`.
-		// Disable any backend track first so the two streams don't both
-		// fire `subtitleCue`.
-		this._currentSubtitleIdx = idx;
-		backend?.setSubtitleTrack?.(null);
-		const sidecar = _resolveSidecarSubtitle(this, idx - backendCount);
-		this.emit('subtitle', { track: idx });
-		if (!sidecar?.url) {
-			this.emit('subtitleCue', {
-				cues: [],
-				language: undefined,
-			});
-			return;
-		}
-		void _startSidecarSubtitle(this, sidecar);
+			const sidecar = _resolveSidecarSubtitle(this, targetIdx - backendCount);
+			this.emit('subtitle', { track: targetIdx });
+			if (!sidecar?.url) {
+				this.emit('subtitleCue', {
+					cues: [],
+					language: undefined,
+				});
+				return;
+			}
+			void _startSidecarSubtitle(this, sidecar);
+		})();
 	},
 
 	/**
@@ -571,10 +587,14 @@ export const mediaTracksMethods = {
 	 * `audioTrack()` — returns `{ index, track }` for the currently-selected
 	 * audio track, or `null` when no explicit selection has been made.
 	 *
-	 * `audioTrack(idx)` — select the audio track at `idx`. Fires the
-	 * `audioTrack` event with `{ id: idx }`.
+	 * `audioTrack(idx)` — dispatches `beforeAudioTrack` with the requested
+	 * index. A listener may `preventDefault()` to cancel, in which case
+	 * `audioTrackPrevented` fires and the selection is unchanged. Otherwise
+	 * selects the audio track at `idx` and fires the `audioTrack` event with
+	 * `{ id: idx }`. Returns a `Promise<void>` so callers can await the full
+	 * cancellable cycle.
 	 */
-	audioTrack(this: Internals, idx?: number): CurrentAudioTrackSelection | null | void {
+	audioTrack(this: Internals, idx?: number): CurrentAudioTrackSelection | null | Promise<void> {
 		if (idx === undefined) {
 			const storedIdx = this._currentAudioTrackIdx;
 			if (storedIdx === null)
@@ -589,18 +609,30 @@ export const mediaTracksMethods = {
 			};
 		}
 
-		this._currentAudioTrackIdx = idx;
+		return (async () => {
+			const result = await this._dispatchBefore<{ id: number }>('beforeAudioTrack', { id: idx });
+			if (result.prevented) {
+				this.emit('audioTrackPrevented', {
+					reason: result.reason ?? 'listener-prevented',
+					cause: result.cause,
+				});
+				return;
+			}
+			const targetIdx = result.data.id;
 
-		// Keep the audio-track-state token in sync so audioTrackState() always
-		// reflects that a manual selection is active.
-		this._audioTrackState = AudioTrackState.MANUAL;
-		this.emit('audioTrackState', { state: this._audioTrackState });
+			this._currentAudioTrackIdx = targetIdx;
 
-		const backend = this._peekBackendTyped<_BackendWithAudioTrack>();
-		if (typeof backend?.setAudioTrack === 'function') {
-			backend.setAudioTrack(idx);
-		}
-		this.emit('audioTrack', { id: idx });
+			// Keep the audio-track-state token in sync so audioTrackState() always
+			// reflects that a manual selection is active.
+			this._audioTrackState = AudioTrackState.MANUAL;
+			this.emit('audioTrackState', { state: this._audioTrackState });
+
+			const backend = this._peekBackendTyped<_BackendWithAudioTrack>();
+			if (typeof backend?.setAudioTrack === 'function') {
+				backend.setAudioTrack(targetIdx);
+			}
+			this.emit('audioTrack', { id: targetIdx });
+		})();
 	},
 
 	/**

@@ -9,7 +9,7 @@
 import type { PlayerErrorEvent } from '../errors';
 
 import type { Chapter } from './chapter';
-import type { BasePlayerConfig } from './config';
+import type { BasePlayerConfig, CastTarget } from './config';
 import type { CueEventPayload, SubtitleCueChange } from './cues';
 import type { PlaybackMetrics } from './metrics';
 import type {
@@ -167,19 +167,79 @@ export interface BaseEventMap<I extends BasePlaylistItem = BasePlaylistItem> {
 	'time': { time: number };
 	'dispose': void;
 
+	/**
+	 * Fires before `dispose()` tears the player down. A listener may
+	 * `preventDefault()` — e.g. a Connect plugin flushing final playback state
+	 * to a remote session before allowing teardown. Prevented calls leave the
+	 * player fully alive; `disposePrevented` fires instead of `dispose`.
+	 */
+	'beforeDispose': BeforeEvent<void>;
+	'disposePrevented': { reason: PreventedReason; cause?: unknown };
+
 	// ── Language change ───────────────────────────────────────────────────────
 	// Fires after all plugin translation bundles for the new language have
 	// settled. `lang` is the BCP-47 tag passed to `player.language(tag)`.
 
 	'language': { lang: string };
 
+	/**
+	 * Fires before `language(tag)` switches the active language and loads
+	 * plugin translation bundles. A listener may `preventDefault()` to keep
+	 * the current language, or mutate `data.lang` to redirect the switch.
+	 */
+	'beforeLanguage': BeforeEvent<{ lang: string }>;
+	'languagePrevented': { reason: PreventedReason; cause?: unknown };
+
 	// ── Volume + mode state ───────────────────────────────────────────────────
 
 	'volume': { level: number };
+
+	/**
+	 * Fires before `volume(level)` applies a new level. Fires unconditionally
+	 * — independent of `setup({ mutationGuards })` — so a Connect plugin can
+	 * reliably intercept volume changes without opting the player into the
+	 * generic mutation-guard surface. Internal fade-in ramps (`load({ fadeIn })`)
+	 * bypass this hook entirely; they are not user-facing volume commands.
+	 */
+	'beforeVolume': BeforeEvent<{ level: number }>;
+	'volumePrevented': { reason: PreventedReason; cause?: unknown };
+
 	'mute': { muted: boolean };
+
+	/**
+	 * Fires before `mute()` or `unmute()` changes the mute state. `data.muted`
+	 * carries the target state (`true` for `mute()`, `false` for `unmute()`).
+	 * No-ops (already in the target state) never dispatch.
+	 */
+	'beforeMute': BeforeEvent<{ muted: boolean }>;
+	'mutePrevented': { reason: PreventedReason; cause?: unknown };
+
 	'repeat': { state: RepeatState };
+
+	/** Fires before `repeatState(state)` changes the repeat mode. */
+	'beforeRepeat': BeforeEvent<{ state: RepeatState }>;
+	'repeatPrevented': { reason: PreventedReason; cause?: unknown };
+
 	'shuffle': { state: ShuffleState };
+
+	/**
+	 * Fires before `shuffleState(state)` changes the shuffle mode. `data.state`
+	 * is already normalised to `ShuffleState` — the boolean shorthand accepted
+	 * by `shuffleState()` is resolved before this dispatches.
+	 */
+	'beforeShuffle': BeforeEvent<{ state: ShuffleState }>;
+	'shufflePrevented': { reason: PreventedReason; cause?: unknown };
+
 	'playbackRate': { rate: number };
+
+	/**
+	 * Fires before `playbackRate(rate)` applies a new rate. Fires
+	 * unconditionally — independent of `setup({ mutationGuards })` — same
+	 * rationale as `beforeVolume`. `data.rate` is already clamped to
+	 * `[0.25, 2]`.
+	 */
+	'beforePlaybackRate': BeforeEvent<{ rate: number }>;
+	'playbackRatePrevented': { reason: PreventedReason; cause?: unknown };
 
 	// ── Error severity tiers ──────────────────────────────────────────────────
 	// `fatal` = unrecoverable, player is shutting down.
@@ -295,11 +355,23 @@ export interface BaseEventMap<I extends BasePlaylistItem = BasePlaylistItem> {
 	'subtitleStyle': SubtitleStyle;
 	'subtitle': { track: number | null };
 
+	/**
+	 * Fires before `subtitle(idx)` changes the active subtitle track.
+	 * `data.track` mirrors the setter argument — `null` (or negative) disables
+	 * subtitles.
+	 */
+	'beforeSubtitle': BeforeEvent<{ track: number | null }>;
+	'subtitlePrevented': { reason: PreventedReason; cause?: unknown };
+
 	// ── Audio track selection ─────────────────────────────────────────────────
 	// Emitted by `audioTrack(idx)`. `id` follows the kit's
 	// `audioTracks()` index space so consumers don't need to re-resolve.
 
 	'audioTrack': { id: number | null };
+
+	/** Fires before `audioTrack(idx)` changes the active audio track. */
+	'beforeAudioTrack': BeforeEvent<{ id: number }>;
+	'audioTrackPrevented': { reason: PreventedReason; cause?: unknown };
 
 	// ── Chapter events ────────────────────────────────────────────────────────
 	// `chapter` — emitted by `seekToChapter`. `index` is zero-based; `title`
@@ -315,6 +387,17 @@ export interface BaseEventMap<I extends BasePlaylistItem = BasePlaylistItem> {
 	// value of `castState()` for reactive subscriptions.
 
 	'castState': { state: CastState };
+
+	/**
+	 * Fires before `transferTo(target)` hands playback off to a remote target
+	 * (or pulls it back to local). The Connect-critical device-handoff hook —
+	 * a plugin may `preventDefault()` to block a handoff (e.g. DRM-restricted
+	 * content) or `delay()` while confirming the remote device is reachable.
+	 * Named `beforeTransfer` (not `beforeCastState`) because `castState` is the
+	 * state *notification*; `transferTo` is the action.
+	 */
+	'beforeTransfer': BeforeEvent<{ target: CastTarget }>;
+	'transferPrevented': { reason: PreventedReason; cause?: unknown };
 
 	// ── Shared state-enum change events ───────────────────────────────────────
 	// Emitted by both music and video players. Typed as string unions so

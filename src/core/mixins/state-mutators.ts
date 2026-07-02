@@ -34,8 +34,17 @@ export interface StateMutatorsState {
  * Hot-path mutations that skip `beforeMutation` by default — they fire too
  * often to be worth guarding unless the consumer opts in via
  * `setup({ mutationGuards: 'all' })` or names them in a string array.
+ *
+ * `volume` and `playbackRate` were removed from this list — they now have
+ * dedicated, always-on `beforeVolume` / `beforePlaybackRate` hooks (see
+ * `volumeMethods` / `timeMethods`) that fire independently of
+ * `mutationGuards` entirely, so a Connect plugin can reliably intercept them
+ * without opting the player into the generic guard surface. `time` never
+ * routed through this mechanism either — it has its own dedicated
+ * `beforeSeek` hook. `bandwidth` and `recordMetric` remain listed as
+ * candidates for a future guarded call site.
  */
-export const HOT_MUTATIONS: ReadonlyArray<string> = ['time', 'volume', 'playbackRate', 'bandwidth', 'recordMetric'] as const;
+export const HOT_MUTATIONS: ReadonlyArray<string> = ['time', 'bandwidth', 'recordMetric'] as const;
 
 /**
  * Decide whether a given mutation method should fire `beforeMutation` based on
@@ -91,15 +100,30 @@ export const stateMethods = {
 	 * `repeatState()` — returns the current `RepeatState`
 	 * (`'off'` / `'one'` / `'all'`).
 	 *
-	 * `repeatState(state)` — set the repeat mode and emit `repeat` with the
-	 * new token. The transport mixin honours this token inside `next()` to
-	 * decide whether to loop the current item or advance.
+	 * `repeatState(state)` — dispatches `beforeRepeat` with the requested
+	 * state. A listener may `preventDefault()` to cancel, in which case
+	 * `repeatPrevented` fires and the mode is unchanged. Otherwise sets the
+	 * repeat mode and emits `repeat` with the new token. The transport mixin
+	 * honours this token inside `next()` to decide whether to loop the
+	 * current item or advance. Returns a `Promise<void>` so callers can await
+	 * the full cancellable cycle.
 	 */
-	repeatState(this: Internals, state?: RepeatState): RepeatState | void {
+	repeatState(this: Internals, state?: RepeatState): RepeatState | Promise<void> {
 		if (state === undefined)
 			return this._repeatState;
-		this._repeatState = state;
-		this.emit('repeat', { state });
+
+		return (async () => {
+			const result = await this._dispatchBefore<{ state: RepeatState }>('beforeRepeat', { state });
+			if (result.prevented) {
+				this.emit('repeatPrevented', {
+					reason: result.reason ?? 'listener-prevented',
+					cause: result.cause,
+				});
+				return;
+			}
+			this._repeatState = result.data.state;
+			this.emit('repeat', { state: result.data.state });
+		})();
 	},
 
 	/**
@@ -108,19 +132,23 @@ export const stateMethods = {
 	 * `shuffleState()` — returns the current `ShuffleState`
 	 * (`'on'` / `'off'`).
 	 *
-	 * `shuffleState('on')` — randomises the queue order immediately via
-	 * `queueShuffle()`, then emits `shuffle`. The original order is not
-	 * preserved — this matches the behaviour of major media players.
+	 * `shuffleState('on')` — normalises the boolean shorthand (`true` → `'on'`,
+	 * `false` → `'off'`) then dispatches `beforeShuffle` with the normalised
+	 * state. A listener may `preventDefault()` to cancel, in which case
+	 * `shufflePrevented` fires and the mode is unchanged. Otherwise randomises
+	 * the queue order immediately via `queueShuffle()`, then emits `shuffle`.
+	 * The original order is not preserved — this matches the behaviour of
+	 * major media players.
 	 *
 	 * `shuffleState('off')` — updates the token and emits `shuffle`. The queue
 	 * is NOT automatically restored to its original order; the current
 	 * (shuffled) order is kept. Consumers that want the original order must
 	 * re-supply the queue.
 	 *
-	 * Accepts a `ShuffleState` or a plain boolean (`true` → `'on'`,
-	 * `false` → `'off'`).
+	 * Returns a `Promise<void>` so callers can await the full cancellable
+	 * cycle.
 	 */
-	shuffleState(this: Internals, state?: ShuffleState | boolean): ShuffleState | void {
+	shuffleState(this: Internals, state?: ShuffleState | boolean): ShuffleState | Promise<void> {
 		if (state === undefined)
 			return this._shuffleState;
 
@@ -129,13 +157,25 @@ export const stateMethods = {
 			next = state ? ShuffleState.ON : ShuffleState.OFF;
 		else
 			next = state;
-		this._shuffleState = next;
 
-		if (next === ShuffleState.ON) {
-			this._queueList.shuffle();
-		}
+		return (async () => {
+			const result = await this._dispatchBefore<{ state: ShuffleState }>('beforeShuffle', { state: next });
+			if (result.prevented) {
+				this.emit('shufflePrevented', {
+					reason: result.reason ?? 'listener-prevented',
+					cause: result.cause,
+				});
+				return;
+			}
 
-		this.emit('shuffle', { state: next });
+			this._shuffleState = result.data.state;
+
+			if (result.data.state === ShuffleState.ON) {
+				this._queueList.shuffle();
+			}
+
+			this.emit('shuffle', { state: result.data.state });
+		})();
 	},
 
 	/**

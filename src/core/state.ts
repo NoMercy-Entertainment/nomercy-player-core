@@ -300,9 +300,10 @@ export interface MixinSurface {
 	pause(opts?: ActionOptions): Promise<void>;
 
 	// volumeMethods (see mixins/volume.ts)
-	mute(): void;
-	unmute(): void;
-	volume(level?: number): number | void;
+	mute(): Promise<void>;
+	unmute(): Promise<void>;
+	volume(level?: number): number | Promise<void>;
+	_applyVolume(level: number): void;
 
 	// timeMethods (see mixins/time.ts)
 	time(): number;
@@ -326,9 +327,9 @@ export interface MixinSurface {
 	seekToChapter(idx: number, opts?: ActionOptions): void;
 	item(target?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean), opts?: LoadOptions): BasePlaylistItem | undefined | void;
 	subtitle(): CurrentSubtitleSelection | null;
-	subtitle(idx: number | null): void;
+	subtitle(idx: number | null): Promise<void>;
 	audioTrack(): CurrentAudioTrackSelection | null;
-	audioTrack(idx: number): void;
+	audioTrack(idx: number): Promise<void>;
 	quality(): CurrentQualitySelection | 'auto';
 	quality(idx: number | 'auto'): void;
 	chapter(): Chapter | null;

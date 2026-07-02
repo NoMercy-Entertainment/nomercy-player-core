@@ -170,19 +170,36 @@ export const timeMethods = {
 	 * Get or set the playback rate multiplier.
 	 *
 	 * - Called with no argument: returns the current rate.
-	 * - Called with a value: stores the rate, emits `backend:ratechange`,
-	 *   and forwards to the backend's `playbackRate()`.
+	 * - Called with a value: clamps to `[0.25, 2]` then dispatches
+	 *   `beforePlaybackRate` with the clamped value. Fires unconditionally,
+	 *   independent of `setup({ mutationGuards })` — see `HOT_MUTATIONS`. A
+	 *   listener may `preventDefault()` to cancel, in which case
+	 *   `playbackRatePrevented` fires and the rate is unchanged. Otherwise
+	 *   stores the rate, emits `backend:ratechange`, and forwards to the
+	 *   backend's `playbackRate()`. Returns a `Promise<void>` so callers can
+	 *   await the full cancellable cycle.
 	 */
-	playbackRate(this: Internals, rate?: number): number | void {
+	playbackRate(this: Internals, rate?: number): number | Promise<void> {
 		if (rate === undefined)
 			return this._playbackRate;
 
 		const clamped = Math.max(0.25, Math.min(2, rate));
-		this._playbackRate = clamped;
-		this.emit('playbackRate', { rate: clamped });
-		this.emit('backend:ratechange', { rate: clamped });
 
-		this._resolveBackend()?.playbackRate?.(clamped);
+		return (async () => {
+			const result = await this._dispatchBefore<{ rate: number }>('beforePlaybackRate', { rate: clamped });
+			if (result.prevented) {
+				this.emit('playbackRatePrevented', {
+					reason: result.reason ?? 'listener-prevented',
+					cause: result.cause,
+				});
+				return;
+			}
+			this._playbackRate = result.data.rate;
+			this.emit('playbackRate', { rate: result.data.rate });
+			this.emit('backend:ratechange', { rate: result.data.rate });
+
+			this._resolveBackend()?.playbackRate?.(result.data.rate);
+		})();
 	},
 
 	/**

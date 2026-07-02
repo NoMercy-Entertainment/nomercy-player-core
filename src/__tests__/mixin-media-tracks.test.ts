@@ -118,10 +118,10 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 
 	// track-related methods added by mixin
 	declare subtitles: () => ReadonlyArray<SubtitleTrack>;
-	declare subtitle: { (): unknown; (idx: number | null): void };
+	declare subtitle: { (): unknown; (idx: number | null): Promise<void> };
 	declare subtitleStyle: { (): SubtitleStyle; (patch: Partial<SubtitleStyle>): void };
 	declare audioTracks: () => ReadonlyArray<AudioTrack>;
-	declare audioTrack: { (): unknown; (idx: number): void };
+	declare audioTrack: { (): unknown; (idx: number): Promise<void> };
 	declare qualityLevels: (opts?: { includeUnsupported?: true }) => ReadonlyArray<QualityLevel>;
 	declare quality: { (): unknown; (idx: number | 'auto'): void };
 	declare chapters: () => ReadonlyArray<Chapter>;
@@ -197,7 +197,7 @@ describe('subtitle() — setter paths', () => {
 	beforeEach(() => MockPlayer._resetRegistry());
 	afterEach(() => { MockPlayer._resetRegistry(); document.body.innerHTML = ''; });
 
-	it('subtitle(null) sets _currentSubtitleIdx to null, calls backend setSubtitleTrack(null), emits subtitle + subtitleCue', () => {
+	it('subtitle(null) sets _currentSubtitleIdx to null, calls backend setSubtitleTrack(null), emits subtitle + subtitleCue', async () => {
 		const player = setupPlayer();
 		const backend = makeBackendWithTracks({
 			subtitleTracks: [
@@ -211,7 +211,7 @@ describe('subtitle() — setter paths', () => {
 		player.on('subtitle' as never, (data: { track: number | null }) => subtitleEvents.push(data));
 		player.on('subtitleCue' as never, (data: { cues: unknown[] }) => cueEvents.push(data));
 
-		player.subtitle(null);
+		await player.subtitle(null);
 
 		expect((player as unknown as { _currentSubtitleIdx: number | null })._currentSubtitleIdx).toBeNull();
 		expect(backend.setSubtitleTrackCalls).toContain(null);
@@ -221,18 +221,18 @@ describe('subtitle() — setter paths', () => {
 		expect(cueEvents[0]!.cues).toHaveLength(0);
 	});
 
-	it('subtitle(-1) is treated as "off" — sets null, emits subtitle { track: null }', () => {
+	it('subtitle(-1) is treated as "off" — sets null, emits subtitle { track: null }', async () => {
 		const player = setupPlayer();
 		const subtitleEvents: Array<{ track: number | null }> = [];
 		player.on('subtitle' as never, (data: { track: number | null }) => subtitleEvents.push(data));
 
-		player.subtitle(-1);
+		await player.subtitle(-1);
 
 		expect((player as unknown as { _currentSubtitleIdx: number | null })._currentSubtitleIdx).toBeNull();
 		expect(subtitleEvents[0]!.track).toBeNull();
 	});
 
-	it('subtitle(0) selects backend-managed track when within backend count', () => {
+	it('subtitle(0) selects backend-managed track when within backend count', async () => {
 		const player = setupPlayer();
 		const backend = makeBackendWithTracks({
 			subtitleTracks: [
@@ -244,7 +244,7 @@ describe('subtitle() — setter paths', () => {
 		const subtitleEvents: Array<{ track: number | null }> = [];
 		player.on('subtitle' as never, (data: { track: number | null }) => subtitleEvents.push(data));
 
-		player.subtitle(0);
+		await player.subtitle(0);
 
 		expect((player as unknown as { _currentSubtitleIdx: number | null })._currentSubtitleIdx).toBe(0);
 		expect(backend.setSubtitleTrackCalls).toContain(0);
@@ -256,7 +256,7 @@ describe('subtitle() — setter paths', () => {
 		expect(player.subtitle()).toBeNull();
 	});
 
-	it('subtitle() returns { index, track } when a track is selected', () => {
+	it('subtitle() returns { index, track } when a track is selected', async () => {
 		const player = setupPlayer();
 		const backend = makeBackendWithTracks({
 			subtitleTracks: [
@@ -265,7 +265,7 @@ describe('subtitle() — setter paths', () => {
 		});
 		(player as unknown as { backend: () => unknown }).backend = () => backend;
 
-		player.subtitle(0);
+		await player.subtitle(0);
 		const result = player.subtitle() as { index: number; track: SubtitleTrack } | null;
 		expect(result).not.toBeNull();
 		expect(result!.index).toBe(0);
@@ -279,13 +279,13 @@ describe('subtitle() — setter paths', () => {
 		expect(player.subtitle()).toBeNull();
 	});
 
-	it('subtitle(sidecarIdx) with no URL emits subtitleCue with empty cues', () => {
+	it('subtitle(sidecarIdx) with no URL emits subtitleCue with empty cues', async () => {
 		const player = setupPlayer();
 		// no backend tracks, so index 0 goes into sidecar path, but no item active
 		const cueEvents: Array<{ cues: unknown[] }> = [];
 		player.on('subtitleCue' as never, (data: { cues: unknown[] }) => cueEvents.push(data));
 
-		player.subtitle(0);
+		await player.subtitle(0);
 
 		expect(cueEvents).toHaveLength(1);
 		expect(cueEvents[0]!.cues).toHaveLength(0);
@@ -396,7 +396,7 @@ describe('audioTracks() / audioTrack()', () => {
 		expect(player.audioTrack()).toBeNull();
 	});
 
-	it('audioTrack(idx) sets index, calls backend setAudioTrack, emits audioTrack + audioTrackState', () => {
+	it('audioTrack(idx) sets index, calls backend setAudioTrack, emits audioTrack + audioTrackState', async () => {
 		const player = setupPlayer();
 		const backend = makeBackendWithTracks({
 			audioTracks: [
@@ -411,7 +411,7 @@ describe('audioTracks() / audioTrack()', () => {
 		player.on('audioTrack' as never, (data: { id: number }) => audioTrackEvents.push(data));
 		player.on('audioTrackState' as never, (data: { state: string }) => audioTrackStateEvents.push(data));
 
-		player.audioTrack(1);
+		await player.audioTrack(1);
 
 		expect((player as unknown as { _currentAudioTrackIdx: number | null })._currentAudioTrackIdx).toBe(1);
 		expect(backend.setAudioTrackCalls).toContain(1);
@@ -421,7 +421,7 @@ describe('audioTracks() / audioTrack()', () => {
 		expect(audioTrackStateEvents[0]!.state).toBe(AudioTrackState.MANUAL);
 	});
 
-	it('audioTrack() returns { index, track } after a selection is made', () => {
+	it('audioTrack() returns { index, track } after a selection is made', async () => {
 		const player = setupPlayer();
 		const backend = makeBackendWithTracks({
 			audioTracks: [
@@ -430,7 +430,7 @@ describe('audioTracks() / audioTrack()', () => {
 		});
 		(player as unknown as { backend: () => unknown }).backend = () => backend;
 
-		player.audioTrack(0);
+		await player.audioTrack(0);
 		const result = player.audioTrack() as { index: number; track: AudioTrack } | null;
 		expect(result).not.toBeNull();
 		expect(result!.index).toBe(0);

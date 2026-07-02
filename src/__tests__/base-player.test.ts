@@ -49,7 +49,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare options: any;
 	declare setup: (config: any) => this;
 	declare ready: () => Promise<void>;
-	declare dispose: () => void;
+	declare dispose: () => Promise<void>;
 	declare phase: () => string;
 	declare dispatching: () => ReadonlyArray<string>;
 	declare baseUrl: { (): string | undefined; (url: string): void };
@@ -79,18 +79,18 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare duration: () => number;
 	declare buffered: () => number;
 	declare timeData: () => any;
-	declare playbackRate: { (): number; (rate: number): void };
+	declare playbackRate: { (): number; (rate: number): Promise<void> };
 	declare playbackRates: () => number[];
-	declare volume: { (): number; (level: number): void };
-	declare mute: () => void;
-	declare unmute: () => void;
+	declare volume: { (): number; (level: number): Promise<void> };
+	declare mute: () => Promise<void>;
+	declare unmute: () => Promise<void>;
 	declare toggleMute: () => void;
 	declare volumeUp: (step?: number) => void;
 	declare volumeDown: (step?: number) => void;
 	declare playState: () => string;
 	declare volumeState: () => string;
-	declare repeatState: { (): string; (state: any): void };
-	declare shuffleState: { (): string; (state: any): void };
+	declare repeatState: { (): string; (state: any): Promise<void> };
+	declare shuffleState: { (): string; (state: any): Promise<void> };
 	declare queue: { (): ReadonlyArray<any>; (items: any[], opts?: any): void };
 	declare queueAppend: (item: any, opts?: any) => void;
 	declare queuePrepend: (item: any, opts?: any) => void;
@@ -336,7 +336,7 @@ describe('player-core mixins (kit)', () => {
 			expect((err as PlayerError).code).toBe('core:player/disposed');
 		});
 
-		it('dispose() emits "dispose" and transitions to disposed', () => {
+		it('dispose() emits "dispose" and transitions to disposed', async () => {
 			const div = document.createElement('div');
 			div.id = 'p7';
 			document.body.appendChild(div);
@@ -345,7 +345,7 @@ describe('player-core mixins (kit)', () => {
 			mockPlayer.on('dispose' as any, () => {
 				disposed = true;
 			});
-			mockPlayer.dispose();
+			await mockPlayer.dispose();
 			expect(disposed).toBe(true);
 			expect(mockPlayer.phase()).toBe('disposed');
 		});
@@ -548,23 +548,23 @@ describe('player-core mixins (kit)', () => {
 			expect(mockPlayer.playState()).toBe('stopped');
 		});
 
-		it('repeatState round-trips and emits "repeat"', () => {
+		it('repeatState round-trips and emits "repeat"', async () => {
 			const mockPlayer = setupPlayer();
 			expect(mockPlayer.repeatState()).toBe('off');
 			let emitted: { state: string } | undefined;
 			mockPlayer.on('repeat' as any, (data: any) => {
 				emitted = data;
 			});
-			mockPlayer.repeatState('all');
+			await mockPlayer.repeatState('all');
 			expect(mockPlayer.repeatState()).toBe('all');
 			expect(emitted?.state).toBe('all');
 		});
 
-		it('shuffleState accepts a boolean shorthand', () => {
+		it('shuffleState accepts a boolean shorthand', async () => {
 			const mockPlayer = setupPlayer();
-			mockPlayer.shuffleState(true as any);
+			await mockPlayer.shuffleState(true as any);
 			expect(mockPlayer.shuffleState()).toBe('on');
-			mockPlayer.shuffleState(false as any);
+			await mockPlayer.shuffleState(false as any);
 			expect(mockPlayer.shuffleState()).toBe('off');
 		});
 	});
@@ -584,30 +584,36 @@ describe('player-core mixins (kit)', () => {
 			expect(mockPlayer.volume()).toBe(40);
 		});
 
-		it('clamps writes to [0, 100]', () => {
+		it('clamps writes to [0, 100]', async () => {
 			const mockPlayer = setupPlayer();
-			mockPlayer.volume(200);
+			await mockPlayer.volume(200);
 			expect(mockPlayer.volume()).toBe(100);
-			mockPlayer.volume(-1);
+			await mockPlayer.volume(-1);
 			expect(mockPlayer.volume()).toBe(0);
 		});
 
-		it('mute() returns 0; unmute() restores prior level', () => {
+		it('mute() returns 0; unmute() restores prior level', async () => {
 			const mockPlayer = setupPlayer();
-			mockPlayer.volume(60);
-			mockPlayer.mute();
+			await mockPlayer.volume(60);
+			await mockPlayer.mute();
 			expect(mockPlayer.volume()).toBe(0);
-			mockPlayer.unmute();
+			await mockPlayer.unmute();
 			expect(mockPlayer.volume()).toBe(60);
 		});
 
-		it('volumeUp / volumeDown clamp at the bounds', () => {
+		it('volumeUp / volumeDown clamp at the bounds', async () => {
 			const mockPlayer = setupPlayer();
-			mockPlayer.volume(95);
+			await mockPlayer.volume(95);
 			mockPlayer.volumeUp(20);
+			// volumeUp/volumeDown are fire-and-forget wrappers around the
+			// cancellable volume() setter (same convention as seekByPercentage) —
+			// wait a macrotask tick so the underlying beforeVolume dispatch (which
+			// spans a few microtask ticks even with zero listeners) resolves.
+			await new Promise(resolve => setTimeout(resolve, 0));
 			expect(mockPlayer.volume()).toBe(100);
-			mockPlayer.volume(5);
+			await mockPlayer.volume(5);
 			mockPlayer.volumeDown(20);
+			await new Promise(resolve => setTimeout(resolve, 0));
 			expect(mockPlayer.volume()).toBe(0);
 		});
 	});
@@ -640,13 +646,13 @@ describe('player-core mixins (kit)', () => {
 			expect(mockPlayer.time()).toBe(7);
 		});
 
-		it('playbackRate round-trips and emits backend:ratechange', () => {
+		it('playbackRate round-trips and emits backend:ratechange', async () => {
 			const mockPlayer = setupPlayer();
 			let rate: number | undefined;
 			mockPlayer.on('backend:ratechange' as any, (data: any) => {
 				rate = data.rate;
 			});
-			mockPlayer.playbackRate(1.5);
+			await mockPlayer.playbackRate(1.5);
 			expect(mockPlayer.playbackRate()).toBe(1.5);
 			expect(rate).toBe(1.5);
 		});

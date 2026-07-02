@@ -55,7 +55,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare options: Record<string, unknown>;
 	declare setup: (config: Record<string, unknown>) => this;
 	declare ready: () => Promise<void>;
-	declare dispose: () => void;
+	declare dispose: () => Promise<void>;
 	declare phase: () => string;
 	declare setupState: () => SetupState;
 	declare auth: {
@@ -120,19 +120,19 @@ describe('lifecycle mixin — dispose()', () => {
 		const phases: string[] = [];
 		mockPlayer.on('phase', ({ to }: { to: string }) => phases.push(to));
 
-		mockPlayer.dispose();
+		await mockPlayer.dispose();
 
 		expect(phases).toContain('disposing');
 		expect(phases).toContain('disposed');
 		expect(mockPlayer.phase()).toBe('disposed');
 	});
 
-	it('second dispose() is a no-op — phase stays disposed, no error', () => {
+	it('second dispose() is a no-op — phase stays disposed, no error', async () => {
 		const mockPlayer = makePlayer('double-dispose');
 		mockPlayer.setup({});
-		mockPlayer.dispose();
+		await mockPlayer.dispose();
 
-		expect(() => mockPlayer.dispose()).not.toThrow();
+		await expect(mockPlayer.dispose()).resolves.not.toThrow();
 		expect(mockPlayer.phase()).toBe('disposed');
 	});
 
@@ -143,7 +143,7 @@ describe('lifecycle mixin — dispose()', () => {
 
 		const spy = vi.fn();
 		mockPlayer.on('play' as keyof BaseEventMap, spy);
-		mockPlayer.dispose();
+		await mockPlayer.dispose();
 
 		mockPlayer.emit('play' as keyof BaseEventMap, undefined as never);
 		expect(spy).not.toHaveBeenCalled();
@@ -160,7 +160,7 @@ describe('lifecycle mixin — dispose()', () => {
 		const internals = mockPlayer as unknown as { _policyCleanup: Array<() => void> };
 		internals._policyCleanup.push(cleanupA, cleanupB);
 
-		mockPlayer.dispose();
+		await mockPlayer.dispose();
 
 		expect(cleanupA).toHaveBeenCalledTimes(1);
 		expect(cleanupB).toHaveBeenCalledTimes(1);
@@ -174,7 +174,7 @@ describe('lifecycle mixin — dispose()', () => {
 		const internals = mockPlayer as unknown as { _policyCleanup: Array<() => void> };
 		internals._policyCleanup.push(() => {});
 
-		mockPlayer.dispose();
+		await mockPlayer.dispose();
 
 		expect(internals._policyCleanup).toHaveLength(0);
 	});
@@ -194,7 +194,7 @@ describe('lifecycle mixin — dispose()', () => {
 			goodCleanup,
 		);
 
-		mockPlayer.dispose();
+		await mockPlayer.dispose();
 
 		expect(warnings.length).toBeGreaterThan(0);
 		expect(goodCleanup).toHaveBeenCalledTimes(1);
@@ -205,14 +205,14 @@ describe('lifecycle mixin — dispose()', () => {
 		mockPlayer.setup({});
 
 		const readyP = mockPlayer.ready();
-		mockPlayer.dispose();
+		void mockPlayer.dispose();
 
 		await expect(readyP).rejects.toBeDefined();
 	});
 
-	it('dispose() when setup was never called does not throw', () => {
+	it('dispose() when setup was never called does not throw', async () => {
 		const mockPlayer = makePlayer('dispose-no-setup');
-		expect(() => mockPlayer.dispose()).not.toThrow();
+		await expect(mockPlayer.dispose()).resolves.not.toThrow();
 	});
 });
 
@@ -240,7 +240,7 @@ describe('lifecycle mixin — dispose() auth/security contract', () => {
 		const tokenBefore = internals._rawAuth();
 		expect(tokenBefore).toBeDefined();
 
-		mockPlayer.dispose();
+		await mockPlayer.dispose();
 
 		// The public auth() read surface returns undefined or the redacted config —
 		// bearer token must never be exposed via the public snapshot in any phase.
@@ -332,9 +332,9 @@ describe('lifecycle mixin — setup() guard', () => {
 		expect(() => mockPlayer.setup({})).toThrow(StateError);
 	});
 
-	it('throws StateError when called after dispose()', () => {
+	it('throws StateError when called after dispose()', async () => {
 		const mockPlayer = makePlayer('setup-after-dispose');
-		mockPlayer.dispose();
+		await mockPlayer.dispose();
 
 		expect(() => mockPlayer.setup({})).toThrow(StateError);
 	});
@@ -369,7 +369,7 @@ describe('lifecycle mixin — setupState()', () => {
 		const mockPlayer = makePlayer('state-disposed');
 		mockPlayer.setup({});
 		await mockPlayer.ready();
-		mockPlayer.dispose();
+		await mockPlayer.dispose();
 		expect(mockPlayer.setupState()).toBe(SetupState.DISPOSED);
 	});
 });

@@ -276,7 +276,8 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 		expect(fake.wakeLock.acquire).toHaveBeenCalledTimes(1);
 		expect(fake.wakeLock.release).not.toHaveBeenCalled();
 
-		mockPlayer.dispose();
+		await mockPlayer.dispose();
+		// Wait for the floating promise from release().catch(...).
 		await Promise.resolve();
 		await Promise.resolve();
 

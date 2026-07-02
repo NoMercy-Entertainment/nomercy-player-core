@@ -173,17 +173,24 @@ export const loadingMethods = {
 
 			// Trivial linear fade — no easing curve. Plugins that need fancier
 			// transitions should hook `mediaReady` and drive volume themselves.
+			//
+			// Uses `_applyVolume` (bypasses the public `volume()` setter) so this
+			// internal ramp does not dispatch `beforeVolume` on every one of the
+			// ~20 steps. The fade is an implementation detail of the `fadeIn`
+			// option the caller already opted into — not a fresh user-facing
+			// volume command a Connect plugin should see (or be able to cancel
+			// mid-ramp) 20 times per load.
 			if (typeof opts?.fadeIn === 'number' && opts.fadeIn > 0) {
 				const rawVolume = this.volume();
 				const target = typeof rawVolume === 'number' ? rawVolume : 1;
-				this.volume(0);
+				this._applyVolume(0);
 				const steps = 20;
 				const stepMs = (opts.fadeIn * 1000) / steps;
 				for (let stepIndex = 1; stepIndex <= steps; stepIndex++) {
 					await new Promise(resolve => setTimeout(resolve, stepMs));
 					if (!isLatest())
 						return;
-					this.volume((target * stepIndex) / steps);
+					this._applyVolume((target * stepIndex) / steps);
 				}
 			}
 

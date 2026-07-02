@@ -49,10 +49,10 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare options: Record<string, unknown>;
 	declare setup: (config: Record<string, unknown>) => this;
 	declare ready: () => Promise<void>;
-	declare dispose: () => void;
-	declare volume: { (): number; (level: number): void };
-	declare mute: () => void;
-	declare unmute: () => void;
+	declare dispose: () => Promise<void>;
+	declare volume: { (): number; (level: number): Promise<void> };
+	declare mute: () => Promise<void>;
+	declare unmute: () => Promise<void>;
 	declare toggleMute: () => void;
 	declare volumeUp: (step?: number) => void;
 	declare volumeDown: (step?: number) => void;
@@ -81,6 +81,17 @@ function makePlayer(divId: string): MockPlayer {
 	div.id = divId;
 	document.body.appendChild(div);
 	return new MockPlayer(divId);
+}
+
+/**
+ * Flush pending microtasks. `volumeUp()` / `volumeDown()` / `toggleMute()`
+ * are intentionally fire-and-forget wrappers around the cancellable
+ * `volume()` / `mute()` / `unmute()` setters (same convention as
+ * `seekByPercentage`) — they don't return the underlying promise, so tests
+ * exercising them wait a macrotask tick instead of awaiting a return value.
+ */
+async function flush(): Promise<void> {
+	await new Promise(resolve => setTimeout(resolve, 0));
 }
 
 interface MockBackend {
@@ -115,150 +126,154 @@ describe('volumeMethods — extended (VOL-E)', () => {
 		expect(player.volume()).toBe(100);
 	});
 
-	it('VOL-E2: volume() getter returns 0 when muted', () => {
+	it('VOL-E2: volume() getter returns 0 when muted', async () => {
 		const player = makePlayer('vol-2');
 
-		player.mute();
+		await player.mute();
 
 		expect(player.volume()).toBe(0);
 	});
 
-	it('VOL-E3: volume(v) clamps above 100 to 100', () => {
+	it('VOL-E3: volume(v) clamps above 100 to 100', async () => {
 		const player = makePlayer('vol-3');
 
-		player.volume(150);
+		await player.volume(150);
 
 		expect(player.volume()).toBe(100);
 	});
 
-	it('VOL-E4: volume(v) clamps below 0 to 0', () => {
+	it('VOL-E4: volume(v) clamps below 0 to 0', async () => {
 		const player = makePlayer('vol-4');
 
-		player.volume(-10);
+		await player.volume(-10);
 
 		expect(player.volume()).toBe(0);
 	});
 
-	it('VOL-E5: mute() saves pre-mute volume; volume() returns 0', () => {
+	it('VOL-E5: mute() saves pre-mute volume; volume() returns 0', async () => {
 		const player = makePlayer('vol-5');
-		player.volume(75);
+		await player.volume(75);
 
-		player.mute();
+		await player.mute();
 
 		expect(player.volume()).toBe(0);
 	});
 
-	it('VOL-E6: unmute() restores pre-mute volume', () => {
+	it('VOL-E6: unmute() restores pre-mute volume', async () => {
 		const player = makePlayer('vol-6');
-		player.volume(75);
-		player.mute();
+		await player.volume(75);
+		await player.mute();
 
-		player.unmute();
+		await player.unmute();
 
 		expect(player.volume()).toBe(75);
 	});
 
-	it('VOL-E7: toggleMute from unmuted → muted', () => {
+	it('VOL-E7: toggleMute from unmuted → muted', async () => {
 		const player = makePlayer('vol-7');
 
 		player.toggleMute();
+		await flush();
 
 		expect(player.volume()).toBe(0);
 	});
 
-	it('VOL-E8: toggleMute from muted → unmuted, volume restored', () => {
+	it('VOL-E8: toggleMute from muted → unmuted, volume restored', async () => {
 		const player = makePlayer('vol-8');
-		player.volume(60);
-		player.mute();
+		await player.volume(60);
+		await player.mute();
 
 		player.toggleMute();
+		await flush();
 
 		expect(player.volume()).toBe(60);
 	});
 
-	it('VOL-E9: mute() is a no-op when already muted — mute event fires once only', () => {
+	it('VOL-E9: mute() is a no-op when already muted — mute event fires once only', async () => {
 		const player = makePlayer('vol-9');
 		const muteEvents: unknown[] = [];
 		player.on('mute' as keyof BaseEventMap, (data: unknown) => { muteEvents.push(data); });
 
-		player.mute();
-		player.mute();
+		await player.mute();
+		await player.mute();
 
 		expect(muteEvents).toHaveLength(1);
 	});
 
-	it('VOL-E10: unmute() is a no-op when already unmuted — mute event fires once only', () => {
+	it('VOL-E10: unmute() is a no-op when already unmuted — mute event fires once only', async () => {
 		const player = makePlayer('vol-10');
-		player.mute();
+		await player.mute();
 
 		const muteEvents: unknown[] = [];
 		player.on('mute' as keyof BaseEventMap, (data: unknown) => { muteEvents.push(data); });
 
-		player.unmute();
-		player.unmute();
+		await player.unmute();
+		await player.unmute();
 
 		expect(muteEvents).toHaveLength(1);
 	});
 
-	it('VOL-E11: volume(v) while muted and v > 0 auto-unmutes and emits mute{muted:false}', () => {
+	it('VOL-E11: volume(v) while muted and v > 0 auto-unmutes and emits mute{muted:false}', async () => {
 		const player = makePlayer('vol-11');
-		player.volume(80);
-		player.mute();
+		await player.volume(80);
+		await player.mute();
 
 		const muteEvents: Array<{ muted: boolean }> = [];
 		player.on('mute' as keyof BaseEventMap, (data: unknown) => {
 			muteEvents.push(data as { muted: boolean });
 		});
 
-		player.volume(50);
+		await player.volume(50);
 
 		expect(player.volume()).toBe(50);
 		expect(muteEvents.some(event => event.muted === false)).toBe(true);
 	});
 
-	it('VOL-E12: volumeUp(10) raises volume by 10', () => {
+	it('VOL-E12: volumeUp(10) raises volume by 10', async () => {
 		const player = makePlayer('vol-12a');
-		player.volume(50);
+		await player.volume(50);
 
 		player.volumeUp(10);
+		await flush();
 
 		expect(player.volume()).toBe(60);
 	});
 
-	it('VOL-E12b: volumeDown(10) lowers volume by 10', () => {
+	it('VOL-E12b: volumeDown(10) lowers volume by 10', async () => {
 		const player = makePlayer('vol-12b');
-		player.volume(50);
+		await player.volume(50);
 
 		player.volumeDown(10);
+		await flush();
 
 		expect(player.volume()).toBe(40);
 	});
 
-	it('VOL-E13: volume(v) forwards divided-by-100 value to backend', () => {
+	it('VOL-E13: volume(v) forwards divided-by-100 value to backend', async () => {
 		const player = makePlayer('vol-13');
 		const backend = wireBackend(player);
 
-		player.volume(80);
+		await player.volume(80);
 
 		expect(backend.volumeCalls).toContain(0.8);
 	});
 
-	it('VOL-E13b: volume(0) while unmuted updates _volumeBeforeMute to 0', () => {
+	it('VOL-E13b: volume(0) while unmuted updates _volumeBeforeMute to 0', async () => {
 		const player = makePlayer('vol-13b');
-		player.volume(50);
-		player.volume(0);
+		await player.volume(50);
+		await player.volume(0);
 
 		expect(player.volume()).toBe(0);
 	});
 
-	it('VOL-E14: mute() calls backend.mute(); unmute() calls backend.unmute()', () => {
+	it('VOL-E14: mute() calls backend.mute(); unmute() calls backend.unmute()', async () => {
 		const player = makePlayer('vol-14');
 		const backend = wireBackend(player);
 
-		player.mute();
+		await player.mute();
 		expect(backend.muteCalls).toBe(1);
 
-		player.unmute();
+		await player.unmute();
 		expect(backend.unmuteCalls).toBe(1);
 	});
 });

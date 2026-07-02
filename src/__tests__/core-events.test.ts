@@ -233,7 +233,7 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 				events.push(data);
 			});
 
-			player.subtitle(null);
+			await player.subtitle(null);
 
 			expect(events).toHaveLength(1);
 
@@ -310,7 +310,7 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 				events.push(data as { state: ShuffleState });
 			});
 
-			player.shuffleState(ShuffleState.ON);
+			await player.shuffleState(ShuffleState.ON);
 
 			expect(events).toHaveLength(1);
 			expect(events[0]!.state).toBe(ShuffleState.ON);
@@ -319,14 +319,14 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 		it('shuffleState(OFF) emits shuffle with state ShuffleState.OFF', async () => {
 			const player = setupPlayer('ce-shuffle-off');
 			await player.ready();
-			player.shuffleState(ShuffleState.ON);
+			await player.shuffleState(ShuffleState.ON);
 
 			const events: Array<{ state: ShuffleState }> = [];
 			player.on('shuffle', (data) => {
 				events.push(data as { state: ShuffleState });
 			});
 
-			player.shuffleState(ShuffleState.OFF);
+			await player.shuffleState(ShuffleState.OFF);
 
 			expect(events).toHaveLength(1);
 			expect(events[0]!.state).toBe(ShuffleState.OFF);

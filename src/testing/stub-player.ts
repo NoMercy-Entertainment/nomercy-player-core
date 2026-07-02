@@ -212,11 +212,10 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		const isArtworkCategory = resolvedCategory === 'poster' || resolvedCategory === 'cast';
 
 		const defaultResolve = async (raw: string): Promise<ResolvedUrl> => {
-			if (isArtworkCategory && this._baseImageUrl) {
-				const isAbsolute = /^[a-z][a-z\d+\-.]*:/iu.test(raw);
-				if (!isAbsolute)
-					return buildResolvedUrl(raw, this._baseImageUrl + raw);
-			}
+			const isAbsolute = /^[a-z][a-z\d+\-.]*:/iu.test(raw);
+			const prefixBase = isArtworkCategory ? this._baseImageUrl : this._baseUrl;
+			if (prefixBase && !isAbsolute)
+				return buildResolvedUrl(raw, prefixBase + raw);
 			return buildResolvedUrl(raw, raw, this._baseUrl);
 		};
 
@@ -324,19 +323,21 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	private _currentQualityIdx: number | 'auto' = 'auto';
 
 	subtitle(): CurrentSubtitleSelection | null;
-	subtitle(idx: number | null): void;
-	subtitle(idx?: number | null): CurrentSubtitleSelection | null | void {
+	subtitle(idx: number | null): Promise<void>;
+	subtitle(idx?: number | null): CurrentSubtitleSelection | null | Promise<void> {
 		if (idx === undefined)
 			return null;
 		this._currentSubtitleIdx = idx;
+		return Promise.resolve();
 	}
 
 	audioTrack(): CurrentAudioTrackSelection | null;
-	audioTrack(idx: number): void;
-	audioTrack(idx?: number): CurrentAudioTrackSelection | null | void {
+	audioTrack(idx: number): Promise<void>;
+	audioTrack(idx?: number): CurrentAudioTrackSelection | null | Promise<void> {
 		if (idx === undefined)
 			return null;
 		this._currentAudioTrackIdx = idx;
+		return Promise.resolve();
 	}
 
 	quality(): CurrentQualitySelection | 'auto';
@@ -526,7 +527,9 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		return Promise.resolve();
 	}
 
-	dispose(): void {}
+	dispose(): Promise<void> {
+		return Promise.resolve();
+	}
 
 	// ── Transport ──
 
@@ -572,24 +575,27 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	private _muted: boolean = false;
 
 	volume(): number;
-	volume(level: number): void;
-	volume(level?: number): number | void {
+	volume(level: number): Promise<void>;
+	volume(level?: number): number | Promise<void> {
 		if (level === undefined)
 			return this._muted ? 0 : this._volume;
 		this._volume = Math.max(0, Math.min(100, level));
 		this._muted = false;
+		return Promise.resolve();
 	}
 
 	volumeUp(_step?: number): void {}
 
 	volumeDown(_step?: number): void {}
 
-	mute(): void {
+	mute(): Promise<void> {
 		this._muted = true;
+		return Promise.resolve();
 	}
 
-	unmute(): void {
+	unmute(): Promise<void> {
 		this._muted = false;
+		return Promise.resolve();
 	}
 
 	toggleMute(): void {
@@ -630,11 +636,12 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	}
 
 	playbackRate(): number;
-	playbackRate(rate: number): void;
-	playbackRate(rate?: number): number | void {
+	playbackRate(rate: number): Promise<void>;
+	playbackRate(rate?: number): number | Promise<void> {
 		if (rate === undefined)
 			return this._playbackRate;
 		this._playbackRate = rate;
+		return Promise.resolve();
 	}
 
 	// ── Queue ──
@@ -684,23 +691,25 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	): void {}
 
 	repeatState(): RepeatState;
-	repeatState(state: RepeatState): void;
-	repeatState(state?: RepeatState): RepeatState | void {
+	repeatState(state: RepeatState): Promise<void>;
+	repeatState(state?: RepeatState): RepeatState | Promise<void> {
 		if (state === undefined)
 			return this._repeatState;
 		this._repeatState = state;
+		return Promise.resolve();
 	}
 
 	shuffleState(): ShuffleState;
-	shuffleState(state: ShuffleState | boolean): void;
-	shuffleState(state?: ShuffleState | boolean): ShuffleState | void {
+	shuffleState(state: ShuffleState | boolean): Promise<void>;
+	shuffleState(state?: ShuffleState | boolean): ShuffleState | Promise<void> {
 		if (state === undefined)
 			return this._shuffleState;
 		if (typeof state === 'boolean') {
 			this._shuffleState = state ? ShuffleState.ON : ShuffleState.OFF;
-			return;
+			return Promise.resolve();
 		}
 		this._shuffleState = state;
+		return Promise.resolve();
 	}
 
 	// ── Load ──

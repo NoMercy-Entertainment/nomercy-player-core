@@ -50,7 +50,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare options: Record<string, unknown>;
 	declare setup: (config: Record<string, unknown>) => this;
 	declare ready: () => Promise<void>;
-	declare dispose: () => void;
+	declare dispose: () => Promise<void>;
 	declare phase: () => string;
 	declare dispatching: () => ReadonlyArray<string>;
 	declare baseUrl: { (): string | undefined; (url: string): void };
@@ -245,9 +245,9 @@ describe('addPlugin — lifecycle error paths', () => {
 		document.body.innerHTML = '';
 	});
 
-	it('throws StateError with core:lifecycle/use-plugin-after-dispose when player is disposed', () => {
+	it('throws StateError with core:lifecycle/use-plugin-after-dispose when player is disposed', async () => {
 		const player = setupPlayer();
-		player.dispose();
+		await player.dispose();
 		expect(() => player.addPlugin(AlphaPlugin)).toThrow(StateError);
 	});
 

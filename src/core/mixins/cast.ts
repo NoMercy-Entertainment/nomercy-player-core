@@ -237,14 +237,29 @@ export const castMethods = {
 	 * Throws `BrowserPolicyError` with a target-specific code when the
 	 * target's API isn't available so consumers can surface a "device not
 	 * supported" UI instead of an opaque failure.
+	 *
+	 * Dispatches `beforeTransfer` first — the Connect-critical device-handoff
+	 * hook. A listener may `preventDefault()` to cancel, in which case
+	 * `transferPrevented` fires and no handoff is attempted, or `delay()`
+	 * while confirming the remote device is reachable.
 	 */
 	async transferTo(this: Internals, target: CastTarget): Promise<void> {
+		const result = await this._dispatchBefore<{ target: CastTarget }>('beforeTransfer', { target });
+		if (result.prevented) {
+			this.emit('transferPrevented', {
+				reason: result.reason ?? 'listener-prevented',
+				cause: result.cause,
+			});
+			return;
+		}
+		const resolvedTarget = result.data.target;
+
 		const setState = (state: _CastStateEnum): void => {
 			this._castState = state;
 			this.emit('castState', { state });
 		};
 
-		switch (target) {
+		switch (resolvedTarget) {
 			case 'cast': {
 				const cfg = this.options.cast;
 				if (!_isCastAvailable()) {
@@ -308,7 +323,7 @@ export const castMethods = {
 				return;
 			}
 			default:
-				throw browserPolicyError('core:policy/transferTargetUnknown', `Unknown transfer target: ${target}`);
+				throw browserPolicyError('core:policy/transferTargetUnknown', `Unknown transfer target: ${resolvedTarget}`);
 		}
 	},
 } as const;

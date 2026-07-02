@@ -91,10 +91,14 @@ export const i18nMethods = {
 	 * `language()` — returns the current BCP-47 language tag (e.g. `'en'`,
 	 * `'pt-BR'`).
 	 *
-	 * `language(tag)` — switch to `tag`. Returns a `Promise<void>` that
-	 * resolves once all plugin translation bundles for the tag (and its BCP-47
-	 * parent chain) have been loaded. `pt-BR` triggers loads for both `pt-BR`
-	 * and `pt` so regional variants get the parent bundle as natural fallback.
+	 * `language(tag)` — dispatches `beforeLanguage` with the requested tag. A
+	 * listener may `preventDefault()` to cancel, in which case
+	 * `languagePrevented` fires and the language is unchanged, or mutate
+	 * `data.lang` to redirect the switch. Otherwise switches to the resolved
+	 * tag. Returns a `Promise<void>` that resolves once all plugin translation
+	 * bundles for the tag (and its BCP-47 parent chain) have been loaded.
+	 * `pt-BR` triggers loads for both `pt-BR` and `pt` so regional variants
+	 * get the parent bundle as natural fallback.
 	 *
 	 * Plugin bundles are loaded in two passes per language switch:
 	 *
@@ -111,8 +115,18 @@ export const i18nMethods = {
 		if (lang === undefined)
 			return _ensureTranslator(this).language();
 		return (async () => {
-			await _ensureTranslator(this).language(lang);
-			const langChain = bcp47FallbackChain(lang);
+			const result = await this._dispatchBefore<{ lang: string }>('beforeLanguage', { lang });
+			if (result.prevented) {
+				this.emit('languagePrevented', {
+					reason: result.reason ?? 'listener-prevented',
+					cause: result.cause,
+				});
+				return;
+			}
+			const targetLang = result.data.lang;
+
+			await _ensureTranslator(this).language(targetLang);
+			const langChain = bcp47FallbackChain(targetLang);
 
 			for (const { instance, ctor } of this._plugins) {
 				const pluginId = ctor.id;
@@ -151,18 +165,18 @@ export const i18nMethods = {
 				const hook = _getLoadTranslations(instance);
 				if (typeof hook !== 'function')
 					continue;
-				if (_hasPluginLangLoaded(this, pluginId, lang))
+				if (_hasPluginLangLoaded(this, pluginId, targetLang))
 					continue;
 				try {
-					const bundle = await hook.call(instance, lang);
-					this._markPluginLangLoaded(pluginId, lang);
+					const bundle = await hook.call(instance, targetLang);
+					this._markPluginLangLoaded(pluginId, targetLang);
 					if (!bundle)
 						continue;
 					const namespaced: Record<string, string> = {};
 					for (const [key, value] of Object.entries(bundle)) {
 						namespaced[`plugin.${pluginId}.${key}`] = value;
 					}
-					this.addTranslations({ [lang]: namespaced });
+					this.addTranslations({ [targetLang]: namespaced });
 				}
 				catch (err) {
 					if (typeof console !== 'undefined' && console.error) {
@@ -171,7 +185,7 @@ export const i18nMethods = {
 				}
 			}
 
-			this.emit('language', { lang });
+			this.emit('language', { lang: targetLang });
 		})();
 	},
 

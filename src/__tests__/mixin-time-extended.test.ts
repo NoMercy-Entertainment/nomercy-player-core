@@ -53,7 +53,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare buffered: () => number;
 	declare timeData: () => { position: number; duration: number; buffered: number; remaining: number; percentage: number };
 	declare seekByPercentage: (pct: number) => void;
-	declare playbackRate: { (): number; (rate: number): void };
+	declare playbackRate: { (): number; (rate: number): Promise<void> };
 	declare playbackRates: () => number[];
 
 	constructor(id?: string | number) {
@@ -223,23 +223,23 @@ describe('timeMethods — extended (TM-E)', () => {
 			expect(player.playbackRate()).toBe(1);
 		});
 
-		it('TM-E8: playbackRate clamps below 0.25 to 0.25', () => {
+		it('TM-E8: playbackRate clamps below 0.25 to 0.25', async () => {
 			const player = makePlayer('tm-8');
 
-			player.playbackRate(0.1);
+			await player.playbackRate(0.1);
 
 			expect(player.playbackRate()).toBe(0.25);
 		});
 
-		it('TM-E9: playbackRate clamps above 2 to 2', () => {
+		it('TM-E9: playbackRate clamps above 2 to 2', async () => {
 			const player = makePlayer('tm-9');
 
-			player.playbackRate(5);
+			await player.playbackRate(5);
 
 			expect(player.playbackRate()).toBe(2);
 		});
 
-		it('TM-E10: playbackRate emits backend:ratechange and forwards to backend', () => {
+		it('TM-E10: playbackRate emits backend:ratechange and forwards to backend', async () => {
 			const player = makePlayer('tm-10');
 			const backendCalls: number[] = [];
 			(player as unknown as { backend: () => unknown }).backend = (): unknown => ({
@@ -251,7 +251,7 @@ describe('timeMethods — extended (TM-E)', () => {
 				emitted.push(data as { rate: number });
 			});
 
-			player.playbackRate(1.5);
+			await player.playbackRate(1.5);
 
 			expect(emitted).toHaveLength(1);
 			expect(emitted[0]!.rate).toBe(1.5);

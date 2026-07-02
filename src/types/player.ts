@@ -429,9 +429,12 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	/**
 	 * Active language tag. Read with no args; write with a string.
 	 *
-	 * Setting triggers `loadTranslations` (player + every plugin's
-	 * `loadTranslations`) when the bundle isn't already loaded. The setter
-	 * overload returns a Promise that resolves once all loaders settle.
+	 * Setting dispatches `beforeLanguage` first; a listener may
+	 * `preventDefault()` to cancel, in which case `languagePrevented` fires and
+	 * the language is unchanged. Otherwise triggers `loadTranslations` (player +
+	 * every plugin's `loadTranslations`) when the bundle isn't already loaded.
+	 * The setter overload returns a Promise that resolves once all loaders
+	 * settle.
 	 */
 	language(): string;
 	language(lang: string): Promise<void>;
@@ -494,19 +497,27 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	 * Read or write the active subtitle track.
 	 *
 	 * `subtitle()` — `{ index, track }` of the selected track, or `null` when off.
-	 * `subtitle(idx)` — select track; pass `null` to disable. Fires `subtitle`.
+	 * `subtitle(idx)` — select track; pass `null` to disable. Dispatches
+	 * `beforeSubtitle` first; a listener may `preventDefault()` to cancel, in
+	 * which case `subtitlePrevented` fires and the selection is unchanged.
+	 * Otherwise fires `subtitle`. Returns a `Promise<void>` so callers can
+	 * await the full cancellable cycle.
 	 */
 	subtitle(): CurrentSubtitleSelection | null;
-	subtitle(idx: number | null): void;
+	subtitle(idx: number | null): Promise<void>;
 
 	/**
 	 * Read or write the active audio track.
 	 *
 	 * `audioTrack()` — `{ index, track }` of the selected track, or `null` when unset.
-	 * `audioTrack(idx)` — select track. Fires `audioTrack`.
+	 * `audioTrack(idx)` — select track. Dispatches `beforeAudioTrack` first; a
+	 * listener may `preventDefault()` to cancel, in which case
+	 * `audioTrackPrevented` fires and the selection is unchanged. Otherwise
+	 * fires `audioTrack`. Returns a `Promise<void>` so callers can await the
+	 * full cancellable cycle.
 	 */
 	audioTrack(): CurrentAudioTrackSelection | null;
-	audioTrack(idx: number): void;
+	audioTrack(idx: number): Promise<void>;
 
 	/**
 	 * Read or write the active quality level.
@@ -644,10 +655,13 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	ready(): Promise<void>;
 
 	/**
-	 * Tear down the player. Idempotent — a second call is a no-op. After this
-	 * the instance is permanently dead.
+	 * Tear down the player. Idempotent — a second call is a no-op. Dispatches
+	 * `beforeDispose` first; a listener may `preventDefault()` to cancel, in
+	 * which case `disposePrevented` fires and the player stays fully alive.
+	 * Otherwise tears down and the instance is permanently dead. Returns a
+	 * `Promise<void>` so callers can await the full cancellable cycle.
 	 */
-	dispose(): void;
+	dispose(): Promise<void>;
 
 	// ── Transport ──
 
@@ -685,22 +699,37 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 
 	/** Read the current volume (0–100). Returns 0 when muted. */
 	volume(): number;
-	/** Set the volume (0–100). Unmutes if currently muted. */
-	volume(level: number): void;
+	/**
+	 * Set the volume (0–100). Dispatches `beforeVolume` first — fires
+	 * unconditionally, independent of `setup({ mutationGuards })`. A listener
+	 * may `preventDefault()` to cancel, in which case `volumePrevented` fires
+	 * and the level is unchanged. Otherwise unmutes (if currently muted) and
+	 * fires `volume`. Returns a `Promise<void>` so callers can await the full
+	 * cancellable cycle.
+	 */
+	volume(level: number): Promise<void>;
 
-	/** Increase volume by `step` percentage points (default 5). */
+	/** Increase volume by `step` percentage points (default 5). Fire-and-forget wrapper around `volume()` — still dispatches `beforeVolume`. */
 	volumeUp(step?: number): void;
 
-	/** Decrease volume by `step` percentage points (default 5). */
+	/** Decrease volume by `step` percentage points (default 5). Fire-and-forget wrapper around `volume()` — still dispatches `beforeVolume`. */
 	volumeDown(step?: number): void;
 
-	/** Silence output without discarding the stored level. */
-	mute(): void;
+	/**
+	 * Silence output without discarding the stored level. Dispatches
+	 * `beforeMute`; a listener may `preventDefault()` to cancel, in which case
+	 * `mutePrevented` fires. No-op (no dispatch) when already muted.
+	 */
+	mute(): Promise<void>;
 
-	/** Restore output after a mute. */
-	unmute(): void;
+	/**
+	 * Restore output after a mute. Dispatches `beforeMute`; a listener may
+	 * `preventDefault()` to cancel, in which case `mutePrevented` fires. No-op
+	 * (no dispatch) when already unmuted.
+	 */
+	unmute(): Promise<void>;
 
-	/** Toggle between muted and unmuted. */
+	/** Toggle between muted and unmuted. Fire-and-forget wrapper around `mute()` / `unmute()` — still dispatches `beforeMute`. */
 	toggleMute(): void;
 
 	// ── Time ──
@@ -721,8 +750,15 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 
 	/** Returns the current playback rate. */
 	playbackRate(): number;
-	/** Set the playback rate. `1.0` = normal speed. */
-	playbackRate(rate: number): void;
+	/**
+	 * Set the playback rate. `1.0` = normal speed. Clamped to `[0.25, 2]`.
+	 * Dispatches `beforePlaybackRate` first — fires unconditionally,
+	 * independent of `setup({ mutationGuards })`. A listener may
+	 * `preventDefault()` to cancel, in which case `playbackRatePrevented`
+	 * fires and the rate is unchanged. Returns a `Promise<void>` so callers
+	 * can await the full cancellable cycle.
+	 */
+	playbackRate(rate: number): Promise<void>;
 
 	// ── Queue ──
 
@@ -796,13 +832,24 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 
 	/** Returns the current repeat mode token (`'off'` / `'one'` / `'all'`). */
 	repeatState(): RepeatState;
-	/** Set the repeat mode and emit `repeat`. */
-	repeatState(state: RepeatState): void;
+	/**
+	 * Set the repeat mode. Dispatches `beforeRepeat`; a listener may
+	 * `preventDefault()` to cancel, in which case `repeatPrevented` fires and
+	 * the mode is unchanged. Otherwise fires `repeat`. Returns a
+	 * `Promise<void>` so callers can await the full cancellable cycle.
+	 */
+	repeatState(state: RepeatState): Promise<void>;
 
 	/** Returns the current shuffle mode token (`'off'` / `'on'`). */
 	shuffleState(): ShuffleState;
-	/** Set the shuffle mode and emit `shuffle`. Accepts a boolean shorthand. */
-	shuffleState(state: ShuffleState | boolean): void;
+	/**
+	 * Set the shuffle mode. Accepts a boolean shorthand. Dispatches
+	 * `beforeShuffle`; a listener may `preventDefault()` to cancel, in which
+	 * case `shufflePrevented` fires and the mode is unchanged. Otherwise
+	 * fires `shuffle`. Returns a `Promise<void>` so callers can await the full
+	 * cancellable cycle.
+	 */
+	shuffleState(state: ShuffleState | boolean): Promise<void>;
 
 	// ── Load ──
 
@@ -849,7 +896,9 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 
 	/**
 	 * Hand playback off to a remote target (`'cast'` / `'airplay'` /
-	 * `'remote-playback'` / `'local'`).
+	 * `'remote-playback'` / `'local'`). Dispatches `beforeTransfer` first; a
+	 * listener may `preventDefault()` to cancel, in which case
+	 * `transferPrevented` fires and no handoff is attempted.
 	 */
 	transferTo(target: CastTarget): Promise<void>;
 

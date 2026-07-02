@@ -130,17 +130,18 @@ export const authMethods = {
 			const transformer = auth?.transformUrl;
 			const transformed = transformer ? await transformer(rawUrl) : rawUrl;
 
-			// For artwork categories with baseImageUrl: prepend as a string prefix
-			// when the transformed URL is not already absolute (no scheme present).
-			if (isArtworkCategory && imageBase) {
-				const isAbsolute = /^[a-z][a-z\d+\-.]*:/iu.test(transformed);
-				if (!isAbsolute) {
-					const prefixed = imageBase + transformed;
-					return buildResolvedUrl(rawUrl, prefixed);
-				}
-			}
-
+			const isAbsolute = /^[a-z][a-z\d+\-.]*:/iu.test(transformed);
 			const base = this._baseUrl ?? this.options?.baseUrl;
+
+			// baseUrl and baseImageUrl are path prefixes, not URL bases: a relative
+			// media or image path is appended as a raw string, keeping the base path
+			// segment. Standard new URL(path, base) drops that segment when the path
+			// starts with a slash. The server sends base without a trailing slash and
+			// paths with a leading slash, so raw concatenation joins them cleanly.
+			const prefixBase = isArtworkCategory ? imageBase : base;
+			if (prefixBase && !isAbsolute)
+				return buildResolvedUrl(rawUrl, prefixBase + transformed);
+
 			const result = buildResolvedUrl(rawUrl, transformed, base);
 
 			if (result.relative) {
