@@ -213,6 +213,43 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 
 			expect(session.playbackState).toBe('none');
 		});
+
+		it('ended event does NOT clear metadata (auto-advance re-pushes it)', async () => {
+			const mockPlayer = makePlayer('ms-deep-ended-keeps-meta').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
+
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('item', {
+				item: { id: 1, title: 'Track' },
+				index: 0,
+			});
+			await flush();
+			expect(session.metadata).toBeTruthy();
+
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('ended', undefined);
+
+			expect(session.metadata).toBeTruthy();
+		});
+
+		it('stop event clears metadata AND sets playbackState to "none" (genuine session end)', async () => {
+			const mockPlayer = makePlayer('ms-deep-stop').setup({});
+			mockPlayer.addPlugin(MediaSessionPlugin);
+			await mockPlayer.ready();
+
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('item', {
+				item: { id: 1, title: 'Track' },
+				index: 0,
+			});
+			await flush();
+			expect(session.metadata).toBeTruthy();
+
+			session.playbackState = 'playing';
+
+			(mockPlayer as MockPlayer & { emit: (eventName: string, data: unknown) => void }).emit('stop', {});
+
+			expect(session.metadata).toBeNull();
+			expect(session.playbackState).toBe('none');
+		});
 	});
 
 	// ── position state updates ─────────────────────────────────────────────────

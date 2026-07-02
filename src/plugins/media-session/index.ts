@@ -76,6 +76,11 @@ type Action
  * **What it wires automatically on `use()`:**
  * - `current` item event → calls `getMetadata(item)` and pushes the result to the OS.
  * - `play` / `pause` / `ended` → updates `navigator.mediaSession.playbackState`.
+ * - `stop` → clears metadata (via `clearMetadata()`) AND sets `playbackState`
+ *   to `'none'`. This is the genuine session-end signal — unlike `ended`,
+ *   which is typically followed by auto-advance to the next item, `stop`
+ *   means playback is over and the OS lock screen should go blank rather
+ *   than keep showing stale artwork for a track that is no longer playing.
  * - `time` + `seek` → calls `setPositionState` so the lock-screen scrubber
  *   tracks the current position.
  * - OS action handlers: `play`, `pause`, `stop`, `previoustrack`, `nexttrack`,
@@ -145,6 +150,11 @@ export class MediaSessionPlugin<
 		}) as never);
 
 		this.on('ended' as keyof BaseEventMap, (() => {
+			this.setPlaybackState('none');
+		}) as never);
+
+		this.on('stop' as keyof BaseEventMap, (() => {
+			this.clearMetadata();
 			this.setPlaybackState('none');
 		}) as never);
 
@@ -249,7 +259,9 @@ export class MediaSessionPlugin<
 	/**
 	 * Clear the OS MediaSession metadata. Hides artwork and title from the lock
 	 * screen and Now Playing widget. Called automatically when the current item
-	 * clears (i.e. the `current` event fires with a null item).
+	 * clears (i.e. the `item` event fires with no item) and when the player's
+	 * transport emits `stop` (genuine session end, as opposed to `ended`, which
+	 * is normally followed by an auto-advance `item` event).
 	 */
 	clearMetadata(): void {
 		if (typeof navigator === 'undefined' || !('mediaSession' in navigator))
