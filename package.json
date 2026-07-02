@@ -33,6 +33,7 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
 		},
+		"./eslint-plugin": "./eslint-plugin/index.js",
 		"./adapters/clock": {
 			"types": "./dist/adapters/clock/index.d.ts",
 			"import": "./dist/adapters/clock/index.js"
@@ -198,6 +199,7 @@
 		"RELEASING.md",
 		"SECURITY.md",
 		"dist",
+		"eslint-plugin",
 		"scripts"
 	],
 	"engines": {

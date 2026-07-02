@@ -1,5 +1,5 @@
 import antfu from '@antfu/eslint-config';
-import player from '../eslint-plugin-player/index.js';
+import player from './eslint-plugin/index.js';
 
 export default antfu({
 	ignores: [
