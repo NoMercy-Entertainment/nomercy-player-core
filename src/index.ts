@@ -50,6 +50,7 @@ export {
 	attachDomBridgesTo,
 	attachHlsOrFallback,
 	captureStreamFromElement,
+	createAuthorizationXhrSetup,
 	createSecondaryAudioElement,
 	destroyHlsInstance,
 	getMediaKeysFromElement,
@@ -73,11 +74,14 @@ export type {
 export {
 	BACKEND_LOADER_STATE,
 	BACKEND_STATE,
+	bridgeBackendPlayState,
 	MediaElementBackend,
 } from './adapters/media-element';
 
 export type {
 	AuthHeaderProvider,
+	BackendLifecycleBridgeOptions,
+	BackendLifecycleSource,
 	BackendLoaderState,
 	BackendState,
 	MinimalBackendEventPayload,

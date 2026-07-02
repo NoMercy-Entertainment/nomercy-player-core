@@ -110,6 +110,24 @@ export function attachHlsOrFallback(
 }
 
 /**
+ * Build an hls.js `xhrSetup` callback that stamps `Authorization: <headerValue>`
+ * onto every manifest / segment request when a value is present.
+ *
+ * Centralises the closure so every backend's `HlsLoaderConfig.xhrSetup` shares
+ * one implementation instead of re-writing the same conditional
+ * `setRequestHeader` call at each call site.
+ */
+export function createAuthorizationXhrSetup(
+	headerValue: string | undefined,
+): (xhr: XMLHttpRequest) => void {
+	return (xhr: XMLHttpRequest): void => {
+		if (headerValue) {
+			xhr.setRequestHeader('Authorization', headerValue);
+		}
+	};
+}
+
+/**
  * Detach media from `hls`, then destroy it, swallowing any errors defensively.
  * Clears the reference the caller passes by value — callers must set their own
  * field to `undefined` after this call.

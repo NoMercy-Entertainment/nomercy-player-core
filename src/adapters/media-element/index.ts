@@ -6,6 +6,13 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
+export { bridgeBackendPlayState } from './backend-lifecycle-bridge';
+
+export type {
+	BackendLifecycleBridgeOptions,
+	BackendLifecycleSource,
+} from './backend-lifecycle-bridge';
+
 export {
 	BACKEND_LOADER_STATE,
 	BACKEND_STATE,
@@ -20,6 +27,7 @@ export {
 	attachDomBridgesTo,
 	attachHlsOrFallback,
 	captureStreamFromElement,
+	createAuthorizationXhrSetup,
 	createSecondaryAudioElement,
 	destroyHlsInstance,
 	getMediaKeysFromElement,
