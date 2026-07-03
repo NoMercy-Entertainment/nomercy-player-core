@@ -2,6 +2,16 @@
 
 ## [2.0.0-rc.21] — 2026-07-02
 
+> This entry was corrected after publish to disclose the M1 change below — the original rc.21 release notes only covered the `baseUrl` fix. The published rc.21 tarball is unchanged; this is a documentation correction so the history is accurate.
+
+### Breaking
+
+- `volume()`, `mute()`, `unmute()`, `subtitle()`, `audioTrack()`, `playbackRate()`, `repeatState()`, `shuffleState()`, and `dispose()` setters now return `Promise<void>` instead of `void`. Each dispatches its own dedicated `before*` hook (see Added) ahead of the mutation. Code that read state synchronously right after calling one of these must now `await` the call first. Callers that never inspected the return value are unaffected. `nomercy-video-player` and `nomercy-music-player` need a matching release to stay structurally compatible with `IPlayer` — see their rc.22 changelogs.
+
+### Added
+
+- Ten cancellable `before*` hooks on `BaseEventMap`, the M1 Connect-plugin slice: `beforeVolume`, `beforeMute`, `beforeRepeat`, `beforeShuffle`, `beforePlaybackRate`, `beforeLanguage`, `beforeSubtitle`, `beforeAudioTrack`, `beforeDispose`, `beforeTransfer`. Each fires before its action applies; a listener may call `preventDefault()` to cancel (the matching `<action>Prevented` event fires instead) or hand `delay()` a promise the dispatch awaits before proceeding. `beforeVolume` and `beforePlaybackRate` fire unconditionally, independent of `setup({ mutationGuards })`, so a Connect plugin can rely on them without opting the whole player into the generic mutation-guard surface.
+
 ### Fixed
 
 - `baseUrl` now prepends to relative media paths as a raw string prefix, keeping its own path segment, the same way `baseImageUrl` already did. Previously media resolution used `new URL(path, baseUrl)`, which dropped the base path when the path started with a slash (the shape the media server sends), so `baseUrl` plus a root-relative item path resolved to a 404. Setting `baseUrl` and giving items relative paths now works as intended.
