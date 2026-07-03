@@ -1,5 +1,15 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.23] — 2026-07-03
+
+### Added
+
+- `plugins?: ReadonlyArray<PluginSpec>` on `BasePlayerConfig` — declarative plugin registration via `setup({ plugins: [...] })`. Each entry is a bare class ref or `{ plugin, opts }`. Sugar over calling `addPlugin()` before `setup()`, not a second registration path: same `pluginsRegistering` pipeline stage, same `core:plugin/duplicate-id` / `-missing-dep` / `-version-mismatch` / `-incompatible-core-version` validation, same timing. Fixes the pre-setup addPlugin() window being easy to miss (a re-render or late framework lifecycle hook silently no-ops registration). `nomercy-video-player` and `nomercy-music-player` inherit this for free — both already spread the full config through their `setup()` wrappers, no changes needed in either package.
+
+### Fixed
+
+- `EventEmitter.on()` (and `.once()`) now `console.warn`s when a consumer subscribes to a renamed-away event name (currently `'current'`, renamed to `'item'`), naming the replacement. The bare-`string` overload needed for `plugin:<id>:<event>` namespaced events can't be narrowed to reject only known-stale names without breaking `Plugin.on()`'s internal implementation, so this is a runtime backstop, not a type fix. Diagnostic only — a listener on the renamed event still never fires, same as before.
+
 ## [2.0.0-rc.22] — 2026-07-03
 
 ### Added
