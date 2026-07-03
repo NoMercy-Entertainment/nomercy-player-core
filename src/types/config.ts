@@ -268,6 +268,16 @@ export interface BasePlayerConfig {
 	/** Pause when document goes hidden. Default `false`. */
 	pauseWhenHidden?: boolean;
 
+	/**
+	 * Render the browser's native media controls on the backing element
+	 * (`<audio controls>` / `<video controls>`). Useful when no UI plugin is
+	 * loaded. Default `false`.
+	 *
+	 * Loading a UI plugin (e.g. video's `DesktopUiPlugin` / `TvKeyHandlerPlugin`)
+	 * alongside `controls: true` results in doubled controls; use one or the other.
+	 */
+	controls?: boolean;
+
 	/** Behavior on `network:offline`. Default `'continue-buffered'`. */
 	onOffline?: 'pause' | 'continue-buffered' | 'ignore';
 

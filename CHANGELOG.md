@@ -1,5 +1,17 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.22] — 2026-07-03
+
+### Added
+
+- `controls?: boolean` on `BasePlayerConfig`. Renders the browser's native
+  media controls on the backing element (`<audio controls>` / `<video
+  controls>`) — useful when no UI plugin is loaded. Default `false`. Previously
+  declared only on video's own config type; now shared so both libraries in
+  the trio honor it identically. `nomercy-video-player` drops its duplicate
+  declaration (inherits this one) and `nomercy-music-player` now reads it too
+  — see their rc.22 changelogs. Additive, non-breaking.
+
 ## [2.0.0-rc.21] — 2026-07-02
 
 > This entry was corrected after publish to disclose the M1 change below — the original rc.21 release notes only covered the `baseUrl` fix. The published rc.21 tarball is unchanged; this is a documentation correction so the history is accurate.
