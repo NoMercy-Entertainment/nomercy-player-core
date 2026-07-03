@@ -11,13 +11,16 @@
  *
  * Verifies:
  *  1. Boundary values — position 0 → 0 gain, position 1 → unity gain.
- *  2. Silence floor  — any position below 1 % snaps to 0.
- *  3. Monotonicity   — the curve is strictly non-decreasing.
+ *  2. Key curve values — pins the quadratic (position²) taper at the
+ *     positions that matter for the "barely audible below 60 %" bug report.
+ *  3. Monotonicity — the curve is strictly non-decreasing.
  *  4. Perceptual property — equal slider step near the TOP produces a
- *     SMALLER linear-gain delta than the same step near the BOTTOM.
- *     This is the defining characteristic of a dB taper: most of the
- *     audible change is spread across the lower portion of the slider.
+ *     LARGER linear-gain delta than the same step near the BOTTOM. This is
+ *     the defining characteristic of a power-law taper: the gain axis is
+ *     compressed at low slider positions and expanded at high ones.
  *  5. Out-of-range inputs clamp safely.
+ *  6. Regression guard — fails if the curve reverts to the old −60 dB
+ *     broadcast/mastering law that made everything ≤ 60 % near-inaudible.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -32,20 +35,26 @@ describe('perceptualGain', () => {
 		expect(perceptualGain(1)).toBeCloseTo(1, 10);
 	});
 
-	it('positions below 0.01 snap to 0 (silence floor)', () => {
-		expect(perceptualGain(0.005)).toBe(0);
-		expect(perceptualGain(0.009)).toBe(0);
-		expect(perceptualGain(0.0099)).toBe(0);
+	it('position 0.1 produces gain 0.01 (−40 dB)', () => {
+		expect(perceptualGain(0.1)).toBeCloseTo(0.01, 10);
 	});
 
-	it('position 0.01 (1 %) produces a non-zero but very quiet gain', () => {
-		const gain = perceptualGain(0.01);
-		expect(gain).toBeGreaterThan(0);
-		expect(gain).toBeLessThan(0.01);
+	it('position 0.3 produces gain 0.09 (≈ −20.9 dB)', () => {
+		expect(perceptualGain(0.3)).toBeCloseTo(0.09, 10);
 	});
 
-	it('position 0.5 produces gain close to 10^(-1.5) ≈ 0.0316 (−30 dB)', () => {
-		expect(perceptualGain(0.5)).toBeCloseTo(10 ** -1.5, 5);
+	it('position 0.5 produces gain 0.25 (≈ −12 dB)', () => {
+		expect(perceptualGain(0.5)).toBeCloseTo(0.25, 10);
+	});
+
+	it('position 0.6 produces gain 0.36 (≈ −8.9 dB) — the reported "barely audible" point', () => {
+		expect(perceptualGain(0.6)).toBeCloseTo(0.36, 10);
+	});
+
+	it('regression guard: gain(0.5) must stay clearly audible, never fall back to the old −30 dB broadcast-fader value', () => {
+		// The old −60 dB…0 dB law put position 0.5 at ≈ 0.0316 (−30 dB) — barely
+		// audible, and the root cause of the reported bug. This must never regress.
+		expect(perceptualGain(0.5)).toBeGreaterThan(0.1);
 	});
 
 	it('is monotonically non-decreasing across the [0, 1] range', () => {
@@ -61,27 +70,15 @@ describe('perceptualGain', () => {
 	});
 
 	it('equal slider step near the TOP produces a LARGER gain delta than near the BOTTOM', () => {
-		// This is the defining characteristic of a dB-law (logarithmic) taper:
-		// the gain axis is compressed at low slider positions and expanded at high
-		// slider positions.
-		//
-		// Near position 0 the gain values are tiny (e.g. 0.002 at p=0.10); a
-		// 0.05 step there adds only a fraction of a thousandth to the gain.
-		// Near position 1 the gain values approach unity (0.5–1.0); the same
-		// 0.05 step adds ~0.2 to the gain.
-		//
-		// What sounds equal to the ear is an equal NUMBER OF dB — not an equal
-		// LINEAR gain change. The formula guarantees each 0.05 slider step
-		// corresponds to 60/20 * 0.05 = 0.15 dB change everywhere. The absolute
-		// gain delta is large at the top and tiny at the bottom, but the perceived
-		// loudness change is the same.
+		// Defining characteristic of a power-law taper (gain = position²): the
+		// derivative 2·position grows with position, so the same slider step
+		// moves the gain more near the top than near the bottom — proof the
+		// curve is not linear.
 		const step = 0.05;
 
 		const deltaBottom = perceptualGain(0.10 + step) - perceptualGain(0.10);
 		const deltaTop = perceptualGain(0.90 + step) - perceptualGain(0.90);
 
-		// A step near the top must produce a LARGER absolute gain delta than a
-		// step near the bottom — this proves the curve is NOT linear.
 		expect(deltaTop).toBeGreaterThan(deltaBottom);
 	});
 
