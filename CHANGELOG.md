@@ -1,5 +1,11 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.24] — 2026-07-04
+
+### Fixed
+
+- `perceptualGain()` — the shared position→gain volume curve — replaced the −60 dB…0 dB broadcast fader law with the consumer power taper `gain = position²`. The old law put the 50% slider at −30 dB (gain 0.0316), leaving everything below ~70% barely audible. Now 50% → 0.25 (−12 dB), 60% → 0.36 (−8.9 dB), endpoints exact (0 → silence, 1 → unity), and the sub-1% hard-floor snap is gone. Both libraries inherit the fix (`MediaElementBackend` + the music WebAudio/HTML5 backends); crossfade ramps read already-curved live gains and are unaffected.
+
 ## [2.0.0-rc.23] — 2026-07-03
 
 ### Added
