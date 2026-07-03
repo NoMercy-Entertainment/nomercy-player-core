@@ -19,6 +19,26 @@ type AnyHandler = (data: any) => void;
 type ImplHandler = (data: any) => void;
 
 /**
+ * Event names removed or renamed in a past release. `on()` warns instead of
+ * silently registering a listener that will never fire.
+ *
+ * This is a runtime backstop, not a type fix: `on()`'s bare-`string` escape
+ * hatch (needed for `plugin:<id>:<event>` namespaced events) can't be
+ * narrowed to exclude only-known-stale names without breaking
+ * `Plugin.on()`'s internal implementation, which routes BOTH bare core
+ * event names and namespaced plugin ones through this same string-typed
+ * call — narrowing the type here would make that call site un-typeable
+ * without its own cast. See `IPlayer.on()`'s escape-hatch overload docs.
+ *
+ * Append an entry whenever a documented event is renamed; never remove one
+ * once added — a consumer pinned to an older package version can still hit
+ * this warning for years after the rename ships.
+ */
+const RENAMED_EVENTS: Readonly<Record<string, string>> = {
+	current: 'item',
+};
+
+/**
  * Typed event emitter. Both player classes extend this; plugins consume it
  * via `this.on` / `this.once` / `this.off` / `this.emit`, which delegate to
  * a player-scoped instance.
@@ -87,6 +107,10 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	on(_event: string, _fn: AnyHandler): void;
 	on(event: any, fn: (...args: any[]) => void): void {
 		const key = String(event);
+		const renamedTo = RENAMED_EVENTS[key];
+		if (renamedTo && typeof console !== 'undefined' && console.warn) {
+			console.warn(`[nomercy-player] on('${key}', ...) will never fire — '${key}' was renamed to '${renamedTo}'. Update the listener.`);
+		}
 		if (key === 'all') {
 			this.anyListeners.add(fn as (event: string, data: unknown) => void);
 			return;

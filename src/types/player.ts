@@ -301,6 +301,15 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	 * dynamic event names. The `any` parameter type is bivariant, so consumers may
 	 * annotate the callback with the concrete plugin-event type without a cast.
 	 * For all events declared in the event map, prefer the typed `K` overload.
+	 *
+	 * A renamed-away event name (one that used to be in `E` but isn't anymore)
+	 * still type-checks against this overload — TypeScript can't distinguish
+	 * "deliberately dynamic" from "stale reference to a name that moved" on a
+	 * bare `string`. The runtime backstop for that gap is
+	 * `EventEmitter`'s `RENAMED_EVENTS` warn (see `adapters/event-bus/default.ts`);
+	 * this overload's type can't be narrowed further without breaking
+	 * `Plugin.on()`'s internal implementation, which routes both bare core
+	 * event names and namespaced ones through this same string-typed call.
 	 */
 	on(event: string, fn: (data: any) => void): void; // bivariant escape hatch for plugin events
 
