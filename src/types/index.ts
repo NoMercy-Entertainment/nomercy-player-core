@@ -34,7 +34,12 @@ export type {
 	WithCurrentItem,
 } from './player';
 export type { BasePlaylistItem } from './playlist';
-export type { PluginAdvisory, PluginCtorWithId, RequireSpec } from './plugin';
+export type {
+	PluginAdvisory,
+	PluginCtorWithId,
+	PluginSpec,
+	RequireSpec,
+} from './plugin';
 export {
 	AudioTrackState,
 	BufferState,

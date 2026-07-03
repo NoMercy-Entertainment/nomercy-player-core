@@ -357,6 +357,82 @@ describe('addPlugin — replaces', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// config.plugins — declarative registration (sugar over addPlugin())
+// ─────────────────────────────────────────────────────────────────────────────
+
+class OptsPlugin extends Plugin<StubPlayer, { label?: string }> {
+	static override readonly id = 'opts-plugin';
+	static override readonly version = '1.0.0';
+	static override readonly description = 'Records the opts it was constructed with.';
+	receivedLabel: string | undefined;
+	override use(): void {
+		this.receivedLabel = this.opts.label;
+	}
+
+	override dispose(): void {}
+}
+
+describe('config.plugins — declarative registration', () => {
+	beforeEach(() => MockPlayer._resetRegistry());
+	afterEach(() => {
+		MockPlayer._resetRegistry();
+		document.body.innerHTML = '';
+	});
+
+	it('registers a bare class ref passed via config.plugins', async () => {
+		const player = setupPlayer({ plugins: [AlphaPlugin] });
+		await player.ready();
+		expect(player.getPlugin(AlphaPlugin)).toBeDefined();
+	});
+
+	it('registers the { plugin, opts } object form and passes opts through to use()', async () => {
+		const player = setupPlayer({ plugins: [{ plugin: OptsPlugin, opts: { label: 'from-config' } }] });
+		await player.ready();
+		const instance = player.getPlugin(OptsPlugin) as OptsPlugin | undefined;
+		expect(instance?.receivedLabel).toBe('from-config');
+	});
+
+	it('registers multiple entries in array order, resolving requires() across config entries', async () => {
+		const player = setupPlayer({ plugins: [AlphaPlugin, BetaPlugin] });
+		await player.ready();
+		expect(player.getPlugin(AlphaPlugin)).toBeDefined();
+		expect(player.getPlugin(BetaPlugin)).toBeDefined();
+	});
+
+	it('throws core:plugin/duplicate-id synchronously — same guard as manual addPlugin()', () => {
+		expect(() => setupPlayer({ plugins: [AlphaPlugin, AlphaPlugin] })).toThrow();
+	});
+
+	it('throws core:plugin/missing-dep synchronously when a config-declared dependency is absent', () => {
+		expect(() => setupPlayer({ plugins: [BetaPlugin] })).toThrow();
+	});
+
+	it('fires plugin:installed with the same payload shape addPlugin() produces', async () => {
+		const player = setupPlayer({ plugins: [AlphaPlugin] });
+		const installed = await waitForEvent(player, 'plugin:installed');
+		expect((installed as { id: string }).id).toBe('alpha');
+	});
+
+	it('resolves requires() against a dependency registered via manual addPlugin() before setup()', async () => {
+		const div = document.createElement('div');
+		div.id = 'pr-mock-mixed';
+		document.body.appendChild(div);
+		const player = new MockPlayer('pr-mock-mixed');
+		player.addPlugin(AlphaPlugin);
+		player.setup({ plugins: [BetaPlugin] });
+		await player.ready();
+		expect(player.getPlugin(AlphaPlugin)).toBeDefined();
+		expect(player.getPlugin(BetaPlugin)).toBeDefined();
+	});
+
+	it('does nothing when config.plugins is omitted', async () => {
+		const player = setupPlayer();
+		await player.ready();
+		expect(player.getPlugin(AlphaPlugin)).toBeUndefined();
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // _registerPlugin — failure + cascade
 // ─────────────────────────────────────────────────────────────────────────────
 

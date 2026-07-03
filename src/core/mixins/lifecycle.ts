@@ -105,6 +105,7 @@ export const lifecycleMethods = {
 		this._setupCalled = true;
 
 		_normalizeOptions(this, config);
+		_registerConfigPlugins(this, config);
 		_seedFromOptions(this);
 		this.container.classList.add('nomercyplayer');
 		_wireLogger(this);
@@ -299,6 +300,26 @@ function _guardSetup(self: Internals): void {
 /** Snapshot the config onto `self.options`. */
 function _normalizeOptions(self: Internals, config: BasePlayerConfig): void {
 	self.options = { ...config };
+}
+
+/**
+ * Queue every `config.plugins` entry through `addPlugin()` — the declarative
+ * config path is sugar over that call, not a second registration mechanism.
+ * Same validation (`core:plugin/duplicate-id`, `-missing-dep`,
+ * `-version-mismatch`, `-incompatible-core-version`), same pre-setup
+ * `pluginsRegistering` queueing. Runs before `_transitionPhase('setup')`
+ * below so `addPlugin`'s `'idle'`-phase queueing branch is the one that
+ * applies, matching a consumer who called `addPlugin()` manually beforehand.
+ */
+function _registerConfigPlugins(self: Internals, config: BasePlayerConfig): void {
+	if (!config.plugins)
+		return;
+
+	for (const spec of config.plugins) {
+		const pluginClass = typeof spec === 'function' ? spec : spec.plugin;
+		const opts = typeof spec === 'function' ? undefined : spec.opts;
+		self.addPlugin(pluginClass, opts);
+	}
 }
 
 /** Copy options that runtime methods read directly into their `self._*` slots. */

@@ -294,6 +294,12 @@ export interface MixinSurface {
 	_markPluginLangLoaded(pluginId: string, lang: string): void;
 	_registerPlugin(ctor: PluginCtorWithId, opts: unknown, timeoutMs: number): Promise<void>;
 
+	// pluginRegistrationMethods (see mixins/plugin-registration.ts) — called
+	// cross-mixin by lifecycleMethods.setup() to drain `config.plugins`.
+	// Declared here with the erased (non-generic) signature every internal
+	// caller needs — see `_registerPlugin` above for the same pattern.
+	addPlugin(PluginClass: PluginCtorWithId, opts?: unknown): unknown;
+
 	// transportMethods (see mixins/transport.ts)
 	_seekingTransition(doSeek: () => void): void;
 	play(opts?: ActionOptions): Promise<void>;

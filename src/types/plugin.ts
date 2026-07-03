@@ -61,6 +61,34 @@ export type RequireSpec
 		| { plugin: PluginCtorWithId; optional?: boolean; minVersion?: string };
 
 /**
+ * Declarative plugin registration used in `BasePlayerConfig.plugins`. Same
+ * class-ref-or-object shape as `RequireSpec` — a plain class ref registers
+ * with no constructor options, the object form pairs the class with `opts`.
+ *
+ * ```ts
+ * nmplayer('player').setup({
+ *   plugins: [
+ *     DesktopUiPlugin,
+ *     { plugin: SubtitleOverlayPlugin, opts: { fontScale: 1.2 } },
+ *   ],
+ *   playlist: [...],
+ * });
+ * ```
+ *
+ * Registered in array order through the exact same `addPlugin()` path a
+ * consumer calling it manually before `setup()` would use — same
+ * `core:plugin/duplicate-id` / `core:plugin/missing-dep` /
+ * `core:plugin/version-mismatch` / `core:plugin/incompatible-core-version`
+ * validation, same pre-setup `pluginsRegistering` timing. This is sugar over
+ * that call, not a second registration path — `requires`/`replaces` between a
+ * config-declared plugin and a manually-`addPlugin`'d one resolve identically
+ * regardless of which route added which.
+ */
+export type PluginSpec
+	= | PluginCtorWithId
+		| { plugin: PluginCtorWithId; opts?: unknown };
+
+/**
  * Declarative advisory — `static advisories` on a Plugin class. Lets plugins
  * declare invariants ("this method during this context is risky") without
  * writing handler code. At registration, the player merges every plugin's

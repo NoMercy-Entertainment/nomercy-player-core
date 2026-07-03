@@ -17,6 +17,7 @@ import type { ITranslator } from '../adapters/translator/translator';
 
 import type { LogLevel } from './log';
 import type { BasePlaylistItem } from './playlist';
+import type { PluginSpec } from './plugin';
 import type { TranslationLoader, Translations } from './translations';
 import type { IUrlResolver } from './url';
 
@@ -294,6 +295,16 @@ export interface BasePlayerConfig {
 
 	/** Clock source for timestamps used in distributed-sync plugins. Defaults to `Date.now`. */
 	clockSource?: () => number;
+
+	/**
+	 * Plugins to register before the setup pipeline's `pluginsRegistering`
+	 * stage runs — the declarative alternative to calling `addPlugin(...)`
+	 * yourself between construction and `setup()`. Each entry is a class ref
+	 * (no options) or `{ plugin, opts }`; see `PluginSpec`. Sugar over
+	 * `addPlugin()`, not a second registration path — identical validation
+	 * and timing either way.
+	 */
+	plugins?: ReadonlyArray<PluginSpec>;
 
 	/** Cap on plugin `use()` Promise resolution before marking the plugin failed (ms). Default 30000. */
 	pluginInitTimeoutMs?: number;
