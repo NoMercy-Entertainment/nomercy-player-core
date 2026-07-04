@@ -82,7 +82,7 @@ player.setup({
 });
 ```
 
-**Plugins** are opt-in and ride the same typed event bus. Nothing registers itself; you add what you want. A plugin reads through `this.on`, emits its own events, and cleans up on `dispose()`:
+**Plugins** are opt-in and ride the same typed event bus. Nothing registers itself; you add what you want. A plugin reads through `this.on`, emits its own events, and needs no manual teardown, the base disposes every `this.on` subscription and mounted element for it:
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
@@ -100,12 +100,12 @@ player.addPlugin(PlayCountPlugin);
 
 ## Documentation
 
-The [docs site](https://docs.nomercy.tv/nomercy-player-core/) is the full reference:
+The [docs site](https://docs.nomercy.tv/nomercy-player-core/) is the full reference, ordered from first player to plugin author:
 
-- [Quick Start](https://docs.nomercy.tv/nomercy-player-core/quickstart) and the [adapter ports](https://docs.nomercy.tv/nomercy-player-core/adapters)
-- [Event system](https://docs.nomercy.tv/nomercy-player-core/event-system), [lifecycle](https://docs.nomercy.tv/nomercy-player-core/lifecycle), and [auth and fetch](https://docs.nomercy.tv/nomercy-player-core/auth-fetch)
-- [Built-in plugins](https://docs.nomercy.tv/nomercy-player-core/plugins), [plugin authoring](https://docs.nomercy.tv/nomercy-player-core/plugin-authoring), and the full type reference
-- [Testing your plugins](./TESTING.md) with the `describePlugin` conformance helper the kit ships
+- [Introduction](https://docs.nomercy.tv/nomercy-player-core/introduction) and [Quick Start](https://docs.nomercy.tv/nomercy-player-core/quickstart), composing the core into a player
+- The Guided Tour over the [lifecycle](https://docs.nomercy.tv/nomercy-player-core/tour/lifecycle), the [event bus](https://docs.nomercy.tv/nomercy-player-core/tour/event-bus), the [adapter ports](https://docs.nomercy.tv/nomercy-player-core/tour/adapters), and the [plugin base](https://docs.nomercy.tv/nomercy-player-core/tour/plugin-base)
+- [Build a Player](https://docs.nomercy.tv/nomercy-player-core/build/compose-methods) and [Recipe: use authFetch](https://docs.nomercy.tv/nomercy-player-core/recipes/auth-fetch)
+- The full [type reference](https://docs.nomercy.tv/nomercy-player-core/reference/composition) and [Testing your plugins](./TESTING.md) with the `describePlugin` conformance helper the kit ships
 
 ## License
 

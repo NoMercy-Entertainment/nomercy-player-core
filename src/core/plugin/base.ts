@@ -131,7 +131,7 @@ export type PluginEventMap<C extends AnyPluginCtor> = InstanceType<C>['__events_
  *  - `emit(event, data)` — fire-and-forget, scoped under `plugin:<id>:`
  *  - `dispatchBefore(name, data, opts?)` — cancellable / mutable / async-aware
  *  - `throw({...})` / `report({...})` — surface error vs warning
- *  - `fetch(url, parser?)` — auth-aware fetch with retry
+ *  - `fetch(url, options?)` — auth-aware fetch with retry; `options.parser` transforms the response body
  *  - `websocket(url, opts?)` — auto-reconnecting WebSocket
  *  - `mount(name)` — claim a `<div>` on the player container
  *  - `t(key, vars?)` — translate plugin-namespaced i18n keys
@@ -908,7 +908,7 @@ export class Plugin<
 	 * ```ts
 	 * async loadTranslations(lang: string) {
 	 *   try {
-	 *     return await this.fetch(`/i18n/lyrics/${lang}.json`, JSON.parse, { scope: 'silent' });
+	 *     return await this.fetch<Record<string, string>>(`/i18n/lyrics/${lang}.json`, { responseType: 'json', scope: 'silent' });
 	 *   }
 	 *   catch {
 	 *     return undefined;
