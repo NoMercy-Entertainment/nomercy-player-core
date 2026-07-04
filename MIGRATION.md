@@ -34,8 +34,8 @@ Covers all three packages: `nomercy-player-core`, `nomercy-video-player` (v2), a
 
 This guide covers kit-level changes: subpath imports, the five-layer architecture, and the 38 named adapter ports. For consumer-facing breaking changes (renamed methods, event payload shapes, playlist item fields), see the per-package migration guides:
 
-- **Video player:** [`packages/nomercy-video-player-v2/MIGRATION.md`](../nomercy-video-player-v2/MIGRATION.md)
-- **Music player:** [`packages/nomercy-music-player-v2/MIGRATION.md`](../nomercy-music-player-v2/MIGRATION.md)
+- **Video player:** [nomercy-video-player MIGRATION.md](https://github.com/NoMercy-Entertainment/nomercy-video-player/blob/master/MIGRATION.md)
+- **Music player:** [nomercy-music-player MIGRATION.md](https://github.com/NoMercy-Entertainment/nomercy-music-player/blob/master/MIGRATION.md)
 
 ---
 
@@ -135,7 +135,7 @@ Full subpath table:
 
 ## Removed APIs
 
-No APIs were removed. Every named export present in the v1 packages continues to resolve in v2. The goal of the 12-wave restructure was zero consumer breakage.
+Core removed nothing: every kit-level export present in v1 continues to resolve in v2. The music package did remove two ports (`ILyricSource`/`LrcFileSource` and `INowPlayingArt`/`MediaSessionArtProvider`); the lyrics and media-session plugins own that work now. The music player's MIGRATION.md documents the replacement paths.
 
 ---
 
@@ -156,16 +156,13 @@ The 38 named ports are the primary extension surface. Each port is an interface 
 | `IRetryPolicy` | Network retry timing and max-attempts |
 | `IClock` | Monotonic time source — swap for a server-synced clock in group-sync scenarios |
 | `IUrlResolver` | URL rewriting — CDN signing, auth params, proxy routing |
-| `IAudioBackend` (music-v2) | Audio element behaviour — web-audio or html5-audio, or a custom WS-backed backend |
-| `IPlaylistGenerator` (music-v2) | Queue ordering — linear, tag-aware shuffle, or server-driven |
-| `ISimilarityEngine` (music-v2) | "More like this" playlist extension — consumer-required, server-specific |
-| `IScrobbler` (music-v2) | Playback reporting — Last.fm, ListenBrainz, or custom |
-| `ILyricSource` (music-v2) | Lyric data delivery — LRC file, server API, or embedded metadata |
-| `INowPlayingArt` (music-v2) | Album art resolution — Media Session, server API, or local cache |
-| `IVideoBackend` (video-v2) | Video element behaviour — Html5VideoBackend or a custom MSE/WebCodecs backend |
-| `IThumbnailSource` (video-v2) | Seek thumbnail frames — VTT sprite or a server-generated endpoint |
-| `IChapterSource` (video-v2) | Chapter markers — VTT file or a server metadata endpoint |
-| `ISubtitleStyleStore` (video-v2) | Subtitle style persistence — storage-backed or custom |
+| `IAudioBackend` (music, `./adapters/audio-backend`) | Audio element behaviour — web-audio or html5-audio, or a custom WS-backed backend |
+| `IPlaylistGenerator` (music, `./plugins/auto-advance`) | Queue ordering — linear, tag-aware shuffle, or server-driven |
+| `IScrobbler` (music, `./plugins/scrobble`) | Playback reporting — Last.fm, ListenBrainz, or custom |
+| `IVideoBackend` (video) | Video element behaviour — Html5VideoBackend or a custom MSE/WebCodecs backend |
+| `IThumbnailSource` (video) | Seek thumbnail frames — VTT sprite or a server-generated endpoint |
+| `IChapterSource` (video) | Chapter markers — VTT file or a server metadata endpoint |
+| `ISubtitleStyleStore` (video) | Subtitle style persistence — storage-backed or custom |
 
 ---
 

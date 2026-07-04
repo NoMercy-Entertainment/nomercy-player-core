@@ -1,4 +1,8 @@
 import antfu from '@antfu/eslint-config';
+// Local-only: this directory isn't in the published package (see package.json
+// "files"/"exports" — dev tooling doesn't ship in the runtime API). Superseded
+// by the standalone @nomercy-entertainment/eslint-plugin-player devDependency
+// once that package publishes.
 import player from './eslint-plugin/index.js';
 
 export default antfu({

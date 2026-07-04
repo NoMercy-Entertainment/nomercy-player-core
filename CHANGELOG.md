@@ -1,5 +1,23 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [Unreleased]
+
+### Added
+
+- The kit's own translation bundle is now wired into the default translator. `core.*` keys (network, auth, browser-policy, media, DRM, state, and accessibility announcements) resolve out of the box in 79 locales — previously the bundle shipped but was never loaded, so `t('core.network.timeout')` returned the raw key for any consumer who did not manually pass `enTranslations`. English is seeded eagerly as the synchronous fallback; other kit languages lazy-load on demand (the active BCP-47 chain only, never all 79 at once). Consumer-supplied `translations` and `loadTranslations` still win on same-key collisions.
+
+### Changed
+
+- **Breaking vs rc.24 (types only):** `subtitle()`, `subtitles()`, and `subtitleStyle()` are no longer declared on the shared `IPlayer` interface — they are video-only capability members on `IVideoPlayer` in `nomercy-video-player`. They were meaningless for audio and always threw `NotImplementedError` on the music player, so the shared type promised an API that never worked there. Runtime behavior is unchanged for video consumers; the shared mixin still carries the implementation. Music code that referenced these members could never have worked and now fails at compile time instead of at runtime.
+- Visualization and canvas render failures now surface through the structured plugin error contract instead of `console.error`. A throwing visualization renderer reports `visualization:render/failed` and the plugin instance disables itself on first failure (no error storm from the rAF loop); a throwing canvas renderer reports `canvas:render/renderer-failed` and only that renderer is dropped — other renderers on the shared canvas keep running.
+
+### Fixed
+
+- `addPlugin(X).ready()` no longer resolves before a post-setup plugin registration has actually finished. Plugins that carry lazy translation bundles added awaited work inside registration that `ready()` did not track, so `getPluginById()` could return `undefined` immediately after the await. Registration promises are now drained by `ready()`, and a throwing lazy translation loader surfaces as `plugin:failed` instead of vanishing silently (it previously sat outside the failure-handling try/catch).
+- The plugin conformance harness (`testing/describePlugin`) now loads a plugin's static translations with the same prototype-chain-walk and lazy-load semantics as the real registration pipeline, so `this.t()` resolves under conformance tests instead of returning the raw key.
+- MIGRATION.md corrections: the per-package guide links pointed at directories that no longer exist, the "no APIs were removed" claim contradicted the music package's documented port removals, and the extension-points table listed ports (`ISimilarityEngine`, `ILyricSource`, `INowPlayingArt`) that are not part of the public surface. The table now reflects the real exported subpaths.
+- Stopped shipping the embedded `./eslint-plugin` subpath export. The lint rules are dev tooling, not part of the player runtime contract; freezing them into the package's public surface for the whole 2.x line would have made their removal a semver-major change. They move to the standalone `@nomercy-entertainment/eslint-plugin-player` package (see RELEASING.md for the publish-day sequencing).
+
 ## [2.0.0-rc.24] — 2026-07-04
 
 ### Fixed
