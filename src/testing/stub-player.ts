@@ -623,6 +623,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	timeData(): TimeState {
 		return {
+			time: this._time,
 			position: this._time,
 			duration: this._duration,
 			buffered: 0,

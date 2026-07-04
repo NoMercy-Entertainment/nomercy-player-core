@@ -48,7 +48,7 @@ export function countAllListeners(player: IPlayer): number {
  *   setup: () => player.addPlugin(LyricsPlugin),
  *   exercise: async () => {
  *     await player.load(track);
- *     player.emit('time', { time: 5 });
+ *     player.emit('time', player.timeData());
  *   },
  *   teardown: () => player.removePlugin(LyricsPlugin),
  * });

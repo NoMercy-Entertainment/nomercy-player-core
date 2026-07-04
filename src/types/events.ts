@@ -18,6 +18,7 @@ import type {
 	PlayerPhase,
 	PreventedReason,
 } from './player';
+import type { TimeState } from './playback';
 import type { BasePlaylistItem } from './playlist';
 import type { CastState, RepeatState, ShuffleState } from './state';
 import type { SubtitleStyle } from './tracks';
@@ -164,7 +165,13 @@ export interface BaseEventMap<I extends BasePlaylistItem = BasePlaylistItem> {
 	 */
 	'progress': { time: number; duration: number; percentage: number };
 
-	'time': { time: number };
+	/**
+	 * Per-tick playback clock. The payload is the full `TimeState` snapshot —
+	 * `time`/`position`, `duration`, `buffered`, `remaining`, `percentage` —
+	 * the same shape `timeData()` returns, so listeners never re-derive time
+	 * math from getters inside the handler.
+	 */
+	'time': TimeState;
 	'dispose': void;
 
 	/**

@@ -1,5 +1,11 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.28] — 2026-07-05
+
+### Changed
+
+- The `time` event now carries the full `TimeState` snapshot — `time`, `position`, `duration`, `buffered`, `remaining`, `percentage` — instead of `{ time }` alone, so listeners paint clocks and progress bars straight from the payload without re-deriving time math from getters inside the handler. `TimeState` itself gains the `time` field (alias of `position`, the classic name every existing `({ time }) => …` listener already destructures), and `timeData()` returns the same widened shape. Existing listeners are unaffected; code that *emits* `time` manually (tests, harnesses) must now build the full payload — `player.timeData()` or the new internal `_timeStateAt(position)` used by the per-library `timeupdate` bridges (the internal position slot syncs *from* the event, so payloads are built from the backend's fresh position).
+
 ## [2.0.0-rc.27] — 2026-07-04
 
 ### Fixed

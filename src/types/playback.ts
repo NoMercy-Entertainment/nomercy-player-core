@@ -16,10 +16,13 @@
 export type AriaLiveLevel = 'polite' | 'assertive';
 
 /**
- * Aggregated time state snapshot returned by `player.timeData()`. All values
- * are in seconds; `percentage` is in the range [0, 100].
+ * Aggregated time state snapshot returned by `player.timeData()` and carried
+ * by every `time` event. All values are in seconds; `percentage` is in the
+ * range [0, 100].
  */
 export interface TimeState {
+	/** Current playback position (seconds) — alias of `position`, the classic field `time` listeners destructure. */
+	time: number;
 	/** Current playback position (seconds). */
 	position: number;
 	/** Total duration of the active item (seconds). `0` when unknown. */

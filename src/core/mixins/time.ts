@@ -129,23 +129,34 @@ export const timeMethods = {
 	},
 
 	/**
-	 * Snapshot of all time-related state in one call. Useful for consumers
-	 * that need to render a progress bar without individually calling
-	 * `time()`, `duration()`, `buffered()`, and computing the rest.
-	 * All derived values (remaining, percentage) are computed from live
-	 * getters so the snapshot is consistent at the moment of the call.
+	 * Build a `TimeState` snapshot for an explicit position. The per-library
+	 * `timeupdate` bridges construct the `time` event payload through this —
+	 * the internal position slot is synced *from* that event, so the payload
+	 * must come from the backend's fresh position, not the slot.
 	 */
-	timeData(this: Internals): TimeState {
-		const position = this._internalCurrentTime;
+	_timeStateAt(this: Internals, position: number): TimeState {
 		const duration = this.duration();
 		const buffered = this.buffered();
 		return {
+			time: position,
 			position,
 			duration,
 			buffered,
 			remaining: Math.max(0, duration - position),
 			percentage: duration > 0 ? (position / duration) * 100 : 0,
 		};
+	},
+
+	/**
+	 * Snapshot of all time-related state in one call. Useful for consumers
+	 * that need to render a progress bar without individually calling
+	 * `time()`, `duration()`, `buffered()`, and computing the rest.
+	 * All derived values (remaining, percentage) are computed from live
+	 * getters so the snapshot is consistent at the moment of the call.
+	 * The `time` event carries this exact shape on every tick.
+	 */
+	timeData(this: Internals): TimeState {
+		return this._timeStateAt(this._internalCurrentTime);
 	},
 
 	/**

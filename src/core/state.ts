@@ -23,6 +23,7 @@ import type {
 	PlayerPhase,
 	PluginCtorWithId,
 	ResolvedUrl,
+	TimeState,
 	Translations,
 	UrlCategory,
 } from '../types';
@@ -318,6 +319,8 @@ export interface MixinSurface {
 	time(seconds: number, opts?: ActionOptions): Promise<void>;
 	duration(): number;
 	buffered(): number;
+	timeData(): TimeState;
+	_timeStateAt(position: number): TimeState;
 	seekByPercentage(pct: number, opts?: ActionOptions): void;
 
 	// queueMethods (see mixins/queue.ts)
