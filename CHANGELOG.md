@@ -1,5 +1,11 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.26] — 2026-07-04
+
+### Added
+
+- Player-owned activity tracking. The player now watches its own container for pointer, touch, and key input, emits `activity { active }` on the bus, and the existing container-class rules keep `.active` / `.inactive` on `.nomercyplayer` in sync — any UI (a hand-built plugin, plain CSS) inherits show/hide behavior from the classes with zero wiring, matching the v1 contract where the player owned autohide. Hiding only happens while playing; pausing keeps controls up; a `play` subscription re-arms the countdown after resumes the DOM cannot see (MediaSession, remote commands). New public surface: `bumpActivity()` (mark the viewer active now, e.g. after interactions the DOM can't observe), `activityTracking()` / `activityTracking(false)` (a UI plugin with its own richer activity state machine takes over as sole emitter — the video `DesktopUiPlugin` does this), and the `inactivityMs` config knob (default 4000, `0` disables). Pair this release with the video/music releases of the same day: an older `DesktopUiPlugin` running against this core would double-emit activity until its own release adds the takeover call.
+
 ## [2.0.0-rc.25] — 2026-07-04
 
 ### Added
