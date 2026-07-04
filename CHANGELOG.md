@@ -1,5 +1,12 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.29] — 2026-07-05
+
+### Fixed
+
+- The typed `subtitles: [{ url, label, language, ... }]` playlist-item field is now actually read: `subtitles()` lists those tracks (typed field first, v1/server wire `tracks: [{ kind: 'subtitles', file }]` after, URL-deduped across both) and `subtitle(idx)` activates them through the same deduped list, so the public track list and index-based selection can never disagree. Previously only the wire `tracks` shape was consulted and items using the documented typed field silently exposed no subtitle tracks.
+- `chapters()` no longer requires the item to ALSO carry a non-empty wire `tracks` array before returning the item's `chapters` — the accidental gate meant a typed-field-only item reported no chapters.
+
 ## [2.0.0-rc.28] — 2026-07-05
 
 ### Changed

@@ -120,25 +120,24 @@ interface _BackendWithAudioTracks { audioTracks?: () => AudioTrack[] }
 
 /**
  * Find the sidecar subtitle track at a given (sidecar-list-relative) index on
- * the active playlist item. Returns the minimal info `_startSidecarSubtitle`
- * needs to fetch + parse the VTT; `undefined` when no item is active or the
- * index is out of range.
+ * the active playlist item. Indexes into the same deduped sidecar list that
+ * `subtitles()` appends after the backend tracks, so `subtitle(idx)` and the
+ * public track list can never disagree about which file an index means.
+ * Returns the minimal info `_startSidecarSubtitle` needs to fetch + parse the
+ * VTT; `undefined` when no item is active or the index is out of range.
  */
 function _resolveSidecarSubtitle(
 	self: Internals,
 	sidecarIdx: number,
 ): { url?: string; language?: string; label?: string; type?: string } | undefined {
-	const rawCur = self.item?.();
-	const cur: ItemWithDefinedTracks | undefined = rawCur && hasTracksField(rawCur) ? rawCur : undefined;
-	const list = (cur?.tracks ?? []).filter((sidecarTrack: SidecarTrack) => sidecarTrack.kind === 'subtitles');
-	const sidecarTrack = list[sidecarIdx];
-	if (!sidecarTrack)
+	const track = _dedupedSidecarSubtitles(self)[sidecarIdx];
+	if (!track)
 		return undefined;
 	return {
-		url: sidecarTrack.file,
-		language: sidecarTrack.language,
-		label: sidecarTrack.label,
-		type: sidecarTrack.type,
+		url: track.url,
+		language: track.language,
+		label: track.label,
+		type: track.type,
 	};
 }
 
@@ -252,15 +251,33 @@ function _backendSubtitleTracks(self: Internals): SubtitleTrack[] {
 }
 
 /**
- * Return sidecar subtitle tracks from the active playlist item's `tracks`
- * array. Entries without a `file` URL are dropped. Returns an empty list
- * when no item is active or the item carries no subtitle sidecar tracks.
+ * Return sidecar subtitle tracks declared on the active playlist item.
+ * Two shapes are read, typed field first: the canonical `subtitles:
+ * [{ url, label, language, ... }]` (already in `SubtitleTrack` form), then
+ * the v1/server wire format `tracks: [{ kind: 'subtitles', file, ... }]`.
+ * Entries without a URL are dropped. Returns an empty list when no item is
+ * active or the item declares no subtitle tracks.
  */
 function _sidecarSubtitleTracks(self: Internals): SubtitleTrack[] {
 	const rawCur = self.item?.();
+
+	const typedField = (rawCur as { subtitles?: unknown } | undefined | null)?.subtitles;
+	const fromTypedField: SubtitleTrack[] = (Array.isArray(typedField) ? typedField as Array<Partial<SubtitleTrack>> : [])
+		.filter((track): track is Partial<SubtitleTrack> & { url: string } =>
+			typeof track?.url === 'string' && track.url.length > 0)
+		.map((track, idx): SubtitleTrack => ({
+			id: track.id ?? `subtitle-item-${idx}`,
+			language: track.language,
+			label: track.label ?? track.language ?? `Subtitle ${idx + 1}`,
+			kind: 'subtitles',
+			type: track.type,
+			url: track.url,
+			default: track.default ?? false,
+		}));
+
 	const cur: ItemWithDefinedTracks | undefined = rawCur && hasTracksField(rawCur) ? rawCur : undefined;
 	const tracks = cur?.tracks ?? [];
-	return tracks
+	const fromWireTracks = tracks
 		.filter((sidecarTrack): sidecarTrack is SidecarTrack & { file: string } =>
 			sidecarTrack?.kind === 'subtitles' && typeof sidecarTrack.file === 'string' && sidecarTrack.file.length > 0)
 		.map((sidecarTrack, idx): SubtitleTrack => ({
@@ -272,6 +289,35 @@ function _sidecarSubtitleTracks(self: Internals): SubtitleTrack[] {
 			url: sidecarTrack.file,
 			default: false,
 		}));
+
+	return [...fromTypedField, ...fromWireTracks];
+}
+
+/**
+ * Key used to compare tracks across sources. Language codes are normalised
+ * to ISO 639-1 before building keys so that ISO 639-2/B ("ger"), 639-2/T
+ * ("deu"), and 639-1 ("de") all compare equal.
+ */
+function _subtitleTrackKey(lang: string | undefined, kind: string | undefined): string {
+	return `${normalizeLanguage(lang) ?? ''}:${kind ?? 'subtitles'}`;
+}
+
+/**
+ * The item-declared subtitle list exactly as `subtitles()` appends it after
+ * the backend tracks: URL-deduped only. Two sidecars sharing language + kind
+ * but pointing at different files are distinct variants (e.g. `type: 'full'`
+ * vs `type: 'sign'`) and both survive — collapsing them by language would
+ * silently drop every variant after the first. `subtitle(idx)` resolves
+ * sidecar-relative indexes through this same list.
+ */
+function _dedupedSidecarSubtitles(self: Internals): SubtitleTrack[] {
+	const seenUrls = new Set<string>();
+	return _sidecarSubtitleTracks(self).filter((track) => {
+		if (seenUrls.has(track.url))
+			return false;
+		seenUrls.add(track.url);
+		return true;
+	});
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -393,8 +439,10 @@ export const mediaTracksMethods = {
 	 *
 	 * Backend-managed tracks come from HLS-in-manifest text tracks (via the
 	 * active backend's `subtitleTracks()`). Sidecar tracks come from the
-	 * active playlist item's `tracks: [{ kind: 'subtitles', ... }]`. Sidecar
-	 * entries with no `file` URL are dropped — they couldn't load anyway.
+	 * active playlist item — the typed `subtitles: [{ url, label, ... }]`
+	 * field first, then the v1/server wire format
+	 * `tracks: [{ kind: 'subtitles', file, ... }]`. Sidecar entries with no
+	 * URL are dropped — they couldn't load anyway.
 	 *
 	 * De-duplication: when a backend track and a sidecar track share the same
 	 * language + kind, the sidecar (consumer-supplied) wins. The backend entry
@@ -408,37 +456,18 @@ export const mediaTracksMethods = {
 	 */
 	subtitles(this: Internals): ReadonlyArray<SubtitleTrack> {
 		const fromBackend: SubtitleTrack[] = _backendSubtitleTracks(this);
-		const fromItem: SubtitleTrack[] = _sidecarSubtitleTracks(this);
 
-		// De-duplicate by normalised language + kind.
-		//
-		// Language codes are normalised to ISO 639-1 before building keys so that
-		// ISO 639-2/B ("ger"), 639-2/T ("deu"), and 639-1 ("de") all compare equal.
-		// This prevents the same language appearing twice when a sidecar track uses
-		// a three-letter code and the HLS manifest uses a two-letter code for the
-		// same language.
-		//
-		// Sidecar (consumer-supplied) wins over manifest-embedded when both cover
-		// the same language + kind combination. Within the sidecar list itself,
-		// dedupe by URL only: two sidecars sharing language + kind but pointing
-		// at different files are distinct variants (e.g. `type: 'full'` vs
-		// `type: 'sign'`) and must BOTH survive — collapsing them by language
-		// would silently drop every variant after the first.
-		const trackKey = (lang: string | undefined, kind: string | undefined): string =>
-			`${normalizeLanguage(lang) ?? ''}:${kind ?? 'subtitles'}`;
-
-		const sidecarLangKeys = new Set<string>();
-		const sidecarUrls = new Set<string>();
-		const dedupedSidecar = fromItem.filter((track) => {
-			if (sidecarUrls.has(track.url))
-				return false;
-			sidecarUrls.add(track.url);
-			sidecarLangKeys.add(trackKey(track.language, track.kind));
-			return true;
-		});
+		// Sidecar (consumer-supplied) wins over manifest-embedded when both
+		// cover the same normalised language + kind combination — the backend
+		// entry is dropped and the sidecar takes its natural position in the
+		// trailing sidecar block.
+		const dedupedSidecar = _dedupedSidecarSubtitles(this);
+		const sidecarLangKeys = new Set<string>(
+			dedupedSidecar.map(track => _subtitleTrackKey(track.language, track.kind)),
+		);
 
 		const dedupedBackend = fromBackend.filter(
-			track => !sidecarLangKeys.has(trackKey(track.language, track.kind)),
+			track => !sidecarLangKeys.has(_subtitleTrackKey(track.language, track.kind)),
 		);
 
 		// Deduped backend tracks first so their array positions still match HLS
@@ -519,7 +548,7 @@ export const mediaTracksMethods = {
 			}
 
 			// Sidecar VTT: index past the backend's tracks points into the
-			// active item's `tracks: [{ kind: 'subtitles', file, language }]`.
+			// item-declared list (`subtitles: [...]` / wire `tracks: [...]`).
 			// Disable any backend track first so the two streams don't both
 			// fire `subtitleCue`.
 			this._currentSubtitleIdx = targetIdx;
@@ -700,9 +729,8 @@ export const mediaTracksMethods = {
 	 * event for the ready signal.
 	 */
 	chapters(this: Internals): ReadonlyArray<Chapter> {
-		const rawCurrent = this.item?.();
-		const current: ItemWithDefinedTracks | undefined = rawCurrent && hasTracksField(rawCurrent) ? rawCurrent : undefined;
-		return current?.chapters ?? [];
+		const current = this.item?.() as { chapters?: ReadonlyArray<Chapter> } | undefined | null;
+		return Array.isArray(current?.chapters) ? current.chapters : [];
 	},
 
 	/**

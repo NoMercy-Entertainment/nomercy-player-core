@@ -35,6 +35,7 @@ function makeInternals(opts: {
 		language?: string;
 		label?: string;
 	}>;
+	typedSubtitles?: Array<Partial<SubtitleTrack>>;
 }): ThisParameterType<typeof mediaTracksMethods.subtitles> {
 	return {
 		_peekBackendTyped<S extends object>(): S | undefined {
@@ -44,10 +45,16 @@ function makeInternals(opts: {
 				subtitleTracks: (): SubtitleTrack[] => opts.backendTracks!,
 			} as unknown as S;
 		},
-		item(): { tracks?: Array<{ kind?: string; file?: string; language?: string; label?: string }> } | undefined {
-			if (!opts.sidecarTracks)
+		item(): {
+			tracks?: Array<{ kind?: string; file?: string; language?: string; label?: string }>;
+			subtitles?: Array<Partial<SubtitleTrack>>;
+		} | undefined {
+			if (!opts.sidecarTracks && !opts.typedSubtitles)
 				return undefined;
-			return { tracks: opts.sidecarTracks };
+			return {
+				tracks: opts.sidecarTracks,
+				subtitles: opts.typedSubtitles,
+			};
 		},
 	} as unknown as ThisParameterType<typeof mediaTracksMethods.subtitles>;
 }
@@ -60,6 +67,7 @@ function callSubtitles(opts: {
 		language?: string;
 		label?: string;
 	}>;
+	typedSubtitles?: Array<Partial<SubtitleTrack>>;
 }): ReadonlyArray<SubtitleTrack> {
 	return mediaTracksMethods.subtitles.call(makeInternals(opts));
 }
@@ -258,5 +266,70 @@ describe('subtitles() dedup', () => {
 
 		expect(result).toHaveLength(1);
 		expect(result[0]!.label).toBe('English (HLS)');
+	});
+});
+
+// ── typed `subtitles` field on the item ────────────────────────────────────
+
+describe('subtitles() — typed item.subtitles field', () => {
+	it('lists tracks declared via the typed field with no wire tracks array present', () => {
+		const result = callSubtitles({
+			typedSubtitles: [
+				{ id: 'eng', label: 'English', language: 'eng', kind: 'subtitles', url: '/eng.vtt' },
+				{ id: 'dut', label: 'Dutch', language: 'dut', kind: 'subtitles', url: '/dut.vtt' },
+			],
+		});
+
+		expect(result.map(subtitleTrack => subtitleTrack.label)).toEqual(['English', 'Dutch']);
+	});
+
+	it('typed-field tracks precede wire-format tracks and dedupe by URL across both', () => {
+		const result = callSubtitles({
+			typedSubtitles: [
+				{ id: 'eng', label: 'English (typed)', language: 'eng', kind: 'subtitles', url: '/eng.vtt' },
+			],
+			sidecarTracks: [
+				{ kind: 'subtitles', file: '/eng.vtt', language: 'eng', label: 'English (wire dupe)' },
+				{ kind: 'subtitles', file: '/ger.vtt', language: 'ger', label: 'German (wire)' },
+			],
+		});
+
+		expect(result.map(subtitleTrack => subtitleTrack.label)).toEqual(['English (typed)', 'German (wire)']);
+	});
+
+	it('drops typed entries without a url and displaces same-language backend tracks', () => {
+		const result = callSubtitles({
+			backendTracks: [
+				{ id: 'b0', language: 'en', kind: 'subtitles', label: 'English (manifest)', url: '' },
+			],
+			typedSubtitles: [
+				{ id: 'eng', label: 'English (typed)', language: 'eng', kind: 'subtitles', url: '/eng.vtt' },
+				{ id: 'bad', label: 'No URL', language: 'fre', kind: 'subtitles' },
+			],
+		});
+
+		expect(result.map(subtitleTrack => subtitleTrack.label)).toEqual(['English (typed)']);
+	});
+});
+
+// ── chapters() reads the typed field without a tracks gate ──────────────────
+
+describe('chapters() — typed item.chapters field', () => {
+	function callChapters(item: unknown): ReturnType<typeof mediaTracksMethods.chapters> {
+		const internals = { item: () => item } as unknown as ThisParameterType<typeof mediaTracksMethods.chapters>;
+		return mediaTracksMethods.chapters.call(internals);
+	}
+
+	it('returns chapters declared on an item that has NO wire tracks array', () => {
+		const chapters = [
+			{ index: 0, start: 0, end: 107, title: 'Opening' },
+			{ index: 1, start: 107, end: 207, title: 'A Dangerous Quest' },
+		];
+		expect(callChapters({ chapters })).toEqual(chapters);
+	});
+
+	it('returns an empty list when the item has no chapters', () => {
+		expect(callChapters({})).toEqual([]);
+		expect(callChapters(undefined)).toEqual([]);
 	});
 });
