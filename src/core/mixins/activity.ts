@@ -120,15 +120,31 @@ export function wireActivityTracking(self: Internals): void {
 		_bump(self);
 	};
 
+	// Leaving the container hides the controls immediately (while playing) —
+	// the same `mouseleave -> maybeHide` rule the desktop UI runs, so a bare
+	// player behaves like the web app: pointer off the video, controls away.
+	const leave = (): void => {
+		if (!self._activityTrackingEnabled)
+			return;
+
+		if (self._activityToken !== undefined) {
+			clearTimeout(self._activityToken);
+			self._activityToken = undefined;
+		}
+		_maybeHide(self);
+	};
+
 	const listenerOptions: AddEventListenerOptions = { passive: true };
 	const events = ['mousemove', 'pointerdown', 'touchstart', 'keydown'] as const;
 	for (const event of events) {
 		self.container.addEventListener(event, bump, listenerOptions);
 	}
+	self.container.addEventListener('mouseleave', leave, listenerOptions);
 	self._policyCleanup.push(() => {
 		for (const event of events) {
 			self.container.removeEventListener(event, bump);
 		}
+		self.container.removeEventListener('mouseleave', leave);
 		if (self._activityToken !== undefined) {
 			clearTimeout(self._activityToken);
 			self._activityToken = undefined;

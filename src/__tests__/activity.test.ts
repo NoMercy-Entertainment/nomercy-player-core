@@ -206,6 +206,32 @@ describe('activity — player-level tracker + inactivityMs + activityTracking()'
 		expect(mockPlayer.activityTracking()).toBe(false);
 	});
 
+	it('mouseleave hides immediately while playing, like the desktop UI', async () => {
+		const mockPlayer = makePlayer('act-leave').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.play();
+
+		mockPlayer.bumpActivity();
+		expect(mockPlayer.container.classList.contains('active')).toBe(true);
+
+		mockPlayer.container.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
+
+		expect(mockPlayer.container.classList.contains('active')).toBe(false);
+		expect(mockPlayer.container.classList.contains('inactive')).toBe(true);
+	});
+
+	it('mouseleave while paused keeps the controls up', async () => {
+		const mockPlayer = makePlayer('act-leave-paused').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.play();
+		await mockPlayer.pause();
+
+		mockPlayer.bumpActivity();
+		mockPlayer.container.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
+
+		expect(mockPlayer.container.classList.contains('active')).toBe(true);
+	});
+
 	it('the desync guard force-re-emits {active:true} when a consumer stripped the class directly', async () => {
 		const mockPlayer = makePlayer('act-desync').setup({});
 		await mockPlayer.ready();
