@@ -12,13 +12,13 @@ import type { Chapter } from './chapter';
 import type { BasePlayerConfig, CastTarget } from './config';
 import type { CueEventPayload, SubtitleCueChange } from './cues';
 import type { PlaybackMetrics } from './metrics';
+import type { TimeState } from './playback';
 import type {
 	ActionOptions,
 	ActionSource,
 	PlayerPhase,
 	PreventedReason,
 } from './player';
-import type { TimeState } from './playback';
 import type { BasePlaylistItem } from './playlist';
 import type { CastState, RepeatState, ShuffleState } from './state';
 import type { SubtitleStyle } from './tracks';
