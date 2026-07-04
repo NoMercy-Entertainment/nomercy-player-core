@@ -936,6 +936,28 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	 */
 	announce(text: string, level?: AriaLiveLevel): void;
 
+	// ── Activity ──
+
+	/**
+	 * Mark the viewer as active now: emits `activity { active: true }` (the
+	 * container gains `.active`) and re-arms the inactivity countdown that
+	 * fades controls while playing (see `inactivityMs`). The player calls
+	 * this itself for pointer, touch, and key input on the container; call it
+	 * manually after interactions the DOM can't see (a remote-control
+	 * command, a custom gesture surface).
+	 */
+	bumpActivity(): void;
+
+	/**
+	 * Whether the player's built-in activity tracking owns the `activity`
+	 * event. A UI plugin that brings its own richer activity state machine
+	 * (open menus pinning controls, hover rules) passes `false` to take over
+	 * as the sole emitter — the video `DesktopUiPlugin` does this. Reads back
+	 * the current setting when called with no argument.
+	 */
+	activityTracking(): boolean;
+	activityTracking(enabled: boolean): void;
+
 	// ── Metrics ──
 
 	/**

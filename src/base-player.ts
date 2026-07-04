@@ -23,6 +23,7 @@ export { playerCoreMethods } from './core/index';
 export { KIT_VERSION } from './core/kit-version';
 
 export { abrMethods } from './core/mixins/abr';
+export { activityMethods } from './core/mixins/activity';
 export { audioOutputMethods } from './core/mixins/audio-output';
 
 export { authMethods } from './core/mixins/auth';

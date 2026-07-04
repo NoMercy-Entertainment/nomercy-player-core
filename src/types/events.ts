@@ -452,7 +452,11 @@ export interface BaseEventMap<I extends BasePlaylistItem = BasePlaylistItem> {
 	/**
 	 * User activity state change. `active: true` when the user moves the
 	 * pointer, touches the screen, or presses a key; `active: false` after the
-	 * inactivity timeout. Used by the desktop-UI plugin to show / hide controls.
+	 * `inactivityMs` timeout while playing. Emitted by the player's own
+	 * activity tracker (see `bumpActivity()` / `activityTracking()`); the
+	 * container's `.active` / `.inactive` classes follow it automatically, so
+	 * UI show / hide is plain CSS. A UI plugin with a richer state machine can
+	 * take over emission via `activityTracking(false)`.
 	 */
 	'activity': { active: boolean };
 

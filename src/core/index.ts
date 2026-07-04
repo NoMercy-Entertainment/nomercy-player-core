@@ -14,6 +14,7 @@
  */
 
 import { abrMethods } from './mixins/abr';
+import { activityMethods } from './mixins/activity';
 import { audioOutputMethods } from './mixins/audio-output';
 import { authMethods } from './mixins/auth';
 import { baseUrlAudioContextMethods } from './mixins/base-url-audio-context';
@@ -50,6 +51,8 @@ export { resolvePlayerConstructor } from './constructor';
 export type { PlayerCtorResolution } from './constructor';
 export { KIT_VERSION } from './kit-version';
 export { abrMethods } from './mixins/abr';
+export { activityMethods, wireActivityTracking } from './mixins/activity';
+export type { ActivityState } from './mixins/activity';
 export { audioOutputMethods } from './mixins/audio-output';
 
 export { authMethods } from './mixins/auth';
@@ -124,5 +127,6 @@ export const playerCoreMethods = [
 	domMethods,
 	loadingMethods,
 	containerClassEmitMethods,
+	activityMethods,
 	preloadStrategyMethods,
 ] as const;

@@ -279,6 +279,16 @@ export interface BasePlayerConfig {
 	 */
 	controls?: boolean;
 
+	/**
+	 * Milliseconds of viewer inactivity (no pointer, touch, or key input on
+	 * the container) before the player emits `activity { active: false }`
+	 * while playing, which swaps the container's `.active` class for
+	 * `.inactive` so UI CSS can fade controls. Any input emits
+	 * `activity { active: true }` and restores `.active`. Hiding never happens
+	 * while paused. `0` disables built-in activity tracking. Default 4000.
+	 */
+	inactivityMs?: number;
+
 	/** Behavior on `network:offline`. Default `'continue-buffered'`. */
 	onOffline?: 'pause' | 'continue-buffered' | 'ignore';
 

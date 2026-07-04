@@ -28,6 +28,7 @@ import type {
 } from '../types';
 import type { BeforeDispatchOutcome } from './dispatch';
 import type { AbrState } from './mixins/abr';
+import type { ActivityState } from './mixins/activity';
 import type { AudioOutputState } from './mixins/audio-output';
 import type { AuthState } from './mixins/auth';
 import type { BaseUrlAudioContextState } from './mixins/base-url-audio-context';
@@ -112,7 +113,8 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	MetricsState,
 	ExperimentalState,
 	PluginRegistrationState,
-	MediaTracksState {
+	MediaTracksState,
+	ActivityState {
 
 	// ── Identity ─────────────────────────────────────────────────────────────
 
@@ -471,6 +473,10 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._metricsStartedAt = 0;
 	target._metricsTimer = undefined;
 	target._lastProgressEmit = 0;
+
+	target._activityActive = false;
+	target._activityToken = undefined;
+	target._activityTrackingEnabled = true;
 
 	target._titleTokenRegistry = {};
 

@@ -807,6 +807,24 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 
 	announce(_text: string, _level?: AriaLiveLevel): void {}
 
+	// ── Activity ──
+
+	private _stubActivityTracking = true;
+
+	bumpActivity(): void {
+		this.emit('activity', { active: true });
+	}
+
+	activityTracking(): boolean;
+	activityTracking(enabled: boolean): void;
+	activityTracking(enabled?: boolean): boolean | undefined {
+		if (enabled === undefined)
+			return this._stubActivityTracking;
+
+		this._stubActivityTracking = enabled;
+		return undefined;
+	}
+
 	// ── Metrics / clock ──
 
 	recordMetric(_name: string, _value: number): void {}

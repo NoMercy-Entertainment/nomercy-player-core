@@ -32,6 +32,7 @@ import { enTranslations } from '../../i18n/en';
 import { kitTranslations } from '../../kit-translations';
 import { SetupState } from '../../types';
 import { authFetch } from '../auth-fetch';
+import { wireActivityTracking } from './activity';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Playlist URL resolver
@@ -130,6 +131,7 @@ export const lifecycleMethods = {
 		_wireProgressEmit(this);
 		_wirePreloadAndTransition(this);
 		_wireWindowExpose(this);
+		wireActivityTracking(this);
 
 		this.emit('beforeSetup');
 		this._transitionPhase('setup');
