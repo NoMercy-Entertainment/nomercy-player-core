@@ -68,3 +68,5 @@ export const nlTranslations: Record<string, string> = {
 	'plugin.tab-leader.lost': 'Afspelen gepauzeerd — een ander tabblad speelt nu af.',
 	'plugin.media-session.unsupported': 'OS-mediabediening is niet beschikbaar in deze browser.',
 };
+
+export default nlTranslations;

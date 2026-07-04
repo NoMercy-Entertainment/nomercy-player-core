@@ -84,3 +84,5 @@ export const enTranslations: Record<string, string> = {
 export const defaultTranslations = {
 	en: enTranslations,
 } as const;
+
+export default enTranslations;

@@ -8,7 +8,13 @@
 
 import type { IPlatform } from '../../adapters/platform/browser';
 import type { IPreloadStrategy, ITransitionBackend, PreloadAsset } from '../../adapters/preload/default';
-import type { BasePlayerConfig, BasePlaylistItem, PlayerPhase } from '../../types';
+import type {
+	BasePlayerConfig,
+	BasePlaylistItem,
+	PlayerPhase,
+	TranslationLoader,
+	Translations,
+} from '../../types';
 import type { Internals } from '../state';
 import { builtInCueParsers } from '../../adapters/cue-parser/built-ins';
 import { Logger } from '../../adapters/logger/default';
@@ -18,9 +24,12 @@ import { DefaultPreloadStrategy } from '../../adapters/preload/default';
 import { hlsFactory } from '../../adapters/stream/hls';
 import { nativeFactory } from '../../adapters/stream/native';
 import { StreamRegistry } from '../../adapters/stream/registry';
+import { getLazyTranslationLoader } from '../../adapters/translator/loaders/translations-glob';
 import { DefaultTranslator } from '../../adapters/translator/translator';
 import { makePlayerErrorEvent, stateError, StateError } from '../../errors';
+import { enTranslations } from '../../i18n/en';
 
+import { kitTranslations } from '../../kit-translations';
 import { SetupState } from '../../types';
 import { authFetch } from '../auth-fetch';
 
@@ -136,23 +145,35 @@ export const lifecycleMethods = {
 	 *
 	 * Already in `'ready'` phase? Resolves immediately. Already disposed?
 	 * Rejects immediately with `core:player/disposed`.
+	 *
+	 * A post-setup `addPlugin(X)` tracks its in-flight registration in
+	 * `_pendingPluginRegistrations` (see `plugin-registration.ts`). When that
+	 * set is non-empty, `ready()` waits for it to drain before resolving —
+	 * otherwise a consumer calling `addPlugin(X).ready()` after the player
+	 * already reached `'ready'` would get back the memoised initial-setup
+	 * promise, already resolved, regardless of whether X finished registering.
 	 */
 	ready(this: Internals): Promise<void> {
-		if (this._readyPromise)
+		if (!this._readyPromise) {
+			this._readyPromise = new Promise<void>((resolve, reject) => {
+				if (this._phase === 'ready') {
+					resolve();
+					return;
+				}
+				if (this._phase === 'disposed' || this._phase === 'disposing') {
+					reject(stateError('core:player/disposed', 'ready() called after dispose()'));
+					return;
+				}
+				this._readyResolve = resolve;
+				this._readyReject = reject;
+			});
+		}
+
+		if (this._pendingPluginRegistrations.size === 0) {
 			return this._readyPromise;
-		this._readyPromise = new Promise<void>((resolve, reject) => {
-			if (this._phase === 'ready') {
-				resolve();
-				return;
-			}
-			if (this._phase === 'disposed' || this._phase === 'disposing') {
-				reject(stateError('core:player/disposed', 'ready() called after dispose()'));
-				return;
-			}
-			this._readyResolve = resolve;
-			this._readyReject = reject;
-		});
-		return this._readyPromise;
+		}
+
+		return this._readyPromise.then(() => _drainPendingPluginRegistrations(this));
 	},
 
 	/**
@@ -283,6 +304,19 @@ export const lifecycleMethods = {
 	},
 } as const;
 
+/**
+ * Wait for every currently in-flight post-setup plugin registration
+ * (`_pendingPluginRegistrations`, written by `addPlugin` in
+ * `plugin-registration.ts`) to settle. Loops rather than a single
+ * `Promise.allSettled` pass because a plugin's `use()` may itself call
+ * `addPlugin`, adding a fresh entry to the set while this drain is in flight.
+ */
+async function _drainPendingPluginRegistrations(self: Internals): Promise<void> {
+	while (self._pendingPluginRegistrations.size > 0) {
+		await Promise.allSettled(Array.from(self._pendingPluginRegistrations));
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Setup phase helpers — invoked in order by setup() above
 // ──────────────────────────────────────────────────────────────────────────
@@ -344,17 +378,74 @@ function _seedFromOptions(self: Internals): void {
 
 /**
  * Build the i18n translator. Uses the consumer-supplied `options.translator`
- * if present (custom backend like i18next or FormatJS); otherwise constructs
- * a `DefaultTranslator` seeded with language, in-memory translations, and the
- * optional async loader / missing-key hook from config.
+ * if present (custom backend like i18next or FormatJS) — the kit does not
+ * seed a custom engine, it owns its own translation state end to end.
+ *
+ * Otherwise constructs a `DefaultTranslator` seeded with the kit's own
+ * `core.*` bundle. English (`enTranslations`, `src/i18n/en.ts`) is imported
+ * eagerly and merged in synchronously so `t('core.*')` resolves out of the
+ * box before any async load completes — it's also the translator's fallback
+ * language. Every other kit language (`kitTranslations`, lazy via the same
+ * `translationsFromGlob` mechanism plugins use) loads on demand the first
+ * time `language(lang)` switches to it; non-active languages never enter
+ * memory. Consumer-supplied `options.translations` / `options.loadTranslations`
+ * always win a same-key collision against the kit default.
  */
 function _initTranslator(self: Internals): void {
-	self._translator = self.options.translator ?? new DefaultTranslator({
+	if (self.options.translator) {
+		self._translator = self.options.translator;
+		return;
+	}
+
+	const consumerTranslations = self.options.translations;
+	const otherConsumerLanguages: Translations = {};
+	if (consumerTranslations) {
+		for (const [lang, bundle] of Object.entries(consumerTranslations)) {
+			if (lang !== 'en')
+				otherConsumerLanguages[lang] = bundle;
+		}
+	}
+
+	const seededTranslations: Translations = {
+		en: {
+			...enTranslations,
+			...consumerTranslations?.['en'],
+		},
+		...otherConsumerLanguages,
+	};
+
+	const kitLoader = getLazyTranslationLoader(kitTranslations);
+
+	self._translator = new DefaultTranslator({
 		language: self.options.language,
-		translations: self.options.translations,
-		loadTranslations: self.options.loadTranslations,
+		translations: seededTranslations,
+		loadTranslations: kitLoader ? _composeKitAndConsumerLoaders(kitLoader, self.options.loadTranslations) : self.options.loadTranslations,
 		onMissingTranslation: self.options.onMissingTranslation,
 	});
+}
+
+/**
+ * Merge the kit's lazy `core.*` bundle for a language with the consumer's own
+ * `loadTranslations` result for the same tag. Kit resolves first so a
+ * consumer-supplied key always wins a collision; either side returning
+ * `undefined` falls through to whatever the other produced.
+ */
+function _composeKitAndConsumerLoaders(
+	kitLoader: TranslationLoader,
+	consumerLoader: TranslationLoader | undefined,
+): TranslationLoader {
+	return async (lang: string): Promise<Record<string, string> | undefined> => {
+		const kitBundle = await kitLoader(lang);
+		const consumerBundle = await consumerLoader?.(lang);
+		if (!kitBundle)
+			return consumerBundle;
+		if (!consumerBundle)
+			return kitBundle;
+		return {
+			...kitBundle,
+			...consumerBundle,
+		};
+	};
 }
 
 /**
@@ -793,15 +884,25 @@ function _runSetupPipeline(self: Internals): void {
 			// SWITCH, so without this the configured loader (and every
 			// plugin's lazy bundle) never fires for the startup language.
 			// Resolution: config.language → browser language → 'en'.
-			try {
-				const initialLanguage = self.options.language
-					?? (typeof navigator !== 'undefined' ? navigator.language : undefined)
-					?? 'en';
-				await self.language(initialLanguage);
-			}
-			catch {
-				// Bundle load failure must not block setup — t() falls back
-				// to the key / fallback-language chain.
+			//
+			// Skipped when a consumer already called `language(lang)` themselves
+			// before this stage ran (`_languageExplicitlyRequested`, set
+			// synchronously by the i18n mixin). Without this guard, a consumer
+			// switching language before `ready()` races this internal step —
+			// both mutate the same translator's active language, and this step,
+			// reached several pipeline stages later, can win and silently
+			// clobber the consumer's own switch.
+			if (!self._languageExplicitlyRequested) {
+				try {
+					const initialLanguage = self.options.language
+						?? (typeof navigator !== 'undefined' ? navigator.language : undefined)
+						?? 'en';
+					await self.language(initialLanguage);
+				}
+				catch {
+					// Bundle load failure must not block setup — t() falls back
+					// to the key / fallback-language chain.
+				}
 			}
 
 			await _runStage(self, 'streamsReady', 'streamsReadyError', () => {

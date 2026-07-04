@@ -27,6 +27,18 @@ export interface I18nState {
 	 * this before forwarding.
 	 */
 	_translator: ITranslator | undefined;
+
+	/**
+	 * Set synchronously — before any `await` — the moment a consumer calls
+	 * `language(lang)` (the setter form). Lets the setup pipeline's own
+	 * "load the initial language" step (`lifecycle.ts`) detect that a consumer
+	 * already issued their own explicit language switch and skip its redundant
+	 * call, instead of racing it: both calls mutate the same translator's
+	 * `currentLanguage`, and without this flag the pipeline's step — reached
+	 * several stages later — can win the race and silently clobber a switch
+	 * the consumer made moments earlier, before `ready()`.
+	 */
+	_languageExplicitlyRequested: boolean;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -114,6 +126,8 @@ export const i18nMethods = {
 	language(this: Internals, lang?: string): string | Promise<void> {
 		if (lang === undefined)
 			return _ensureTranslator(this).language();
+		// Set synchronously, before the first await — see `I18nState._languageExplicitlyRequested`.
+		this._languageExplicitlyRequested = true;
 		return (async () => {
 			const result = await this._dispatchBefore<{ lang: string }>('beforeLanguage', { lang });
 			if (result.prevented) {

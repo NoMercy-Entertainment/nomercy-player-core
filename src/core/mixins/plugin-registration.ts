@@ -6,16 +6,15 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type { IPlayer, PluginCtorWithId, Translations } from '../../types';
+import type { IPlayer, PluginCtorWithId } from '../../types';
 import type { Plugin } from '../plugin';
 import type { Internals } from '../state';
-import { bcp47FallbackChain } from '../../adapters/language-matcher/bcp47';
 import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import { Logger } from '../../adapters/logger/default';
-import { getLazyTranslationLoader } from '../../adapters/translator/loaders/translations-glob';
 
 import { pluginError, stateError } from '../../errors';
 import { KIT_VERSION } from '../kit-version';
+import { loadPluginStaticTranslations } from '../plugin-translations';
 
 /**
  * The plugin-registration mixin's slice of player state — composed into
@@ -38,6 +37,19 @@ export interface PluginRegistrationState {
 	 * Post-setup `addPlugin` runs the same pipeline inline.
 	 */
 	_pluginQueue: Array<{ ctor: PluginCtorWithId; opts?: unknown }>;
+
+	/**
+	 * In-flight post-setup plugin registrations. `addPlugin`'s post-setup
+	 * branch adds an entry when it kicks off `_registerPlugin` inline; the
+	 * entry is removed once that registration settles (installed or failed).
+	 *
+	 * `ready()` (`lifecycle.ts`) drains this set before resolving. Without it,
+	 * a consumer calling `addPlugin(X).ready()` after the player already
+	 * reached `'ready'` gets back the memoised initial-setup promise — already
+	 * resolved — regardless of whether X's registration (translation loads +
+	 * `use()`) has actually finished.
+	 */
+	_pendingPluginRegistrations: Set<Promise<void>>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -62,6 +74,47 @@ function makePlayerLogger(self: Internals, scope: string): Logger {
 				level: self.options.logLevel,
 			});
 	return root.child(scope) as Logger;
+}
+
+/**
+ * Shared failure path for `_registerPlugin` — runs whether the static
+ * translation load threw or `use()` threw (sync, async, or timeout). Logs the
+ * failure, tears down the half-registered instance, emits `plugin:failed`
+ * (bare + id-namespaced), and cascades `disable()` through dependents. Never
+ * rethrows; callers return immediately after invoking this.
+ */
+function _failRegistration(
+	self: Internals,
+	id: string,
+	instance: Plugin,
+	lifecycle: LifecycleRegistry,
+	error: unknown,
+	findDependents: (id: string) => string[],
+): void {
+	const failError = error instanceof Error ? error : new Error(String(error));
+
+	// Accessing the plugin's logger field before it's fully registered — opaque cast via structural interface.
+	const pluginLogger = (instance as unknown as { logger?: { error: (...args: unknown[]) => void } }).logger
+		?? makePlayerLogger(self, id);
+	pluginLogger.error('plugin registration failed — plugin will not be registered', failError);
+
+	try {
+		instance.dispose();
+	}
+	catch { /* defensive */ }
+	try {
+		lifecycle.dispose();
+	}
+	catch { /* defensive */ }
+
+	const failPayload = {
+		id,
+		error: failError,
+	};
+
+	self.emit('plugin:failed', failPayload);
+	self.emit(`plugin:${id}:failed`, failPayload);
+	_cascadeDisable(self, id, `dep-failed:${id}`, findDependents);
 }
 
 /**
@@ -276,41 +329,33 @@ export const pluginRegistrationMethods = {
 		// gets registered, not just the subclass's. Without this, declaring
 		// `static translations` on a subclass shadows the parent's static and
 		// the parent's bundle is silently dropped. Subclasses ship ONLY their
-		// own keys; the kit composes the chain.
+		// own keys; the kit composes the chain. Shared with the `describePlugin`
+		// conformance harness via `loadPluginStaticTranslations` so `this.t()`
+		// behaves identically in tests and production.
 		//
-		// Each ancestor's bundle can be either eager (pre-resolved keys for
-		// every language) OR lazy (the `LAZY_TRANSLATIONS_MARKER` is stamped
-		// by `translationsFromGlob` when modules are function loaders). For
-		// lazy bundles we ONLY fetch the active language + its BCP-47 parent
-		// chain — Chinese never enters memory when the user wants Dutch.
-		{
-			const stack: Translations[] = [];
-			let cur: unknown = ctor;
-			while (cur && cur !== Function.prototype) {
-				if (Object.hasOwn(cur, 'translations')) {
-					const withT = cur as { translations?: Translations };
-					if (withT.translations)
-						stack.unshift(withT.translations);
-				}
-				cur = Object.getPrototypeOf(cur);
-			}
+		// Wrapped in its own try/catch — a hand-rolled lazy `Translations`
+		// object (bypassing `translationsFromGlob`'s own internal safety net)
+		// that throws must fail the registration the same structured way a
+		// throwing `use()` does, not vanish as an unhandled rejection on the
+		// fire-and-forget post-setup path.
+		try {
 			const currentLang = String(this.language());
-			const langChain = bcp47FallbackChain(currentLang);
-			for (const translationBundle of stack) {
-				const lazy = getLazyTranslationLoader(translationBundle);
-				if (lazy) {
-					for (const tag of langChain) {
-						const bundle = await lazy(tag);
-						if (!bundle)
-							continue;
-						this.addTranslations({ [tag]: bundle });
-						this._markPluginLangLoaded(id, tag);
-					}
-				}
-				else {
-					this.addTranslations(translationBundle);
-				}
+			const translationsResult = loadPluginStaticTranslations(
+				ctor,
+				currentLang,
+				bundle => this.addTranslations(bundle),
+				tag => this._markPluginLangLoaded(id, tag),
+			);
+			// Only await when there's genuinely async work — see the doc comment
+			// on `loadPluginStaticTranslations` for why an unconditional await
+			// would force every registration (even fully-eager ones) async.
+			if (translationsResult instanceof Promise) {
+				await translationsResult;
 			}
+		}
+		catch (err) {
+			_failRegistration(this, id, instance, lifecycle, err, depId => _findDependents(this, depId));
+			return;
 		}
 
 		let useFailed = false;
@@ -343,30 +388,7 @@ export const pluginRegistrationMethods = {
 		}
 
 		if (useFailed) {
-			const failError = useError instanceof Error ? useError : new Error(String(useError));
-
-			// Accessing the plugin's logger field before it's fully registered — opaque cast via structural interface.
-			const pluginLogger = (instance as unknown as { logger?: { error: (...args: unknown[]) => void } }).logger
-				?? makePlayerLogger(this, id);
-			pluginLogger.error('plugin use() failed — plugin will not be registered', failError);
-
-			try {
-				instance.dispose();
-			}
-			catch { /* defensive */ }
-			try {
-				lifecycle.dispose();
-			}
-			catch { /* defensive */ }
-
-			const failPayload = {
-				id,
-				error: failError,
-			};
-
-			this.emit('plugin:failed', failPayload);
-			this.emit(`plugin:${id}:failed`, failPayload);
-			_cascadeDisable(this, id, `dep-failed:${id}`, depId => _findDependents(this, depId));
+			_failRegistration(this, id, instance, lifecycle, useError, depId => _findDependents(this, depId));
 			return;
 		}
 
@@ -506,10 +528,22 @@ export const pluginRegistrationMethods = {
 
 		// Post-setup: run the same pipeline inline so `plugin:installed` fires
 		// AFTER `use()` resolves (or `plugin:failed` if it doesn't).
+		//
+		// Tracked in `_pendingPluginRegistrations` so `ready()` — called right
+		// after this, the common `addPlugin(X).ready()` pattern — waits for THIS
+		// registration (translation loads + `use()`) to settle instead of
+		// resolving off the already-`ready` phase before X is queryable via
+		// `getPluginById`. The `.catch()` here just keeps the tracked promise
+		// from surfacing as an unhandled rejection; the real failure is already
+		// surfaced through `plugin:failed` inside `_registerPlugin`.
 		const timeoutMs = this.options.pluginInitTimeoutMs ?? 30_000;
-		// Fire-and-forget — consumer can `await player.ready()`-style by
-		// listening to `plugin:installed` / `plugin:failed`.
-		void this._registerPlugin(PluginClass, opts, timeoutMs);
+		const registration = this._registerPlugin(PluginClass, opts, timeoutMs);
+		this._pendingPluginRegistrations.add(registration);
+		registration
+			.catch(() => { /* surfaced via plugin:failed */ })
+			.finally(() => {
+				this._pendingPluginRegistrations.delete(registration);
+			});
 		return this;
 	},
 

@@ -7,8 +7,9 @@
 // -----------------------------------------------------------------------------
 
 import type { Plugin } from '../core/plugin';
-import type { IPlayer } from '../types';
+import type { IPlayer, PluginCtorWithId } from '../types';
 import { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
+import { loadPluginStaticTranslations } from '../core/plugin-translations';
 import { StateError } from '../errors';
 import { StubPlayer } from './stub-player';
 
@@ -125,6 +126,23 @@ export function describePlugin<C extends typeof Plugin<any, any, any>>(
 			ctx.plugin = new (PluginClass as unknown as new () => InstanceType<C>)();
 			// StubPlayer satisfies IPlayer at runtime; cast required because StubPlayer is test-local.
 			ctx.plugin.initialize(ctx.player as unknown as IPlayer, opts?.opts as InstanceType<C>['opts'], lifecycle);
+
+			// Load `static translations` the same way `_registerPlugin` does in
+			// production — prototype-chain walk, lazy loading of the active
+			// language chain only. Without this, `this.t()` inside a plugin
+			// method returns the raw key under `describePlugin` even though the
+			// real player resolves it correctly, because StubPlayer never saw
+			// the plugin's bundle merged into its translation table.
+			const translationsResult = loadPluginStaticTranslations(
+				// Generic `C extends typeof Plugin<any, any, any>` doesn't carry the
+				// concrete `id` / `translations` statics — accessed via structural narrowing.
+				PluginClass as unknown as PluginCtorWithId,
+				ctx.player.language(),
+				bundle => ctx.player.addTranslations(bundle),
+			);
+			if (translationsResult instanceof Promise) {
+				await translationsResult;
+			}
 
 			const useResult = ctx.plugin.use();
 			if (useResult instanceof Promise)

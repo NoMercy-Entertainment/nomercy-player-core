@@ -128,7 +128,12 @@ describe('Plugin translation chain registration', () => {
 	it('removing the plugin clears every key under its id', async () => {
 		const mockPlayer = makePlayer('chain3').setup({});
 		await mockPlayer.ready();
-		mockPlayer.addPlugin(ChildPlugin);
+		// Post-setup addPlugin registers asynchronously (translation loads +
+		// use() are awaited internally) — wait for it via ready() before acting
+		// on the plugin, same contract `addPlugin(X).ready()` guarantees
+		// everywhere else. Removing before registration settles would find
+		// nothing in `_plugins` and skip the translation cleanup entirely.
+		await mockPlayer.addPlugin(ChildPlugin).ready();
 		mockPlayer.removePlugin(ChildPlugin);
 		// Removal walks the `plugin.<id>.` prefix so both parent + child
 		// keys are gone in one pass.

@@ -426,6 +426,7 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._baseUrl = undefined;
 	target._audioContext = undefined;
 	target._translator = undefined;
+	target._languageExplicitlyRequested = false;
 	target._cueParsers = new CueParserRegistry();
 	target._overrides = new Map();
 	target._playState = PlayState.IDLE;
@@ -443,6 +444,7 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._queueWired = false;
 	target._plugins = [];
 	target._pluginQueue = [];
+	target._pendingPluginRegistrations = new Set();
 	target._authConfig = undefined;
 	target._urlResolver = undefined;
 	target._currentSubtitleIdx = null;

@@ -27,7 +27,8 @@
  */
 
 import type { BaseEventMap, IPlayer } from '../../types';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { translationsFromGlob } from '../../adapters/translator/loaders/translations-glob';
 import { Plugin } from '../../core/plugin';
 import { StateError } from '../../errors';
 import { describePlugin } from '../../testing/describe-plugin';
@@ -83,6 +84,44 @@ describePlugin(NoopPlugin, (ctx) => {
 	});
 }, {
 	createPlayer: () => new StubPlayer({ id: 'custom-factory-player' }),
+});
+
+// ── describePlugin loads static translations before use() ────────────────────
+//
+// Conformance-harness parity: `_registerPlugin` (production) merges a
+// plugin's `static translations` into the player's table BEFORE `use()`
+// resolves. Before this fix, `describePlugin`'s StubPlayer skipped that merge
+// entirely, so `this.t()` inside a plugin method returned the raw
+// `plugin.<id>.<key>` key under `describePlugin` even though the real player
+// resolved it correctly — exactly what bit MediaSessionPlugin's conformance
+// test (`getMetadata()` returned the raw key instead of `'Season 2'`).
+
+const i18nGreetingLoader = vi.fn(async () => ({ default: { 'plugin.i18n-dsl-test.greeting': 'Hello' } }));
+
+class I18nPlugin extends Plugin<IPlayer<BaseEventMap>> {
+	static override readonly id = 'i18n-dsl-test';
+	static override readonly version = '1.0.0';
+	static override readonly description = 'Plugin whose t() must resolve under describePlugin, same as production.';
+	static override readonly translations = translationsFromGlob({
+		'./i18n/en.ts': i18nGreetingLoader,
+	});
+
+	override use(): void {}
+	override dispose(): void {}
+
+	greeting(): string {
+		return this.t('greeting');
+	}
+}
+
+describePlugin(I18nPlugin, (ctx) => {
+	it('this.t() resolves the plugin-namespaced key via the lazy static bundle, not the raw key', () => {
+		expect(ctx.plugin.greeting()).toBe('Hello');
+	});
+
+	it('did not resolve to the raw fully-qualified key (the pre-fix regression)', () => {
+		expect(ctx.plugin.greeting()).not.toBe('plugin.i18n-dsl-test.greeting');
+	});
 });
 
 // ── getGlobals throws when Vitest globals are absent ─────────────────────────

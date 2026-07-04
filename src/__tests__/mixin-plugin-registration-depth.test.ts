@@ -24,8 +24,9 @@
  */
 
 import type { StubPlayer } from '../testing/stub-player';
-import type { BaseEventMap, PluginCtorWithId } from '../types';
+import type { BaseEventMap, PluginCtorWithId, Translations } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { LAZY_TRANSLATIONS_MARKER } from '../adapters/translator/loaders/translations-glob';
 import {
 	composeMixins,
 	EventEmitter,
@@ -795,5 +796,166 @@ describe('_pluginLangLoadedSet / _markPluginLangLoaded', () => {
 		internals._markPluginLangLoaded('beta', 'en');
 		const set = internals._pluginLangLoadedSet();
 		expect(set!.size).toBe(3);
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// addPlugin(X).ready() post-setup race — registration must settle before
+// ready() resolves (defect: fire-and-forget _registerPlugin let ready()
+// resolve off the stale initial-setup promise while X was still registering).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class GatedPlugin extends Plugin<StubPlayer, { gate: Promise<void> }> {
+	static override readonly id = 'gated';
+	static override readonly version = '1.0.0';
+	static override readonly description = 'use() awaits opts.gate before resolving — lets the test control timing.';
+	override async use(): Promise<void> {
+		await this.opts.gate;
+	}
+
+	override dispose(): void {}
+}
+
+describe('addPlugin(X).ready() — post-setup registration race', () => {
+	beforeEach(() => MockPlayer._resetRegistry());
+	afterEach(() => {
+		MockPlayer._resetRegistry();
+		document.body.innerHTML = '';
+	});
+
+	it('ready() called right after a post-setup addPlugin does NOT resolve until that registration settles', async () => {
+		const player = setupPlayer();
+		await player.ready();
+
+		let releaseGate: () => void = () => {};
+		const gate = new Promise<void>((resolve) => {
+			releaseGate = resolve;
+		});
+
+		player.addPlugin(GatedPlugin, { gate });
+		const readyP = player.ready();
+
+		let settled = false;
+		void readyP.then(() => { settled = true; });
+
+		// Flush a few microtask turns — registration is still gated, ready()
+		// must not have resolved and the plugin must not be queryable yet.
+		await Promise.resolve();
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(settled).toBe(false);
+		expect(player.getPluginById('gated')).toBeUndefined();
+
+		releaseGate();
+		await readyP;
+
+		expect(settled).toBe(true);
+		expect(player.getPluginById('gated')).toBeDefined();
+	});
+
+	it('sequential addPlugin(X).ready(); addPlugin(Y).ready() — each ready() waits for its OWN registration (exact repro shape)', async () => {
+		const player = setupPlayer();
+		await player.ready();
+
+		class FirstPlugin extends Plugin<StubPlayer> {
+			static override readonly id = 'race-first';
+			static override readonly version = '1.0.0';
+			static override readonly description = 'FirstPlugin';
+			override use(): void {}
+			override dispose(): void {}
+		}
+		class SecondPlugin extends Plugin<StubPlayer> {
+			static override readonly id = 'race-second';
+			static override readonly version = '1.0.0';
+			static override readonly description = 'SecondPlugin';
+			override use(): void {}
+			override dispose(): void {}
+		}
+
+		await player.addPlugin(FirstPlugin).ready();
+		expect(player.getPluginById('race-first')).toBeDefined();
+
+		await player.addPlugin(SecondPlugin).ready();
+		expect(player.getPluginById('race-second')).toBeDefined();
+	});
+
+	it('ready() resolves (does not hang) when a post-setup addPlugin registration fails', async () => {
+		const player = setupPlayer();
+		await player.ready();
+
+		const failedP = waitForEvent(player, 'plugin:failed');
+		player.addPlugin(FailingPlugin);
+
+		await expect(player.ready()).resolves.toBeUndefined();
+		await failedP;
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _registerPlugin — static-translation load failure (structured, not silent)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('_registerPlugin — throwing static-translations loader', () => {
+	beforeEach(() => MockPlayer._resetRegistry());
+	afterEach(() => {
+		MockPlayer._resetRegistry();
+		document.body.innerHTML = '';
+	});
+
+	it('a throwing lazy static-translations loader emits plugin:failed instead of vanishing', async () => {
+		const throwingBundle: Translations = {};
+		Object.defineProperty(throwingBundle, LAZY_TRANSLATIONS_MARKER, {
+			value: async (): Promise<Record<string, string> | undefined> => {
+				throw new Error('lazy loader exploded');
+			},
+			enumerable: false,
+		});
+
+		class ThrowingTranslationsPlugin extends Plugin<StubPlayer> {
+			static override readonly id = 'throwing-translations';
+			static override readonly version = '1.0.0';
+			static override readonly description = 'ThrowingTranslations';
+			static override readonly translations = throwingBundle;
+			override use(): void {}
+			override dispose(): void {}
+		}
+
+		const player = setupPlayer();
+		const failedPayloads: Array<{ id: string; error: Error }> = [];
+		player.on('plugin:failed' as never, (data: { id: string; error: Error }) => failedPayloads.push(data));
+
+		const failedP = waitForEvent(player, 'plugin:failed');
+		player.addPlugin(ThrowingTranslationsPlugin);
+		await failedP;
+
+		expect(failedPayloads).toHaveLength(1);
+		expect(failedPayloads[0]!.id).toBe('throwing-translations');
+		expect(player.plugins().map(plugin => (plugin.constructor as PluginCtorWithId).id)).not.toContain('throwing-translations');
+	});
+
+	it('the failing plugin is not left half-registered — getPluginById returns undefined', async () => {
+		const throwingBundle: Translations = {};
+		Object.defineProperty(throwingBundle, LAZY_TRANSLATIONS_MARKER, {
+			value: async (): Promise<Record<string, string> | undefined> => {
+				throw new Error('lazy loader exploded again');
+			},
+			enumerable: false,
+		});
+
+		class ThrowingTranslationsPlugin2 extends Plugin<StubPlayer> {
+			static override readonly id = 'throwing-translations-2';
+			static override readonly version = '1.0.0';
+			static override readonly description = 'ThrowingTranslations2';
+			static override readonly translations = throwingBundle;
+			override use(): void {}
+			override dispose(): void {}
+		}
+
+		const player = setupPlayer();
+		const failedP = waitForEvent(player, 'plugin:failed');
+		player.addPlugin(ThrowingTranslationsPlugin2);
+		await failedP;
+
+		expect(player.getPluginById('throwing-translations-2')).toBeUndefined();
 	});
 });
