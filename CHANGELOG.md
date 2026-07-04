@@ -1,5 +1,11 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [2.0.0-rc.27] — 2026-07-04
+
+### Fixed
+
+- The built-in activity tracker now hides the controls immediately when the pointer leaves the container while playing (`mouseleave` → the same maybe-hide rule the desktop UI runs), instead of waiting out the full inactivity countdown. Paused players keep their controls up on mouse-out, unchanged.
+
 ## [2.0.0-rc.26] — 2026-07-04
 
 ### Added
