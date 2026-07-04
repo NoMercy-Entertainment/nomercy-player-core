@@ -1,6 +1,6 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
-## [Unreleased]
+## [2.0.0-rc.25] — 2026-07-04
 
 ### Added
 
