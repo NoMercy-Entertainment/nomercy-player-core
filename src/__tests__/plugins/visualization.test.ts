@@ -238,7 +238,7 @@ describe('VisualizationPlugin', () => {
 			expect(inst.currentFrame()).toBe(calledFrame);
 		});
 
-		it('swallows render() throws so a buggy author cannot kill the canvas RAF loop', () => {
+		it('swallows render() throws, surfaces an error event, and disables the instance', () => {
 			class ThrowingViz extends VisualizationPlugin {
 				static override readonly id = 'fillz:throwing-viz';
 				protected override render(): void {
@@ -260,17 +260,17 @@ describe('VisualizationPlugin', () => {
 				peakHz: 0,
 				peakBandEnergies: { bass: 0, mid: 0, treble: 0 },
 			};
-			(inst as any).player = { emit: () => {} } as any;
+			const emitted: Array<{ event: string; data: unknown }> = [];
+			(inst as any).player = { emit: (event: string, data: unknown) => { emitted.push({ event, data }); } } as any;
 			(inst as any)._spectrumPlugin = { currentFrame: () => fakeFrame } as any;
 			(inst as any)._latestFrame = fakeFrame;
 
 			const fakeCanvas = document.createElement('canvas');
 			const ctx = fakeCanvas.getContext('2d');
-			const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 			expect(() => (inst as any)._renderTick(ctx!, 16, 0)).not.toThrow();
-			expect(errSpy).toHaveBeenCalled();
-			errSpy.mockRestore();
+			expect(emitted.some(entry => entry.event === 'error')).toBe(true);
+			expect(inst.enabled()).toBe(false);
 		});
 	});
 });

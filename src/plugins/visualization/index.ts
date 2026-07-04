@@ -189,6 +189,16 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 	 */
 	static override readonly requires: ReadonlyArray<RequireSpec> = [CanvasPlugin, SpectrumPlugin];
 
+	/**
+	 * `render()` throwing disables the instance — a per-frame RAF failure
+	 * would otherwise storm the error bus every tick. The code is the fixed
+	 * category name, not `this.id`, so every subclass inherits the mapping
+	 * without redeclaring it.
+	 */
+	static override readonly onError = {
+		'visualization:render/failed': 'disable',
+	} as const;
+
 	private _canvasPlugin: CanvasPlugin | null = null;
 	private _spectrumPlugin: SpectrumPlugin | null = null;
 	private _renderTickBound: CanvasRenderFn | null = null;
@@ -297,6 +307,9 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 	 * timing stays anchored to the canvas loop), and dispatches to `render()`.
 	 */
 	private _renderTick(ctx: CanvasRenderingContext2D, deltaMs: number, time: number): void {
+		if (!this.enabled())
+			return;
+
 		const spectrum = this._spectrumPlugin;
 		if (!spectrum)
 			return;
@@ -337,9 +350,12 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 			this.render(ctx, payload);
 		}
 		catch (err) {
-			if (typeof console !== 'undefined' && console.error) {
-				console.error(`[VisualizationPlugin:${(this.constructor as typeof Plugin).id}] render threw:`, err);
-			}
+			this.report({
+				code: 'visualization:render/failed',
+				severity: 'error',
+				message: 'render() threw — disabling this visualizer so a buggy author can\'t storm the error bus every frame.',
+				cause: err,
+			});
 			return;
 		}
 

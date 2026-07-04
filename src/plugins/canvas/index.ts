@@ -444,9 +444,17 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 						fn(ctx, deltaMs, time);
 					}
 					catch (err) {
-						if (typeof console !== 'undefined' && console.error) {
-							console.error('[CanvasPlugin] renderer threw:', err);
-						}
+						// Scoped to this one renderer, not the whole plugin — a shared
+						// canvas can host several independent renderers (e.g. multiple
+						// VisualizationPlugin instances), so one bad author must not
+						// silence the others. Surface once, then stop calling it.
+						this.report({
+							code: 'canvas:render/renderer-failed',
+							severity: 'error',
+							message: 'A registered renderer threw during the RAF tick — removing it so the loop keeps running for the rest.',
+							cause: err,
+						});
+						this.removeRenderer(fn);
 					}
 				}
 			}

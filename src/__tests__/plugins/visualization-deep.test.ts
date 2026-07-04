@@ -331,14 +331,25 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 	// ── _renderTick: render() error is swallowed ──────────────────────────────
 
 	describe('_renderTick — errors in render() are swallowed', () => {
-		it('player loop continues after render() throws', () => {
+		it('player loop continues after render() throws, and the instance disables itself', () => {
 			const mockPlayer = makePlayer('viz-throw-1');
 			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(ThrowingVisualization, mockPlayer);
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = sampleFrame;
 
+			const errors: unknown[] = [];
+			mockPlayer.on('error', errorEvent => errors.push(errorEvent));
+
 			const ctx = makeCtx();
-			// Must not throw — error is caught internally.
+			// Must not throw — error is caught internally, surfaced structurally,
+			// and recovered via the static onError → 'disable' mapping.
 			expect(() => invokeRenderTick(fakeCanvas, ctx, 16, 5)).not.toThrow();
+			expect(errors).toHaveLength(1);
+			expect(plugin.enabled()).toBe(false);
+
+			// A disabled instance stops calling render() on subsequent ticks —
+			// no repeat error, no bus storm.
+			expect(() => invokeRenderTick(fakeCanvas, ctx, 16, 6)).not.toThrow();
+			expect(errors).toHaveLength(1);
 		});
 	});
 
