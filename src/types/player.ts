@@ -39,9 +39,7 @@ import type {
 	CanPlayResult,
 	CurrentAudioTrackSelection,
 	CurrentQualitySelection,
-	CurrentSubtitleSelection,
 	QualityLevel,
-	SubtitleTrack,
 } from './tracks';
 import type { Translations } from './translations';
 import type { IUrlResolver, ResolvedUrl, UrlCategory } from './url';
@@ -503,19 +501,6 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	auth(clear: null): void;
 
 	/**
-	 * Read or write the active subtitle track.
-	 *
-	 * `subtitle()` — `{ index, track }` of the selected track, or `null` when off.
-	 * `subtitle(idx)` — select track; pass `null` to disable. Dispatches
-	 * `beforeSubtitle` first; a listener may `preventDefault()` to cancel, in
-	 * which case `subtitlePrevented` fires and the selection is unchanged.
-	 * Otherwise fires `subtitle`. Returns a `Promise<void>` so callers can
-	 * await the full cancellable cycle.
-	 */
-	subtitle(): CurrentSubtitleSelection | null;
-	subtitle(idx: number | null): Promise<void>;
-
-	/**
 	 * Read or write the active audio track.
 	 *
 	 * `audioTrack()` — `{ index, track }` of the selected track, or `null` when unset.
@@ -869,9 +854,6 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	load(item: BasePlaylistItem, opts?: LoadOptions): Promise<void>;
 
 	// ── Media tracks ──
-
-	/** Full subtitle track list (backend tracks first, sidecar VTT tracks appended). */
-	subtitles(): ReadonlyArray<SubtitleTrack>;
 
 	/** The active backend's quality levels. */
 	qualityLevels(): ReadonlyArray<QualityLevel>;
