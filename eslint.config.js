@@ -1,9 +1,5 @@
 import antfu from '@antfu/eslint-config';
-// Local-only: this directory isn't in the published package (see package.json
-// "files"/"exports" — dev tooling doesn't ship in the runtime API). Superseded
-// by the standalone @nomercy-entertainment/eslint-plugin-player devDependency
-// once that package publishes.
-import player from './eslint-plugin/index.js';
+import player from '@nomercy-entertainment/eslint-plugin-player';
 
 export default antfu({
 	ignores: [
@@ -134,7 +130,9 @@ export default antfu({
 		'style/object-curly-newline': 'off',
 	},
 }, {
-	// NoMercy player code standard (packages/eslint-plugin-player).
+	// NoMercy player code standard, from the published
+	// @nomercy-entertainment/eslint-plugin-player devDependency (same package
+	// video and music consume).
 	files: ['src/**/*.ts'],
 	plugins: { player },
 	rules: {
@@ -143,12 +141,24 @@ export default antfu({
 		'player/no-history-comments': 'error',
 		'player/no-object-literal-cast': 'error',
 		'player/no-unknown-cast': 'error',
+		'player/no-raw-player-bus': 'error',
+		'player/no-raw-timers-in-plugin': 'error',
+		'player/no-raw-throw-in-plugin': 'error',
+		'player/no-raw-fetch-in-plugin': 'error',
+		'player/plugin-id-required': 'error',
 	},
 }, {
-	// Mock construction in tests legitimately casts.
+	// Mock construction in tests legitimately casts; test-fixture plugins throw
+	// raw errors, use raw timers/fetch, and build ad-hoc plugin classes to
+	// exercise the real paths — the boundary rules target authored plugins, not fixtures.
 	files: ['src/**/*.test.ts', 'src/__tests__/**/*.ts'],
 	rules: {
 		'player/no-object-literal-cast': 'off',
 		'player/no-unknown-cast': 'off',
+		'player/no-raw-throw-in-plugin': 'off',
+		'player/no-raw-timers-in-plugin': 'off',
+		'player/no-raw-player-bus': 'off',
+		'player/no-raw-fetch-in-plugin': 'off',
+		'player/plugin-id-required': 'off',
 	},
 });

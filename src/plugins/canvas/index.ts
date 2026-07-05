@@ -138,7 +138,6 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 	private _canvas: HTMLCanvasElement | null = null;
 	private _ctx: CanvasRenderingContext2D | null = null;
 	private renderers: Array<CanvasRenderFn> = [];
-	private resizeObserver: ResizeObserver | null = null;
 	private rafRunning = false;
 
 	/**
@@ -215,20 +214,13 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 	}
 
 	/**
-	 * Stops the RAF loop, disconnects the `ResizeObserver`, and drops all
-	 * registered renderers. After disposal, `canvas()` and `context()` throw.
+	 * Stops the RAF loop and drops all registered renderers. The `ResizeObserver`
+	 * is disconnected by the lifecycle registry (it was registered via
+	 * `this.lifecycle.observe`). After disposal, `canvas()` and `context()` throw.
 	 */
 	override dispose(): void {
 		this.renderers.length = 0;
 		this.rafRunning = false;
-
-		if (this.resizeObserver) {
-			try {
-				this.resizeObserver.disconnect();
-			}
-			catch { /* swallow */ }
-			this.resizeObserver = null;
-		}
 
 		this._canvas = null;
 		this._ctx = null;
@@ -414,11 +406,10 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 		if (!surface)
 			return;
 
-		const ro = new ResizeObserver(() => {
+		const ro = this.lifecycle.observe(new ResizeObserver(() => {
 			this.resize();
-		});
+		}));
 		ro.observe(surface);
-		this.resizeObserver = ro;
 	}
 
 	private startRenderLoop(): void {

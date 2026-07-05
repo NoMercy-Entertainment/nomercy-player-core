@@ -403,6 +403,7 @@ export class CastSenderPlugin<
 			this.remoteController = controller;
 
 			const subscribe = (event: string, handler: RemotePlayerEventHandler): void => {
+				// eslint-disable-next-line player/no-raw-timers-in-plugin -- Cast SDK's RemotePlayerController is not an EventTarget, so this.listen() can't wrap it; cleanup is tracked manually via this.listeners.
 				controller.addEventListener(event, handler);
 				this.listeners.push({
 					event,
@@ -641,6 +642,7 @@ export class CastSenderPlugin<
 	 */
 	private emitPlayer(event: string, payload: unknown): void {
 		try {
+			// eslint-disable-next-line player/no-raw-player-bus -- deliberate mirror of a dynamically-named PLAYER event from the cast receiver onto the player bus; not a plugin-scoped emit, so this.emit() (which namespaces under plugin:<id>:) is wrong here.
 			this.player.emit(event as keyof BaseEventMap, payload as BaseEventMap[keyof BaseEventMap]);
 		}
 		catch { /* player teardown raced — drop. */ }

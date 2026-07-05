@@ -204,8 +204,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 				this.ctx.resume().catch(() => { /* best-effort — policy blocks are silent */ });
 			}
 		};
-		this.player.on('play', resumeOnPlay);
-		this.lifecycle.addCleanup(() => this.player.off('play', resumeOnPlay));
+		this.on('play', resumeOnPlay);
 
 		// After a crossfade, WebAudioBackend promotes the secondary element to
 		// primary and emits 'backend:sourceswap' with the new source node. If
