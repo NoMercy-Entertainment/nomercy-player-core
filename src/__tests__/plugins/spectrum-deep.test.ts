@@ -350,6 +350,132 @@ describe('SpectrumPlugin — deep behavioral coverage', () => {
 		});
 	});
 
+	// ── synthetic mode — tick consumption ────────────────────────────────────
+
+	describe('synthetic mode — tick consumption', () => {
+		function makeSyntheticFrame(time: number = 10): VisualizationFrame {
+			return {
+				frequency: new Uint8Array(1024),
+				waveform: new Uint8Array(2048),
+				time,
+				deltaMs: 16,
+				energy: 0.5,
+				bandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
+				frequencyFloat: new Float32Array(1024),
+				waveformFloat: new Float32Array(2048),
+				sampleRate: 44100,
+				binHz: 44100 / 2048,
+				peakHz: 0,
+				peakBandEnergies: { bass: 0.3, mid: 0.2, treble: 0.1 },
+			};
+		}
+
+		function collectFrames(player: EventEmitter<BaseEventMap>): Array<{ frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } }> {
+			const frames: Array<{ frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } }> = [];
+			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+				'plugin:spectrum:frame',
+				(data: unknown) => { frames.push(data as { frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } }); },
+			);
+			return frames;
+		}
+
+		it('tick emits the pushed frame verbatim and never reads the analyser', () => {
+			const { plugin, player, analyserNode, tickFn } = wirePlugin();
+			const frames = collectFrames(player);
+			const synthetic = makeSyntheticFrame(10);
+
+			plugin.syntheticMode(true);
+			plugin.pushFrame(synthetic);
+			tickFn(16, 999);
+
+			expect(frames).toHaveLength(1);
+			expect(frames[0]!.frame).toBe(synthetic);
+			// time/deltaMs come from the pushed frame, not the RAF clock (999).
+			expect(frames[0]!.frame.time).toBe(10);
+			expect(frames[0]!.frame.deltaMs).toBe(16);
+			expect(frames[0]!.energy).toEqual({ bass: 0.3, mid: 0.2, treble: 0.1 });
+			expect((analyserNode as unknown as { getByteFrequencyData: ReturnType<typeof vi.fn> }).getByteFrequencyData).not.toHaveBeenCalled();
+			expect((analyserNode as unknown as { getByteTimeDomainData: ReturnType<typeof vi.fn> }).getByteTimeDomainData).not.toHaveBeenCalled();
+			expect((analyserNode as unknown as { getFloatFrequencyData: ReturnType<typeof vi.fn> }).getFloatFrequencyData).not.toHaveBeenCalled();
+			expect((analyserNode as unknown as { getFloatTimeDomainData: ReturnType<typeof vi.fn> }).getFloatTimeDomainData).not.toHaveBeenCalled();
+		});
+
+		it('the latest pushed frame wins and re-emits on every tick until replaced', () => {
+			const { plugin, player, tickFn } = wirePlugin();
+			const frames = collectFrames(player);
+			const first = makeSyntheticFrame(10);
+			const second = makeSyntheticFrame(20);
+
+			plugin.syntheticMode(true);
+			plugin.pushFrame(first);
+			plugin.pushFrame(second);
+			tickFn(16, 1);
+			tickFn(16, 2);
+
+			expect(frames).toHaveLength(2);
+			expect(frames[0]!.frame).toBe(second);
+			expect(frames[1]!.frame).toBe(second);
+		});
+
+		it('emits nothing while synthetic mode is on but no frame has been pushed', () => {
+			const { plugin, player, analyserNode, tickFn } = wirePlugin();
+			const frames = collectFrames(player);
+
+			plugin.syntheticMode(true);
+			tickFn(16, 1);
+
+			expect(frames).toHaveLength(0);
+			expect((analyserNode as unknown as { getByteFrequencyData: ReturnType<typeof vi.fn> }).getByteFrequencyData).not.toHaveBeenCalled();
+		});
+
+		it('currentFrame() returns the synthetic frame while synthetic mode is on', () => {
+			const { plugin, tickFn } = wirePlugin();
+			const synthetic = makeSyntheticFrame(42);
+
+			plugin.syntheticMode(true);
+			plugin.pushFrame(synthetic);
+			tickFn(16, 1);
+
+			expect(plugin.currentFrame()).toBe(synthetic);
+		});
+
+		it('beat providers do not override a synthetic frame', () => {
+			const { plugin, player, tickFn } = wirePlugin();
+			const frames = collectFrames(player);
+			const synthetic = makeSyntheticFrame(10);
+
+			plugin.registerBeatProvider(() => ({ beat: true, bpm: 128 }));
+			plugin.syntheticMode(true);
+			plugin.pushFrame(synthetic);
+			tickFn(16, 1);
+
+			expect(frames[0]!.frame.beat).toBeUndefined();
+			expect(frames[0]!.frame.bpm).toBeUndefined();
+		});
+
+		it('syntheticMode(false) resumes live analyser reads on the next tick', () => {
+			const { plugin, player, analyserNode, tickFn } = wirePlugin();
+			const frames = collectFrames(player);
+			const synthetic = makeSyntheticFrame(10);
+
+			plugin.syntheticMode(true);
+			plugin.pushFrame(synthetic);
+			tickFn(16, 1);
+			expect(frames).toHaveLength(1);
+
+			plugin.syntheticMode(false);
+			tickFn(16, 2);
+
+			expect(frames).toHaveLength(2);
+			expect(frames[1]!.frame).not.toBe(synthetic);
+			// Live path stamps the RAF clock back onto the frame.
+			expect(frames[1]!.frame.time).toBe(2);
+			expect(frames[1]!.frame.deltaMs).toBe(16);
+			expect((analyserNode as unknown as { getByteFrequencyData: ReturnType<typeof vi.fn> }).getByteFrequencyData).toHaveBeenCalled();
+			expect((analyserNode as unknown as { getByteTimeDomainData: ReturnType<typeof vi.fn> }).getByteTimeDomainData).toHaveBeenCalled();
+		});
+	});
+
 	// ── tick() emits frame event ──────────────────────────────────────────────
 
 	describe('tick() — frame event', () => {

@@ -18,6 +18,7 @@
 
 import type { BaseEventMap } from '../../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import {
 	composeMixins,
 	EventEmitter,
@@ -108,6 +109,42 @@ function installCanvasStub(): void {
 			fill: () => {},
 		};
 		return stub as CanvasRenderingContext2D;
+	};
+}
+
+/**
+ * Wire a bare CanvasPlugin with a captured render-loop callback so fps
+ * throttling can be driven with hand-picked timestamps — mirrors the
+ * manual-wire pattern in spectrum-deep.test.ts. happy-dom's setTimeout-based
+ * RAF is too jittery for render-rate assertions.
+ */
+function wireCanvasPlugin(opts: { fps?: number } = {}): {
+	plugin: CanvasPlugin;
+	player: EventEmitter<BaseEventMap>;
+	renderTick: (deltaMs: number, time: number) => void;
+} {
+	const player = new EventEmitter<BaseEventMap>();
+	const container = document.createElement('div');
+	document.body.appendChild(container);
+	(player as unknown as { container: HTMLElement }).container = container;
+
+	const plugin = new CanvasPlugin();
+	(plugin as unknown as { player: typeof player }).player = player;
+	(plugin as unknown as { lifecycle: LifecycleRegistry }).lifecycle = new LifecycleRegistry();
+	(plugin as unknown as { opts: typeof opts }).opts = opts;
+
+	let captured: (deltaMs: number, time: number) => void = () => {};
+	(plugin as unknown as { frame: (fn: (deltaMs: number, time: number) => void) => () => void }).frame = (fn) => {
+		captured = fn;
+		return () => {};
+	};
+
+	plugin.use();
+
+	return {
+		plugin,
+		player,
+		renderTick: (deltaMs, time) => captured(deltaMs, time),
 	};
 }
 
@@ -339,6 +376,95 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			await new Promise<void>(resolve => setTimeout(resolve, 80));
 			const callsAfter = fn.mock.calls.length;
 			expect(callsAfter).toBe(callsBefore);
+		});
+
+		describe('fps throttling', () => {
+			it('fps: 10 caps renders to one per 100ms of RAF time', () => {
+				const { plugin, renderTick } = wireCanvasPlugin({ fps: 10 });
+				const fn = vi.fn();
+				plugin.addRenderer(fn);
+
+				for (let frameIndex = 0; frameIndex <= 100; frameIndex++)
+					renderTick(10, frameIndex * 10);
+
+				// 101 RAF ticks over 1000ms — only t=0, 100, 200, ..., 1000 render.
+				expect(fn).toHaveBeenCalledTimes(11);
+			});
+
+			it('throttled renders receive deltaMs measured from the previous rendered frame', () => {
+				const { plugin, renderTick } = wireCanvasPlugin({ fps: 10 });
+				const fn = vi.fn();
+				plugin.addRenderer(fn);
+
+				for (let frameIndex = 0; frameIndex <= 10; frameIndex++)
+					renderTick(10, frameIndex * 10);
+
+				expect(fn).toHaveBeenCalledTimes(2);
+				// (ctx, deltaMs, time) — second render at t=100 spans the 10 skipped ticks.
+				expect(fn.mock.calls[1]![1]).toBe(100);
+				expect(fn.mock.calls[1]![2]).toBe(100);
+			});
+
+			it('the frame event fires only for rendered frames', () => {
+				const { player, renderTick } = wireCanvasPlugin({ fps: 10 });
+				const frameEvents: Array<{ deltaMs: number; time: number }> = [];
+				(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
+					'plugin:canvas:frame',
+					(data: unknown) => { frameEvents.push(data as { deltaMs: number; time: number }); },
+				);
+
+				for (let frameIndex = 0; frameIndex <= 100; frameIndex++)
+					renderTick(10, frameIndex * 10);
+
+				expect(frameEvents).toHaveLength(11);
+				expect(frameEvents[1]).toEqual({ deltaMs: 100, time: 100 });
+			});
+
+			it('options({ fps }) applies live without restarting the loop', () => {
+				const { plugin, renderTick } = wireCanvasPlugin({ fps: 10 });
+				const fn = vi.fn();
+				plugin.addRenderer(fn);
+
+				for (let frameIndex = 0; frameIndex <= 9; frameIndex++)
+					renderTick(10, frameIndex * 10);
+				expect(fn).toHaveBeenCalledTimes(1);
+
+				plugin.options({ fps: 100 });
+
+				for (let frameIndex = 10; frameIndex <= 13; frameIndex++)
+					renderTick(10, frameIndex * 10);
+				// 10ms budget now — every subsequent 10ms tick renders.
+				expect(fn).toHaveBeenCalledTimes(5);
+			});
+
+			it('defaults to 60fps when fps is not set', () => {
+				const { plugin, renderTick } = wireCanvasPlugin();
+				const fn = vi.fn();
+				plugin.addRenderer(fn);
+
+				renderTick(17, 0);
+				renderTick(17, 17);
+				renderTick(17, 34);
+				expect(fn).toHaveBeenCalledTimes(3);
+
+				// A tick inside the ~16.7ms budget is skipped.
+				renderTick(5, 39);
+				expect(fn).toHaveBeenCalledTimes(3);
+			});
+
+			it('fps matching the RAF cadence does not collapse to half rate', () => {
+				const { plugin, renderTick } = wireCanvasPlugin({ fps: 60 });
+				const fn = vi.fn();
+				plugin.addRenderer(fn);
+
+				// 61 ticks exactly 16ms apart — a hair under the 16.7ms budget.
+				// A naive `time - lastRender >= budget` throttle drops to ~30fps here.
+				for (let frameIndex = 0; frameIndex <= 60; frameIndex++)
+					renderTick(16, frameIndex * 16);
+
+				expect(fn.mock.calls.length).toBeGreaterThanOrEqual(55);
+				expect(fn.mock.calls.length).toBeLessThanOrEqual(61);
+			});
 		});
 	});
 });

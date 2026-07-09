@@ -81,8 +81,9 @@ export interface CanvasEvents {
 	resized: { width: number; height: number };
 
 	/**
-	 * Fired once per animation frame, after all registered renderers have run.
-	 * `deltaMs` is the milliseconds elapsed since the previous frame.
+	 * Fired once per rendered frame, after all registered renderers have run.
+	 * RAF ticks skipped by the `fps` cap emit nothing.
+	 * `deltaMs` is the milliseconds elapsed since the previous rendered frame.
 	 * `time` is the `DOMHighResTimeStamp` from the browser's `requestAnimationFrame` callback.
 	 */
 	frame: { deltaMs: number; time: number };
@@ -92,7 +93,7 @@ export interface CanvasEvents {
  * Callback signature for functions registered with {@link CanvasPlugin.addRenderer}.
  *
  * @param ctx     The shared 2D rendering context for the plugin's canvas.
- * @param deltaMs Milliseconds elapsed since the previous frame.
+ * @param deltaMs Milliseconds elapsed since the previous rendered frame.
  * @param time    `DOMHighResTimeStamp` from `requestAnimationFrame`.
  */
 export type CanvasRenderFn = (ctx: CanvasRenderingContext2D, deltaMs: number, time: number) => void;
@@ -139,6 +140,7 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 	private _ctx: CanvasRenderingContext2D | null = null;
 	private renderers: Array<CanvasRenderFn> = [];
 	private rafRunning = false;
+	private lastFrameTime: number | null = null;
 
 	/**
 	 * Mounts the canvas into the configured element, installs a `ResizeObserver`
@@ -221,6 +223,7 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 	override dispose(): void {
 		this.renderers.length = 0;
 		this.rafRunning = false;
+		this.lastFrameTime = null;
 
 		this._canvas = null;
 		this._ctx = null;
@@ -421,6 +424,23 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 			if (!this.rafRunning)
 				return;
 
+			const fps = this.opts?.fps ?? 60;
+			const minFrameMs = 1000 / fps;
+			let renderDeltaMs = deltaMs;
+			if (this.lastFrameTime === null) {
+				this.lastFrameTime = time;
+			}
+			else {
+				renderDeltaMs = time - this.lastFrameTime;
+				if (renderDeltaMs < minFrameMs)
+					return;
+				// Carrying the overshoot remainder instead of anchoring to `time`
+				// keeps the average rate at fps — a plain anchor loses every frame
+				// that RAF jitter delivers a hair early and collapses to half rate
+				// when fps matches the display cadence.
+				this.lastFrameTime = time - (renderDeltaMs % minFrameMs);
+			}
+
 			const compositeMode = this.opts?.compositeMode ?? 'clear';
 			const canvasEl = this._canvas;
 			if (canvasEl && compositeMode === 'clear') {
@@ -432,7 +452,7 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 				const ctx = this.context();
 				for (const fn of this.renderers.slice()) {
 					try {
-						fn(ctx, deltaMs, time);
+						fn(ctx, renderDeltaMs, time);
 					}
 					catch (err) {
 						// Scoped to this one renderer, not the whole plugin — a shared
@@ -451,7 +471,7 @@ export class CanvasPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plu
 			}
 
 			this.emit('frame', {
-				deltaMs,
+				deltaMs: renderDeltaMs,
 				time,
 			});
 		});

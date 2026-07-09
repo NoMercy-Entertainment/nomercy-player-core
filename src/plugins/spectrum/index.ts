@@ -485,7 +485,33 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 	/** Decay constant applied to peak-hold values each frame (matches testbed PEAK_DECAY). */
 	private static readonly PEAK_DECAY = 0.003;
 
+	/**
+	 * Synthetic-mode tick body — re-emits the most recently pushed frame verbatim
+	 * (no analyser reads, no beat-provider polling, no peak/energy accumulation).
+	 * No-op until the first `pushFrame()` arrives.
+	 */
+	private emitSyntheticFrame(): void {
+		const frameData = this._syntheticFrame;
+		if (!frameData)
+			return;
+
+		this._currentFrame = frameData;
+		this.emit('frame', {
+			frame: frameData,
+			energy: {
+				bass: frameData.bandEnergies.bass,
+				mid: frameData.bandEnergies.mid,
+				treble: frameData.bandEnergies.treble,
+			},
+		});
+	}
+
 	private tick(deltaMs: number, time: number): void {
+		if (this._syntheticMode) {
+			this.emitSyntheticFrame();
+			return;
+		}
+
 		const analyserNode = this._analyser;
 		if (!analyserNode)
 			return;
