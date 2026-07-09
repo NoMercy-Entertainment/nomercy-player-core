@@ -185,19 +185,23 @@ export const lifecycleMethods = {
 	 *
 	 * Dispatches `beforeDispose` first; a listener may `preventDefault()` to
 	 * cancel, in which case `disposePrevented` fires and the player stays
-	 * fully alive (no cleanup runs, no listeners are removed). Otherwise
-	 * drains the policy cleanup queue (everything `setup()`'s `_wire*` helpers
-	 * registered: subscriptions, event listeners, intervals, RAF handles)
-	 * BEFORE emitting `dispose`, so handlers observing the transition see a
-	 * sensible final state. Phase moves `→ disposing → disposed`, the
-	 * `ready()` promise rejects if it hadn't resolved yet, and all listeners
-	 * are removed.
+	 * fully alive (no cleanup runs, no listeners are removed, no plugin is
+	 * touched). Otherwise disposes every registered plugin (reverse
+	 * registration order — see `_disposeAllPlugins`) while the player is
+	 * still otherwise intact, THEN drains the policy cleanup queue
+	 * (everything `setup()`'s `_wire*` helpers registered: subscriptions,
+	 * event listeners, intervals, RAF handles) BEFORE emitting `dispose`, so
+	 * handlers observing the transition see a sensible final state. Phase
+	 * moves `→ disposing → disposed`, the `ready()` promise rejects if it
+	 * hadn't resolved yet, and all listeners are removed.
 	 *
 	 * After this call the instance is dead — re-setup requires constructing a
 	 * new player. Returns a `Promise<void>` so callers can await the full
 	 * cancellable cycle; per-library `dispose()` wrappers that tear down their
 	 * own backend check `phase() === 'disposed'` after awaiting this to know
-	 * whether teardown actually proceeded.
+	 * whether teardown actually proceeded — plugin disposal always runs
+	 * before that backend/element teardown, so a plugin can still read the
+	 * player while it cleans up.
 	 */
 	async dispose(this: Internals): Promise<void> {
 		if (this._phase === 'disposed' || this._phase === 'disposing')
@@ -214,6 +218,9 @@ export const lifecycleMethods = {
 
 		const wasReady = this._phase === 'ready';
 		this._transitionPhase('disposing');
+
+		this._disposeAllPlugins();
+
 		for (const cleanup of this._policyCleanup) {
 			try {
 				cleanup();

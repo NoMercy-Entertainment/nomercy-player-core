@@ -26,16 +26,18 @@
  *  - _guardSetup rejects double-setup and post-dispose setup
  */
 
-import type { BaseEventMap } from '../types';
+import type { BaseEventMap, PluginCtorWithId } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	composeMixins,
 	EventEmitter,
 	initPlayerCoreState,
 	playerCoreMethods,
+	Plugin,
 	resolvePlayerConstructor,
 	StateError,
 } from '../index';
+import { KeyHandlerPlugin } from '../plugins/key-handler';
 import { SetupState } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,6 +73,14 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	};
 
 	declare pause: (opts?: unknown) => Promise<void>;
+	declare togglePlayback: (opts?: unknown) => Promise<void>;
+	declare addPlugin: <P extends Plugin<any, any, any>>(
+		PluginClass: PluginCtorWithId & (new () => P),
+		opts?: P['opts'],
+	) => this;
+
+	declare getPlugin: <P extends object>(PluginClass: PluginCtorWithId & (new () => P)) => P | undefined;
+	declare removePlugin: <P extends Plugin<any, any, any>>(PluginClass: PluginCtorWithId & (new () => P)) => void;
 
 	constructor(id?: string | number) {
 		super();
@@ -96,6 +106,22 @@ function makePlayer(divId: string): MockPlayer {
 	div.id = divId;
 	document.body.appendChild(div);
 	return new MockPlayer(divId);
+}
+
+/** Fixture plugin class whose `dispose()` records `id` onto the shared `order` array. */
+function makeOrderPlugin(id: string, order: string[]): typeof Plugin {
+	class OrderPlugin extends Plugin {
+		static override readonly id = id;
+		static override readonly version = '1.0.0';
+		static override readonly description = id;
+		override use(): void {}
+		override dispose(): void {
+			order.push(id);
+		}
+	}
+	// Contravariant-P friction vs the general `typeof Plugin` — same opaque
+	// cast the kit plugin-leak-sweep fixture list already uses.
+	return OrderPlugin as unknown as typeof Plugin;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -446,5 +472,154 @@ describe('lifecycle mixin — setup pipeline error paths', () => {
 
 		expect(stageErrors.length).toBeGreaterThan(0);
 		expect(errorEvents.length).toBeGreaterThan(0);
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// lifecycle mixin — dispose() disposes plugins
+//
+// Regression coverage: Plugin.dispose()'s JSDoc promises "the kit calls
+// dispose() when the player itself is disposed", but dispose() only drained
+// _policyCleanup and never iterated _plugins. Observable failure: a plugin's
+// document-level listener (KeyHandlerPlugin) survived player.dispose(), and a
+// later keypress raised a core:player/disposed unhandled rejection.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('lifecycle mixin — dispose() disposes plugins', () => {
+	beforeEach(() => MockPlayer._resetRegistry());
+	afterEach(() => {
+		MockPlayer._resetRegistry();
+		document.body.innerHTML = '';
+	});
+
+	it('disposes every registered plugin when the player is disposed', async () => {
+		const mockPlayer = makePlayer('dispose-plugins-basic');
+		const order: string[] = [];
+
+		mockPlayer.setup({ plugins: [makeOrderPlugin('alpha', order), makeOrderPlugin('beta', order)] });
+		await mockPlayer.ready();
+
+		expect(order).toEqual([]);
+
+		await mockPlayer.dispose();
+
+		expect(order).toEqual(['beta', 'alpha']);
+	});
+
+	it('disposes plugins in reverse registration order', async () => {
+		const mockPlayer = makePlayer('dispose-plugins-order');
+		const order: string[] = [];
+
+		mockPlayer.setup({
+			plugins: [
+				makeOrderPlugin('alpha', order),
+				makeOrderPlugin('beta', order),
+				makeOrderPlugin('gamma', order),
+			],
+		});
+		await mockPlayer.ready();
+
+		await mockPlayer.dispose();
+
+		expect(order).toEqual(['gamma', 'beta', 'alpha']);
+	});
+
+	it('a throwing plugin dispose() is contained — the rest still get disposed, no unhandled throw', async () => {
+		const mockPlayer = makePlayer('dispose-plugins-throw');
+		const order: string[] = [];
+
+		class ThrowingDisposePlugin extends Plugin {
+			static override readonly id = 'throwing-dispose';
+			static override readonly version = '1.0.0';
+			static override readonly description = 'ThrowingDispose';
+			override use(): void {}
+			override dispose(): void {
+				throw new Error('dispose boom');
+			}
+		}
+
+		mockPlayer.setup({
+			plugins: [makeOrderPlugin('alpha', order), ThrowingDisposePlugin, makeOrderPlugin('gamma', order)],
+		});
+		await mockPlayer.ready();
+
+		const warnings: unknown[] = [];
+		mockPlayer.on('warning', (data: unknown) => warnings.push(data));
+
+		await expect(mockPlayer.dispose()).resolves.not.toThrow();
+
+		expect(order).toEqual(['gamma', 'alpha']);
+		expect(mockPlayer.phase()).toBe('disposed');
+		expect(warnings.length).toBeGreaterThan(0);
+	});
+
+	it('a prevented dispose() leaves every plugin alive — none are disposed', async () => {
+		const mockPlayer = makePlayer('dispose-plugins-prevented');
+		const order: string[] = [];
+		const AlphaPlugin = makeOrderPlugin('alpha', order);
+
+		mockPlayer.setup({ plugins: [AlphaPlugin] });
+		await mockPlayer.ready();
+
+		const preventDispose = (event: { preventDefault: () => void }): void => {
+			event.preventDefault();
+		};
+		mockPlayer.on('beforeDispose' as never, preventDispose);
+
+		await mockPlayer.dispose();
+
+		expect(mockPlayer.phase()).not.toBe('disposed');
+		expect(order).toEqual([]);
+		expect(mockPlayer.getPlugin(AlphaPlugin)).toBeDefined();
+
+		mockPlayer.off('beforeDispose' as never, preventDispose);
+		await mockPlayer.dispose();
+
+		expect(order).toEqual(['alpha']);
+	});
+
+	it('a manually removePlugin()-ed plugin is not disposed a second time by player dispose()', async () => {
+		const mockPlayer = makePlayer('dispose-plugins-manual-remove');
+		const order: string[] = [];
+		const AlphaPlugin = makeOrderPlugin('alpha', order);
+
+		mockPlayer.setup({ plugins: [AlphaPlugin] });
+		await mockPlayer.ready();
+
+		mockPlayer.removePlugin(AlphaPlugin);
+		expect(order).toEqual(['alpha']);
+
+		await mockPlayer.dispose();
+
+		expect(order).toEqual(['alpha']);
+	});
+
+	it('a real KeyHandlerPlugin document listener is removed on dispose — no unhandled rejection on a post-dispose keypress', async () => {
+		const mockPlayer = makePlayer('dispose-keyhandler');
+		mockPlayer.setup({ plugins: [KeyHandlerPlugin] });
+		await mockPlayer.ready();
+
+		const toggleSpy = vi.spyOn(mockPlayer, 'togglePlayback');
+
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+		await Promise.resolve();
+		expect(toggleSpy).toHaveBeenCalledTimes(1);
+
+		await mockPlayer.dispose();
+
+		const rejections: unknown[] = [];
+		const onUnhandledRejection = (reason: unknown): void => {
+			rejections.push(reason);
+		};
+		process.on('unhandledRejection', onUnhandledRejection);
+
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+		await new Promise(resolve => setTimeout(resolve, 0));
+		await new Promise(resolve => setTimeout(resolve, 0));
+
+		process.off('unhandledRejection', onUnhandledRejection);
+
+		expect(toggleSpy).toHaveBeenCalledTimes(1);
+		expect(rejections).toHaveLength(0);
 	});
 });

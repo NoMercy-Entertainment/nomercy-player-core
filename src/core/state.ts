@@ -357,6 +357,9 @@ export interface MixinSurface {
 
 	// pluginRegistrationMethods (see mixins/plugin-registration.ts)
 	removePluginById(id: string, opts?: { cascade?: boolean }): void;
+	// Called cross-mixin by lifecycleMethods.dispose() — tears down every
+	// registered plugin before the per-library backend/element teardown runs.
+	_disposeAllPlugins(): void;
 
 	// i18nMethods (see mixins/i18n.ts)
 	addTranslations(bundle: Translations): void;

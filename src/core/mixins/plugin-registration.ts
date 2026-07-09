@@ -12,7 +12,12 @@ import type { Internals } from '../state';
 import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import { Logger } from '../../adapters/logger/default';
 
-import { pluginError, stateError } from '../../errors';
+import {
+	makePlayerErrorEvent,
+	PluginError,
+	pluginError,
+	stateError,
+} from '../../errors';
 import { KIT_VERSION } from '../kit-version';
 import { loadPluginStaticTranslations } from '../plugin-translations';
 
@@ -262,6 +267,66 @@ function _findDependents(self: Internals, id: string): string[] {
 			collected.push(dep);
 	}
 	return collected;
+}
+
+/**
+ * Tear down one registered plugin entry: the plugin's own `dispose()`
+ * override, its `LifecycleRegistry` (auto-tracked listeners/timers/RAFs/
+ * observers/aborts), and its static translations. Shared by `removePluginById`
+ * (single removal) and `_disposeAllPlugins` (full player teardown) so both
+ * paths behave identically — same sequence, same failure containment.
+ *
+ * Guarded by `lifecycle.isDisposed()`, an already-idempotent primitive, so a
+ * caller that (mistakenly) re-visits the same entry is a no-op rather than a
+ * double `dispose()` call.
+ *
+ * The plugin's custom `dispose()` is isolated in its own try/catch — a throw
+ * there is caught and surfaced on the standard warning-severity error channel
+ * instead of propagating, so it can never skip `lifecycle.dispose()` (which
+ * would leak the plugin's listeners/timers) or abort a caller tearing down
+ * multiple plugins in sequence.
+ */
+function _teardownPluginEntry(
+	self: Internals,
+	entry: { instance: Plugin; lifecycle: LifecycleRegistry; ctor: PluginCtorWithId },
+): void {
+	const { instance, lifecycle, ctor } = entry;
+
+	if (lifecycle.isDisposed())
+		return;
+
+	try {
+		instance.dispose();
+	}
+	catch (cause) {
+		const error = new PluginError({
+			code: 'core:plugin/dispose-failed',
+			severity: 'warning',
+			scope: {
+				kind: 'plugin',
+				id: ctor.id,
+			},
+			message: `core:plugin/dispose-failed: Plugin "${ctor.id}" dispose() threw.`,
+			cause,
+		});
+		try {
+			self.emit('warning', makePlayerErrorEvent(error, 'warning', {
+				kind: 'plugin',
+				id: ctor.id,
+			}));
+			self.emit('plugin:warning', makePlayerErrorEvent(error, 'warning', {
+				kind: 'plugin',
+				id: ctor.id,
+			}));
+		}
+		catch { /* never let a warning handler abort teardown */ }
+	}
+
+	lifecycle.dispose();
+
+	if (ctor.translations) {
+		self.removeTranslations(`plugin.${ctor.id}.`);
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -620,16 +685,48 @@ export const pluginRegistrationMethods = {
 		const idx = this._plugins.findIndex(plugin => plugin.ctor.id === id);
 		if (idx < 0)
 			return;
-		const { instance, lifecycle, ctor } = this._plugins[idx]!;
-		instance.dispose();
-		lifecycle.dispose();
-		if (ctor.translations) {
-			this.removeTranslations(`plugin.${id}.`);
-		}
+		const entry = this._plugins[idx]!;
+		_teardownPluginEntry(this, entry);
 		this._plugins.splice(idx, 1);
 		const payload = { id };
 		this.emit('plugin:disposed', payload);
 		this.emit(`plugin:${id}:disposed`, payload);
+	},
+
+	/**
+	 * Dispose every currently-registered plugin, reverse registration order.
+	 * A dependency is always registered before the dependent that requires
+	 * it (`addPlugin` validates this), so reverse order naturally disposes
+	 * every dependent before the dependency it needs — the same ordering
+	 * `removePluginById`'s cascade produces, without needing to run the
+	 * cascade search here.
+	 *
+	 * Called once from `dispose()` while the player is still otherwise
+	 * intact, so a plugin can read any player state during its own teardown.
+	 * Re-checks live registry membership before each entry (a plugin's own
+	 * `dispose()` can trigger `removePlugin` on a peer) so a side effect
+	 * mid-sweep is skipped instead of double-disposed. Mirrors
+	 * `removePluginById` exactly — same `_teardownPluginEntry` sequence, same
+	 * `plugin:disposed` events (bare + id-namespaced) — so a consumer
+	 * listening for individual removal sees identical behaviour during a full
+	 * dispose.
+	 */
+	_disposeAllPlugins(this: Internals): void {
+		const reverseIds = this._plugins.map(entry => entry.ctor.id).reverse();
+
+		for (const id of reverseIds) {
+			const idx = this._plugins.findIndex(plugin => plugin.ctor.id === id);
+			if (idx < 0)
+				continue;
+
+			const entry = this._plugins[idx]!;
+			_teardownPluginEntry(this, entry);
+			this._plugins.splice(idx, 1);
+
+			const payload = { id };
+			this.emit('plugin:disposed', payload);
+			this.emit(`plugin:${id}:disposed`, payload);
+		}
 	},
 
 	/**

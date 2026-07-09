@@ -14,7 +14,7 @@
 
 import type { Plugin } from '../index';
 import type { BaseEventMap } from '../types';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	composeMixins,
 	EventEmitter,
@@ -53,7 +53,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare options: any;
 	declare setup: (config: any) => this;
 	declare ready: () => Promise<void>;
-	declare dispose: () => void;
+	declare dispose: () => Promise<void>;
 	declare addPlugin: (PluginClass: any, opts?: any) => this;
 	declare removePlugin: (PluginClass: any) => void;
 	declare getPlugin: (PluginClass: any) => any;
@@ -140,6 +140,60 @@ describe('Kit plugin leak-harness sweep', () => {
 			});
 
 			expect(result.leaked).toBeLessThanOrEqual(0);
+		});
+	}
+});
+
+/**
+ * Player-dispose path sweep. The suite above only exercises manual
+ * `removePlugin()` teardown, which already empties `_plugins` before
+ * `dispose()` would run — it can't catch a regression in the OTHER teardown
+ * path (`player.dispose()` disposing every still-registered plugin). Listener
+ * count isn't a usable signal here since `dispose()` ends with `off('all')`,
+ * wiping every listener regardless of whether a plugin cleaned up correctly —
+ * so this sweep spies on each plugin's `dispose()` directly.
+ */
+describe('Kit plugin leak-harness sweep — player.dispose() path', () => {
+	beforeEach(() => MockPlayer._resetRegistry());
+	afterEach(() => {
+		MockPlayer._resetRegistry();
+		document.body.innerHTML = '';
+	});
+
+	for (const { name, ctor } of PLUGINS) {
+		it(`${name} plugin's dispose() is invoked by player.dispose() (or fails install gracefully if stubbed)`, async () => {
+			const div = document.createElement('div');
+			div.id = `dispose-sweep-${name}`;
+			document.body.appendChild(div);
+
+			const player = new MockPlayer(`dispose-sweep-${name}`).setup({});
+			await player.ready();
+
+			let installable = true;
+			try {
+				const Class = ctor as unknown as new () => Plugin;
+				player.addPlugin(Class);
+				await player.ready();
+			}
+			catch {
+				installable = false;
+			}
+
+			// A plugin whose use() throws (e.g. audio-graph — no AudioContext in
+			// happy-dom) fails registration internally via _failRegistration
+			// without addPlugin()/ready() ever rejecting — getPlugin() returning
+			// undefined is the only observable signal that install didn't land.
+			const instance = installable ? player.getPlugin(ctor as unknown as new () => Plugin) : undefined;
+			if (!instance) {
+				expect(instance).toBeUndefined();
+				return;
+			}
+
+			const disposeSpy = vi.spyOn(instance, 'dispose');
+
+			await player.dispose();
+
+			expect(disposeSpy).toHaveBeenCalledTimes(1);
 		});
 	}
 });
