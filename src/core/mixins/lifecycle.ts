@@ -16,6 +16,7 @@ import type {
 	Translations,
 } from '../../types';
 import type { Internals } from '../state';
+import type { ItemWithTracks } from './sidecar-util';
 import { builtInCueParsers } from '../../adapters/cue-parser/built-ins';
 import { Logger } from '../../adapters/logger/default';
 import { LEVEL_RANK } from '../../adapters/logger/ILogger';
@@ -128,6 +129,7 @@ export const lifecycleMethods = {
 		_wireWakeLockPolicy(this);
 		_wireMetrics(this);
 		_wireTimeAndDurationSync(this);
+		_wireChapterGapFillOnDuration(this);
 		_wireProgressEmit(this);
 		_wirePreloadAndTransition(this);
 		_wireWindowExpose(this);
@@ -711,6 +713,28 @@ function _wireTimeAndDurationSync(self: Internals): void {
 	self.on('duration', onDurationSync);
 	self._policyCleanup.push(() => {
 		self.off('duration', onDurationSync);
+	});
+}
+
+/**
+ * Re-run the malformed-chapter safety net whenever the backend reports a
+ * duration. `_resolveAndEmitChapters` (media-tracks.ts) already applies it
+ * on cursor change, but chapters routinely resolve before the real
+ * duration is known — this is the other half of the same seam, catching
+ * the active item up once a duration finally lands or is corrected.
+ * `_applyChapterGapFill`'s own changed-only emit guard keeps a no-op
+ * duration tick silent.
+ */
+function _wireChapterGapFillOnDuration(self: Internals): void {
+	const onDuration = (): void => {
+		const current = self._queueList.current() as ItemWithTracks | undefined;
+		if (!current || !Array.isArray(current.chapters) || current.chapters.length === 0)
+			return;
+		self._applyChapterGapFill(current.id, current.chapters, { alwaysEmit: false });
+	};
+	self.on('duration', onDuration);
+	self._policyCleanup.push(() => {
+		self.off('duration', onDuration);
 	});
 }
 

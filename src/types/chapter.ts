@@ -20,4 +20,11 @@ export interface Chapter {
 	end: number;
 	/** Display name of the chapter. */
 	title: string;
+	/**
+	 * `true` when the malformed-chapter safety net generated this entry to
+	 * fill a gap the source list left uncovered. Absent (never `false`) on
+	 * every chapter that came from the ingest source, so a plain truthy check
+	 * is enough for a consumer to style fillers differently.
+	 */
+	synthetic?: boolean;
 }

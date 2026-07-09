@@ -66,6 +66,9 @@ export const enTranslations: Record<string, string> = {
 	// Kit plugin lifecycle (consumer-facing)
 	'plugin.tab-leader.lost': 'Playback paused — another tab is now playing.',
 	'plugin.media-session.unsupported': 'OS media controls are not available in this browser.',
+
+	// Chapters
+	'core.chapters.untitled': 'Chapter',
 };
 
 /**

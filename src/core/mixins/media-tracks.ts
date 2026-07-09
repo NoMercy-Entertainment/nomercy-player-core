@@ -35,6 +35,7 @@ import { stateError } from '../../errors';
 import { AudioTrackState, QualityState } from '../../types';
 
 import { authFetch } from '../auth-fetch';
+import { fillChapterGaps } from '../chapters/fill-gaps';
 
 import { CueTracker } from '../cues/tracker';
 import { buildResolvedUrl } from '../resolved-url';
@@ -428,15 +429,19 @@ export const mediaTracksMethods = {
 
 	/**
 	 * Resolve chapters for the given item (fetching sidecar VTT when needed),
-	 * write the resolved chapters back onto the queue entry, and emit
-	 * `chapters`. Guarded by a monotonic `_chapterEpoch` so a slow fetch
-	 * for the previous cursor change can't overwrite the active item's
-	 * chapters when it finally lands.
+	 * run the result through the malformed-chapter safety net
+	 * (`_applyChapterGapFill`), write the normalized chapters back onto the
+	 * queue entry, and emit `chapters`. Guarded by a monotonic `_chapterEpoch`
+	 * so a slow fetch for the previous cursor change can't overwrite the
+	 * active item's chapters when it finally lands.
 	 */
 	async _resolveAndEmitChapters(this: Internals, itemId: string | number | undefined): Promise<void> {
 		const epoch = (this._chapterEpoch ?? 0) + 1;
 		this._chapterEpoch = epoch;
 		const isLatest = (): boolean => this._chapterEpoch === epoch;
+
+		if (itemId === undefined)
+			return;
 
 		const foundItem = this._queueList.get().find(queued => queued.id === itemId);
 		if (!foundItem)
@@ -444,7 +449,7 @@ export const mediaTracksMethods = {
 		const item = foundItem as ItemWithTracks;
 
 		if (Array.isArray(item.chapters) && item.chapters.length > 0) {
-			this.emit('chapters', { chapters: item.chapters });
+			this._applyChapterGapFill(itemId, item.chapters, { alwaysEmit: true });
 			return;
 		}
 
@@ -460,8 +465,9 @@ export const mediaTracksMethods = {
 		// Re-read the item fresh rather than writing back the snapshot this
 		// function started with — another writer (e.g. `addSubtitleTrack`)
 		// may have mutated the queue entry while this fetch was in flight.
-		// Merging only the fields this resolver owns (`tracks`, `chapters`)
-		// onto the CURRENT entry avoids clobbering that concurrent change.
+		// Writing only `tracks` here (the field THIS step owns) avoids
+		// clobbering that concurrent change; `_applyChapterGapFill` below
+		// does its own fresh read before writing `chapters`.
 		const latestItem = this._queueList.get().find(queued => queued.id === itemId) as ItemWithTracks | undefined;
 		if (!latestItem)
 			return;
@@ -469,11 +475,47 @@ export const mediaTracksMethods = {
 		const merged: BasePlaylistItem & ItemWithTracks = {
 			...latestItem,
 			tracks: resolved.tracks,
-			chapters,
 		};
 		this._queueList.replaceItem(merged);
 
-		this.emit('chapters', { chapters });
+		this._applyChapterGapFill(itemId, chapters, { alwaysEmit: true });
+	},
+
+	/**
+	 * The single seam every chapter ingest path (inline item chapters,
+	 * sidecar VTT, a runtime `chapters` write) and every consumer
+	 * (`chapters()`, `chapter()`, `nextChapter()`, `seekToChapter()`, the
+	 * `chapters` event, desktop-ui progress markers) funnels through. Runs
+	 * `fillChapterGaps` against the player's live `duration()`, writes the
+	 * result back onto the matching queue entry, and emits `chapters`.
+	 *
+	 * `opts.alwaysEmit: true` — emit whenever a non-empty list resolves,
+	 * matching the "chapters just became available" contract used by
+	 * `_resolveAndEmitChapters` on cursor change and sidecar fetch.
+	 *
+	 * `opts.alwaysEmit: false` — only write back + emit when gap-filling
+	 * actually changed the list. Used by the `duration`-change re-application
+	 * (`lifecycle.ts`) — chapters may already have been emitted once with the
+	 * pre-duration raw list, so a duration tick that changes nothing must not
+	 * spam a duplicate event.
+	 */
+	_applyChapterGapFill(this: Internals, itemId: string | number, chapters: ReadonlyArray<Chapter>, opts: { alwaysEmit: boolean }): void {
+		const result = fillChapterGaps(chapters, this.duration(), () => this.t('core.chapters.untitled'));
+
+		if (result.changed) {
+			const latestItem = this._queueList.get().find(queued => queued.id === itemId) as ItemWithTracks | undefined;
+			if (latestItem) {
+				const merged: BasePlaylistItem & ItemWithTracks = {
+					...latestItem,
+					chapters: [...result.chapters],
+				};
+				this._queueList.replaceItem(merged);
+			}
+		}
+
+		if (opts.alwaysEmit || result.changed) {
+			this.emit('chapters', { chapters: result.chapters });
+		}
 	},
 
 	/**

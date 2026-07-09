@@ -1187,6 +1187,115 @@ describe('_resolveAndEmitChapters()', () => {
 		}
 	});
 
+	// ── Malformed-chapter safety net — seam-level integration ────────────────
+
+	it('backfills a single partial chapter to the full duration once the player duration is known (the boss\'s case)', async () => {
+		const player = setupPlayer();
+		player.emit('duration', { duration: 30 });
+		player.queue([{ id: 'item-boss-case', title: 'Movie', chapters: [{ index: 0, start: 0, end: 10, title: 'Intro' }] }] as never);
+
+		const chapterEvents: Array<{ chapters: Chapter[] }> = [];
+		player.on('chapters' as never, (data: { chapters: Chapter[] }) => chapterEvents.push(data));
+
+		await (player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> })
+			._resolveAndEmitChapters('item-boss-case');
+
+		expect(chapterEvents).toHaveLength(1);
+		expect(chapterEvents[0]!.chapters).toHaveLength(2);
+		expect(chapterEvents[0]!.chapters[1]).toMatchObject({ start: 10, end: 30, synthetic: true });
+		expect(player.chapters()).toHaveLength(2);
+	});
+
+	it('an empty inline chapters list stays empty — the net catches malformed lists, not absent ones', async () => {
+		const player = setupPlayer();
+		player.emit('duration', { duration: 30 });
+		player.queue([{ id: 'item-empty-inline', title: 'Movie', chapters: [] }] as never);
+
+		const chapterEvents: unknown[] = [];
+		player.on('chapters' as never, (data: unknown) => chapterEvents.push(data));
+
+		await (player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> })
+			._resolveAndEmitChapters('item-empty-inline');
+
+		expect(chapterEvents).toHaveLength(0);
+	});
+
+	it('a fully-covering chapter list passes through untouched — same array reference stored and emitted', async () => {
+		const player = setupPlayer();
+		player.emit('duration', { duration: 20 });
+		const chapters = [{ index: 0, start: 0, end: 20, title: 'Whole thing' }];
+		player.queue([{ id: 'item-full-coverage', title: 'Movie', chapters }] as never);
+
+		const chapterEvents: Array<{ chapters: unknown[] }> = [];
+		player.on('chapters' as never, (data: { chapters: unknown[] }) => chapterEvents.push(data));
+
+		await (player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> })
+			._resolveAndEmitChapters('item-full-coverage');
+
+		expect(chapterEvents).toHaveLength(1);
+		expect(chapterEvents[0]!.chapters).toBe(chapters);
+		expect(player.chapters()).toBe(chapters);
+	});
+
+	it('resolves the synthetic filler title through the player i18n system, not a hardcoded string', async () => {
+		const player = setupPlayer();
+		player.translation('en', 'core.chapters.untitled', 'Custom Filler Label');
+		player.emit('duration', { duration: 30 });
+		player.queue([{ id: 'item-i18n-override', title: 'Movie', chapters: [{ index: 0, start: 0, end: 10, title: 'Intro' }] }] as never);
+
+		await (player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> })
+			._resolveAndEmitChapters('item-i18n-override');
+
+		expect(player.chapters()[1]?.title).toBe('Custom Filler Label');
+	});
+
+	it('defaults the synthetic filler title to the core.chapters.untitled translation', async () => {
+		const player = setupPlayer();
+		player.emit('duration', { duration: 30 });
+		player.queue([{ id: 'item-i18n-default', title: 'Movie', chapters: [{ index: 0, start: 0, end: 10, title: 'Intro' }] }] as never);
+
+		await (player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> })
+			._resolveAndEmitChapters('item-i18n-default');
+
+		expect(player.chapters()[1]?.title).toBe(player.t('core.chapters.untitled'));
+	});
+
+	it('gap-fills chapters resolved from a sidecar VTT fetch when duration is already known', async () => {
+		const vttBody = 'WEBVTT\n\n00:00:10.000 --> 00:00:20.000\nMiddle\n';
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			headers: new Headers({ 'content-type': 'text/vtt' }),
+			text: () => Promise.resolve(vttBody),
+		}));
+
+		const player = setupPlayer();
+		player.emit('duration', { duration: 30 });
+		player.queue([{
+			id: 'item-sidecar-gap',
+			title: 'Movie',
+			tracks: [{ kind: 'chapters', file: 'https://cdn.example.com/chapters.vtt' }],
+		}] as never);
+
+		const internals = player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> };
+
+		try {
+			await internals._resolveAndEmitChapters('item-sidecar-gap');
+
+			const chapters = player.chapters();
+			expect(chapters).toHaveLength(3);
+			expect(chapters[0]).toMatchObject({ start: 0, end: 10 });
+			expect(chapters[0]!.synthetic).toBe(true);
+			expect(chapters[1]).toMatchObject({ start: 10, end: 20, title: 'Middle' });
+			expect(chapters[1]!.synthetic).toBeFalsy();
+			expect(chapters[2]).toMatchObject({ start: 20, end: 30 });
+			expect(chapters[2]!.synthetic).toBe(true);
+		}
+		finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it('does not clobber a concurrent addSubtitleTrack() write — merges onto the current item instead of the pre-fetch snapshot', async () => {
 		let resolveFetch: (value: unknown) => void = () => {};
 		const pending = new Promise((resolve) => { resolveFetch = resolve; });
@@ -1231,5 +1340,93 @@ describe('_resolveAndEmitChapters()', () => {
 		finally {
 			vi.unstubAllGlobals();
 		}
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Malformed-chapter safety net — duration-change re-application
+// (`_wireChapterGapFillOnDuration`, wired in lifecycle.ts's setup())
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('chapter gap-fill — duration-change re-application', () => {
+	beforeEach(() => MockPlayer._resetRegistry());
+	afterEach(() => {
+		MockPlayer._resetRegistry();
+		document.body.innerHTML = '';
+	});
+
+	it('re-normalizes the active item once duration arrives AFTER chapters already resolved raw', async () => {
+		const player = setupPlayer();
+		player.queue([{ id: 'item-late-duration', title: 'Movie', chapters: [{ index: 0, start: 0, end: 10, title: 'Intro' }] }] as never);
+
+		const internals = player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> };
+		await internals._resolveAndEmitChapters('item-late-duration');
+
+		// Duration unknown at resolve time — the raw single chapter passes through.
+		expect(player.chapters()).toHaveLength(1);
+
+		const chapterEvents: Array<{ chapters: Chapter[] }> = [];
+		player.on('chapters' as never, (data: { chapters: Chapter[] }) => chapterEvents.push(data));
+
+		player.emit('duration', { duration: 30 });
+
+		expect(chapterEvents).toHaveLength(1);
+		expect(player.chapters()).toHaveLength(2);
+		expect(player.chapters()[1]).toMatchObject({ start: 10, end: 30, synthetic: true });
+	});
+
+	it('does NOT re-emit when a duration tick changes nothing (already fully covering)', async () => {
+		const player = setupPlayer();
+		player.queue([{ id: 'item-already-full', title: 'Movie', chapters: [{ index: 0, start: 0, end: 30, title: 'Whole' }] }] as never);
+
+		const internals = player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> };
+		player.emit('duration', { duration: 30 });
+		await internals._resolveAndEmitChapters('item-already-full');
+
+		const chapterEvents: unknown[] = [];
+		player.on('chapters' as never, (data: unknown) => chapterEvents.push(data));
+
+		// A second duration tick landing on the same value (e.g. a corrected
+		// but identical estimate) must not spam a duplicate 'chapters' event.
+		player.emit('duration', { duration: 30 });
+
+		expect(chapterEvents).toHaveLength(0);
+	});
+
+	it('re-normalizing twice with a growing duration extends the trailing filler instead of stacking a second one', async () => {
+		const player = setupPlayer();
+		player.queue([{ id: 'item-growing-duration', title: 'Movie', chapters: [{ index: 0, start: 0, end: 10, title: 'Intro' }] }] as never);
+
+		const internals = player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> };
+		await internals._resolveAndEmitChapters('item-growing-duration');
+
+		player.emit('duration', { duration: 30 });
+		expect(player.chapters()).toHaveLength(2);
+
+		player.emit('duration', { duration: 90 });
+		expect(player.chapters()).toHaveLength(2);
+		expect(player.chapters()[1]).toMatchObject({ start: 10, end: 90, synthetic: true });
+	});
+
+	it('no-ops when there is no active item', () => {
+		const player = setupPlayer();
+
+		const chapterEvents: unknown[] = [];
+		player.on('chapters' as never, (data: unknown) => chapterEvents.push(data));
+
+		expect(() => player.emit('duration', { duration: 30 })).not.toThrow();
+		expect(chapterEvents).toHaveLength(0);
+	});
+
+	it('no-ops when the active item has no chapters field', () => {
+		const player = setupPlayer();
+		player.queue([{ id: 'item-no-chapters', title: 'Movie' }] as never);
+
+		const chapterEvents: unknown[] = [];
+		player.on('chapters' as never, (data: unknown) => chapterEvents.push(data));
+
+		player.emit('duration', { duration: 30 });
+
+		expect(chapterEvents).toHaveLength(0);
 	});
 });

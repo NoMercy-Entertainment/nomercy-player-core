@@ -279,6 +279,11 @@ export interface MixinSurface {
 	_disposeSidecarSubtitle(): void;
 	resolveItemTrackUrls<T extends BasePlaylistItem>(item: T): Promise<T>;
 	_resolveAndEmitChapters(itemId: string | number | undefined): Promise<void>;
+	_applyChapterGapFill(itemId: string | number, chapters: ReadonlyArray<Chapter>, opts: { alwaysEmit: boolean }): void;
+
+	// i18nMethods (see mixins/i18n.ts) — called cross-mixin by the chapter
+	// gap-fill seam to resolve the synthetic filler title.
+	t(key: string, vars?: Record<string, string>): string;
 
 	/**
 	 * Package-supplied playlist-item normalizer. Player classes override this

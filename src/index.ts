@@ -213,7 +213,10 @@ export { appendAuthTokenParam } from './core/append-auth-token-param';
 export { authFetch, isAuthError, isNetworkError } from './core/auth-fetch';
 
 export type { AuthFetchOptions } from './core/auth-fetch';
+// Malformed-chapter safety net — gap-fills a Chapter[] against a known duration
+export { CHAPTER_GAP_EPSILON_SECONDS, fillChapterGaps } from './core/chapters/fill-gaps';
 
+export type { ChapterGapFillResult } from './core/chapters/fill-gaps';
 // Mixin + factory
 export { composeMixins } from './core/compose';
 export { mergeConfig } from './core/config-merge';

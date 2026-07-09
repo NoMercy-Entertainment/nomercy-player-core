@@ -67,6 +67,9 @@ export const nlTranslations: Record<string, string> = {
 	// Kit-plugin levenscyclus (consumentgericht)
 	'plugin.tab-leader.lost': 'Afspelen gepauzeerd — een ander tabblad speelt nu af.',
 	'plugin.media-session.unsupported': 'OS-mediabediening is niet beschikbaar in deze browser.',
+
+	// Hoofdstukken
+	'core.chapters.untitled': 'Hoofdstuk',
 };
 
 export default nlTranslations;
