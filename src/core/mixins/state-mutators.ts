@@ -80,7 +80,8 @@ function _shouldGuardMutation(self: Internals, method: string): boolean {
 export const stateMethods = {
 	/**
 	 * Return the current play state. Read-only snapshot — subscribe to `play` /
-	 * `pause` / `stop` events to track changes reactively.
+	 * `pause` / `stop` (and `phase` / `mediaReady` for `LOADING`, `fatal` for
+	 * `ERROR`) to track changes reactively.
 	 */
 	playState(this: Internals): PlayState {
 		return this._playState as PlayState;

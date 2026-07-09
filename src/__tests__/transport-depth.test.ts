@@ -30,6 +30,7 @@ import type {
 } from '../index';
 import type { BaseEventMap, PluginCtorWithId } from '../types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { makePlayerErrorEvent, stateError } from '../errors';
 import {
 	composeMixins,
 	EventEmitter,
@@ -316,5 +317,56 @@ describe('transport-depth (slice 02)', () => {
 
 		expect(repeatPayload).toBeDefined();
 		expect(repeatPayload?.state).toBe(RepeatState.ALL);
+	});
+
+	// ── Test 9: 'fatal' flips playState to ERROR; non-fatal tiers never touch it ──
+
+	it('emitting "fatal" sets playState to "error", and fatal listeners already observe the settled state', async () => {
+		const player = setupPlayer();
+
+		await player.play();
+		expect(player.playState()).toBe('playing');
+
+		let stateInsideFatalListener: string | undefined;
+		player.on('fatal' as any, () => {
+			stateInsideFatalListener = player.playState();
+		});
+
+		player.emit('fatal' as any, makePlayerErrorEvent(
+			stateError('core:test/unrecoverable', 'decoder gave up'),
+			'fatal',
+			{ kind: 'core' },
+		));
+
+		expect(player.playState()).toBe('error');
+		expect(stateInsideFatalListener).toBe('error');
+	});
+
+	it('non-fatal "error" / "warning" / "info" events leave playState untouched', async () => {
+		const player = setupPlayer();
+
+		await player.play();
+		expect(player.playState()).toBe('playing');
+
+		player.emit('error' as any, makePlayerErrorEvent(
+			stateError('core:test/recoverable', 'sidecar failed'),
+			'error',
+			{ kind: 'core' },
+		));
+		expect(player.playState()).toBe('playing');
+
+		player.emit('warning' as any, makePlayerErrorEvent(
+			stateError('core:test/warning', 'level dropped'),
+			'warning',
+			{ kind: 'core' },
+		));
+		expect(player.playState()).toBe('playing');
+
+		player.emit('info' as any, makePlayerErrorEvent(
+			stateError('core:test/info', 'observability only'),
+			'info',
+			{ kind: 'core' },
+		));
+		expect(player.playState()).toBe('playing');
 	});
 });

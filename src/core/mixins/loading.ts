@@ -18,6 +18,7 @@ import {
 } from '../../errors';
 
 import { authFetch } from '../auth-fetch';
+import { PlayState } from '../state';
 import { hasTracksField } from './sidecar-util';
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -60,6 +61,14 @@ export const loadingMethods = {
 	 * phase on failure). The transition is skipped when `load()` is called
 	 * before the setup pipeline has completed, to avoid a `loading→paused`
 	 * flash during initial auto-load.
+	 *
+	 * Play state: `playState()` reports `LOADING` from the moment the load is
+	 * committed (after `beforeLoad` passes and the URL resolves) until the
+	 * backend is mounted — on EVERY load, including the initial auto-load that
+	 * skips the phase flash, and including re-loads out of `ERROR`. On success
+	 * an undisturbed `LOADING` settles to `PAUSED` (media ready, position
+	 * held); a `play()` / `pause()` / `stop()` that landed mid-load owns the
+	 * state instead. On failure the state this load displaced is restored.
 	 *
 	 * `opts.startAt` — begin playback at this timestamp (seconds). Forwarded
 	 * to the backend as a load hint so engines that support it (hls.js
@@ -131,6 +140,16 @@ export const loadingMethods = {
 				this._queueList.replaceItem(merged);
 			}
 		}
+
+		// The play state tracks the fetch/initialise work itself, not the phase
+		// presentation: LOADING lands on every committed load — including the
+		// ones that skip the phase flash below — so `playState()` always
+		// reports an in-flight load. Assigned before the phase transition so
+		// `phase` listeners (and the container-class rule) observe the settled
+		// state. The displaced state is captured so a failed load can put it
+		// back, mirroring the `priorPhase` restore in the catch block.
+		const priorPlayState = this._playState;
+		this._playState = PlayState.LOADING;
 
 		// Skip the loading phase flash when the player has never shown content
 		// (idle/setup). setup() ends with _transitionPhase('ready'), giving a
@@ -212,6 +231,15 @@ export const loadingMethods = {
 
 			if (!isLatest())
 				return;
+			// Media is mounted; when nothing started playback during the load
+			// the position is held — PAUSED per the PlayState contract. A
+			// transport call that raced the load (play/pause/stop) or a fatal
+			// already owns the state, so only an undisturbed LOADING settles.
+			// Set before the phase transition so `phase: ready` listeners and
+			// the container-class rule observe the settled state.
+			if (this._playState === PlayState.LOADING) {
+				this._playState = PlayState.PAUSED;
+			}
 			if (this._phase === 'loading') {
 				this._transitionPhase('ready');
 			}
@@ -220,6 +248,12 @@ export const loadingMethods = {
 		catch (err) {
 			if (this._phase === 'loading' && (RESUMABLE_PHASES_FOR_ERROR as ReadonlyArray<string>).includes(priorPhase)) {
 				this._transitionPhase(priorPhase);
+			}
+			// Put back the play state this load displaced — but only while the
+			// failed load still owns it: a newer load() (epoch moved on), a
+			// raced transport call, or a fatal now owns the field.
+			if (isLatest() && this._playState === PlayState.LOADING) {
+				this._playState = priorPlayState;
 			}
 			throw err;
 		}

@@ -10,6 +10,7 @@ import type { PlayerPhase } from '../../types';
 import type { Internals } from '../state';
 
 import { EventEmitter } from '../../adapters/event-bus/default';
+import { PlayState } from '../state';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Container class rules — data-driven table that maps player event names to
@@ -190,24 +191,40 @@ function _applyContainerClassRule(container: HTMLElement | undefined, rule: Cont
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Mixin: containerClassEmit — wraps `emit` to keep `.nomercyplayer` CSS
-// state classes in sync with every player event without any additional
-// wiring in caller code. The override is transparent: all events still
-// propagate to registered listeners through EventEmitter.
+// Mixin: containerClassEmit — wraps `emit` to keep event-driven player state
+// in sync with every dispatch without any additional wiring in caller code:
+// `.nomercyplayer` CSS state classes, plus the `fatal` → `PlayState.ERROR`
+// flip (this is the one chokepoint every `fatal` dispatch passes through).
+// The override is transparent: all events still propagate to registered
+// listeners through EventEmitter.
 // ──────────────────────────────────────────────────────────────────────────
 
 export const containerClassEmitMethods = {
 	/**
-	 * Override of `EventEmitter.emit` that applies container class mutations
-	 * before forwarding to the listener chain. Looks up `event` in
-	 * `CONTAINER_CLASS_RULES`; when a rule matches, calls
-	 * `_applyContainerClassRule` on `this.container`. All events — including
-	 * those with no rule — then propagate normally.
+	 * Override of `EventEmitter.emit` that applies event-driven state sync
+	 * before forwarding to the listener chain.
+	 *
+	 * `fatal` — the kit's unrecoverable-failure channel — flips the play
+	 * state to `ERROR` first, so `fatal` listeners already observe the
+	 * settled state (exactly like transport sets `_playState` before
+	 * emitting `play` / `pause` / `stop`). Every `fatal` dispatch funnels
+	 * through this emit regardless of origin (plugin `throw`, consumer
+	 * emit), and running before the listener chain keeps the flip immune to
+	 * `stopImmediatePropagation()`. Non-fatal `error` / `warning` / `info`
+	 * events never touch the play state; a subsequent successful `load()`
+	 * clears `ERROR` (see `loadingMethods.load`).
+	 *
+	 * Container classes: looks up `event` in `CONTAINER_CLASS_RULES`; when a
+	 * rule matches, calls `_applyContainerClassRule` on `this.container`.
+	 * All events — including those with no rule — then propagate normally.
 	 *
 	 * The parameter types mirror the base `EventEmitter` implementation
 	 * signature so this override compiles without a cast.
 	 */
 	emit(this: Internals, event: any, data?: any): void {
+		if (String(event) === 'fatal') {
+			this._playState = PlayState.ERROR;
+		}
 		const rule = CONTAINER_CLASS_RULES.get(String(event));
 		if (rule) {
 			_applyContainerClassRule(this.container, rule, data, this._playState);

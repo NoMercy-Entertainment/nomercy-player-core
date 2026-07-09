@@ -1,5 +1,11 @@
 # Changelog — @nomercy-entertainment/nomercy-player-core
 
+## [Unreleased]
+
+### Fixed
+
+- `PlayState.LOADING` and `PlayState.ERROR` are now reachable — the enum documented six states but `playState()` could only ever return four. `playState()` reports `LOADING` while a `load()` is in flight (every load, including the initial auto-load and re-loads out of `ERROR`), settling to `PAUSED` when media mounts without playback or staying with whatever a raced `play()` / `pause()` / `stop()` set; a failed load restores the state it displaced. A `fatal` dispatch — the kit's unrecoverable-failure channel — flips the state to `ERROR` before the listener chain runs; non-fatal `error` / `warning` / `info` events never touch it, and the next successful `load()` clears `ERROR` through `LOADING` again. Additive against the published type contract: consumers switching on `playState()` now actually see the two states the enum always promised.
+
 ## [2.0.0-rc.29] — 2026-07-05
 
 ### Fixed

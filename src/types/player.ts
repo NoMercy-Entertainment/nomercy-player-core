@@ -1001,7 +1001,8 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 
 	/**
 	 * Coarse play-state. Read-only snapshot — subscribe to `play` / `pause` /
-	 * `stop` events to track changes reactively.
+	 * `stop` (and `phase` / `mediaReady` for `LOADING`, `fatal` for `ERROR`)
+	 * to track changes reactively.
 	 */
 	playState(): PlayState;
 
