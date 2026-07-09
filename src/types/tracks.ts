@@ -94,6 +94,29 @@ export interface SubtitleTrack {
 }
 
 /**
+ * Input to `player.addSubtitleTrack()`. Describes a sidecar subtitle
+ * resource the consumer already resolved (e.g. downloaded from a search
+ * result) — deliberately transport-agnostic, no HTTP or provider specifics.
+ * The player assigns `id`; `kind` defaults to `'subtitles'`.
+ */
+export interface SidecarSubtitleInput {
+	/** URL of the subtitle resource. */
+	url: string;
+	/** BCP-47 language tag (e.g. `'en'`, `'nl-NL'`). */
+	language: string;
+	/** Human-readable label. Defaults to `language` when omitted. */
+	label?: string;
+	/**
+	 * Optional flavor string — same free-form field as `SubtitleTrack.type`
+	 * (e.g. `'sdh'`, `'forced'`, `'full'`). Not a container-format hint: every
+	 * track added through this method is fetched and parsed as WebVTT.
+	 */
+	type?: string;
+	/** Select this track immediately after adding it. Default `false`. */
+	default?: boolean;
+}
+
+/**
  * Selection object returned by `player.subtitle()`. Carries both the
  * zero-based index (usable in `subtitle(idx)`) and the full track
  * metadata so callers don't need a separate `player.subtitles()[idx]` lookup.

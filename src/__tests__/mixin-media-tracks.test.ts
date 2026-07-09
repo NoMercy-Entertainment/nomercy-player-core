@@ -19,7 +19,7 @@
  * normalizeLanguage. This file covers every OTHER uncovered method.
  */
 
-import type { AudioTrack, BaseEventMap, BasePlaylistItem, Chapter, PluginCtorWithId, QualityLevel, SubtitleStyle, SubtitleTrack } from '../types';
+import type { AudioTrack, BaseEventMap, BasePlaylistItem, Chapter, PluginCtorWithId, QualityLevel, SidecarSubtitleInput, SubtitleStyle, SubtitleTrack } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	AudioTrackState,
@@ -120,6 +120,8 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare subtitles: () => ReadonlyArray<SubtitleTrack>;
 	declare subtitle: { (): unknown; (idx: number | null): Promise<void> };
 	declare subtitleStyle: { (): SubtitleStyle; (patch: Partial<SubtitleStyle>): void };
+	declare addSubtitleTrack: (track: SidecarSubtitleInput, opts?: unknown) => SubtitleTrack;
+	declare removeSubtitleTrack: (id: string, opts?: unknown) => void;
 	declare audioTracks: () => ReadonlyArray<AudioTrack>;
 	declare audioTrack: { (): unknown; (idx: number): Promise<void> };
 	declare qualityLevels: (opts?: { includeUnsupported?: true }) => ReadonlyArray<QualityLevel>;
@@ -354,6 +356,154 @@ describe('subtitleStyle()', () => {
 		expect(style.fontSize).toBe(80);
 		expect(style.fontFamily).toBe('Arial');
 		expect(style.textColor).toBe('red');
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// addSubtitleTrack() / removeSubtitleTrack()
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('addSubtitleTrack() / removeSubtitleTrack()', () => {
+	beforeEach(() => MockPlayer._resetRegistry());
+	afterEach(() => { MockPlayer._resetRegistry(); document.body.innerHTML = ''; });
+
+	function setupWithItem(): MockPlayer {
+		const player = setupPlayer();
+		const fakeItem: BasePlaylistItem = { id: 'item-1', title: 'Test', url: '/test.mp4' };
+		player.queue([fakeItem]);
+		player.item(fakeItem);
+		return player;
+	}
+
+	async function flush(): Promise<void> {
+		await new Promise(resolve => setTimeout(resolve, 0));
+	}
+
+	it('throws core:media-tracks/no-active-item when no item is loaded', () => {
+		const player = setupPlayer();
+		expect(() => player.addSubtitleTrack({ url: '/en.vtt', language: 'en' }))
+			.toThrow(/core:media-tracks\/no-active-item/);
+	});
+
+	it('appends a sidecar track that the next subtitles() call includes', () => {
+		const player = setupWithItem();
+
+		const track = player.addSubtitleTrack({ url: '/en.vtt', language: 'en', label: 'English' });
+
+		expect(track.id).toMatch(/^subtitle-runtime-/);
+		expect(track.url).toBe('/en.vtt');
+		expect(track.language).toBe('en');
+		expect(track.label).toBe('English');
+		expect(track.default).toBe(false);
+
+		const list = player.subtitles();
+		expect(list).toHaveLength(1);
+		expect(list[0]!.id).toBe(track.id);
+	});
+
+	it('defaults label to language when omitted', () => {
+		const player = setupWithItem();
+		const track = player.addSubtitleTrack({ url: '/nl.vtt', language: 'nl' });
+		expect(track.label).toBe('nl');
+	});
+
+	it('emits subtitles with the full merged list on add', () => {
+		const player = setupWithItem();
+		const events: Array<{ tracks: ReadonlyArray<SubtitleTrack> }> = [];
+		player.on('subtitles' as never, (data: { tracks: ReadonlyArray<SubtitleTrack> }) => events.push(data));
+
+		player.addSubtitleTrack({ url: '/en.vtt', language: 'en' });
+
+		expect(events).toHaveLength(1);
+		expect(events[0]!.tracks).toHaveLength(1);
+	});
+
+	it('is idempotent — same url + language returns the existing track, no duplicate', () => {
+		const player = setupWithItem();
+
+		const first = player.addSubtitleTrack({ url: '/en.vtt', language: 'en', label: 'A' });
+		const second = player.addSubtitleTrack({ url: '/en.vtt', language: 'en', label: 'B (ignored)' });
+
+		expect(second.id).toBe(first.id);
+		expect(second.label).toBe('A');
+		expect(player.subtitles()).toHaveLength(1);
+	});
+
+	it('idempotency normalises language variants (ISO 639-2/B vs 639-1)', () => {
+		const player = setupWithItem();
+
+		const first = player.addSubtitleTrack({ url: '/de.vtt', language: 'ger' });
+		const second = player.addSubtitleTrack({ url: '/de.vtt', language: 'de' });
+
+		expect(second.id).toBe(first.id);
+		expect(player.subtitles()).toHaveLength(1);
+	});
+
+	it('a different url for the same language is a distinct track', () => {
+		const player = setupWithItem();
+
+		player.addSubtitleTrack({ url: '/en-full.vtt', language: 'en' });
+		player.addSubtitleTrack({ url: '/en-sdh.vtt', language: 'en' });
+
+		expect(player.subtitles()).toHaveLength(2);
+	});
+
+	it('default: true selects the new track through the subtitle(idx) path', async () => {
+		const player = setupWithItem();
+		const subtitleEvents: Array<{ track: number | null }> = [];
+		player.on('subtitle' as never, (data: { track: number | null }) => subtitleEvents.push(data));
+
+		const track = player.addSubtitleTrack({ url: '/en.vtt', language: 'en', default: true });
+		await flush();
+
+		const idx = player.subtitles().findIndex(candidate => candidate.id === track.id);
+		expect(subtitleEvents).toHaveLength(1);
+		expect(subtitleEvents[0]!.track).toBe(idx);
+		expect((player as unknown as { _currentSubtitleIdx: number | null })._currentSubtitleIdx).toBe(idx);
+	});
+
+	it('removeSubtitleTrack removes the track and emits subtitles with the refreshed list', () => {
+		const player = setupWithItem();
+		const track = player.addSubtitleTrack({ url: '/en.vtt', language: 'en' });
+
+		const events: Array<{ tracks: ReadonlyArray<SubtitleTrack> }> = [];
+		player.on('subtitles' as never, (data: { tracks: ReadonlyArray<SubtitleTrack> }) => events.push(data));
+
+		player.removeSubtitleTrack(track.id);
+
+		expect(player.subtitles()).toHaveLength(0);
+		expect(events).toHaveLength(1);
+		expect(events[0]!.tracks).toHaveLength(0);
+	});
+
+	it('removeSubtitleTrack is a no-op when the id is not found — no event fired', () => {
+		const player = setupWithItem();
+		player.addSubtitleTrack({ url: '/en.vtt', language: 'en' });
+
+		const events: unknown[] = [];
+		player.on('subtitles' as never, (data: unknown) => events.push(data));
+
+		player.removeSubtitleTrack('does-not-exist');
+
+		expect(player.subtitles()).toHaveLength(1);
+		expect(events).toHaveLength(0);
+	});
+
+	it('removing the active selection turns subtitles off', async () => {
+		const player = setupWithItem();
+		const track = player.addSubtitleTrack({ url: '/en.vtt', language: 'en', default: true });
+		await flush();
+		expect((player as unknown as { _currentSubtitleIdx: number | null })._currentSubtitleIdx).not.toBeNull();
+
+		player.removeSubtitleTrack(track.id);
+		await flush();
+
+		expect((player as unknown as { _currentSubtitleIdx: number | null })._currentSubtitleIdx).toBeNull();
+	});
+
+	it('removeSubtitleTrack no-ops silently when no item is active', () => {
+		const player = setupPlayer();
+		expect(() => player.removeSubtitleTrack('anything')).not.toThrow();
 	});
 });
 
@@ -1031,6 +1181,52 @@ describe('_resolveAndEmitChapters()', () => {
 			if (chapterEvents.length > 0) {
 				expect(chapterEvents[0]!.chapters.length).toBeGreaterThan(0);
 			}
+		}
+		finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('does not clobber a concurrent addSubtitleTrack() write — merges onto the current item instead of the pre-fetch snapshot', async () => {
+		let resolveFetch: (value: unknown) => void = () => {};
+		const pending = new Promise((resolve) => { resolveFetch = resolve; });
+		vi.stubGlobal('fetch', vi.fn().mockReturnValue(pending));
+
+		const player = setupPlayer();
+		const item = {
+			id: 'item-race',
+			title: 'Movie',
+			tracks: [{ kind: 'chapters', file: 'https://cdn.example.com/chapters.vtt' }],
+		};
+		player.queue([item] as never);
+		player.item(item as never);
+
+		const internals = player as unknown as { _resolveAndEmitChapters: (id: string) => Promise<void> };
+
+		try {
+			// Kick off chapter resolution — its fetch() is parked on `pending`.
+			const chaptersPromise = internals._resolveAndEmitChapters('item-race');
+
+			// While that fetch is still in flight, inject a sidecar subtitle.
+			// Before the fix, the chapter resolver's write-back used the
+			// pre-fetch item snapshot and would silently drop this.
+			const track = player.addSubtitleTrack({ url: '/en.vtt', language: 'en' });
+			expect(player.subtitles()).toHaveLength(1);
+
+			// Now let the chapter fetch resolve and settle the write-back.
+			const vttBody = 'WEBVTT\n\n00:00:00.000 --> 00:01:00.000\nIntro\n';
+			resolveFetch({
+				ok: true,
+				status: 200,
+				headers: new Headers({ 'content-type': 'text/vtt' }),
+				text: () => Promise.resolve(vttBody),
+			});
+			await chaptersPromise;
+
+			// The subtitle added mid-flight must survive the chapter write-back.
+			const list = player.subtitles();
+			expect(list).toHaveLength(1);
+			expect(list[0]!.id).toBe(track.id);
 		}
 		finally {
 			vi.unstubAllGlobals();

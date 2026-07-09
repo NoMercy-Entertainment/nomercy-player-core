@@ -60,6 +60,7 @@ export type {
 	CurrentQualitySelection,
 	CurrentSubtitleSelection,
 	QualityLevel,
+	SidecarSubtitleInput,
 	SubtitleStyle,
 	SubtitleTrack,
 } from './tracks';

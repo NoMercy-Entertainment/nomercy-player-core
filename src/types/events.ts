@@ -21,7 +21,7 @@ import type {
 } from './player';
 import type { BasePlaylistItem } from './playlist';
 import type { CastState, RepeatState, ShuffleState } from './state';
-import type { SubtitleStyle } from './tracks';
+import type { SubtitleStyle, SubtitleTrack } from './tracks';
 
 /**
  * Cancellable, mutable, async-aware event payload for every `before*` event.
@@ -369,6 +369,14 @@ export interface BaseEventMap<I extends BasePlaylistItem = BasePlaylistItem> {
 	 */
 	'beforeSubtitle': BeforeEvent<{ track: number | null }>;
 	'subtitlePrevented': { reason: PreventedReason; cause?: unknown };
+
+	/**
+	 * Fires when `addSubtitleTrack()` or `removeSubtitleTrack()` changes the
+	 * sidecar subtitle set on the active item. Carries the full merged list
+	 * (backend + sidecar, same shape as `subtitles()`) so a subscribed menu
+	 * redraws without a separate `subtitles()` call.
+	 */
+	'subtitles': { tracks: ReadonlyArray<SubtitleTrack> };
 
 	// ── Audio track selection ─────────────────────────────────────────────────
 	// Emitted by `audioTrack(idx)`. `id` follows the kit's

@@ -16,22 +16,30 @@ import type {
 	CurrentQualitySelection,
 	CurrentSubtitleSelection,
 	QualityLevel,
+	SidecarSubtitleInput,
 	SubtitleCue as SubtitleCuePayload,
 	SubtitleStyle,
 	SubtitleTrack,
 } from '../../types';
 import type { Cue } from '../cues/cue';
 import type { Internals } from '../state';
-import type { ItemWithDefinedTracks, ItemWithTracks, SidecarTrack } from './sidecar-util';
+import type {
+	ItemWithDefinedTracks,
+	ItemWithSidecarSubtitles,
+	ItemWithTracks,
+	SidecarTrack,
+} from './sidecar-util';
 import { parseVtt, parseVttSubtitles } from '../../adapters/cue-parser/vtt';
+import { defaultIdGenerator } from '../../adapters/id-generator/default';
+import { stateError } from '../../errors';
 import { AudioTrackState, QualityState } from '../../types';
+
 import { authFetch } from '../auth-fetch';
 
 import { CueTracker } from '../cues/tracker';
-
 import { buildResolvedUrl } from '../resolved-url';
 
-import { hasTracksField, normalizeLanguage } from './sidecar-util';
+import { hasSubtitlesField, hasTracksField, normalizeLanguage } from './sidecar-util';
 
 /**
  * Runtime state for one active sidecar VTT subtitle track.
@@ -320,6 +328,28 @@ function _dedupedSidecarSubtitles(self: Internals): SubtitleTrack[] {
 	});
 }
 
+/**
+ * The raw typed `subtitles` field on an item, unreshaped — the append target
+ * for `addSubtitleTrack()` and the removal target for `removeSubtitleTrack()`.
+ * Returns `[]` when the item carries no such field yet.
+ */
+function _itemSidecarSubtitles(item: BasePlaylistItem): SubtitleTrack[] {
+	return hasSubtitlesField(item) ? item.subtitles : [];
+}
+
+/**
+ * Resolve `id` against the current merged `subtitles()` list and select it
+ * through the existing `subtitle(idx)` path — reused by `addSubtitleTrack`'s
+ * `default: true` branch so runtime-added tracks go through the same
+ * cancellable `beforeSubtitle` cycle as any other selection. No-op when `id`
+ * no longer resolves to an index (e.g. a concurrent removal).
+ */
+function _selectSidecarSubtitleById(self: Internals, id: string): void {
+	const idx = mediaTracksMethods.subtitles.call(self).findIndex(track => track.id === id);
+	if (idx >= 0)
+		void self.subtitle(idx);
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: media tracks — subtitles / audio tracks / quality levels / chapters.
 // Reads delegate to the active backend (when present); no-ops when the
@@ -427,7 +457,21 @@ export const mediaTracksMethods = {
 		if (!Array.isArray(chapters) || chapters.length === 0)
 			return;
 
-		this._queueList.replaceItem(resolved);
+		// Re-read the item fresh rather than writing back the snapshot this
+		// function started with — another writer (e.g. `addSubtitleTrack`)
+		// may have mutated the queue entry while this fetch was in flight.
+		// Merging only the fields this resolver owns (`tracks`, `chapters`)
+		// onto the CURRENT entry avoids clobbering that concurrent change.
+		const latestItem = this._queueList.get().find(queued => queued.id === itemId) as ItemWithTracks | undefined;
+		if (!latestItem)
+			return;
+
+		const merged: BasePlaylistItem & ItemWithTracks = {
+			...latestItem,
+			tracks: resolved.tracks,
+			chapters,
+		};
+		this._queueList.replaceItem(merged);
 
 		this.emit('chapters', { chapters });
 	},
@@ -591,6 +635,97 @@ export const mediaTracksMethods = {
 		};
 		this.emit('subtitleStyle', { ...this._subtitleStyle });
 		return undefined;
+	},
+
+	/**
+	 * Inject a sidecar subtitle track into the CURRENTLY-PLAYING item at
+	 * runtime — no reload. The very next `subtitles()` call (and the
+	 * `'subtitles'` event fired here) include it.
+	 *
+	 * Idempotent: a track already present at the same `url` + normalised
+	 * `language` is returned unchanged instead of duplicated. Pass
+	 * `default: true` to select it immediately through the same cancellable
+	 * `beforeSubtitle` path as `subtitle(idx)`.
+	 *
+	 * Video-only surface — sidecar subtitles have no meaning on an audio
+	 * backend, so `NMMusicPlayer` does not declare this method even though
+	 * the kit composes it onto both prototypes.
+	 *
+	 * @throws {StateError} `core:media-tracks/no-active-item` when no item is loaded.
+	 */
+	addSubtitleTrack(this: Internals, input: SidecarSubtitleInput, _opts?: ActionOptions): SubtitleTrack {
+		const currentItem = this.item?.();
+		if (!currentItem) {
+			throw stateError('core:media-tracks/no-active-item', 'addSubtitleTrack() called with no active item.');
+		}
+
+		const wantedLanguage = normalizeLanguage(input.language);
+		const existing = mediaTracksMethods.subtitles.call(this).find(track =>
+			track.url === input.url && normalizeLanguage(track.language) === wantedLanguage);
+
+		if (existing) {
+			if (input.default)
+				_selectSidecarSubtitleById(this, existing.id);
+			return existing;
+		}
+
+		const track: SubtitleTrack = {
+			id: `subtitle-runtime-${defaultIdGenerator.next()}`,
+			language: input.language,
+			label: input.label ?? input.language,
+			kind: 'subtitles',
+			type: input.type,
+			url: input.url,
+			default: input.default ?? false,
+		};
+
+		const updatedItem: BasePlaylistItem & ItemWithSidecarSubtitles = {
+			...currentItem,
+			subtitles: [..._itemSidecarSubtitles(currentItem), track],
+		};
+		this._queueList.replaceItem(updatedItem);
+
+		this.emit('subtitles', { tracks: mediaTracksMethods.subtitles.call(this) });
+
+		if (track.default)
+			_selectSidecarSubtitleById(this, track.id);
+
+		return track;
+	},
+
+	/**
+	 * Remove a sidecar subtitle track previously added via
+	 * `addSubtitleTrack()` (or declared on the item's typed `subtitles`
+	 * field) by id. No-op when `id` is not found there — backend-managed
+	 * (HLS-manifest) tracks are out of scope, they have no sidecar entry to
+	 * remove. Emits `'subtitles'` with the refreshed list on removal. If the
+	 * removed track was the active selection, subtitles are turned off via
+	 * the same `subtitle(null)` path `subtitle()` already exposes.
+	 */
+	removeSubtitleTrack(this: Internals, id: string, _opts?: ActionOptions): void {
+		const currentItem = this.item?.();
+		if (!currentItem)
+			return;
+
+		const existingField = _itemSidecarSubtitles(currentItem);
+		const remaining = existingField.filter(track => track.id !== id);
+		if (remaining.length === existingField.length)
+			return;
+
+		const tracksBefore = mediaTracksMethods.subtitles.call(this);
+		const activeIdx = this._currentSubtitleIdx;
+		const wasActive = activeIdx !== null && tracksBefore[activeIdx]?.id === id;
+
+		const updatedItem: BasePlaylistItem & ItemWithSidecarSubtitles = {
+			...currentItem,
+			subtitles: remaining,
+		};
+		this._queueList.replaceItem(updatedItem);
+
+		this.emit('subtitles', { tracks: mediaTracksMethods.subtitles.call(this) });
+
+		if (wasActive)
+			void this.subtitle(null);
 	},
 
 	/**

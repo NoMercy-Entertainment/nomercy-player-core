@@ -376,6 +376,7 @@ export type {
 	QualityLevel,
 	RequireSpec,
 	ResolvedUrl,
+	SidecarSubtitleInput,
 	SubtitleCue,
 	SubtitleCueChange,
 	SubtitleStyle,

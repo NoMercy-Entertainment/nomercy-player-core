@@ -6,7 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type { BasePlaylistItem, Chapter } from '../../types';
+import type { BasePlaylistItem, Chapter, SubtitleTrack } from '../../types';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Language code normalization.
@@ -309,4 +309,23 @@ export function hasTracksField(item: BasePlaylistItem): item is ItemWithDefinedT
 	return 'tracks' in item
 		&& Array.isArray((item as ItemWithTracks).tracks)
 		&& (item as ItemWithTracks).tracks!.length > 0;
+}
+
+/**
+ * The typed `subtitles: [{ url, label, language, ... }]` field an item may
+ * carry — the canonical home for consumer-supplied sidecar tracks, written
+ * by `addSubtitleTrack()` / `removeSubtitleTrack()` and read by `subtitles()`.
+ */
+export interface ItemWithSidecarSubtitles extends BasePlaylistItem {
+	subtitles?: SubtitleTrack[];
+}
+
+/**
+ * Narrows an item to one carrying a `subtitles` array field. Unlike
+ * `hasTracksField`, an empty array still narrows — `addSubtitleTrack()` needs
+ * to distinguish "field present but empty" from "field absent" the same way,
+ * since both start from an empty append target.
+ */
+export function hasSubtitlesField(item: BasePlaylistItem): item is ItemWithSidecarSubtitles & { subtitles: SubtitleTrack[] } {
+	return 'subtitles' in item && Array.isArray((item as ItemWithSidecarSubtitles).subtitles);
 }

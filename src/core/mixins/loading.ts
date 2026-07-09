@@ -8,6 +8,7 @@
 
 import type { BasePlaylistItem, LoadOptions } from '../../types';
 import type { Internals } from '../state';
+import type { ItemWithTracks } from './sidecar-util';
 import {
 	makePlayerErrorEvent,
 	mediaFormatError,
@@ -17,6 +18,7 @@ import {
 } from '../../errors';
 
 import { authFetch } from '../auth-fetch';
+import { hasTracksField } from './sidecar-util';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: loading — `load(item, opts)` / `loadQueue(url, parser?)`.
@@ -112,8 +114,22 @@ export const loadingMethods = {
 		const url = (await this.resolveUrl(rawUrl, 'media')).href;
 
 		const resolvedItem = await this.resolveItemTrackUrls(item2);
-		if (resolvedItem !== item2) {
-			this._queueList.replaceItem(resolvedItem);
+		if (resolvedItem !== item2 && hasTracksField(resolvedItem)) {
+			// Re-read the queue entry fresh rather than writing back this
+			// pre-fetch snapshot — another writer (e.g. `addSubtitleTrack`)
+			// may have mutated it while the URL resolution was in flight.
+			// Merge only the fields this resolver owns (`tracks`, `chapters`)
+			// onto the CURRENT entry instead of clobbering that change.
+			const latestItem = this._queueList.get().find(queued => queued.id === item2.id);
+			if (latestItem) {
+				const merged: BasePlaylistItem & ItemWithTracks = {
+					...latestItem,
+					tracks: resolvedItem.tracks,
+				};
+				if (Array.isArray(resolvedItem.chapters))
+					merged.chapters = resolvedItem.chapters;
+				this._queueList.replaceItem(merged);
+			}
 		}
 
 		// Skip the loading phase flash when the player has never shown content
