@@ -179,6 +179,7 @@ export class LifecycleRegistry {
 
 		let cancelled = false;
 		let lastTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+		let currentId: number;
 
 		const tick = (now: number): void => {
 			if (this.disposed || cancelled)
@@ -192,18 +193,19 @@ export class LifecycleRegistry {
 				this.logHandlerError('frame', err);
 			}
 			if (!this.disposed && !cancelled) {
-				const nextId = requestAnimationFrame(tick);
-				this.rafs.add(nextId);
+				this.rafs.delete(currentId);
+				currentId = requestAnimationFrame(tick);
+				this.rafs.add(currentId);
 			}
 		};
 
-		const initialId = requestAnimationFrame(tick);
-		this.rafs.add(initialId);
+		currentId = requestAnimationFrame(tick);
+		this.rafs.add(currentId);
 
 		return (): void => {
 			cancelled = true;
-			cancelAnimationFrame(initialId);
-			this.rafs.delete(initialId);
+			cancelAnimationFrame(currentId);
+			this.rafs.delete(currentId);
 		};
 	}
 

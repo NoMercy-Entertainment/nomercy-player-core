@@ -385,6 +385,32 @@ describe('LifecycleRegistry', () => {
 			expect(consoleErrorSpy).toHaveBeenCalled();
 			registry.dispose();
 		});
+
+		it('does not leak fired RAF ids into the internal tracking set', () => {
+			let nextId = 0;
+			let currentCallback: FrameRequestCallback | undefined;
+			vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback): number => {
+				nextId++;
+				currentCallback = cb;
+				return nextId;
+			});
+			vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+			const cancel = registry.frame(() => {});
+			const rafs = (registry as unknown as { rafs: Set<number> }).rafs;
+			expect(rafs.size).toBe(1);
+
+			for (let i = 0; i < 5; i++) {
+				currentCallback?.(i * 16);
+			}
+
+			expect(rafs.size).toBe(1);
+
+			cancel();
+			expect(rafs.size).toBe(0);
+
+			vi.unstubAllGlobals();
+		});
 	});
 
 	// ─────────────────────────────────────────────────────────────────────
