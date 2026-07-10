@@ -142,6 +142,13 @@ describe('parseVtt() — raw VTT', () => {
 			const list = parseVtt('WEBVTT\n\n00:00.000 --> 00:05.000\nA\n\n00:05.000 --> 00:10.000\nB');
 			expect(list.cues).toHaveLength(2);
 		});
+
+		it('treats a whitespace-only line as a blank cue separator', () => {
+			const list = parseVtt('WEBVTT\n\n00:00.000 --> 00:01.000\nA\n \n00:01.000 --> 00:02.000\nB');
+			expect(list.cues).toHaveLength(2);
+			expect(list.cues[0]!.payload).toBe('A');
+			expect(list.cues[1]!.payload).toBe('B');
+		});
 	});
 
 	describe('line endings', () => {

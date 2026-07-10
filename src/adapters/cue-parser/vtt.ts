@@ -197,7 +197,8 @@ function parseRaw(text: string): RawCue[] {
 	// Strip UTF-8 BOM if present — W3C WebVTT 1.0 allows it and many editors save with BOM.
 	const stripped = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
 
-	const normalized = stripped.replace(/\r\n|\r/g, '\n');
+	const normalized = stripped.replace(/\r\n|\r/g, '\n')
+		.replace(/^[ \t]+$/gm, '');
 	const blocks = normalized.split(/\n{2,}/);
 
 	if (blocks.length === 0)
