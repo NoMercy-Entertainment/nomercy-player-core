@@ -15,8 +15,8 @@ import type {
 	StreamSourceState,
 } from './IStreamSource';
 
-const AUDIO_EXT_RE = /\.(?:mp3|flac|aac|m4a|wav|ogg|opus|weba)(?:\?|$)/iu;
-const VIDEO_EXT_RE = /\.(?:mp4|webm|mov|m4v|ogv)(?:\?|$)/iu;
+const AUDIO_EXT_RE = /\.(?:mp3|flac|aac|m4a|wav|ogg|opus|weba)(?:[?#]|$)/iu;
+const VIDEO_EXT_RE = /\.(?:mp4|webm|mov|m4v|ogv)(?:[?#]|$)/iu;
 
 class NativeStreamSource implements IStreamSource {
 	readonly kind = 'native' as const;

@@ -69,6 +69,16 @@ describe('nativeFactory', () => {
 		});
 	});
 
+	describe('canPlay() — #fragment after extension', () => {
+		it('accepts a video URL with a #fragment', () => {
+			expect(nativeFactory.canPlay('https://cdn.example.com/movie.mp4#t=30')).toBe(true);
+		});
+
+		it('accepts an audio URL with a #fragment', () => {
+			expect(nativeFactory.canPlay('https://cdn.example.com/track.mp3#t=30')).toBe(true);
+		});
+	});
+
 	describe('canPlay() — video extensions', () => {
 		it('accepts .mp4', () => {
 			expect(nativeFactory.canPlay('https://x/movie.mp4')).toBe(true);

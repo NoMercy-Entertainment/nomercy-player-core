@@ -29,7 +29,7 @@ import type {
 import type { StreamRegistry } from './registry';
 import { MediaFormatError, StreamError } from '../../errors';
 
-export const HLS_EXT_RE = /\.m3u8(?:\?|$)/iu;
+export const HLS_EXT_RE = /\.m3u8(?:[?#]|$)/iu;
 // RFC 8216 + IANA: canonical is `application/vnd.apple.mpegurl`, legacy aliases include `application/x-mpegurl` and `audio/mpegurl`.
 const HLS_MIME_RE = /^(?:application|audio)\/(?:vnd\.apple\.mpegurl|x-mpegurl|mpegurl)$/iu;
 

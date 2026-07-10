@@ -31,6 +31,10 @@ describe('hlsFactory', () => {
 			expect(hlsFactory.canPlay('https://x/stream.m3u8?token=abc')).toBe(true);
 		});
 
+		it('accepts .m3u8 with a #fragment (parity with native/audio-video extension matching)', () => {
+			expect(hlsFactory.canPlay('https://x/stream.m3u8#t=10')).toBe(true);
+		});
+
 		it('rejects .mp3', () => {
 			expect(hlsFactory.canPlay('https://x/track.mp3')).toBe(false);
 		});
