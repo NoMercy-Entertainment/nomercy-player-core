@@ -276,4 +276,17 @@ describe('volumeMethods — extended (VOL-E)', () => {
 		await player.unmute();
 		expect(backend.unmuteCalls).toBe(1);
 	});
+
+	it('VOL-E15: unmute() re-pushes backend volume after a volume(0)-while-muted call', async () => {
+		const player = makePlayer('vol-15');
+		const backend = wireBackend(player);
+		await player.volume(50);
+		await player.mute();
+		await player.volume(0);
+
+		await player.unmute();
+
+		expect(player.volume()).toBe(50);
+		expect(backend.volumeCalls.at(-1)).toBe(0.5);
+	});
 });

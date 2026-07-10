@@ -60,6 +60,7 @@ async function _dispatchMute(self: Internals, muted: boolean): Promise<void> {
 		self._internalVolume = self._volumeBeforeMute;
 		self.emit('mute', { muted: false });
 		self._resolveBackend()?.unmute?.();
+		self._resolveBackend()?.volume?.(self._internalVolume / 100);
 	}
 }
 
