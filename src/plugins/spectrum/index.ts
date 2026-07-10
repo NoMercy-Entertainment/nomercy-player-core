@@ -180,6 +180,8 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 
 	/** Stops the frame tick and releases the AnalyserNode reference. */
 	override dispose(): void {
+		const sharedAnalyser = this._analyser;
+
 		this.beatProviders = [];
 		this._currentFrame = null;
 		this._syntheticFrame = null;
@@ -192,6 +194,12 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		this._peakTreble = 0;
 
 		try {
+			// The shared analyser is owned by AudioGraphPlugin and stays alive
+			// after this plugin is removed. wireStereo() gave it a strong
+			// `connect()` ref to our splitter — remove just that edge, or the
+			// splitter (now unreferenced by us) stays connected forever.
+			if (this._splitter)
+				sharedAnalyser?.disconnect(this._splitter);
 			this._splitter?.disconnect();
 			this._analyserLeft?.disconnect();
 			this._analyserRight?.disconnect();
