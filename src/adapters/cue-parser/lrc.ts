@@ -144,7 +144,9 @@ function parseBodyForWords(body: string): LrcPayload {
 		plainText += trailing;
 	}
 
-	const source = words.length > 0 ? words.map(word => word.text).join(' ') : plainText;
+	const source = words.length > 0
+		? [plainText.trim(), ...words.map(word => word.text)].filter(Boolean).join(' ')
+		: plainText;
 	const text = source.trim();
 
 	return words.length > 0

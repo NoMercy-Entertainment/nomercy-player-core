@@ -154,6 +154,11 @@ describe('parseLrc()', () => {
 			expect(list.cues[0]!.payload.words).toBeUndefined();
 			expect(list.cues[0]!.payload.text).toBe('Just plain text');
 		});
+
+		it('keeps text preceding the first word tag', () => {
+			const list = parseLrc('[00:00.00]Oh <00:01.00>baby');
+			expect(list.cues[0]!.payload.text).toBe('Oh baby');
+		});
 	});
 
 	describe('line endings', () => {
