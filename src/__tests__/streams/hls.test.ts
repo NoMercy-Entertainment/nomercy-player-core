@@ -68,6 +68,10 @@ describe('hlsFactory', () => {
 		it('rejects video/mp4', () => {
 			expect(hlsFactory.canPlay('https://x/stream', 'video/mp4')).toBe(false);
 		});
+
+		it('accepts application/vnd.apple.mpegurl with a charset parameter', () => {
+			expect(hlsFactory.canPlay('https://media.example.com/manifest?token=abc', 'application/vnd.apple.mpegurl; charset=utf-8')).toBe(true);
+		});
 	});
 
 	describe('canPlay() — without extension or content-type', () => {

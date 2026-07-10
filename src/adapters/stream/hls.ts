@@ -409,7 +409,7 @@ export const hlsFactory: IStreamFactory = {
 	canPlay(url: string, contentType?: string): boolean {
 		if (HLS_EXT_RE.test(url))
 			return true;
-		if (contentType && HLS_MIME_RE.test(contentType))
+		if (contentType && HLS_MIME_RE.test(contentType.split(';')[0]!.trim()))
 			return true;
 		return false;
 	},
