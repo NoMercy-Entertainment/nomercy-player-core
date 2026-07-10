@@ -89,13 +89,7 @@ Full subpath table:
 |---------|----------------|
 | `@nomercy-entertainment/nomercy-player-core/adapters/storage` | `IStorage`, `LocalStorageBackend`, `MemoryStorageBackend`, `IndexedDBBackend` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/stream` | `IStreamSource`, `IStreamRegistry`, `StreamRegistry` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/platform` | `IPlatform`, `browserPlatform` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/platform/wake-lock` | `IWakeLock` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/platform/network` | `INetworkMonitor` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/platform/visibility` | `IVisibilityMonitor` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/platform/capabilities` | `ICapabilitiesProbe` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/platform/fullscreen` | `IFullscreenController` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/platform/pip` | `IPipController` |
+| `@nomercy-entertainment/nomercy-player-core/adapters/platform` | `IPlatform`, `browserPlatform`, `IWakeLock`, `INetworkMonitor`, `IVisibilityMonitor`, `ICapabilitiesProbe`, `IFullscreenController`, `IPipController` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/realtime` | `IRealtimeChannel`, `nativeWebSocketAdapter` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/translator` | `ITranslator`, `DefaultTranslator`, `createNetworkTranslationLoader`, `translationsFromGlob` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/language-matcher` | `ILanguageMatcher`, `bcp47FallbackChain` |
@@ -107,7 +101,7 @@ Full subpath table:
 | `@nomercy-entertainment/nomercy-player-core/adapters/event-bus` | `IEventBus`, `EventEmitter` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/media-list` | `IMediaList`, `MediaList` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/lifecycle-registry` | `ILifecycleRegistry`, `LifecycleRegistry` |
-| `@nomercy-entertainment/nomercy-player-core/adapters/fetch` | `IFetch`, `authFetch` |
+| `@nomercy-entertainment/nomercy-player-core/adapters/fetch` | `IFetch`, `defaultFetch` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/clock` | `IClock` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/id-generator` | `IIdGenerator` |
 | `@nomercy-entertainment/nomercy-player-core/adapters/element-factory` | `createElement`, `createButton`, `createSVG`, `addClasses`, `removeClasses`, `AddClasses`, `AppendTo`, `CreateElement` |
@@ -124,8 +118,8 @@ Full subpath table:
 | `@nomercy-entertainment/nomercy-player-core/plugins/spectrum` | `SpectrumPlugin`, `spectrumPlugin` |
 | `@nomercy-entertainment/nomercy-player-core/plugins/tab-leader` | `TabLeaderPlugin`, `tabLeaderPlugin` |
 | `@nomercy-entertainment/nomercy-player-core/plugins/visualization` | `VisualizationPlugin` |
-| `@nomercy-entertainment/nomercy-player-core/cues/parsers/vtt` | `parseVtt`, `parseVttSprite`, `parseVttSubtitles` |
-| `@nomercy-entertainment/nomercy-player-core/cues/parsers/lrc` | `parseLrc` |
+| `@nomercy-entertainment/nomercy-player-core/adapters/cue-parser/vtt` | `parseVtt`, `parseVttSprite`, `parseVttSubtitles` |
+| `@nomercy-entertainment/nomercy-player-core/adapters/cue-parser/lrc` | `parseLrc` |
 | `@nomercy-entertainment/nomercy-player-core/streams/hls` | HLS stream source |
 | `@nomercy-entertainment/nomercy-player-core/streams/native` | Native stream source |
 | `@nomercy-entertainment/nomercy-player-core/testing` | Test helpers and mock adapters |
