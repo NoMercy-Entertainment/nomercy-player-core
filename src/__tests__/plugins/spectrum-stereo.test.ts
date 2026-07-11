@@ -170,4 +170,40 @@ describe('SpectrumPlugin — stereo wiring (bug-fix regression)', () => {
 			expect(monoAnalyser.disconnect).toHaveBeenCalledWith(splitter);
 		});
 	});
+
+	// ── Bug 2 — runtime fftSize()/smoothingTimeConstant() must propagate ──────
+
+	describe('fftSize() runtime change', () => {
+		it('propagates to the L/R analysers and reallocates their buffers', () => {
+			const { plugin, analyserLeft, analyserRight, tickFn } = wireStereoPlugin({ fftSize: 2048 });
+
+			plugin.fftSize(512);
+			tickFn(16, 1);
+
+			const frame = plugin.currentFrame();
+
+			// The mono + L/R analysers must all report the new fftSize.
+			expect(analyserLeft.fftSize).toBe(512);
+			expect(analyserRight.fftSize).toBe(512);
+
+			// frame.binHz is recomputed from the new mono fftSize (256 bins); the
+			// L/R arrays must match that bin count, not the stale 1024-bin buffers
+			// allocated at wireStereo() time for fftSize 2048.
+			expect(frame.frequencyLeft?.length).toBe(frame.frequency.length);
+			expect(frame.frequencyRight?.length).toBe(frame.frequency.length);
+			expect(frame.waveformLeft?.length).toBe(frame.waveform.length);
+			expect(frame.waveformRight?.length).toBe(frame.waveform.length);
+		});
+	});
+
+	describe('smoothingTimeConstant() runtime change', () => {
+		it('propagates to the L/R analysers', () => {
+			const { plugin, analyserLeft, analyserRight } = wireStereoPlugin({ fftSize: 2048 });
+
+			plugin.smoothingTimeConstant(0.3);
+
+			expect(analyserLeft.smoothingTimeConstant).toBeCloseTo(0.3);
+			expect(analyserRight.smoothingTimeConstant).toBeCloseTo(0.3);
+		});
+	});
 });

@@ -387,6 +387,12 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		if (!analyserNode)
 			return;
 		analyserNode.fftSize = size;
+
+		if (this._analyserLeft)
+			this._analyserLeft.fftSize = size;
+		if (this._analyserRight)
+			this._analyserRight.fftSize = size;
+
 		this.allocateBuffers();
 	}
 
@@ -407,6 +413,11 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		if (!analyserNode)
 			return;
 		analyserNode.smoothingTimeConstant = value;
+
+		if (this._analyserLeft)
+			this._analyserLeft.smoothingTimeConstant = value;
+		if (this._analyserRight)
+			this._analyserRight.smoothingTimeConstant = value;
 	}
 
 	private allocateBuffers(): void {
@@ -421,6 +432,21 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		this.waveBuffer = new Uint8Array(new ArrayBuffer(fftSize));
 		this.freqFloatBuffer = new Float32Array(new ArrayBuffer(binCount * 4));
 		this.waveFloatBuffer = new Float32Array(new ArrayBuffer(fftSize * 4));
+
+		// Stereo L/R buffers must track their own analysers' bin count — these
+		// can be updated independently of the mono analyser (see fftSize()).
+		if (this._analyserLeft) {
+			const leftBinCount = this._analyserLeft.frequencyBinCount;
+			const leftFftSize = this._analyserLeft.fftSize;
+			this.freqBufferLeft = new Uint8Array(new ArrayBuffer(leftBinCount));
+			this.waveBufferLeft = new Uint8Array(new ArrayBuffer(leftFftSize));
+		}
+		if (this._analyserRight) {
+			const rightBinCount = this._analyserRight.frequencyBinCount;
+			const rightFftSize = this._analyserRight.fftSize;
+			this.freqBufferRight = new Uint8Array(new ArrayBuffer(rightBinCount));
+			this.waveBufferRight = new Uint8Array(new ArrayBuffer(rightFftSize));
+		}
 	}
 
 	private ensureFreqBuffer(): void {
