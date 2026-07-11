@@ -31,7 +31,11 @@ export function appendAuthTokenParam(url: string, headerValue: string | undefine
 
 	const rawToken = headerValue.replace(/^Bearer\s+/i, '');
 
-	const separator = url.includes('?') ? '&' : '?';
+	const hashIndex = url.indexOf('#');
+	const base = hashIndex === -1 ? url : url.slice(0, hashIndex);
+	const fragment = hashIndex === -1 ? '' : url.slice(hashIndex);
 
-	return `${url}${separator}access_token=${encodeURIComponent(rawToken)}`;
+	const separator = base.includes('?') ? '&' : '?';
+
+	return `${base}${separator}access_token=${encodeURIComponent(rawToken)}${fragment}`;
 }

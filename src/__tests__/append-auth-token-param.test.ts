@@ -64,4 +64,26 @@ describe('appendAuthTokenParam', () => {
 
 		expect(appendAuthTokenParam(url, '')).toBe(url);
 	});
+
+	it('BUG5: inserts the token before a #fragment instead of after it', () => {
+		const result = appendAuthTokenParam(
+			'https://media.example.com/track.mp3#frag',
+			'Bearer myrawtoken',
+		);
+
+		expect(result).toBe(
+			'https://media.example.com/track.mp3?access_token=myrawtoken#frag',
+		);
+	});
+
+	it('BUG5: inserts the token after an existing query string but still before the #fragment', () => {
+		const result = appendAuthTokenParam(
+			'https://media.example.com/track.mp3?a=1#frag',
+			'Bearer myrawtoken',
+		);
+
+		expect(result).toBe(
+			'https://media.example.com/track.mp3?a=1&access_token=myrawtoken#frag',
+		);
+	});
 });
