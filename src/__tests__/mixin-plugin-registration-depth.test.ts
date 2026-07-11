@@ -960,14 +960,6 @@ describe('_registerPlugin — throwing static-translations loader', () => {
 	});
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _registerPlugin — throwing constructor/initialize must not abort the whole
-// pre-setup pipeline (Bug 1). The static-translations and use() failure paths
-// already contain their errors via _failRegistration; the constructor/
-// initialize catch instead rethrew, rejecting ready() and skipping every
-// remaining queued plugin.
-// ─────────────────────────────────────────────────────────────────────────────
-
 describe('_registerPlugin — throwing constructor/initialize (pre-setup containment)', () => {
 	beforeEach(() => MockPlayer._resetRegistry());
 	afterEach(() => {

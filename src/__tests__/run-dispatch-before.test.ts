@@ -180,6 +180,7 @@ describe('runDispatchBefore()', () => {
 		it('a delay rejected with undefined is still prevented as "delay-rejected"', async () => {
 			const target = targetWithListeners([
 				(event) => {
+					// eslint-disable-next-line prefer-promise-reject-errors -- deliberately rejecting with a non-Error to prove undefined is still treated as prevented
 					(event as BeforeEvent<unknown>).delay(Promise.reject(undefined));
 				},
 			]);

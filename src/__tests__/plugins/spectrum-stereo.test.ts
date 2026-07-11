@@ -155,8 +155,6 @@ describe('SpectrumPlugin — stereo wiring (bug-fix regression)', () => {
 		expect(monoAnalyser.connect).toHaveBeenCalledWith(splitter);
 	});
 
-	// ── Bug 1 — dispose() must targeted-disconnect the shared analyser ────────
-
 	describe('dispose()', () => {
 		it('targeted-disconnects the shared analyser from the orphaned splitter', () => {
 			const { plugin, monoAnalyser, splitter } = wireStereoPlugin();
@@ -170,8 +168,6 @@ describe('SpectrumPlugin — stereo wiring (bug-fix regression)', () => {
 			expect(monoAnalyser.disconnect).toHaveBeenCalledWith(splitter);
 		});
 	});
-
-	// ── Bug 2 — runtime fftSize()/smoothingTimeConstant() must propagate ──────
 
 	describe('fftSize() runtime change', () => {
 		it('propagates to the L/R analysers and reallocates their buffers', () => {
