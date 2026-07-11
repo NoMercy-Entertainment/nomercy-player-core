@@ -68,7 +68,13 @@ export async function authFetch<T = string>(opts: AuthFetchOptions<T>): Promise<
 			attempt += 1;
 		}
 
-		await sleep(outcome.delayMs, ctx.signal);
+		try {
+			await sleep(outcome.delayMs, ctx.signal);
+		}
+		catch (err) {
+			ctx.complete(false, ctx.lastStatus);
+			throw ctx.netErr('core:network/aborted', ctx.lastStatus, 'fetch aborted during retry backoff', err, 'info');
+		}
 	}
 
 	ctx.complete(false, ctx.lastStatus);

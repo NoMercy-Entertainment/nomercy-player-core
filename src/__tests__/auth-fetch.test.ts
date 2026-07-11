@@ -482,6 +482,31 @@ describe('authFetch', () => {
 				severity: 'info',
 			});
 		});
+
+		it('throws NetworkError(aborted) — not a raw DOMException — and still fires fetch:complete when aborted during the retry backoff sleep', async () => {
+			mockFetchResponse(503);
+			const abortController = new AbortController();
+			const emitted: { event: string; data: any }[] = [];
+
+			const resultPromise = authFetch({
+				url: 'https://x/y',
+				signal: abortController.signal,
+				retry: { attempts: 1, baseMs: 1000 },
+				emit: (event, data) => emitted.push({ event, data }),
+			});
+
+			await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+			abortController.abort();
+
+			await expect(resultPromise).rejects.toMatchObject({
+				code: 'core:network/aborted',
+				severity: 'info',
+			});
+			expect(fetchSpy).toHaveBeenCalledTimes(1);
+			const complete = emitted.find(entry => entry.event === 'fetch:complete');
+			expect(complete).toBeDefined();
+			expect(complete!.data.ok).toBe(false);
+		});
 	});
 
 	// ─────────────────────────────────────────────────────────────────────
