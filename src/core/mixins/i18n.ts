@@ -145,6 +145,14 @@ export const i18nMethods = {
 			for (const { instance, ctor } of this._plugins) {
 				const pluginId = ctor.id;
 
+				// Static bundles and the instance hook are independent sources —
+				// a plugin may ship both. Separate dedup namespaces so loading
+				// one never marks the other as already loaded (STATIC_NS mirrors
+				// the namespace `_registerPlugin` uses for the same static-bundle
+				// concern at registration time).
+				const staticDedupId = `${pluginId}::static`;
+				const hookDedupId = `${pluginId}::hook`;
+
 				// (1) Lazy `static translations` chain — pull bundles for every
 				// tag in the BCP-47 chain that hasn't been loaded yet.
 				let cur: unknown = ctor;
@@ -154,11 +162,11 @@ export const i18nMethods = {
 						const lazy = withT.translations ? getLazyTranslationLoader(withT.translations) : undefined;
 						if (lazy) {
 							for (const tag of langChain) {
-								if (_hasPluginLangLoaded(this, pluginId, tag))
+								if (_hasPluginLangLoaded(this, staticDedupId, tag))
 									continue;
 								try {
 									const bundle = await lazy(tag);
-									this._markPluginLangLoaded(pluginId, tag);
+									this._markPluginLangLoaded(staticDedupId, tag);
 									if (!bundle)
 										continue;
 									this.addTranslations({ [tag]: bundle });
@@ -179,11 +187,11 @@ export const i18nMethods = {
 				const hook = _getLoadTranslations(instance);
 				if (typeof hook !== 'function')
 					continue;
-				if (_hasPluginLangLoaded(this, pluginId, targetLang))
+				if (_hasPluginLangLoaded(this, hookDedupId, targetLang))
 					continue;
 				try {
 					const bundle = await hook.call(instance, targetLang);
-					this._markPluginLangLoaded(pluginId, targetLang);
+					this._markPluginLangLoaded(hookDedupId, targetLang);
 					if (!bundle)
 						continue;
 					const namespaced: Record<string, string> = {};

@@ -349,6 +349,40 @@ describe('i18nMethods - extended (I18N-E)', () => {
 		expect(callCount).toBe(1);
 	});
 
+	it('BUG2: a plugin with BOTH static translations AND a loadTranslations hook — the hook still fires', async () => {
+		const frLoader = vi.fn(async () => ({ default: { 'plugin.dual-source.static': 'Static FR' } }));
+		const hookFn = vi.fn(async (lang: string): Promise<Record<string, string> | undefined> => {
+			if (lang === 'fr')
+				return { greeting: 'Hi' };
+			return undefined;
+		});
+
+		class DualSourcePlugin extends Plugin {
+			static override readonly id = 'dual-source';
+			static override readonly description = 'dual source';
+			static override readonly translations: Translations = translationsFromGlob({
+				'./i18n/fr.ts': frLoader,
+			});
+
+			protected override async loadTranslations(lang: string): Promise<Record<string, string> | undefined> {
+				return hookFn(lang);
+			}
+		}
+
+		const player = makeSetupPlayer('i18n-bug2');
+		await player.ready();
+
+		const installed = waitForInstall(player, 'dual-source');
+		player.addPlugin(DualSourcePlugin as unknown as PluginCtorWithId);
+		await installed;
+
+		await player.language('fr');
+
+		expect(hookFn).toHaveBeenCalledWith('fr');
+		expect(player.t('plugin.dual-source.greeting')).toBe('Hi');
+		expect(player.t('plugin.dual-source.static')).toBe('Static FR');
+	});
+
 	describe('I18N-E8: BCP-47 fallback chain via language() setter', () => {
 		it('en-GB loads both en-GB and en bundles; t() falls back to en key', async () => {
 			const enLoader = vi.fn(async () => ({ default: { 'plugin.fallback.shared': 'EN-shared' } }));

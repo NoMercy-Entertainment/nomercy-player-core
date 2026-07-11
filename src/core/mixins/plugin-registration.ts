@@ -406,7 +406,10 @@ export const pluginRegistrationMethods = {
 				ctor,
 				currentLang,
 				bundle => this.addTranslations(bundle),
-				tag => this._markPluginLangLoaded(id, tag),
+				// Shares the `::static` dedup namespace with i18nMethods.language()'s
+				// pass 1 so the initial-language pipeline step doesn't refetch a
+				// bundle this registration already loaded.
+				tag => this._markPluginLangLoaded(`${id}::static`, tag),
 			);
 			// Only await when there's genuinely async work — see the doc comment
 			// on `loadPluginStaticTranslations` for why an unconditional await
