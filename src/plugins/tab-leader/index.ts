@@ -107,6 +107,8 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	private _release: (() => void) | null = null;
 	/** Outstanding acquire promise — guards against duplicate election calls. */
 	private _pending: Promise<void> | null = null;
+	/** Aborts a still-queued (not yet granted) lock request on release/dispose. */
+	private _abortController: AbortController | null = null;
 
 	/**
 	 * Checks for Web Locks support and initiates the leader-lock request.
@@ -167,8 +169,11 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 
 		const key = this.getLockKey();
 		const locks = navigator.locks!;
+		const controller = new AbortController();
+		this._abortController = controller;
 
-		this._pending = locks.request(key, () => {
+		this._pending = locks.request(key, { signal: controller.signal }, () => {
+			this._abortController = null;
 			this._isLeader = true;
 			this.emit('leader-acquired' as keyof TabLeaderEvents);
 			return new Promise<void>((resolve) => {
@@ -180,6 +185,7 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			},
 			(_err) => {
 				this._pending = null;
+				this._abortController = null;
 			},
 		);
 
@@ -194,6 +200,11 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	 * No-ops if this tab is not currently the leader.
 	 */
 	releaseLock(): void {
+		if (this._abortController) {
+			this._abortController.abort();
+			this._abortController = null;
+		}
+
 		if (!this._isLeader && !this._release)
 			return;
 

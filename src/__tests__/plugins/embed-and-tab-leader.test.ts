@@ -227,7 +227,7 @@ describe('EmbedPlugin and TabLeaderPlugin', () => {
 		it('onLost reads the LIVE opts — changing onLost after use() takes effect on the next releaseLock()', async () => {
 			// JSDOM lacks Web Locks — stub navigator.locks so use() doesn't bail early.
 			const originalLocks = Object.getOwnPropertyDescriptor(navigator, 'locks');
-			const lockRequestFn = vi.fn((_key: string, cb: (lock: unknown) => Promise<void>) =>
+			const lockRequestFn = vi.fn((_key: string, _opts: { signal?: AbortSignal }, cb: (lock: unknown) => Promise<void>) =>
 				cb({}).then(() => {}));
 			Object.defineProperty(navigator, 'locks', {
 				configurable: true,

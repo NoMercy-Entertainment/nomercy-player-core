@@ -85,7 +85,7 @@ function makePlugin(player: MockPlayer, opts?: TabLeaderOptions): TabLeaderPlugi
 }
 
 interface LocksStub {
-	request: (key: string, cb: (lock: unknown) => Promise<void>) => Promise<void>;
+	request: (key: string, opts: { signal?: AbortSignal }, cb: (lock: unknown) => Promise<void>) => Promise<void>;
 }
 
 const originalLocksDescriptor = Object.getOwnPropertyDescriptor(navigator, 'locks');
@@ -141,7 +141,7 @@ describe('TabLeaderPlugin extended', () => {
 		it('returns the existing pending promise when called while already pending', () => {
 			// Create a lock that we can control manually via _release
 			let innerRelease!: () => void;
-			const lockRequest = vi.fn((_key: string, cb: (lock: unknown) => Promise<void>) => {
+			const lockRequest = vi.fn((_key: string, _opts: { signal?: AbortSignal }, cb: (lock: unknown) => Promise<void>) => {
 				// Simulate the lock being granted: cb runs immediately, its inner promise
 				// only resolves when _release() is called later.
 				const inner = new Promise<void>((res) => { innerRelease = res; });
@@ -162,7 +162,7 @@ describe('TabLeaderPlugin extended', () => {
 
 		it('sets _isLeader to true and emits leader-acquired when lock granted', async () => {
 			let innerRelease!: () => void;
-			const lockRequest = vi.fn((_key: string, cb: (lock: unknown) => Promise<void>) => {
+			const lockRequest = vi.fn((_key: string, _opts: { signal?: AbortSignal }, cb: (lock: unknown) => Promise<void>) => {
 				// Holds the lock open until innerRelease() is called below; the
 				// promise object itself is never read, only its release callback.
 				void new Promise<void>((res) => { innerRelease = res; });
@@ -188,7 +188,7 @@ describe('TabLeaderPlugin extended', () => {
 		});
 
 		it('clears _pending to null after lock resolves', async () => {
-			const lockRequest = vi.fn((_key: string, cb: (lock: unknown) => Promise<void>) => {
+			const lockRequest = vi.fn((_key: string, _opts: { signal?: AbortSignal }, cb: (lock: unknown) => Promise<void>) => {
 				void cb({});
 				return Promise.resolve();
 			});
@@ -287,6 +287,32 @@ describe('TabLeaderPlugin extended', () => {
 			const releaseSpy = vi.spyOn(plugin, 'releaseLock');
 			plugin.dispose();
 			expect(releaseSpy).toHaveBeenCalled();
+		});
+	});
+
+	describe('requestLock() — abort on dispose while queued', () => {
+		it('aborts the AbortSignal passed to navigator.locks.request() when disposed before the lock is granted', () => {
+			let capturedSignal: AbortSignal | undefined;
+			const lockRequest = vi.fn((_key: string, opts: { signal?: AbortSignal }, _cb: (lock: unknown) => Promise<void>) => {
+				capturedSignal = opts.signal;
+				return new Promise<void>(() => {});
+			});
+			Object.defineProperty(navigator, 'locks', {
+				configurable: true,
+				get: () => ({ request: lockRequest }),
+			});
+			const mockPlayer = makePlayer('tl-16');
+			const plugin = makePlugin(mockPlayer);
+
+			void plugin.requestLock();
+
+			expect(capturedSignal).toBeInstanceOf(AbortSignal);
+			expect(capturedSignal?.aborted).toBe(false);
+			expect(plugin.isLeader()).toBe(false);
+
+			plugin.dispose();
+
+			expect(capturedSignal?.aborted).toBe(true);
 		});
 	});
 
