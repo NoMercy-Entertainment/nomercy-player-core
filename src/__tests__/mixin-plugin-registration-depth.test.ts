@@ -959,3 +959,62 @@ describe('_registerPlugin — throwing static-translations loader', () => {
 		expect(player.getPluginById('throwing-translations-2')).toBeUndefined();
 	});
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _registerPlugin — throwing constructor/initialize must not abort the whole
+// pre-setup pipeline (Bug 1). The static-translations and use() failure paths
+// already contain their errors via _failRegistration; the constructor/
+// initialize catch instead rethrew, rejecting ready() and skipping every
+// remaining queued plugin.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('_registerPlugin — throwing constructor/initialize (pre-setup containment)', () => {
+	beforeEach(() => MockPlayer._resetRegistry());
+	afterEach(() => {
+		MockPlayer._resetRegistry();
+		document.body.innerHTML = '';
+	});
+
+	it('a throwing constructor does not reject ready() and does not block a later queued plugin', async () => {
+		const div = document.createElement('div');
+		div.id = 'pr-mock-ctor-throw';
+		document.body.appendChild(div);
+		const player = new MockPlayer('pr-mock-ctor-throw');
+
+		class BadCtorPlugin extends Plugin<StubPlayer> {
+			static override readonly id = 'bad-ctor';
+			static override readonly version = '1.0.0';
+			static override readonly description = 'BadCtor';
+			constructor() {
+				super();
+				throw new Error('ctor blew up');
+			}
+
+			override use(): void {}
+			override dispose(): void {}
+		}
+
+		class GoodAfterBadCtorPlugin extends Plugin<StubPlayer> {
+			static override readonly id = 'good-after-bad-ctor';
+			static override readonly version = '1.0.0';
+			static override readonly description = 'GoodAfterBadCtor';
+			override use(): void {}
+			override dispose(): void {}
+		}
+
+		const failedPayloads: Array<{ id: string; error: Error }> = [];
+		player.on('plugin:failed' as never, (data: { id: string; error: Error }) => failedPayloads.push(data));
+		const scopedFailedPayloads: Array<{ id: string; error: Error }> = [];
+		player.on('plugin:bad-ctor:failed' as never, (data: { id: string; error: Error }) => scopedFailedPayloads.push(data));
+
+		player.addPlugin(BadCtorPlugin);
+		player.addPlugin(GoodAfterBadCtorPlugin);
+		player.setup({});
+
+		await expect(player.ready()).resolves.toBeUndefined();
+
+		expect(failedPayloads.some(entry => entry.id === 'bad-ctor')).toBe(true);
+		expect(scopedFailedPayloads).toHaveLength(1);
+		expect(player.getPluginById('good-after-bad-ctor')).toBeDefined();
+	});
+});

@@ -91,7 +91,7 @@ function makePlayerLogger(self: Internals, scope: string): Logger {
 function _failRegistration(
 	self: Internals,
 	id: string,
-	instance: Plugin,
+	instance: Plugin | undefined,
 	lifecycle: LifecycleRegistry,
 	error: unknown,
 	findDependents: (id: string) => string[],
@@ -99,12 +99,12 @@ function _failRegistration(
 	const failError = error instanceof Error ? error : new Error(String(error));
 
 	// Accessing the plugin's logger field before it's fully registered — opaque cast via structural interface.
-	const pluginLogger = (instance as unknown as { logger?: { error: (...args: unknown[]) => void } }).logger
+	const pluginLogger = (instance as unknown as { logger?: { error: (...args: unknown[]) => void } } | undefined)?.logger
 		?? makePlayerLogger(self, id);
 	pluginLogger.error('plugin registration failed — plugin will not be registered', failError);
 
 	try {
-		instance.dispose();
+		instance?.dispose();
 	}
 	catch { /* defensive */ }
 	try {
@@ -375,7 +375,7 @@ export const pluginRegistrationMethods = {
 
 		type _InstantiableCtor = new () => Plugin;
 		const lifecycle = new LifecycleRegistry();
-		let instance: Plugin;
+		let instance: Plugin | undefined;
 		try {
 			// Plugin constructors take no args at new-time; options are passed via initialize. Type-erased here because ctor is a generic PluginCtorWithId.
 			instance = new (ctor as unknown as _InstantiableCtor)();
@@ -383,11 +383,8 @@ export const pluginRegistrationMethods = {
 			instance.initialize(this as unknown as IPlayer, opts, lifecycle);
 		}
 		catch (err) {
-			this.emit('plugin:failed', {
-				id,
-				error: err instanceof Error ? err : new Error(String(err)),
-			});
-			throw err;
+			_failRegistration(this, id, instance, lifecycle, err, depId => _findDependents(this, depId));
+			return;
 		}
 
 		// Walk the prototype chain so EVERY ancestor's `static translations`
