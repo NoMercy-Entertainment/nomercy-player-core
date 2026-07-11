@@ -191,6 +191,8 @@ export class CastSenderPlugin<
 	private listeners: Array<{ event: string; handler: RemotePlayerEventHandler }> = [];
 	/** Suppress player → cast forwarding while we're applying a cast → player update. */
 	private applyingFromRemote: boolean = false;
+	/** The resolved contentId the plugin itself last sent via `loadMedia()` — compared against MEDIA_INFO_CHANGED to tell a self-load echo from a genuine receiver-side switch. */
+	private lastSentContentId: string | null = null;
 
 	/**
 	 * Return the current playlist item from the player, or `undefined`.
@@ -454,9 +456,7 @@ export class CastSenderPlugin<
 				const id = remote.mediaInfo?.contentId;
 				if (!id)
 					return;
-				const local = this._readCurrentItem();
-				const localUrl = (local as (TItem & { url?: string }) | undefined)?.url;
-				if (localUrl && id !== localUrl) {
+				if (id !== this.lastSentContentId) {
 					this.emit('cast:media-changed', { contentId: id });
 				}
 			});
@@ -552,6 +552,7 @@ export class CastSenderPlugin<
 			mediaInfo.metadata = metadata;
 			mediaInfo.streamType = opts.live ? ctors.StreamType.LIVE : ctors.StreamType.BUFFERED;
 			const request = new ctors.LoadRequest(mediaInfo);
+			this.lastSentContentId = url;
 			await session.loadMedia(request);
 		}
 		catch (err) {

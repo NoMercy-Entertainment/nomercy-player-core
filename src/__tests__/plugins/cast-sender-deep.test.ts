@@ -26,8 +26,10 @@
  *  - emitPlayer() swallows errors from a dead player
  */
 
+import type { IUrlResolver } from '../../index';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowserPolicyError } from '../../errors';
+import { buildResolvedUrl } from '../../index';
 import { CastSenderPlugin } from '../../plugins/cast-sender';
 import { StubPlayer } from '../../testing/stub-player';
 
@@ -509,6 +511,51 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 
 			expect(mediaChanged).toHaveLength(1);
 			expect(mediaChanged[0]!.contentId).toBe('https://example.com/other.mp3');
+		});
+
+		it('does NOT emit cast:media-changed when the receiver echoes back the plugin\'s own RESOLVED contentId', async () => {
+			buildFakeSdk();
+
+			const player = makeStubPlayer() as ReturnType<typeof makeStubPlayer> & { item: () => { url: string } };
+			player.item = () => ({ url: 'https://example.com/track.mp3' });
+			const resolver: IUrlResolver = url => buildResolvedUrl(url, `${url}?token=abc`);
+			player.urlResolver(resolver);
+
+			const plugin = wirePluginForPlayer(player);
+			await plugin.connect();
+			await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+			fakeSdk.remote.mediaInfo = { contentId: 'https://example.com/track.mp3?token=abc' };
+
+			const mediaChanged: Array<{ contentId: string }> = [];
+			player.on('plugin:cast-sender:cast:media-changed' as never, (data: { contentId: string }) => { mediaChanged.push(data); });
+
+			fakeSdk.triggerEvent('MEDIA_INFO_CHANGED');
+
+			expect(mediaChanged).toHaveLength(0);
+		});
+
+		it('still emits cast:media-changed when the receiver genuinely switched to a different item', async () => {
+			buildFakeSdk();
+
+			const player = makeStubPlayer() as ReturnType<typeof makeStubPlayer> & { item: () => { url: string } };
+			player.item = () => ({ url: 'https://example.com/track.mp3' });
+			const resolver: IUrlResolver = url => buildResolvedUrl(url, `${url}?token=abc`);
+			player.urlResolver(resolver);
+
+			const plugin = wirePluginForPlayer(player);
+			await plugin.connect();
+			await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+			fakeSdk.remote.mediaInfo = { contentId: 'https://example.com/other-track.mp3?token=xyz' };
+
+			const mediaChanged: Array<{ contentId: string }> = [];
+			player.on('plugin:cast-sender:cast:media-changed' as never, (data: { contentId: string }) => { mediaChanged.push(data); });
+
+			fakeSdk.triggerEvent('MEDIA_INFO_CHANGED');
+
+			expect(mediaChanged).toHaveLength(1);
+			expect(mediaChanged[0]!.contentId).toBe('https://example.com/other-track.mp3?token=xyz');
 		});
 
 		it('IS_CONNECTED_CHANGED (disconnected) calls handleRemoteDisconnect, emits cast:disconnected', async () => {
