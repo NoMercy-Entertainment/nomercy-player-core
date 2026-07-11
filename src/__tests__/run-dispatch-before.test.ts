@@ -177,6 +177,19 @@ describe('runDispatchBefore()', () => {
 			expect(outcome.cause).toBe(rejection);
 		});
 
+		it('a delay rejected with undefined is still prevented as "delay-rejected"', async () => {
+			const target = targetWithListeners([
+				(event) => {
+					(event as BeforeEvent<unknown>).delay(Promise.reject(undefined));
+				},
+			]);
+
+			const outcome = await runDispatchBefore(target, 'beforeThing', {});
+
+			expect(outcome.prevented).toBe(true);
+			expect(outcome.reason).toBe('delay-rejected');
+		});
+
 		it('an overrunning delay yields reason "delay-timeout"', async () => {
 			const neverSettles = new Promise<void>(() => {});
 			const target = targetWithListeners([

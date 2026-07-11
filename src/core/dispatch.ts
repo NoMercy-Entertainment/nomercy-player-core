@@ -155,14 +155,17 @@ export async function runDispatchBefore<TData>(
 
 		if (delayedPromises.length > 0) {
 			let rejectedCause: unknown;
+			let hasRejection = false;
 			let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 			const settled = await Promise.race([
 				Promise.allSettled(delayedPromises).then((results) => {
 					const first = results.find(result => result.status === 'rejected') as
 						| PromiseRejectedResult
 						| undefined;
-					if (first)
+					if (first) {
+						hasRejection = true;
 						rejectedCause = first.reason;
+					}
 					return 'settled' as const;
 				}),
 				new Promise<'timeout'>((resolve) => {
@@ -182,7 +185,7 @@ export async function runDispatchBefore<TData>(
 					reason: 'delay-timeout',
 				};
 			}
-			if (rejectedCause !== undefined) {
+			if (hasRejection) {
 				return {
 					data,
 					prevented: true,
