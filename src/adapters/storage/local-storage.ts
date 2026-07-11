@@ -37,12 +37,18 @@ export class LocalStorageBackend implements IStorage {
 		}
 	}
 
-	/** Retrieve a raw string value, or `null` when the key is absent. */
+	/**
+	 * Retrieve a raw string value, or `null` when the key is absent. Falls
+	 * back to the in-memory map when `localStorage` has no entry for `key` —
+	 * covers a `set()` that hit a quota error mid-session and wrote to the
+	 * fallback without `localStorage` ever holding the value.
+	 */
 	get(key: string): string | null {
 		if (this.useFallback)
 			return this.fallback.get(key) ?? null;
 		try {
-			return localStorage.getItem(key);
+			const value = localStorage.getItem(key);
+			return value ?? this.fallback.get(key) ?? null;
 		}
 		catch {
 			return this.fallback.get(key) ?? null;

@@ -111,6 +111,34 @@ describe('LocalStorageBackend', () => {
 			}
 		});
 
+		it('BUG4: get(key) after a mid-session set() quota failure still returns the written value (getItem itself keeps working)', async () => {
+			// `backend` was constructed in beforeEach against REAL localStorage —
+			// useFallback is false, mirroring a mid-session quota failure rather
+			// than the construction-time fallback path. Swap the whole global
+			// (happy-dom's Storage instance methods aren't per-method
+			// overridable — see the sibling test below) with a fake whose
+			// setItem throws but whose getItem keeps working normally, exactly
+			// like real quota-exceeded behavior.
+			const fakeStore = new Map<string, string>();
+			const original = globalThis.localStorage;
+			const throwingSetStorage = {
+				getItem: (key: string) => fakeStore.get(key) ?? null,
+				setItem: () => { throw new Error('quota exceeded'); },
+				removeItem: (key: string) => { fakeStore.delete(key); },
+				clear: () => fakeStore.clear(),
+				key: () => null,
+				length: 0,
+			};
+			Object.defineProperty(globalThis, 'localStorage', { value: throwingSetStorage, configurable: true, writable: true });
+			try {
+				backend.set('key', 'value');
+				expect(await backend.get('key')).toBe('value');
+			}
+			finally {
+				Object.defineProperty(globalThis, 'localStorage', { value: original, configurable: true, writable: true });
+			}
+		});
+
 		it('falls back to in-memory when get throws', async () => {
 			backend.set('key', 'a');
 			// happy-dom localStorage isn't overridable per-method (Proxy / readonly),
