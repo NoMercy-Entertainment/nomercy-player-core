@@ -84,15 +84,18 @@ export const audioOutputMethods = {
 	 * completes.
 	 */
 	async audioOutput(this: Internals, deviceId?: string): Promise<string | null | void> {
-		if (deviceId === undefined) {
-			return this._currentAudioOutputId;
-		}
 		const backend = this._peekBackendTyped<_BackendWithMediaElement>();
 		const el = backend?.mediaElement?.();
+
+		if (deviceId === undefined) {
+			const liveId = el?.sinkId ?? this._currentAudioOutputId;
+			return liveId === '' ? null : liveId;
+		}
+
 		if (!el || typeof el.setSinkId !== 'function') {
 			throw browserPolicyError('core:policy/setSinkIdUnsupported', 'setSinkId() is not supported in this browser or no media element is bound.');
 		}
 		await el.setSinkId(deviceId);
-		this._currentAudioOutputId = deviceId;
+		this._currentAudioOutputId = deviceId === '' ? null : deviceId;
 	},
 } as const;

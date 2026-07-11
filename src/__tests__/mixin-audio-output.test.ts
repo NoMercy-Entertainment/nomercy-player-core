@@ -213,5 +213,30 @@ describe('audioOutputMethods', () => {
 			expect(setSinkId).toHaveBeenCalledWith('device-x');
 			await expect(mockPlayer.audioOutput()).resolves.toBe('device-x');
 		});
+
+		it('getter reflects the live element sinkId after a media-element swap, not the stale cached id', async () => {
+			const mockPlayer = makePlayer('ao-13');
+			const oldElement = { setSinkId: vi.fn().mockResolvedValue(undefined), sinkId: 'old-device' };
+			(mockPlayer as any)._peekBackendTyped = () => ({ mediaElement: () => oldElement });
+			await mockPlayer.audioOutput('old-device');
+			await expect(mockPlayer.audioOutput()).resolves.toBe('old-device');
+
+			const newElement = { setSinkId: vi.fn().mockResolvedValue(undefined), sinkId: 'new-device' };
+			(mockPlayer as any)._peekBackendTyped = () => ({ mediaElement: () => newElement });
+
+			await expect(mockPlayer.audioOutput()).resolves.toBe('new-device');
+		});
+
+		it('setter normalizes "" (system default) to null on read-back, per spec', async () => {
+			const mockPlayer = makePlayer('ao-14');
+			const setSinkId = vi.fn().mockResolvedValue(undefined);
+			const mockElement = { setSinkId, sinkId: '' };
+			(mockPlayer as any)._peekBackendTyped = () => ({ mediaElement: () => mockElement });
+
+			await mockPlayer.audioOutput('');
+
+			expect(setSinkId).toHaveBeenCalledWith('');
+			await expect(mockPlayer.audioOutput()).resolves.toBeNull();
+		});
 	});
 });
