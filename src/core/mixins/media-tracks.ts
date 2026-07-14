@@ -312,6 +312,49 @@ function _subtitleTrackKey(lang: string | undefined, kind: string | undefined): 
 }
 
 /**
+ * The backend-origin subtitle tracks exactly as `subtitles()` presents them:
+ * the backend's tracks filtered to drop any displaced by a same-language +
+ * kind sidecar. Shared by `subtitles()` and the `subtitle(idx)` setter so
+ * their backend/sidecar boundary can NEVER diverge — the setter used to
+ * compare `idx` against the backend's RAW `subtitleTracks().length` while the
+ * list used this deduped count, desyncing every index whenever a backend
+ * track was displaced (a sidecar VTT sharing language + kind with a
+ * manifest-embedded track). One computation, two readers.
+ */
+function _dedupedBackendSubtitles(self: Internals): SubtitleTrack[] {
+	const fromBackend = _backendSubtitleTracks(self);
+	const dedupedSidecar = _dedupedSidecarSubtitles(self);
+	const sidecarLangKeys = new Set<string>(
+		dedupedSidecar.map(track => _subtitleTrackKey(track.language, track.kind)),
+	);
+	return fromBackend.filter(
+		track => !sidecarLangKeys.has(_subtitleTrackKey(track.language, track.kind)),
+	);
+}
+
+/**
+ * Resolve a deduped backend-origin track back to its position in the
+ * backend's own RAW `subtitleTracks()` array — the index `setSubtitleTrack`
+ * actually expects (it maps to the Nth native text track / HLS rendition,
+ * not to any position in the deduped, sidecar-merged list `subtitles()`
+ * returns). Matched by `id` first — the stable identity a well-behaved
+ * backend preserves across separate `subtitleTracks()` calls — falling back
+ * to language + label + url for backends that hand back fresh objects each
+ * call. Returns `-1` when no raw entry matches.
+ */
+function _rawBackendSubtitleIndex(rawTracks: ReadonlyArray<SubtitleTrack>, chosen: SubtitleTrack): number {
+	if (chosen.id) {
+		const byId = rawTracks.findIndex(track => track.id === chosen.id);
+		if (byId >= 0)
+			return byId;
+	}
+	return rawTracks.findIndex(track =>
+		track.language === chosen.language
+		&& track.label === chosen.label
+		&& track.url === chosen.url);
+}
+
+/**
  * The item-declared subtitle list exactly as `subtitles()` appends it after
  * the backend tracks: URL-deduped only. Two sidecars sharing language + kind
  * but pointing at different files are distinct variants (e.g. `type: 'full'`
@@ -533,32 +576,18 @@ export const mediaTracksMethods = {
 	 * De-duplication: when a backend track and a sidecar track share the same
 	 * language + kind, the sidecar (consumer-supplied) wins. The backend entry
 	 * is dropped and the sidecar takes its natural position in the trailing
-	 * sidecar block. This means the sidecar index is NOT the same as the HLS
-	 * manifest index — `subtitle(idx)` maps through to the backend by language
-	 * match for sidecar-origin selections, not by array position.
+	 * sidecar block. This means a deduped backend track's position in THIS
+	 * list is not necessarily its position in the backend's own raw
+	 * `subtitleTracks()` array — `subtitle(idx)` resolves through
+	 * `_dedupedBackendSubtitles()` (the exact same computation this method
+	 * uses) and remaps a backend-origin pick back to its raw backend index
+	 * before calling `setSubtitleTrack`.
 	 *
 	 * Returns an empty list before a backend is mounted or when no item is
 	 * active.
 	 */
 	subtitles(this: Internals): ReadonlyArray<SubtitleTrack> {
-		const fromBackend: SubtitleTrack[] = _backendSubtitleTracks(this);
-
-		// Sidecar (consumer-supplied) wins over manifest-embedded when both
-		// cover the same normalised language + kind combination — the backend
-		// entry is dropped and the sidecar takes its natural position in the
-		// trailing sidecar block.
-		const dedupedSidecar = _dedupedSidecarSubtitles(this);
-		const sidecarLangKeys = new Set<string>(
-			dedupedSidecar.map(track => _subtitleTrackKey(track.language, track.kind)),
-		);
-
-		const dedupedBackend = fromBackend.filter(
-			track => !sidecarLangKeys.has(_subtitleTrackKey(track.language, track.kind)),
-		);
-
-		// Deduped backend tracks first so their array positions still match HLS
-		// manifest indexes for `subtitle(idx)` → `hls.subtitleTrack`; sidecars trail.
-		return [...dedupedBackend, ...dedupedSidecar];
+		return [..._dedupedBackendSubtitles(this), ..._dedupedSidecarSubtitles(this)];
 	},
 
 	/**
@@ -607,9 +636,6 @@ export const mediaTracksMethods = {
 			this._disposeSidecarSubtitle();
 
 			const backend = this._peekBackendTyped<_BackendWithSubtitleTracks>();
-			const backendCount = (typeof backend?.subtitleTracks === 'function')
-				? (backend.subtitleTracks() ?? []).length
-				: 0;
 
 			// "Off" — clear backend selection AND emit an empty cue list so
 			// renderers wipe their overlays.
@@ -624,22 +650,33 @@ export const mediaTracksMethods = {
 				return;
 			}
 
-			// Backend-managed: index falls within the backend's track count.
-			// Backend will emit `subtitleCue` itself via its cuechange hook.
-			if (targetIdx < backendCount) {
+			// Resolve against the SAME deduped backend block `subtitles()`
+			// builds — never the backend's raw track count — so this boundary
+			// can never desync from the list the caller picked `targetIdx` from.
+			const dedupedBackend = _dedupedBackendSubtitles(this);
+
+			// Backend-managed: index falls within the deduped backend block.
+			// The list position is NOT the backend's own index once any track
+			// was displaced, so map `chosen` back to its position in the raw
+			// `subtitleTracks()` array (by id, falling back to language + label
+			// + url) before calling `setSubtitleTrack`. Backend will emit
+			// `subtitleCue` itself via its cuechange hook.
+			if (targetIdx < dedupedBackend.length) {
+				const chosen = dedupedBackend[targetIdx]!;
+				const rawIdx = _rawBackendSubtitleIndex(_backendSubtitleTracks(this), chosen);
 				this._currentSubtitleIdx = targetIdx;
-				backend?.setSubtitleTrack?.(targetIdx);
+				backend?.setSubtitleTrack?.(rawIdx >= 0 ? rawIdx : targetIdx);
 				this.emit('subtitle', { track: targetIdx });
 				return;
 			}
 
-			// Sidecar VTT: index past the backend's tracks points into the
+			// Sidecar VTT: index past the deduped backend block points into the
 			// item-declared list (`subtitles: [...]` / wire `tracks: [...]`).
 			// Disable any backend track first so the two streams don't both
 			// fire `subtitleCue`.
 			this._currentSubtitleIdx = targetIdx;
 			backend?.setSubtitleTrack?.(null);
-			const sidecar = _resolveSidecarSubtitle(this, targetIdx - backendCount);
+			const sidecar = _resolveSidecarSubtitle(this, targetIdx - dedupedBackend.length);
 			this.emit('subtitle', { track: targetIdx });
 			if (!sidecar?.url) {
 				this.emit('subtitleCue', {

@@ -292,6 +292,119 @@ describe('subtitle() — setter paths', () => {
 		expect(cueEvents).toHaveLength(1);
 		expect(cueEvents[0]!.cues).toHaveLength(0);
 	});
+
+	// ── regression: subtitle(idx) must resolve against subtitles()'s deduped
+	// boundary, not the backend's RAW track count — see media-tracks-dedup.test.ts
+	// "regression: sidecar ger + manifest de" for the list-shape half of this bug.
+
+	it('regression: sidecar displaces BOTH backend tracks — picking list index 0 (English sidecar) must NOT select the German backend track', async () => {
+		const player = setupPlayer();
+
+		// Backend reports RAW tracks [German, English] — subtitles() drops BOTH
+		// because the sidecar entries below cover the same two languages, so the
+		// deduped backend block is EMPTY and the full list is sidecar-only.
+		const backend = makeBackendWithTracks({
+			subtitleTracks: [
+				{ id: 'b-de', language: 'de', kind: 'subtitles', label: 'German (manifest)', url: '' },
+				{ id: 'b-en', language: 'en', kind: 'subtitles', label: 'English (manifest)', url: '' },
+			],
+		});
+		(player as unknown as { backend: () => unknown }).backend = () => backend;
+
+		const item: BasePlaylistItem & { subtitles: SubtitleTrack[] } = {
+			id: 'item-1',
+			title: 'Test',
+			url: '/test.mp4',
+			subtitles: [
+				{ id: 'eng', language: 'eng', kind: 'subtitles', label: 'English (Full)', url: '/eng.vtt' },
+				{ id: 'ger', language: 'ger', kind: 'subtitles', label: 'German (Full)', url: '/ger.vtt' },
+			],
+		};
+		player.queue([item] as never);
+		player.item(item as never);
+
+		// Sanity — this is the exact list the desktop-ui menu renders and indexes.
+		const list = player.subtitles();
+		expect(list.map(track => track.label)).toEqual(['English (Full)', 'German (Full)']);
+
+		const fetchSpy = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			headers: new Headers({ 'content-type': 'text/vtt' }),
+			text: () => Promise.resolve('WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n'),
+		});
+		vi.stubGlobal('fetch', fetchSpy);
+
+		try {
+			// User picks list index 0 — "English (Full)" in the rendered menu.
+			await player.subtitle(0);
+
+			// The backend must be SILENCED, never asked to select its raw index 0
+			// (the German manifest track) — that was the bug.
+			expect(backend.setSubtitleTrackCalls).toEqual([null]);
+
+			// The checkmark-backing selection stores the LIST index the user
+			// picked, and resolves back to the English sidecar track.
+			const selection = player.subtitle() as { index: number; track: SubtitleTrack } | null;
+			expect(selection).not.toBeNull();
+			expect(selection!.index).toBe(0);
+			expect(selection!.track.label).toBe('English (Full)');
+
+			// And the fetch that actually starts must target the ENGLISH sidecar
+			// file, never the German one — proves the resolved track, not just
+			// the index bookkeeping.
+			await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+			const requestedUrl = String((fetchSpy.mock.calls[0]![0] as Request).url);
+			expect(requestedUrl).toContain('/eng.vtt');
+			expect(requestedUrl).not.toContain('/ger.vtt');
+		}
+		finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('regression: backend-origin selection maps back to the backend\'s OWN raw index by identity, not by list position', async () => {
+		const player = setupPlayer();
+
+		// Raw backend order: [German, English, French]. The sidecar below
+		// displaces only English, so the deduped backend block is
+		// [German, French] — French sits at deduped position 1 but RAW
+		// position 2. Picking it must call setSubtitleTrack(2), not (1).
+		const backend = makeBackendWithTracks({
+			subtitleTracks: [
+				{ id: 'b-de', language: 'de', kind: 'subtitles', label: 'German (manifest)', url: '' },
+				{ id: 'b-en', language: 'en', kind: 'subtitles', label: 'English (manifest)', url: '' },
+				{ id: 'b-fr', language: 'fr', kind: 'subtitles', label: 'French (manifest)', url: '' },
+			],
+		});
+		(player as unknown as { backend: () => unknown }).backend = () => backend;
+
+		const item: BasePlaylistItem & { subtitles: SubtitleTrack[] } = {
+			id: 'item-1',
+			title: 'Test',
+			url: '/test.mp4',
+			subtitles: [
+				{ id: 'eng', language: 'eng', kind: 'subtitles', label: 'English (Full)', url: '/eng.vtt' },
+			],
+		};
+		player.queue([item] as never);
+		player.item(item as never);
+
+		// Sanity — deduped list is [German, French, English (Full)].
+		const list = player.subtitles();
+		expect(list.map(track => track.label)).toEqual(['German (manifest)', 'French (manifest)', 'English (Full)']);
+
+		// User picks list index 1 — "French (manifest)".
+		await player.subtitle(1);
+
+		expect(backend.setSubtitleTrackCalls).toEqual([2]);
+		expect((player as unknown as { _currentSubtitleIdx: number | null })._currentSubtitleIdx).toBe(1);
+
+		const selection = player.subtitle() as { index: number; track: SubtitleTrack } | null;
+		expect(selection).not.toBeNull();
+		expect(selection!.index).toBe(1);
+		expect(selection!.track.label).toBe('French (manifest)');
+	});
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
