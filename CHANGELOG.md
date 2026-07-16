@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [2.0.0-rc.33] — 2026-07-16
+
+### Fixed
+
+- `bandwidth()` now returns the live estimate instead of permanently reporting `0`. The getter read a `_bandwidthEstimate` cache field that nothing ever wrote, while `bandwidthEstimator(fn)` wrote a same-looking `_bandwidthEstimator` field that nothing ever read — the two names never met. The dead cache field is gone; `bandwidth()` resolves on every read, honoring a consumer's `bandwidthEstimator()` override first, else the backend's optional `bandwidthEstimate?()` capability. Return type and unit (bits per second) are unchanged — additive fix, no signature change. Unblocks network-aware live-transcode step-down: consumers report this value upstream so the media server can drop encode quality on a degraded link.
+
+## [2.0.0-rc.32] — 2026-07-14
+
+### Fixed
+
+- `subtitle(idx)` now resolves against the same deduped track list `subtitles()` returns. Both readers previously built their counts differently — `subtitle(idx)` compared the requested index against the backend's raw `subtitleTracks().length` while `subtitles()` built its list from the deduped count — so a backend track displaced by a same-language sidecar shifted every subsequent selection by one, silencing one track while selecting its neighbour. A backend-origin pick is now remapped to its raw backend index by id (falling back to language+label+url) before `setSubtitleTrack` is called.
+
+## [2.0.0-rc.31] — 2026-07-11
+
 ### Fixed
 
 - `PlayState.LOADING` and `PlayState.ERROR` are now reachable — the enum documented six states but `playState()` could only ever return four. `playState()` reports `LOADING` while a `load()` is in flight (every load, including the initial auto-load and re-loads out of `ERROR`), settling to `PAUSED` when media mounts without playback or staying with whatever a raced `play()` / `pause()` / `stop()` set; a failed load restores the state it displaced. A `fatal` dispatch — the kit's unrecoverable-failure channel — flips the state to `ERROR` before the listener chain runs; non-fatal `error` / `warning` / `info` events never touch it, and the next successful `load()` clears `ERROR` through `LOADING` again. Additive against the published type contract: consumers switching on `playState()` now actually see the two states the enum always promised.
