@@ -13,6 +13,14 @@
  *  1. `bandwidth()` returns 0 before any estimator is set.
  *  2. `bandwidthEstimator(fn)` stores the function; `bandwidthEstimator()` returns it.
  *  3. `canPlay({ contentType })` returns an object with `{ supported: boolean }` shape.
+ *  4. `bandwidthEstimator(fn)` makes `bandwidth()` return `fn()`'s value — the
+ *     override actually feeds the getter, not just a separate cache slot.
+ *  5. `bandwidth()` falls through to the active backend's own
+ *     `bandwidthEstimate()` when no consumer override is set.
+ *  6. A consumer-set `bandwidthEstimator(fn)` still wins over a wired
+ *     backend estimate.
+ *  7. `bandwidth()` returns 0 (never `NaN`) when the wired backend has no
+ *     `bandwidthEstimate` capability.
  */
 
 import type { BaseEventMap } from '../types';
@@ -69,6 +77,10 @@ function makePlayer(divId: string): MockPlayer {
 	return new MockPlayer(divId);
 }
 
+function wireBackend(player: MockPlayer, backend: { bandwidthEstimate?: () => number }): void {
+	(player as unknown as { backend: () => unknown }).backend = (): unknown => backend;
+}
+
 describe('abrMethods (slice 03)', () => {
 	beforeEach(() => {
 		MockPlayer._resetRegistry();
@@ -104,5 +116,36 @@ describe('abrMethods (slice 03)', () => {
 
 		expect(result).toBeDefined();
 		expect(typeof result.supported).toBe('boolean');
+	});
+
+	it('bandwidthEstimator(fn) makes bandwidth() return fn()\'s value', () => {
+		const player = makePlayer('abr-4');
+
+		player.bandwidthEstimator(() => 12_345);
+
+		expect(player.bandwidth()).toBe(12_345);
+	});
+
+	it('bandwidth() returns the backend\'s live bandwidthEstimate() when no estimator is wired', () => {
+		const player = makePlayer('abr-5');
+		wireBackend(player, { bandwidthEstimate: () => 2_500_000 });
+
+		expect(player.bandwidth()).toBe(2_500_000);
+	});
+
+	it('a consumer-set bandwidthEstimator(fn) wins over a wired backend estimate', () => {
+		const player = makePlayer('abr-6');
+		wireBackend(player, { bandwidthEstimate: () => 2_500_000 });
+
+		player.bandwidthEstimator(() => 999);
+
+		expect(player.bandwidth()).toBe(999);
+	});
+
+	it('bandwidth() returns 0 when the wired backend has no bandwidthEstimate capability', () => {
+		const player = makePlayer('abr-7');
+		wireBackend(player, {});
+
+		expect(player.bandwidth()).toBe(0);
 	});
 });

@@ -194,11 +194,6 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	 */
 	_policyCleanup: Array<() => void>;
 
-	// ── Bandwidth / ABR (backend-written) ─────────────────────────────────────
-
-	/** Last-known bandwidth estimate (bps). Updated by the active stream source. */
-	_bandwidthEstimate: number;
-
 	// ── Metrics timing (setup-orchestrator-written) ───────────────────────────
 
 	/** Wall-clock timestamp captured in `setup()` — used to compute `sessionDurationMs`. */
@@ -469,7 +464,6 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._platform = undefined;
 	target._policyCleanup = [];
 	target._streamRegistry = undefined;
-	target._bandwidthEstimate = 0;
 	target._bandwidthEstimator = undefined;
 	target._metrics = {
 		ttfb: null,

@@ -20,17 +20,39 @@ export interface AbrState {
 	_bandwidthEstimator: (() => number) | undefined;
 }
 
+/**
+ * Narrow backend interface — local to this mixin. Any backend may
+ * optionally expose a live throughput estimate (bits per second); the
+ * kit probes it structurally via `_peekBackendTyped` the same way
+ * `time.ts` probes `buffered()` / `bufferedRanges()`. There is
+ * deliberately no cached `_bandwidthEstimate` field on `Internals` — the
+ * two-field split (a cached value nothing wrote, and a consumer-override
+ * function nothing read) is exactly what left `bandwidth()` hardcoded at
+ * 0 for so long. One override field (`_bandwidthEstimator`), one live
+ * backend pass-through — no second name to silently diverge from it.
+ */
+interface _BackendWithBandwidthEstimate {
+	bandwidthEstimate?: () => number;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: ABR — `bandwidth`, `bandwidthEstimator`, `canPlay`.
 // ──────────────────────────────────────────────────────────────────────────
 
 export const abrMethods = {
 	/**
-	 * Last-known throughput estimate in bits per second. Returns 0 until a
-	 * stream is loaded with an estimator wired (consumer or backend).
+	 * Last-known throughput estimate in bits per second. A consumer-set
+	 * `bandwidthEstimator(fn)` always wins. Otherwise queries the active
+	 * backend's own live estimate (e.g. hls.js's EWMA `bandwidthEstimate`)
+	 * when the backend exposes one. Returns 0 when neither is available —
+	 * never `NaN`, never a stale cache.
 	 */
 	bandwidth(this: Internals): number {
-		return this._bandwidthEstimate ?? 0;
+		if (this._bandwidthEstimator)
+			return this._bandwidthEstimator();
+
+		const backend = this._peekBackendTyped<_BackendWithBandwidthEstimate>();
+		return backend?.bandwidthEstimate?.() ?? 0;
 	},
 	/**
 	 * Read or override the bandwidth estimator. Reading returns the current
