@@ -271,7 +271,7 @@ export function runIPlayerContract<P extends IPlayer<BaseEventMap>>(opts: {
 			it('t(key, vars) interpolates {var} placeholders', async () => {
 				await player.language('en');
 				player.addTranslations({ en: { 'contract.test.hello': 'Hello {name}' } });
-				expect(player.t('contract.test.hello', { name: 'Stoney' })).toBe('Hello Stoney');
+				expect(player.t('contract.test.hello', { name: 'Ada' })).toBe('Hello Ada');
 			});
 
 			it('translation(lang, key, value) overrides a single key under one language', async () => {
