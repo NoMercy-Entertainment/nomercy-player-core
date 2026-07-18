@@ -2,9 +2,9 @@
 
 ## [Unreleased]
 
-## [2.0.0] — 2026-07-18
+## [2.0.1] — 2026-07-18
 
-First stable release of the v2 line. The core now publishes under the `latest` dist-tag, so a plain `npm install @nomercy-entertainment/nomercy-player-core` resolves `2.0.0` instead of the stale `2.0.0-rc.2` that predated `publishConfig.tag`. This promotes the `2.0.0-rc.33` surface to stable with no runtime or signature changes; consumers already installing `@rc` are running the same code.
+First published stable of the v2 line (2.0.0 was withdrawn before release, so 2.0.1 is the first stable on npm). The core now publishes under the `latest` dist-tag, so a plain `npm install @nomercy-entertainment/nomercy-player-core` resolves `2.0.1` instead of the stale `2.0.0-rc.2` that predated `publishConfig.tag`. This promotes the `2.0.0-rc.33` surface to stable with no runtime or signature changes; consumers already installing `@rc` are running the same code.
 
 ## [2.0.0-rc.33] — 2026-07-16
 
