@@ -68,7 +68,7 @@ function _wireQueue(self: Internals): void {
 	self._queueList.on('clear', data => self.emit('queue:clear', data));
 	self._queueList.on('shuffle', () => self.emit('queue:shuffle'));
 	self._queueList.on('sort', () => self.emit('queue:sort'));
-	self._queueList.on('current', (data) => {
+	self._queueList.on('item', (data) => {
 		self._disposeSidecarSubtitle();
 		self.emit('item', data);
 		void self._resolveAndEmitChapters(data.item?.id);

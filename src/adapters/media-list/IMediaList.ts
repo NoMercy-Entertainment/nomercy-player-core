@@ -18,7 +18,7 @@ export const MEDIA_LIST_EVENT = {
 	CLEAR: 'clear',
 	SHUFFLE: 'shuffle',
 	SORT: 'sort',
-	CURRENT: 'current',
+	ITEM: 'item',
 } as const;
 
 export type MediaListEvent = typeof MEDIA_LIST_EVENT[keyof typeof MEDIA_LIST_EVENT];

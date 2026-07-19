@@ -214,16 +214,16 @@ describe('MediaList<T>', () => {
 				expect(list.currentIndex()).toBe(0);
 			});
 
-			it('emits current event with item + index', () => {
+			it('emits item event with item + index', () => {
 				const handler = vi.fn();
-				list.on('current', handler);
+				list.on('item', handler);
 				list.setCurrent(1);
 				expect(handler).toHaveBeenCalledWith({ item: expect.objectContaining({ id: 'b' }), index: 1 });
 			});
 
-			it('does NOT emit current event when index is out of bounds', () => {
+			it('does NOT emit item event when index is out of bounds', () => {
 				const handler = vi.fn();
-				list.on('current', handler);
+				list.on('item', handler);
 				list.setCurrent(99);
 				expect(handler).not.toHaveBeenCalled();
 			});
@@ -859,17 +859,17 @@ describe('MediaList<T>', () => {
 			expect(order).toEqual(['remove', 'change']);
 		});
 
-		it('current event fires when setCurrent() moves the cursor', () => {
+		it('item event fires when setCurrent() moves the cursor', () => {
 			list.append(makeItems(3));
 			const handler = vi.fn();
-			list.on('current', handler);
+			list.on('item', handler);
 			list.setCurrent(2);
 			expect(handler).toHaveBeenCalledTimes(1);
 		});
 
-		it('current event does NOT fire on append (cursor only auto-init when empty)', () => {
+		it('item event does NOT fire on append (cursor only auto-init when empty)', () => {
 			const handler = vi.fn();
-			list.on('current', handler);
+			list.on('item', handler);
 			list.append(makeItem('a'));
 			expect(handler).not.toHaveBeenCalled();
 		});

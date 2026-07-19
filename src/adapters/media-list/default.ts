@@ -23,7 +23,7 @@ interface MediaListEventMap<T> {
 	clear: { previousLength: number };
 	shuffle: void;
 	sort: void;
-	current: { item: T | undefined; index: number };
+	item: { item: T | undefined; index: number };
 }
 
 /**
@@ -121,7 +121,7 @@ export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaLis
 	 * - a predicate `(item: T) => boolean` — first match wins
 	 *
 	 * Does nothing if `target` resolves to an out-of-range index. On success
-	 * emits a `current` event with the new item and index.
+	 * emits an `item` event with the new item and index.
 	 */
 	setCurrent(target: T | string | number | ((item: T) => boolean)): void {
 		let idx: number;
@@ -144,7 +144,7 @@ export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaLis
 
 		this.cursor = idx;
 
-		this.emit('current', {
+		this.emit('item', {
 			item: this.items[idx],
 			index: idx,
 		});
