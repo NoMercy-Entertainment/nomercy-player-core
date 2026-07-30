@@ -8,8 +8,11 @@
 
 /**
  * Per-code retry behaviour. All fields except `attempts` are optional; omitting
- * `backoff` means no delay between retries (immediate). `refreshFirst: true`
- * runs the auth refresh flow before the first retry attempt — used for 401s.
+ * `backoff` means linear, and `computeBackoff` fills in `baseMs: 500` and
+ * `maxMs: 30_000` — so an unset backoff still waits 500, 1000, 1500, …
+ * Set `baseMs: 0` for immediate retries. `refreshFirst: true` runs the auth
+ * refresh flow before the first retry attempt — used for 401s, which retry with
+ * no delay because that call site passes 0 rather than reading this config.
  *
  * `attempts: 0` is the canonical "do not retry" value. The kit checks this before
  * scheduling any delay, so `baseMs` / `maxMs` are irrelevant when `attempts` is 0.
