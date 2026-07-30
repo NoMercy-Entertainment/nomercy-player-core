@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [2.0.3] — 2026-07-31
+
+### Fixed
+
+- `item(target)` called between `setup()` and `ready()` addressed a queue the configured `playlist` had not seeded yet, so the cursor never moved and the choice was silently lost — a deep link naming a start item opened on the first item instead. The choice is now parked and applied the moment the pipeline seeds the queue.
+
+### Added
+
+- Screen-aware quality decisions: `detectDisplayHdr()`, `HdrOnSdrFallback` and the `hdrOnSdr` config field, plus `sizeAbrCeiling()` for capping the ladder to the space the picture is drawn in.
+
 ## [2.0.1] — 2026-07-18
 
 First published stable of the v2 line (2.0.0 was withdrawn before release, so 2.0.1 is the first stable on npm). The core now publishes under the `latest` dist-tag, so a plain `npm install @nomercy-entertainment/nomercy-player-core` resolves `2.0.1` instead of the stale `2.0.0-rc.2` that predated `publishConfig.tag`. This promotes the `2.0.0-rc.33` surface to stable with no runtime or signature changes; consumers already installing `@rc` are running the same code.
