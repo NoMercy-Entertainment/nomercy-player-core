@@ -10,6 +10,8 @@ export type { ICueParser } from './adapters/cue-parser/ICueParser';
 export { parseLrc } from './adapters/cue-parser/lrc';
 export type { LrcPayload } from './adapters/cue-parser/lrc';
 export { CueParserRegistry } from './adapters/cue-parser/registry';
+export { hdrAbrCeiling, hdrDecision, isHdrUnplayable } from './adapters/quality/hdr-policy';
+export type { HdrDecision, HdrOnSdrFallback } from './adapters/quality/hdr-policy';
 
 export {
 	parseDurationSeconds,
