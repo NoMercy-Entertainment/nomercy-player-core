@@ -17,6 +17,7 @@ import type {
 } from '../../types';
 import type { Internals } from '../state';
 import type { ItemWithTracks } from './sidecar-util';
+import { applyPendingSelection } from './queue';
 import { builtInCueParsers } from '../../adapters/cue-parser/built-ins';
 import { Logger } from '../../adapters/logger/default';
 import { LEVEL_RANK } from '../../adapters/logger/ILogger';
@@ -952,6 +953,7 @@ function _runSetupPipeline(self: Internals): void {
 			const playlist = self.options.playlist;
 			if (typeof playlist === 'string') {
 				await _resolvePlaylistUrl(self, playlist);
+				applyPendingSelection(self);
 			}
 			else if (Array.isArray(playlist)) {
 				// Only seed the queue from the config array when the consumer
@@ -964,6 +966,7 @@ function _runSetupPipeline(self: Internals): void {
 				if (!alreadySeeded) {
 					self.queue(playlist);
 				}
+				applyPendingSelection(self);
 				self.emit('playlistReady', { length: playlist.length });
 			}
 			else {

@@ -47,6 +47,29 @@ export interface QueueState<T extends BasePlaylistItem = BasePlaylistItem> {
 	 *  play() once its stale load silently resolves.
 	 */
 	_currentEpoch?: number;
+
+	/**
+	 * Cursor target chosen before the configured playlist reached the queue.
+	 * `setup({ playlist })` only seeds during the ready pipeline, so a consumer
+	 * picking a start item (a `?season=&episode=` deep link, say) right after
+	 * `setup()` addresses an empty queue. The pipeline applies this the moment
+	 * the queue exists, which is still inside `ready()` — soon enough for the
+	 * per-library autoplay step to see a real choice.
+	 */
+	_pendingSelection?: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean);
+}
+
+/**
+ * Move the cursor to a selection parked before the queue existed. Called by the
+ * setup pipeline right after the configured playlist seeds.
+ */
+export function applyPendingSelection(self: Internals): void {
+	if (self._pendingSelection === undefined)
+		return;
+
+	const target = self._pendingSelection;
+	self._pendingSelection = undefined;
+	self._queueList.setCurrent(target);
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -272,13 +295,20 @@ export const queueMethods = {
 		this._currentEpoch = (this._currentEpoch ?? 0) + 1;
 		const navigationEpoch = this._currentEpoch;
 
-		this._queueList.setCurrent(target);
+		// An empty queue during setup is the configured playlist not having
+		// seeded yet, not an absent item — park the choice for the pipeline
+		// rather than dropping it on the floor.
+		const awaitingPlaylist = this._phase === 'setup' && this._queueList.get().length === 0;
+		if (awaitingPlaylist)
+			this._pendingSelection = target;
+		else
+			this._queueList.setCurrent(target);
 
 		if (this._phase === 'idle' || this._phase === 'disposed' || this._phase === 'disposing')
 			return;
 
-		const activeItem = this._queueList.current();
-		if (!activeItem)
+		const activeItem = awaitingPlaylist ? undefined : this._queueList.current();
+		if (!activeItem && !awaitingPlaylist)
 			return;
 
 		const doLoad = (): void => {
