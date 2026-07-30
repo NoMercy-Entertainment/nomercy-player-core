@@ -11,6 +11,7 @@ export { parseLrc } from './adapters/cue-parser/lrc';
 export type { LrcPayload } from './adapters/cue-parser/lrc';
 export { CueParserRegistry } from './adapters/cue-parser/registry';
 export { hdrAbrCeiling, hdrDecision, isHdrUnplayable } from './adapters/quality/hdr-policy';
+export { abrCeiling, panePixels, sizeAbrCeiling } from './adapters/quality/size-policy';
 export { browserDisplayRangeProbe, detectDisplayHdr } from './adapters/quality/display-range';
 export type { DisplayRangeProbe } from './adapters/quality/display-range';
 export type { HdrDecision, HdrOnSdrFallback } from './adapters/quality/hdr-policy';
