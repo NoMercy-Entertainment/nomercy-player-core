@@ -36,4 +36,11 @@ export interface DeviceCapabilities {
 	 * Derived from the `MediaCapabilities` API.
 	 */
 	preferred: 'smooth' | 'powerEfficient';
+	/**
+	 * `true` when this screen can actually render HDR — see `detectDisplayHdr`.
+	 * Defaults to `false` when it cannot be asked, deliberately: an SDR
+	 * decision on an HDR panel is a correct picture one rung lower, while an
+	 * HDR decision on an SDR panel is the washed-out one a viewer reports.
+	 */
+	hdrDisplay: boolean;
 }

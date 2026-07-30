@@ -10,6 +10,7 @@ import type { DeviceCapabilities } from '../../types';
 import type { Internals } from '../state';
 
 import { browserPlatform } from '../../adapters/platform/browser';
+import { detectDisplayHdr } from '../../adapters/quality/display-range';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Private helpers — only used by deviceMethods
@@ -117,6 +118,8 @@ export const deviceMethods = {
 	 *   autoplay and handles a NotAllowedError from the backend.
 	 * - `preferred` — `'powerEfficient'` on TV and mobile, `'smooth'` on
 	 *   desktop; used by quality selection heuristics.
+	 * - `hdrDisplay` — from `detectDisplayHdr()`, which asks the video plane
+	 *   before the page and defaults to SDR when nothing can be asked.
 	 */
 	device(this: Internals): DeviceCapabilities {
 		const detected = _detectDevice();
@@ -133,6 +136,7 @@ export const deviceMethods = {
 			webLocksSupported,
 			autoplayAllowed: 'unknown',
 			preferred: detected.isTv || detected.isMobile ? 'powerEfficient' : 'smooth',
+			hdrDisplay: detectDisplayHdr(),
 		};
 	},
 } as const;

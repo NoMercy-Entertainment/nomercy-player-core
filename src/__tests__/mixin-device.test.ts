@@ -43,7 +43,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare isTv: () => boolean;
 	declare isMobile: () => boolean;
 	declare isDesktop: () => boolean;
-	declare device: () => { isTv: boolean; isMobile: boolean; isDesktop: boolean; preferred: string; fullscreenSupported: boolean; pipSupported: boolean; webLocksSupported: boolean; autoplayAllowed: boolean | 'unknown' };
+	declare device: () => { isTv: boolean; isMobile: boolean; isDesktop: boolean; preferred: string; fullscreenSupported: boolean; pipSupported: boolean; webLocksSupported: boolean; autoplayAllowed: boolean | 'unknown'; hdrDisplay: boolean };
 
 	constructor(id?: string | number) {
 		super();
@@ -114,5 +114,14 @@ describe('deviceMethods (slice 03)', () => {
 		expect(desktop).toBe(true);
 		expect(tv).toBe(false);
 		expect(mobile).toBe(false);
+	});
+
+	it('device() reports hdrDisplay false in jsdom — no matchMedia to ask', () => {
+		const player = makePlayer('device-3');
+
+		const caps = player.device();
+
+		expect(typeof caps.hdrDisplay).toBe('boolean');
+		expect(caps.hdrDisplay).toBe(false);
 	});
 });

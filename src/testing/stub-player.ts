@@ -782,6 +782,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 			webLocksSupported: false,
 			autoplayAllowed: 'unknown',
 			preferred: 'smooth',
+			hdrDisplay: false,
 		};
 	}
 

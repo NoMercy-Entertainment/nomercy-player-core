@@ -10,6 +10,7 @@ import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import type { ILogger } from '../adapters/logger/ILogger';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { IPreloadStrategy, ITransitionStrategy } from '../adapters/preload/default';
+import type { HdrOnSdrFallback } from '../adapters/quality/hdr-policy';
 import type { RealtimeFactory } from '../adapters/realtime/IRealtimeChannel';
 import type { IShuffleStrategy } from '../adapters/shuffle-strategy/IShuffleStrategy';
 import type { IStorage } from '../adapters/storage/IStorage';
@@ -175,6 +176,17 @@ export interface BasePlayerConfig {
 
 	/** Initial volume on the public 0–100 scale. Default `100`. */
 	defaultVolume?: number;
+
+	/**
+	 * What to do when an item is all-HDR and the display cannot render HDR,
+	 * and the backend cannot tone-map it down either. `'play'` (default) shows
+	 * the washed-out picture; `'refuse'` surfaces an error instead. Read lazily
+	 * wherever the decision is made — see `HdrOnSdrFallback` in
+	 * `adapters/quality/hdr-policy`. Lives on the base config rather than
+	 * `VideoPlayerConfig` because the native trio mirrors this on its shared
+	 * config for the same reason.
+	 */
+	hdrOnSdr?: HdrOnSdrFallback;
 
 	/** Auth pipeline applied to every kit-internal fetch. */
 	auth?: AuthConfig;
