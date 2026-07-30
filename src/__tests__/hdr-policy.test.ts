@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { detectDisplayHdr } from '../adapters/quality/display-range';
 import { hdrAbrCeiling, hdrDecision, isHdrUnplayable } from '../adapters/quality/hdr-policy';
 import type { QualityLevel } from '../types/tracks';
 
@@ -21,12 +22,16 @@ import type { QualityLevel } from '../types/tracks';
 // Mirrors HdrPolicyTest.kt case for case. Both sides exist so the native port has
 // something to match; if these two files disagree, the port has drifted.
 function rung(height: number, bitrate: number, range: 'sdr' | 'hdr'): QualityLevel {
+	// Every field the type declares, not a cast over a partial. `label` and `index`
+	// were missing and the `as` hid it — a fixture that is not really a QualityLevel
+	// is a test agreeing with itself rather than with the type the code receives.
 	return {
-		id: `${height}-${range}`,
+		label: `${height}p${range === 'hdr' ? ' HDR' : ''}`,
+		index: height,
 		height,
 		bitrate,
 		dynamicRange: range,
-	} as QualityLevel;
+	};
 }
 
 const SDR_1080 = rung(1080, 6_000_000, 'sdr');
@@ -89,5 +94,37 @@ describe('hdrDecision', () => {
 		// A backend that has not enumerated its rungs yet, or a progressive file with
 		// no ladder at all. Refusing there refuses every single-file item.
 		expect(hdrDecision([], false, false, 'refuse')).toEqual({ kind: 'as-is' });
+	});
+});
+
+describe('detectDisplayHdr', () => {
+	it('asks the video plane before the page', () => {
+		// A browser can composite HDR video on a screen whose PAGE rendering it
+		// reports as standard, so asking only `dynamic-range` calls an HDR-capable
+		// panel SDR and pins every ladder a rung lower than it needs.
+		const asked: string[] = [];
+		const probe = {
+			matches: (query: string): boolean => {
+				asked.push(query);
+				return query.includes('video-dynamic-range');
+			},
+		};
+
+		expect(detectDisplayHdr(probe)).toBe(true);
+		expect(asked[0]).toBe('(video-dynamic-range: high)');
+	});
+
+	it('falls back to the page query', () => {
+		const probe = { matches: (query: string): boolean => !query.includes('video-') };
+
+		expect(detectDisplayHdr(probe)).toBe(true);
+	});
+
+	it('assumes SDR when there is nothing to ask', () => {
+		// The assumption whose failure is visible and recoverable: SDR on an HDR panel
+		// is a correct-looking picture one rung lower, HDR on an SDR panel is the
+		// washed-out one that was reported.
+		expect(detectDisplayHdr(null)).toBe(false);
+		expect(detectDisplayHdr({ matches: () => false })).toBe(false);
 	});
 });
