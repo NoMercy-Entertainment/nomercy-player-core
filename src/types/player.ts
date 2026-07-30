@@ -978,7 +978,13 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	// ── Buffered / seekable ranges ──
 
 	/**
-	 * How many seconds of media are buffered ahead of the current position.
+	 * The absolute timeline position, in seconds, that buffered data reaches —
+	 * the same frame of reference as `time()` and `duration()`, which is what
+	 * lets a scrubber draw its buffered bar as `buffered() / duration()`.
+	 *
+	 * Not a duration ahead of the playhead. `remaining` on the `time` payload
+	 * is the number relative to the position; this one is absolute.
+	 *
 	 * Returns 0 when no backend is registered.
 	 */
 	buffered(): number;
