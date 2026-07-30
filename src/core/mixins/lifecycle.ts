@@ -17,7 +17,6 @@ import type {
 } from '../../types';
 import type { Internals } from '../state';
 import type { ItemWithTracks } from './sidecar-util';
-import { applyPendingSelection } from './queue';
 import { builtInCueParsers } from '../../adapters/cue-parser/built-ins';
 import { Logger } from '../../adapters/logger/default';
 import { LEVEL_RANK } from '../../adapters/logger/ILogger';
@@ -30,11 +29,12 @@ import { getLazyTranslationLoader } from '../../adapters/translator/loaders/tran
 import { DefaultTranslator } from '../../adapters/translator/translator';
 import { makePlayerErrorEvent, stateError, StateError } from '../../errors';
 import { enTranslations } from '../../i18n/en';
-
 import { kitTranslations } from '../../kit-translations';
+
 import { SetupState } from '../../types';
 import { authFetch } from '../auth-fetch';
 import { wireActivityTracking } from './activity';
+import { applyPendingSelection } from './queue';
 
 // ──────────────────────────────────────────────────────────────────────────
 // Playlist URL resolver

@@ -10,12 +10,6 @@ export type { ICueParser } from './adapters/cue-parser/ICueParser';
 export { parseLrc } from './adapters/cue-parser/lrc';
 export type { LrcPayload } from './adapters/cue-parser/lrc';
 export { CueParserRegistry } from './adapters/cue-parser/registry';
-export { hdrAbrCeiling, hdrDecision, isHdrUnplayable } from './adapters/quality/hdr-policy';
-export { abrCeiling, panePixels, sizeAbrCeiling } from './adapters/quality/size-policy';
-export { browserDisplayRangeProbe, detectDisplayHdr } from './adapters/quality/display-range';
-export type { DisplayRangeProbe } from './adapters/quality/display-range';
-export type { HdrDecision, HdrOnSdrFallback } from './adapters/quality/hdr-policy';
-
 export {
 	parseDurationSeconds,
 	parseTimestamp,
@@ -42,6 +36,7 @@ export type {
 	AppendTo,
 	CreateElement,
 } from './adapters/element-factory';
+
 // Primitives
 export { EventEmitter } from './adapters/event-bus/default';
 // Language matcher (BCP-47 fallback chain — swap for a custom matching strategy)
@@ -69,7 +64,6 @@ export {
 	supportsNativeHls,
 	waitForMediaElementMetadata,
 } from './adapters/media-element';
-
 export type {
 	BackendId,
 	DomBridgeHandler,
@@ -82,7 +76,6 @@ export {
 	bridgeBackendPlayState,
 	MediaElementBackend,
 } from './adapters/media-element';
-
 export type {
 	AuthHeaderProvider,
 	BackendLifecycleBridgeOptions,
@@ -93,8 +86,8 @@ export type {
 } from './adapters/media-element';
 // Media list (cursor-aware list — both libs' queue surface delegates here)
 export { MediaList } from './adapters/media-list/default';
-
 export type { MediaListEvent } from './adapters/media-list/default';
+
 // Platform bundle (wake-lock, network, visibility, capabilities, fullscreen, pip)
 export { browserPlatform } from './adapters/platform/browser';
 export type {
@@ -109,6 +102,7 @@ export type {
 	IWakeLock,
 	NetworkType,
 } from './adapters/platform/browser';
+
 // Preload + transition strategy interfaces and default implementations
 export {
 	CrossfadeTransitionStrategy,
@@ -124,6 +118,12 @@ export type {
 	PreloadContext,
 	TransitionContext,
 } from './adapters/preload/default';
+
+export { browserDisplayRangeProbe, detectDisplayHdr } from './adapters/quality/display-range';
+export type { DisplayRangeProbe } from './adapters/quality/display-range';
+export { hdrAbrCeiling, hdrDecision, isHdrUnplayable } from './adapters/quality/hdr-policy';
+export type { HdrDecision, HdrOnSdrFallback } from './adapters/quality/hdr-policy';
+export { abrCeiling, panePixels, sizeAbrCeiling } from './adapters/quality/size-policy';
 export type {
 	IRealtimeChannel,
 	RealtimeFactory,

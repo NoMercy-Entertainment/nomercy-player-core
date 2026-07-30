@@ -6,11 +6,11 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import { describe, expect, it } from 'vitest';
+import type { QualityLevel } from '../types/tracks';
 
+import { describe, expect, it } from 'vitest';
 import { detectDisplayHdr } from '../adapters/quality/display-range';
 import { hdrAbrCeiling, hdrDecision, isHdrUnplayable } from '../adapters/quality/hdr-policy';
-import type { QualityLevel } from '../types/tracks';
 
 // What to do about dynamic range on this screen.
 //

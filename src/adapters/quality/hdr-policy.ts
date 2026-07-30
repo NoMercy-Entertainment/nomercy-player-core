@@ -32,9 +32,9 @@ import type { QualityLevel } from '../../types/tracks';
  */
 export type HdrOnSdrFallback = 'play' | 'refuse';
 
-export type HdrDecision =
+export type HdrDecision
 /** Nothing to do: an HDR screen, or an item with no HDR in it. */
-	| { kind: 'as-is' }
+	= | { kind: 'as-is' }
 	/**
 	 * Ask the backend to convert HDR to SDR as it decodes.
 	 *
@@ -42,18 +42,18 @@ export type HdrDecision =
 	 * no second rendition on the server and no bandwidth decision, and the picture is
 	 * right rather than merely watchable. It costs work per frame, deliberately.
 	 */
-	| { kind: 'tone-map' }
+		| { kind: 'tone-map' }
 	/**
 	 * Pin adaptation to the best SDR rung the ladder has.
 	 *
 	 * Ahead of tone-mapping when a rung exists, because a natively-SDR stream is
 	 * correct without spending anything per frame.
 	 */
-	| { kind: 'cap-to'; level: QualityLevel }
+		| { kind: 'cap-to'; level: QualityLevel }
 	/** No SDR rung, no converter, and the consumer chose to show it anyway. */
-	| { kind: 'play-unconverted' }
+		| { kind: 'play-unconverted' }
 	/** No SDR rung, no converter, and the consumer chose not to. */
-	| { kind: 'refuse' };
+		| { kind: 'refuse' };
 
 function isHdr(level: QualityLevel): boolean {
 	return level.dynamicRange === 'hdr';
@@ -120,8 +120,12 @@ export function hdrDecision(
 		return { kind: 'as-is' };
 
 	const ceiling = hdrAbrCeiling(levels, displayHdr);
-	if (ceiling !== null)
-		return { kind: 'cap-to', level: ceiling };
+	if (ceiling !== null) {
+		return {
+			kind: 'cap-to',
+			level: ceiling,
+		};
+	}
 
 	// An ordinary SDR item on an SDR screen. An empty ladder lands here too, which
 	// is right — a backend that has not enumerated its rungs yet, or a progressive
