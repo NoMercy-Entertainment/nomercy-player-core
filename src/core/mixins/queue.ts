@@ -93,6 +93,17 @@ function _wireQueue(self: Internals): void {
 	self._queueList.on('sort', () => self.emit('queue:sort'));
 	self._queueList.on('item', (data) => {
 		self._disposeSidecarSubtitle();
+
+		// The cursor moves before the media switch, so the position and duration
+		// on the internal slots still describe the OUTGOING item. Drop them here
+		// rather than letting the incoming item inherit them — a listener reading
+		// `time()` inside this very `item` handler otherwise gets the previous
+		// item's end position and attributes it to the new one.
+		if (self._mountedItemId !== undefined && data.item?.id !== self._mountedItemId) {
+			self._internalCurrentTime = 0;
+			self._internalDuration = 0;
+		}
+
 		self.emit('item', data);
 		void self._resolveAndEmitChapters(data.item?.id);
 	});

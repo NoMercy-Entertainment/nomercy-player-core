@@ -216,6 +216,14 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	_loadEpoch?: number;
 
 	/**
+	 * Id of the item whose media the backend currently has mounted. Written by
+	 * `load()` once `backend.load()` resolves. `undefined` until the first
+	 * successful mount. The queue cursor can point somewhere else — it moves
+	 * before the media switch — and `_mediaIsStale()` is that gap.
+	 */
+	_mountedItemId?: string | number;
+
+	/**
 	 * Per-instance title-token registry. Maps a single letter (e.g. `'S'`, `'E'`)
 	 * to the translation key that resolves the token's display text. Empty by
 	 * default — core ships no tokens. Per-library players call
@@ -266,6 +274,9 @@ export interface MixinSurface {
 	_peekBackendTyped<S extends object>(): S | undefined;
 	_assertReady(): void;
 	_dispatchBefore<TData>(beforeEvent: string, data: TData): Promise<BeforeDispatchOutcome<TData>>;
+
+	// loadingMethods (see mixins/loading.ts) — mounted-media identity
+	_mediaIsStale(): boolean;
 
 	// authMethods (see mixins/auth.ts) — full URL resolution pipeline
 	resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl>;
@@ -445,6 +456,7 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._volumeBeforeMute = 100;
 	target._internalCurrentTime = 0;
 	target._internalDuration = 0;
+	target._mountedItemId = undefined;
 	target._itemEndingSoonEmitted = false;
 	target._playbackRate = 1;
 	target._queueList = new MediaList();

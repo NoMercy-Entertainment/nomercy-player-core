@@ -197,6 +197,12 @@ export const loadingMethods = {
 				this._queueList.setCurrent(item2);
 			}
 
+			// The backend is now holding THIS item's media. Recorded after the
+			// mount, never before: everything between the cursor move and this
+			// line is time the outgoing item's element is still attached and
+			// still reporting its own position.
+			this._mountedItemId = item2.id;
+
 			// Seek fallback for backends that can't start at an offset natively.
 			if (startAt !== undefined && backend.canStartAt !== true) {
 				const ret = this.time(startAt);
@@ -257,6 +263,28 @@ export const loadingMethods = {
 			}
 			throw err;
 		}
+	},
+
+	/**
+	 * Whether the backend's mounted media belongs to an item the queue cursor
+	 * has already moved off.
+	 *
+	 * `transport.next()` and `queue.item()` both move the cursor BEFORE the
+	 * media switch, so the UI can repaint the incoming title while its media
+	 * loads. For the length of that window the OUTGOING element is still
+	 * attached and still emitting position updates. Reading those as the
+	 * incoming item's position is how the previous episode's end position gets
+	 * written against the next episode.
+	 *
+	 * `false` until the first successful mount — a consumer driving a media
+	 * element without ever calling `load()` has no mounted item to be stale
+	 * against, and must not have its position updates suppressed.
+	 */
+	_mediaIsStale(this: Internals): boolean {
+		if (this._mountedItemId === undefined)
+			return false;
+		const current = this._queueList.current();
+		return current !== undefined && current.id !== this._mountedItemId;
 	},
 
 	/**
