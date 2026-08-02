@@ -81,6 +81,15 @@ const CONTAINER_CLASS_RULES: ReadonlyMap<string, ContainerClassRule> = new Map<s
 		kind: 'drop',
 		remove: ['buffering'],
 	}],
+	// An advancing clock disproves a stall. `canplay` above is the signal that
+	// ends a load, but it does not fire on every recovery in every engine, and
+	// `buffering` left standing over moving video is the failure that costs the
+	// most trust. This is the cheap self-correcting backstop on the hottest
+	// event — a `drop` of a class that is usually absent is a no-op.
+	['time', {
+		kind: 'drop',
+		remove: ['buffering'],
+	}],
 	['mute', {
 		kind: 'toggle',
 		cls: 'muted',

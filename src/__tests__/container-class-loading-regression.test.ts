@@ -154,6 +154,27 @@ describe('container-class phase rule — loading after ready', () => {
 		expect(container.classList.contains('buffering')).toBe(false);
 	});
 
+	it('an advancing clock clears buffering even when canplay never arrives', () => {
+		// The backstop half of the same rule. `canplay` is the primary signal,
+		// but it does not fire on every recovery in every engine, and a
+		// `buffering` class left standing over moving video is what the desktop
+		// UI's spinner rides. A time update disproves a stall by itself.
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const player = new ContainerEmitter(container);
+
+		player.emit('phase', { from: 'idle', to: 'loading' });
+		player.emit('phase', { from: 'loading', to: 'ready' });
+		player.emit('play');
+		player.emit('waiting');
+
+		expect(container.classList.contains('buffering')).toBe(true);
+
+		player.emit('time', { time: 12 });
+
+		expect(container.classList.contains('buffering')).toBe(false);
+	});
+
 	it('two independent containers do not share ready-state tracking', () => {
 		const container1 = document.createElement('div');
 		const container2 = document.createElement('div');
