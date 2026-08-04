@@ -46,6 +46,22 @@ export interface AuthConfig {
 	 */
 	bearerToken?: AuthHeaderValue;
 
+	/**
+	 * The `Authorization` header to send with one media request — the manifest,
+	 * each HLS segment, and the element `src` fallback.
+	 *
+	 * Separate from `bearerToken`, which covers the kit's own fetches to a known
+	 * API. Media is different: the player plays what the consumer hands it, and
+	 * a playlist entry can name anyone's host. Deciding whether a credential
+	 * belongs on a given request needs the URL and a rule only the consumer has,
+	 * so the kit asks rather than assumes — unset, media requests carry no
+	 * `Authorization` at all.
+	 *
+	 * Synchronous: hls.js resolves headers per segment in a synchronous
+	 * callback. Read a store or a ref here; do not fetch.
+	 */
+	mediaAuthorization?: (url: string) => string | undefined;
+
 	/** Arbitrary headers — static, sync getter, or async getter. */
 	headers?: Record<string, AuthHeaderValue>;
 

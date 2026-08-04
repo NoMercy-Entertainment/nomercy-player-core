@@ -9,6 +9,8 @@
 import type { ErrorScope } from '../../errors/code';
 import type { BackendState } from './backend-state';
 
+import type { AuthHeaderProvider } from './MediaElementBackend';
+
 import { appendAuthTokenParam } from '../../core/append-auth-token-param';
 import { BrowserPolicyError } from '../../errors';
 import { HLS_EXT_RE } from '../stream/hls';
@@ -67,7 +69,7 @@ export interface HlsLoaderConfig {
 	enableCEA708Captions?: boolean;
 	startPosition?: number;
 	startFragPrefetch?: boolean;
-	xhrSetup?: (xhr: XMLHttpRequest) => void;
+	xhrSetup?: (xhr: XMLHttpRequest, url: string) => void;
 	[key: string]: unknown;
 }
 
@@ -94,12 +96,12 @@ export function attachHlsOrFallback(
 	HlsModule: unknown,
 	el: HTMLMediaElement,
 	url: string,
-	authParam: string | undefined,
+	headerValue: string | undefined,
 	hlsConfig: HlsLoaderConfig,
 ): HlsHandle | undefined {
 	const Hls = HlsModule as HlsCtor;
 	if (!Hls.isSupported()) {
-		el.src = appendAuthTokenParam(url, authParam);
+		el.src = appendAuthTokenParam(url, headerValue);
 		(el as HTMLAudioElement).load?.();
 		return undefined;
 	}
@@ -110,17 +112,20 @@ export function attachHlsOrFallback(
 }
 
 /**
- * Build an hls.js `xhrSetup` callback that stamps `Authorization: <headerValue>`
- * onto every manifest / segment request when a value is present.
+ * Build an hls.js `xhrSetup` callback that asks `provider` what to send with
+ * each manifest / segment request.
  *
- * Centralises the closure so every backend's `HlsLoaderConfig.xhrSetup` shares
- * one implementation instead of re-writing the same conditional
- * `setRequestHeader` call at each call site.
+ * hls.js passes the request URL to this callback and it was being dropped: the
+ * header was resolved once for the source and then stamped onto every request
+ * the loader made afterwards. A manifest names where its segments live and
+ * nothing says that is where the manifest lives, so "the source was ours" never
+ * did answer the question this asks.
  */
 export function createAuthorizationXhrSetup(
-	headerValue: string | undefined,
-): (xhr: XMLHttpRequest) => void {
-	return (xhr: XMLHttpRequest): void => {
+	provider: AuthHeaderProvider | undefined,
+): (xhr: XMLHttpRequest, url: string) => void {
+	return (xhr: XMLHttpRequest, url: string): void => {
+		const headerValue = provider?.(url);
 		if (headerValue) {
 			xhr.setRequestHeader('Authorization', headerValue);
 		}

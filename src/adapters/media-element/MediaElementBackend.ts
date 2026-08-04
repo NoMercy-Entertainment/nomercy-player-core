@@ -42,9 +42,20 @@ export interface MinimalBackendEventPayload {
 	error: unknown;
 }
 
-/** Provider function shape stored on every backend for auth-header resolution. */
-export type AuthHeaderProvider = () =>
-  string | undefined | Promise<string | undefined>;
+/**
+ * Asked for the `Authorization` header to send with one request.
+ *
+ * Takes the request URL, because whether a credential belongs on a request is
+ * the consumer's decision and it cannot be made without knowing where the
+ * request is going. This was asked with no argument, so it could only answer
+ * "here is the token" — and the player plays whatever it is handed. An
+ * internet radio stream, a podcast, a trailer on someone's CDN: all ordinary,
+ * none of them the consumer's server, all of them receiving the token.
+ *
+ * Synchronous, because hls.js resolves headers per segment inside a
+ * synchronous callback. Read from a store or a ref; do not fetch here.
+ */
+export type AuthHeaderProvider = (url: string) => string | undefined;
 
 /**
  * Abstract substrate for every `HTMLMediaElement`-backed backend.

@@ -89,30 +89,64 @@ describe('destroyHlsInstance — repeat-call safety', () => {
 });
 
 describe('createAuthorizationXhrSetup()', () => {
-	it('stamps the Authorization header when a value is present', () => {
-		const setup = createAuthorizationXhrSetup('Bearer tok-1');
+	const OURS = 'https://media.example.com';
+	// What a consumer's hook looks like: it knows its own server, and nothing
+	// else gets the token.
+	const provider = (url: string): string | undefined =>
+		url.startsWith(`${OURS}/`) ? 'Bearer tok-1' : undefined;
+
+	it('stamps the Authorization header for a request the consumer claims', () => {
+		const setup = createAuthorizationXhrSetup(provider);
 		const xhr = { setRequestHeader: vi.fn() } as unknown as XMLHttpRequest;
 
-		setup(xhr);
+		setup(xhr, `${OURS}/segment-1.ts`);
 
 		expect(xhr.setRequestHeader).toHaveBeenCalledTimes(1);
 		expect(xhr.setRequestHeader).toHaveBeenCalledWith('Authorization', 'Bearer tok-1');
 	});
 
-	it('does not touch the request when the value is undefined', () => {
-		const setup = createAuthorizationXhrSetup(undefined);
+	/**
+	 * hls.js hands the request url to this callback and it was thrown away: the
+	 * header was resolved once for the source, then stamped on every request the
+	 * loader made after it. A manifest names where its segments live, and nothing
+	 * says that is where the manifest lives.
+	 */
+	it('asks again for a segment hosted somewhere else', () => {
+		const setup = createAuthorizationXhrSetup(provider);
 		const xhr = { setRequestHeader: vi.fn() } as unknown as XMLHttpRequest;
 
-		setup(xhr);
+		setup(xhr, 'https://cdn.stranger.test/segment-1.ts');
 
 		expect(xhr.setRequestHeader).not.toHaveBeenCalled();
 	});
 
-	it('does not stamp for an empty string value', () => {
-		const setup = createAuthorizationXhrSetup('');
+	it('passes the url through unchanged so the consumer decides on the real target', () => {
+		const seen: string[] = [];
+		const setup = createAuthorizationXhrSetup((url) => {
+			seen.push(url);
+			return undefined;
+		});
+
+		setup({ setRequestHeader: vi.fn() } as unknown as XMLHttpRequest, `${OURS}/a.ts`);
+		setup({ setRequestHeader: vi.fn() } as unknown as XMLHttpRequest, 'https://other.test/b.ts');
+
+		expect(seen).toEqual([`${OURS}/a.ts`, 'https://other.test/b.ts']);
+	});
+
+	it('does not touch the request when no provider is wired', () => {
+		const setup = createAuthorizationXhrSetup(undefined);
 		const xhr = { setRequestHeader: vi.fn() } as unknown as XMLHttpRequest;
 
-		setup(xhr);
+		setup(xhr, `${OURS}/segment-1.ts`);
+
+		expect(xhr.setRequestHeader).not.toHaveBeenCalled();
+	});
+
+	it('does not stamp when the provider answers with nothing', () => {
+		const setup = createAuthorizationXhrSetup(() => undefined);
+		const xhr = { setRequestHeader: vi.fn() } as unknown as XMLHttpRequest;
+
+		setup(xhr, `${OURS}/segment-1.ts`);
 
 		expect(xhr.setRequestHeader).not.toHaveBeenCalled();
 	});

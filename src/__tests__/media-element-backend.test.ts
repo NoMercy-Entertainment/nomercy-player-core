@@ -134,11 +134,25 @@ describe('MediaElementBackend', () => {
 			expect(backend.authHeaderProvider()).toBeUndefined();
 		});
 
-		it('stores the exact provider function for the loader to consume', async () => {
+		it('stores the exact provider function for the loader to consume', () => {
 			const provider: AuthHeaderProvider = () => 'Bearer tok-99';
 			backend.setAuthHeaderProvider(provider);
 			expect(backend.authHeaderProvider()).toBe(provider);
-			await expect(Promise.resolve(backend.authHeaderProvider()!())).resolves.toBe('Bearer tok-99');
+			expect(backend.authHeaderProvider()!('https://media.example.com/a.ts')).toBe('Bearer tok-99');
+		});
+
+		it('hands the request url to the provider, so the consumer can refuse a stranger', () => {
+			// Without the url the provider could only ever answer "here is the
+			// token", and the loader put it on every request it made.
+			const seen: string[] = [];
+			backend.setAuthHeaderProvider((url) => {
+				seen.push(url);
+				return undefined;
+			});
+
+			backend.authHeaderProvider()!('https://ice1.somafm.com/groovesalad');
+
+			expect(seen).toEqual(['https://ice1.somafm.com/groovesalad']);
 		});
 
 		it('replaces a previously set provider', () => {
