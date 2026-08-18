@@ -7,6 +7,7 @@
 // -----------------------------------------------------------------------------
 
 import type { BaseEventMap, IPlayer } from '../types';
+import type { ICueParser } from '../adapters/cue-parser/ICueParser';
 import { StateError } from '../errors';
 
 /**
@@ -304,15 +305,17 @@ export function runIPlayerContract<P extends IPlayer<BaseEventMap>>(opts: {
 
 		describe('cue parser registry', () => {
 			it('registerCueParser + unregisterCueParser round-trip without error', () => {
-				const parser = {
+				const parser: ICueParser = {
 					id: 'contract-test-parser',
 					canParse: (): boolean => false,
-					parse: (): any => ({
+					parse: () => ({
 						cues: [],
-						duration: 0,
+						active: () => [],
+						next: () => undefined,
+						prev: () => undefined,
 					}),
 				};
-				expect(() => player.registerCueParser(parser as any)).not.toThrow();
+				expect(() => player.registerCueParser(parser)).not.toThrow();
 				expect(() => player.unregisterCueParser('contract-test-parser')).not.toThrow();
 			});
 

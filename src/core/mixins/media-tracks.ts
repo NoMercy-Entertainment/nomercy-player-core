@@ -15,6 +15,7 @@ import type {
 	CurrentAudioTrackSelection,
 	CurrentQualitySelection,
 	CurrentSubtitleSelection,
+	IPlayer,
 	QualityLevel,
 	SidecarSubtitleInput,
 	SubtitleCue as SubtitleCuePayload,
@@ -876,6 +877,32 @@ export const mediaTracksMethods = {
 			}
 			this.emit('audioTrack', { id: targetIdx });
 		})();
+	},
+
+	/**
+	 * Advance to the next audio track, wrapping from the last track back to
+	 * the first. No-op when the backend exposes fewer than one audio track.
+	 */
+	cycleAudioTracks(this: Internals): void {
+		// Routed through the public `IPlayer` surface (not `mediaTracksMethods`
+		// directly) so a consumer override of `audioTracks`/`audioTrack` — e.g. a
+		// backend-specific subclass or a test double — is honoured, same as any
+		// other public API caller would see.
+		const self = this as unknown as IPlayer;
+		let list: ReadonlyArray<AudioTrack> = [];
+		try { list = self.audioTracks(); }
+		catch { /* tracks API not implemented yet — treat as empty */ }
+		if (!list || list.length === 0)
+			return;
+		let current = -1;
+		try {
+			const sel = self.audioTrack() as CurrentAudioTrackSelection | null;
+			if (sel != null && typeof sel.index === 'number' && sel.index >= 0)
+				current = sel.index;
+		}
+		catch { /* state unavailable — start from 0 */ }
+		const next = current >= list.length - 1 ? 0 : current + 1;
+		void self.audioTrack(next);
 	},
 
 	/**

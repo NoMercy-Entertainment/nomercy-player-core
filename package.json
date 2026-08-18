@@ -85,6 +85,10 @@
 			"types": "./dist/adapters/preload/index.d.ts",
 			"import": "./dist/adapters/preload/index.js"
 		},
+		"./adapters/shuffle-strategy": {
+			"types": "./dist/adapters/shuffle-strategy/index.d.ts",
+			"import": "./dist/adapters/shuffle-strategy/index.js"
+		},
 		"./adapters/realtime": {
 			"types": "./dist/adapters/realtime/index.d.ts",
 			"import": "./dist/adapters/realtime/index.js"
@@ -148,6 +152,10 @@
 		"./plugins/mixer": {
 			"types": "./dist/plugins/mixer/index.d.ts",
 			"import": "./dist/plugins/mixer/index.js"
+		},
+		"./plugins/volume-memory": {
+			"types": "./dist/plugins/volume-memory/index.d.ts",
+			"import": "./dist/plugins/volume-memory/index.js"
 		},
 		"./plugins/equalizer": {
 			"types": "./dist/plugins/equalizer/index.d.ts",
