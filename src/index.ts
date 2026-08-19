@@ -338,16 +338,16 @@ export type {
 } from './plugins/equalizer/index';
 export { mixerPlugin, MixerPlugin } from './plugins/mixer';
 export type { MixerEvents, MixerOptions } from './plugins/mixer';
-export { volumeMemoryPlugin, VolumeMemoryPlugin } from './plugins/volume-memory';
-export type { VolumeMemoryOptions } from './plugins/volume-memory';
 export { spectrumPlugin, SpectrumPlugin } from './plugins/spectrum';
 export type { SpectrumOptions } from './plugins/spectrum';
 export { VisualizationPlugin } from './plugins/visualization';
-
 export type {
 	VisualizationFrame,
 	VisualizationOptions,
 } from './plugins/visualization';
+export { volumeMemoryPlugin, VolumeMemoryPlugin } from './plugins/volume-memory';
+
+export type { VolumeMemoryOptions } from './plugins/volume-memory';
 // Core types
 export type {
 	ActionOptions,

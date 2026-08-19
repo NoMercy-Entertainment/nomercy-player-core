@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-08-20
+
+### Added
+
+- `volumeMemoryPlugin` / `VolumeMemoryPlugin`: remembers a consumer's last volume and mute state across sessions/instances. Landed after the `2.0.4` tag was cut, so `2.0.4` never actually shipped it — this release is the first to publish it for real.
+
+### Changed
+
+- `cycleAudioTracks` lifted to the shared kit surface, closing the remaining `2.1.x` follow-ups from the audio-track work.
+
 ## [2.0.3] — 2026-07-31
 
 ### Fixed

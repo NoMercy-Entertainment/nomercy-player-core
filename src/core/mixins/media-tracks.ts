@@ -890,7 +890,9 @@ export const mediaTracksMethods = {
 		// other public API caller would see.
 		const self = this as unknown as IPlayer;
 		let list: ReadonlyArray<AudioTrack> = [];
-		try { list = self.audioTracks(); }
+		try {
+			list = self.audioTracks();
+		}
 		catch { /* tracks API not implemented yet — treat as empty */ }
 		if (!list || list.length === 0)
 			return;

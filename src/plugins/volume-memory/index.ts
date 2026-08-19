@@ -65,10 +65,10 @@ export class VolumeMemoryPlugin<P extends IPlayer<BaseEventMap> = IPlayer> exten
 		const onVolume = (): void => this._save(key);
 		const onMute = (): void => this._save(key);
 
-		this.player.on('volume', onVolume);
-		this.player.on('mute', onMute);
-		this._unsubscribeVolume = () => this.player.off('volume', onVolume);
-		this._unsubscribeMute = () => this.player.off('mute', onMute);
+		this.on('volume', onVolume);
+		this.on('mute', onMute);
+		this._unsubscribeVolume = () => this.off('volume', onVolume);
+		this._unsubscribeMute = () => this.off('mute', onMute);
 	}
 
 	/** Unsubscribes from `volume` / `mute` events. */

@@ -6,8 +6,8 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type { BaseEventMap, IPlayer } from '../types';
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
+import type { BaseEventMap, IPlayer } from '../types';
 import { StateError } from '../errors';
 
 /**
