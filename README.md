@@ -1,4 +1,4 @@
-[![npm](https://img.shields.io/npm/v/@nomercy-entertainment/nomercy-player-core/rc?label=rc)](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-player-core)
+[![npm](https://img.shields.io/npm/v/@nomercy-entertainment/nomercy-player-core/latest?label=latest)](https://www.npmjs.com/package/@nomercy-entertainment/nomercy-player-core)
 [![license](https://img.shields.io/npm/l/@nomercy-entertainment/nomercy-player-core)](./LICENSE)
 [![bundlephobia](https://img.shields.io/bundlephobia/minzip/@nomercy-entertainment/nomercy-player-core)](https://bundlephobia.com/package/@nomercy-entertainment/nomercy-player-core)
 
