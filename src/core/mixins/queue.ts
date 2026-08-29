@@ -336,8 +336,11 @@ export const queueMethods = {
 			}).then(() => {
 				if (this._currentEpoch !== navigationEpoch)
 					return;
-				if (opts?.autoplay) {
-					void this.play({ source: opts.source });
+				// Autoplay is the default: picking an item is a decision to watch
+				// it, and a caller that means otherwise passes `autoplay: false`.
+				// Matches core-kmp's `item(id, autoplay = true)`.
+				if (opts?.autoplay !== false) {
+					void this.play({ source: opts?.source });
 				}
 			})
 				.catch(() => { /* load errors surface via the 'error' event; suppress unhandled rejection */ });

@@ -183,7 +183,7 @@ describe('current() — _currentEpoch autoplay race guard', () => {
 		expect(playSpy).toHaveBeenCalledTimes(1);
 	});
 
-	it('current() without autoplay never fires play()', async () => {
+	it('item() plays by default — picking an item is a decision to watch it', async () => {
 		const player = makePlayer('epoch-noplay');
 		await player.setup({}).ready();
 		player.queue(items);
@@ -196,6 +196,26 @@ describe('current() — _currentEpoch autoplay race guard', () => {
 		(player as unknown as { _phase: string })._phase = 'playing';
 
 		player.item('ep1');
+
+		loadDone.resolve();
+		await drainMicrotasks();
+
+		expect(playSpy).toHaveBeenCalled();
+	});
+
+	it('item() with autoplay: false still only loads', async () => {
+		const player = makePlayer('epoch-noplay-explicit');
+		await player.setup({}).ready();
+		player.queue(items);
+
+		const loadDone = deferred();
+
+		vi.spyOn(player, 'load').mockImplementation(() => loadDone.promise);
+		const playSpy = vi.spyOn(player, 'play').mockResolvedValue(undefined);
+
+		(player as unknown as { _phase: string })._phase = 'playing';
+
+		player.item('ep1', { autoplay: false });
 
 		loadDone.resolve();
 		await drainMicrotasks();
