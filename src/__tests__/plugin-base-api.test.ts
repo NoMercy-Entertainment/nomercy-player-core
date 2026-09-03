@@ -44,6 +44,26 @@ class ApiProbePlugin extends Plugin<StubPlayer, ProbeOptions> {
 	publicAppendStyles(href: string, styleId: string): void {
 		this.appendStyles(href, styleId);
 	}
+
+	publicCreateElement<K extends keyof HTMLElementTagNameMap>(type: K, id: string, unique?: boolean) {
+		return this.createElement(type, id, unique);
+	}
+
+	publicCreateButton(id: string, label: string, onClick: (event: Event) => void): HTMLButtonElement {
+		return this.createButton(id, label, onClick);
+	}
+
+	publicCreateSVG(id: string, viewBox: string): SVGSVGElement {
+		return this.createSVG(id, viewBox);
+	}
+
+	publicAddClasses<T extends Element>(el: T, names: string[]) {
+		return this.addClasses(el, names);
+	}
+
+	publicRemoveClasses<T extends Element>(el: T, names: string[]): T {
+		return this.removeClasses(el, names);
+	}
 }
 
 describePlugin(ApiProbePlugin, (ctx) => {
@@ -374,6 +394,47 @@ describePlugin(ApiProbePlugin, (ctx) => {
 			expect(links).toHaveLength(1);
 			expect((links[0] as HTMLLinkElement).href).toBe(new URL('./first.css', document.baseURI).href);
 			links[0]?.remove();
+		});
+	});
+
+	describe('DOM construction helpers — createElement/createButton/createSVG/addClasses/removeClasses', () => {
+		it('createElement("div", "x") creates a <div> and appendTo(parent) attaches it as a child', () => {
+			const parent = document.createElement('div');
+			document.body.appendChild(parent);
+
+			const builder = ctx.plugin.publicCreateElement('div', 'x');
+			builder.appendTo(parent);
+			const element = builder.get();
+
+			expect(element.tagName.toLowerCase()).toBe('div');
+			expect(element.id).toBe('x');
+			expect(parent.contains(element)).toBe(true);
+			parent.remove();
+		});
+
+		it('createButton() returns an accessible <button>', () => {
+			const btn = ctx.plugin.publicCreateButton('probe-btn', 'Play', () => {});
+			expect(btn).toBeInstanceOf(HTMLButtonElement);
+			expect(btn.type).toBe('button');
+			expect(btn.getAttribute('aria-label')).toBe('Play');
+		});
+
+		it('createSVG() returns an <svg> in the SVG namespace', () => {
+			const svg = ctx.plugin.publicCreateSVG('probe-svg', '0 0 24 24');
+			expect(svg).toBeInstanceOf(SVGSVGElement);
+			expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+		});
+
+		it('addClasses(el, ["a","b"]) adds both; removeClasses(el, ["a"]) removes only "a", "b" stays', () => {
+			const el = document.createElement('span');
+
+			ctx.plugin.publicAddClasses(el, ['a', 'b']);
+			expect(el.classList.contains('a')).toBe(true);
+			expect(el.classList.contains('b')).toBe(true);
+
+			ctx.plugin.publicRemoveClasses(el, ['a']);
+			expect(el.classList.contains('a')).toBe(false);
+			expect(el.classList.contains('b')).toBe(true);
 		});
 	});
 }, {

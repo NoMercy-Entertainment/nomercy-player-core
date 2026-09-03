@@ -32,7 +32,6 @@ export { castMethods } from './core/mixins/cast';
 export { containerClassEmitMethods } from './core/mixins/container-class-emit';
 export { cueParserMethods } from './core/mixins/cue-parser';
 export { deviceMethods } from './core/mixins/device';
-export { domMethods } from './core/mixins/dom-mixin';
 export { experimentalDescriptor } from './core/mixins/experimental';
 export { i18nMethods } from './core/mixins/i18n';
 export { lifecycleMethods } from './core/mixins/lifecycle';

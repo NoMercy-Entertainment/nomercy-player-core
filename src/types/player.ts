@@ -7,7 +7,6 @@
 // -----------------------------------------------------------------------------
 
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
-import type { AddClasses, CreateElement } from '../adapters/element-factory';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { IStreamFactory } from '../adapters/stream/IStreamSource';
 import type { DispatchTarget } from '../core/dispatch';
@@ -600,17 +599,6 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	 */
 	audioTrackMode(): AudioTrackState;
 	audioTrackMode(idx: number): void;
-
-	/**
-	 * DOM construction helpers — fluent builders re-exposed on the player so
-	 * UI plugins can chain `player.createElement('div', 'id').addClasses([...]).appendTo(parent)`.
-	 * No extra state or behaviour beyond delegating to the standalone helpers in `dom.ts`.
-	 */
-	createElement<K extends keyof HTMLElementTagNameMap>(type: K, id: string, unique?: boolean): CreateElement<HTMLElementTagNameMap[K]>;
-	createButton(id: string, label: string, onClick: (event: Event) => void): HTMLButtonElement;
-	createSVG(id: string, viewBox: string): SVGSVGElement;
-	addClasses<T extends Element>(el: T, names: string[]): AddClasses<T>;
-	removeClasses<T extends Element>(el: T, names: string[]): T;
 
 	/**
 	 * Retrieve a registered plugin instance by constructor. Returns `undefined`

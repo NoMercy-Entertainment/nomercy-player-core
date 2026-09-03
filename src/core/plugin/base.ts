@@ -6,6 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
+import type { AddClasses, CreateElement } from '../../adapters/element-factory';
 import type { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
 import type { ILogger } from '../../adapters/logger/ILogger';
 import type { IRealtimeChannel, RealtimeFactoryOptions } from '../../adapters/realtime/IRealtimeChannel';
@@ -27,6 +28,13 @@ import type { BeforeDispatchResult, DispatchBeforeOptions } from './dispatch';
 import type { FetchOptions } from './fetch';
 import type { PluginState } from './lifecycle';
 import type { PluginRecoveryAction, ThrowPayload } from './throw';
+import {
+	addClasses,
+	createButton,
+	createElement,
+	createSVG,
+	removeClasses,
+} from '../../adapters/element-factory';
 import { Logger } from '../../adapters/logger/default';
 
 import { nativeWebSocketAdapter } from '../../adapters/realtime/websocket';
@@ -783,7 +791,61 @@ export class Plugin<
 		return channel;
 	}
 
-	// ── DOM mount points ──
+	// ── DOM construction + mount points ──
+
+	/**
+	 * Create a DOM element of `type`, assign it `id`, and return a fluent
+	 * builder that can add classes, append/prepend to a parent, and retrieve
+	 * the element via `.get()`. When `unique` is true, an existing element with
+	 * the same id is returned instead of creating a duplicate.
+	 *
+	 * ```ts
+	 * const headerEl = this.createElement('fieldset', 'extra-controls')
+	 *   .addClasses(['noMercyConnectPlugin'])
+	 *   .setAttribute('data-tooltip', 'NoMercy Connect: Syncs video progress with the server for watch tracking.')
+	 *   .get();
+	 * ```
+	 */
+	protected createElement<K extends keyof HTMLElementTagNameMap>(
+		type: K,
+		id: string,
+		unique?: boolean,
+	): CreateElement<HTMLElementTagNameMap[K]> {
+		return createElement(type, id, unique);
+	}
+
+	/**
+	 * Create an accessible `<button>` element pre-wired with `type="button"`,
+	 * an `aria-label`, a `title`, and a click handler. Ready to insert — no
+	 * additional attribute setup needed.
+	 */
+	protected createButton(id: string, label: string, onClick: (event: Event) => void): HTMLButtonElement {
+		return createButton(id, label, onClick);
+	}
+
+	/**
+	 * Create an `<svg>` element in the SVG namespace, setting `id`, `viewBox`,
+	 * and `xmlns`. Caller appends path/use children after `.get()`.
+	 */
+	protected createSVG(id: string, viewBox: string): SVGSVGElement {
+		return createSVG(id, viewBox);
+	}
+
+	/**
+	 * Add CSS class names to `el` (skips empty strings) and return a fluent
+	 * builder for further chaining. Safe to call with an empty array.
+	 */
+	protected addClasses<T extends Element>(el: T, names: string[]): AddClasses<T> {
+		return addClasses(el, names);
+	}
+
+	/**
+	 * Remove CSS class names from `el` (skips empty strings) and return the
+	 * element itself. No fluent builder — removal is terminal.
+	 */
+	protected removeClasses<T extends Element>(el: T, names: string[]): T {
+		return removeClasses(el, names);
+	}
 
 	/**
 	 * Append a stylesheet to `document.head` exactly once per `id`. Re-entrant:

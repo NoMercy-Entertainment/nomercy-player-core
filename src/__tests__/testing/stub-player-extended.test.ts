@@ -37,7 +37,6 @@
  *  - qualityMode, audioTrackMode stubs
  *  - seekByPercentage stub
  *  - platform stub
- *  - createElement, createButton, createSVG, addClasses, removeClasses
  *  - getPlugin, getPluginById, metrics
  *  - urlResolver, resolveUrl
  *  - id getter
@@ -786,43 +785,6 @@ describe('StubPlayer urlResolver / resolveUrl', () => {
 		const stubPlayer = new StubPlayer();
 		stubPlayer.baseImageUrl('https://images.example.com/');
 		expect(stubPlayer.baseImageUrl()).toBe('https://images.example.com/');
-	});
-});
-
-// ── DOM helpers ───────────────────────────────────────────────────────────────
-
-describe('StubPlayer DOM helpers', () => {
-	it('createElement() returns an object with el', () => {
-		const stubPlayer = new StubPlayer();
-		const result = stubPlayer.createElement('div', 'my-div');
-		expect(result).toBeDefined();
-	});
-
-	it('createButton() returns a button element', () => {
-		const stubPlayer = new StubPlayer();
-		const btn = stubPlayer.createButton('my-btn', 'Play', () => {});
-		expect(btn).toBeInstanceOf(HTMLButtonElement);
-	});
-
-	it('createSVG() returns an SVG element', () => {
-		const stubPlayer = new StubPlayer();
-		const svg = stubPlayer.createSVG('my-svg', '0 0 24 24');
-		expect(svg).toBeInstanceOf(SVGSVGElement);
-	});
-
-	it('addClasses() returns el unchanged', () => {
-		const stubPlayer = new StubPlayer();
-		const el = document.createElement('div');
-		const result = stubPlayer.addClasses(el, ['foo']);
-		expect(result).toBe(el);
-	});
-
-	it('removeClasses() returns el unchanged', () => {
-		const stubPlayer = new StubPlayer();
-		const el = document.createElement('div');
-		el.classList.add('foo');
-		const result = stubPlayer.removeClasses(el, ['foo']);
-		expect(result).toBe(el);
 	});
 });
 

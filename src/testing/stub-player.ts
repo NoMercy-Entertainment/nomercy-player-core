@@ -7,7 +7,6 @@
 // -----------------------------------------------------------------------------
 
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
-import type { AddClasses, CreateElement } from '../adapters/element-factory';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { IStreamFactory } from '../adapters/stream/IStreamSource';
 import type { Plugin } from '../core/plugin';
@@ -453,30 +452,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	}
 
 	/**
-	 * Returns a real jsdom element so plugins that call `createElement` during
-	 * `use()` get a valid DOM node without needing a real browser environment.
-	 */
-	createElement<K extends keyof HTMLElementTagNameMap>(
-		type: K,
-		_id: string,
-		_unique?: boolean,
-	): CreateElement<HTMLElementTagNameMap[K]> {
-		// CreateElement is a test-helper wrapper shape; the DOM interface has no constructor — opaque cast required.
-		const stub: unknown = { el: document.createElement(type) };
-		return stub as unknown as CreateElement<HTMLElementTagNameMap[K]>; // opaque: test-helper wrapper, no constructor
-	}
-
-	/** Returns a real jsdom `<button>` — same rationale as `createElement`. */
-	createButton(_id: string, _label: string, _onClick: (event: Event) => void): HTMLButtonElement {
-		return document.createElement('button');
-	}
-
-	/** Returns a real jsdom `<svg>` — same rationale as `createElement`. */
-	createSVG(_id: string, _viewBox: string): SVGSVGElement {
-		return document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-	}
-
-	/**
 	 * Always returns `undefined`. The stub does not track plugin registrations;
 	 * `describePlugin` wires the plugin directly. Mock this per-test if a
 	 * plugin's `use()` calls `player.getPlugin()` internally.
@@ -505,16 +480,6 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 			joinTime: 0,
 			sessionDurationMs: 0,
 		};
-	}
-
-	/** Pass-through — returns the element unchanged with the fluent type. */
-	addClasses<T extends Element>(el: T, _names: string[]): AddClasses<T> {
-		return el as unknown as AddClasses<T>; // AddClasses is a fluent helper type; el satisfies it at runtime — opaque cast required.
-	}
-
-	/** Pass-through — returns the element unchanged. */
-	removeClasses<T extends Element>(el: T, _names: string[]): T {
-		return el;
 	}
 
 	// ── Lifecycle ──

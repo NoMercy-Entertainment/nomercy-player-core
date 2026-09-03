@@ -22,7 +22,6 @@ import { castMethods } from './mixins/cast';
 import { containerClassEmitMethods } from './mixins/container-class-emit';
 import { cueParserMethods } from './mixins/cue-parser';
 import { deviceMethods } from './mixins/device';
-import { domMethods } from './mixins/dom-mixin';
 import { experimentalDescriptor } from './mixins/experimental';
 import { i18nMethods } from './mixins/i18n';
 import { lifecycleMethods } from './mixins/lifecycle';
@@ -61,7 +60,6 @@ export { castMethods } from './mixins/cast';
 export { containerClassEmitMethods } from './mixins/container-class-emit';
 export { cueParserMethods } from './mixins/cue-parser';
 export { deviceMethods } from './mixins/device';
-export { domMethods } from './mixins/dom-mixin';
 export { experimentalDescriptor } from './mixins/experimental';
 export { i18nMethods } from './mixins/i18n';
 export { lifecycleMethods } from './mixins/lifecycle';
@@ -124,7 +122,6 @@ export const playerCoreMethods = [
 	castMethods,
 	abrMethods,
 	metricsMethods,
-	domMethods,
 	loadingMethods,
 	containerClassEmitMethods,
 	activityMethods,

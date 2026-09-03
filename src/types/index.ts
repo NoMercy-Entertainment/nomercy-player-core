@@ -6,6 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
+export type { CreateElement } from '../adapters/element-factory';
 export type { Chapter } from './chapter';
 export type {
 	AuthConfig,
