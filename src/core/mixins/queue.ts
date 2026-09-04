@@ -340,7 +340,13 @@ export const queueMethods = {
 				// it, and a caller that means otherwise passes `autoplay: false`.
 				// Matches core-kmp's `item(id, autoplay = true)`.
 				if (opts?.autoplay !== false) {
-					void this.play({ source: opts?.source });
+					// A browser refusing autoplay without a gesture rejects here.
+					// That is the ordinary outcome of item() on page load, not an
+					// error, and nobody is awaiting this call — left bare it
+					// surfaces as an unhandled rejection in every consumer's
+					// console. Play failures reach listeners through the 'error'
+					// event, the same way the load() catch below works.
+					void this.play({ source: opts?.source }).catch(() => { /* see above */ });
 				}
 			})
 				.catch(() => { /* load errors surface via the 'error' event; suppress unhandled rejection */ });
