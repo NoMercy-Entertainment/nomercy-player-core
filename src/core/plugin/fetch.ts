@@ -15,7 +15,9 @@ import { authFetch } from '../auth-fetch';
 /**
  * Options accepted by `Plugin.fetch<T>(url, options)`.
  * The discriminated `responseType` controls how the response body is decoded.
- * `pluginId` and `scope` are injected internally — plugin authors never set them.
+ * `pluginId` is injected internally — plugin authors never set it. `scope` is
+ * author-settable and defaults to `'plugin'`; pass `'player'` for the global
+ * `fetch:*` telemetry names or `'silent'` to emit nothing.
  */
 interface FetchHttp {
 	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';

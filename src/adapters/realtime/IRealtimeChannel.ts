@@ -56,14 +56,16 @@ export interface RealtimeFactoryOptions {
 	/**
 	 * Whether the transport should attempt automatic reconnection on
 	 * unexpected close. When `true`, `baseDelayMs` and `maxDelayMs` control
-	 * the back-off window.
+	 * the back-off window. Honored only by a factory that implements
+	 * reconnection; the built-in `nativeWebSocketAdapter` never reconnects,
+	 * and nothing else in the kit does either.
 	 */
 	reconnect?: boolean;
 
-	/** Initial back-off delay in milliseconds. Defaults to 1 000. */
+	/** Initial back-off delay in milliseconds a reconnecting factory should use. */
 	baseDelayMs?: number;
 
-	/** Maximum back-off delay in milliseconds. Defaults to 30 000. */
+	/** Maximum back-off delay in milliseconds a reconnecting factory should use. */
 	maxDelayMs?: number;
 
 	/**

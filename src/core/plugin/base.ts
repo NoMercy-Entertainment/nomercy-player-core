@@ -140,7 +140,7 @@ export type PluginEventMap<C extends AnyPluginCtor> = InstanceType<C>['__events_
  *  - `dispatchBefore(name, data, opts?)` — cancellable / mutable / async-aware
  *  - `throw({...})` / `report({...})` — surface error vs warning
  *  - `fetch(url, options?)` — auth-aware fetch with retry; `options.parser` transforms the response body
- *  - `websocket(url, opts?)` — auto-reconnecting WebSocket
+ *  - `websocket(url, opts?)` — realtime channel closed on dispose
  *  - `mount(name)` — claim a `<div>` on the player container
  *  - `t(key, vars?)` — translate plugin-namespaced i18n keys
  *  - `listen / timeout / interval / abortable / frame` — auto-cleaned
@@ -209,12 +209,13 @@ export class Plugin<
 	static readonly replaces?: string;
 
 	/**
-	 * Event-handler ordering priority. Default `0`. Higher values run BEFORE
-	 * lower values for the same event; ties resolve in registration order.
+	 * Plugin ordering priority. Default `0`. Higher values sort BEFORE lower
+	 * values; ties resolve in registration order.
 	 *
-	 * Used by `enabledPlugins()` to expose plugins in priority order so consumers
-	 * iterating the list (e.g. for capability negotiation) see deterministic
-	 * results. Negative priorities run AFTER registration-order plugins.
+	 * Consumed only by `enabledPlugins()`, which exposes plugins in priority
+	 * order so consumers iterating the list (e.g. for capability negotiation)
+	 * see deterministic results. It does not reorder event handlers: the
+	 * emitter always fires listeners in insertion order.
 	 */
 	static readonly priority: number = 0;
 
@@ -760,9 +761,11 @@ export class Plugin<
 	// ── Realtime channel helper (WebSocket / SignalR / Socket.IO via factory) ──
 
 	/**
-	 * Auto-reconnecting realtime channel bound to the plugin's lifecycle.
-	 * Closes on `dispose()`. Returns an `IRealtimeChannel` regardless of the
-	 * underlying transport so plugins write against one interface.
+	 * Realtime channel bound to the plugin's lifecycle. Closes on `dispose()`.
+	 * Returns an `IRealtimeChannel` regardless of the underlying transport so
+	 * plugins write against one interface. Reconnect options are forwarded to
+	 * the factory verbatim; the built-in native adapter does not reconnect, so
+	 * reconnection exists only when the resolved factory implements it.
 	 *
 	 * Factory resolution (highest priority first):
 	 *  1. `opts.factory` — per-call override
@@ -961,8 +964,9 @@ export class Plugin<
 	 *
 	 * Called by the player after `use()` resolves and on every `setLanguage`
 	 * change for which the plugin hasn't already loaded a bundle. Resolved
-	 * key→value map is merged under `plugin.<this.id>.*` and removed on
-	 * `dispose()`.
+	 * key→value map is merged under `plugin.<this.id>.*`. Teardown removes the
+	 * `plugin.<id>.*` namespace only when the class also declares a static
+	 * `translations` field; keys merged by this hook alone survive `dispose()`.
 	 *
 	 * Default: no-op (returns `undefined`). The static `translations` field
 	 * still applies; this hook is purely additive for runtime sources.

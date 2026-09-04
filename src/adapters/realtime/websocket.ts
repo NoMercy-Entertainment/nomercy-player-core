@@ -12,9 +12,10 @@ import type { RealtimeFactory } from './IRealtimeChannel';
  * Default transport adapter. Wraps a native browser `WebSocket` to satisfy
  * `IRealtimeChannel`.
  *
- * Reconnect logic is intentionally absent here — the lifecycle layer above
- * handles auto-reconnect and disposal so every adapter benefits from it
- * without duplicating the logic.
+ * Reconnect logic is intentionally absent here. Nothing above this adapter
+ * reconnects either: the lifecycle layer only closes the channel on dispose,
+ * so a consumer who needs reconnection supplies a factory that implements it
+ * and reads the `reconnect` / `baseDelayMs` / `maxDelayMs` options itself.
  *
  * Listener errors are swallowed per-listener so a broken handler does not
  * block subsequent listeners on the same event.
