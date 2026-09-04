@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [2.2.1] — 2026-09-04
+
+### Fixed
+
+- A browser that declines playback without a user gesture rejects `play()`. That rejection was left to escape from two detached call sites — `item()`'s autoplay continuation and `_loadAndPlay` behind `next()`/`previous()` — where nothing awaited it, so it surfaced as an uncaught `NotAllowedError` in the consumer's console. Both now catch. Play failures still reach listeners through the `error` event.
+- `play()` set `_playState` to `PLAYING` before calling the backend and left it there when the backend refused. The player then reported `PLAYING` over a silent element, so any UI rendering from state drew a Pause button and the viewer's first click paused what had never started. It now reverts to `PAUSED`, restores the prior phase, and emits `playPrevented` before rethrowing, so an awaiting caller still sees the rejection.
+
+### Added
+
+- `PreventedReason` gained `'backend-refused'`, carried on `playPrevented` when the backend rejects rather than a listener cancelling.
+
 ## [2.1.0] — 2026-08-20
 
 ### Added

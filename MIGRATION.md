@@ -1,5 +1,36 @@
 # Migration Guide — v1 to v2
 
+## 2.2.0 → 2.2.1: `PreventedReason` gained a member
+
+`playPrevented` now also fires when the **backend** refuses, not only when a
+listener cancels. The new reason is `'backend-refused'`, and the browser's
+rejection rides along on `cause`:
+
+```ts
+player.on('playPrevented', ({ reason, cause }) => {
+  if (reason === 'backend-refused') {
+    // Autoplay declined without a user gesture. Show a play button.
+  }
+});
+```
+
+The change is additive, so nothing breaks at runtime. The one place it can fail
+a type-check is an exhaustive `switch` over `PreventedReason` that ends in a
+`never` assertion — add a `'backend-refused'` arm:
+
+```ts
+switch (reason) {
+  case 'listener-prevented': break;
+  case 'delay-rejected': break;
+  case 'delay-timeout': break;
+  case 'backend-refused': break; // new
+  default: {
+    const exhaustive: never = reason;
+    return exhaustive;
+  }
+}
+```
+
 ## beta.0 → beta.1 breaking change
 
 ### `currentSubtitle()`, `currentAudioTrack()`, `currentQuality()` return shape changed

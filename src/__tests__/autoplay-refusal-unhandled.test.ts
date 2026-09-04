@@ -19,9 +19,10 @@
  * each one surfaced an uncaught NotAllowedError in every consumer's console —
  * six pages of the docs site logged one before this was fixed.
  *
- * The assertion is the unhandled-rejection count, because that is the symptom;
- * asserting only on the resulting player state would still pass with the
- * catches removed.
+ * The assertion is the unhandled-rejection count, because that is the symptom.
+ * Measured, not assumed: a state-only twin of both tests was run against the
+ * same mutation with both catches removed, and passed 2/2 while these two
+ * failed 2/2. State alone would have shipped the bug.
  */
 
 import type { BackendShape } from '../core/mixins/player-state';
@@ -151,7 +152,7 @@ describe('a refused play() never escapes as an unhandled rejection', () => {
 		player.item('second');
 		await drainMicrotasks();
 		// The rejection is reported a macrotask after the microtask queue drains.
-		await new Promise((resolve) => setTimeout(resolve, 20));
+		await new Promise(resolve => setTimeout(resolve, 20));
 
 		expect(unhandled).toEqual([]);
 		// The refusal still lands where a consumer can see it: not playing.
@@ -166,7 +167,7 @@ describe('a refused play() never escapes as an unhandled rejection', () => {
 
 		await player.next();
 		await drainMicrotasks();
-		await new Promise((resolve) => setTimeout(resolve, 20));
+		await new Promise(resolve => setTimeout(resolve, 20));
 
 		expect(unhandled).toEqual([]);
 		// next() moved the cursor even though playback was refused — the

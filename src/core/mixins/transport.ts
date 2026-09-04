@@ -157,7 +157,10 @@ export const transportMethods = {
 			if (this._phase === 'starting') {
 				this._transitionPhase(priorPhase === 'ready' ? 'ready' : 'paused');
 			}
-			this.emit('playPrevented', { reason: 'backend-refused', cause });
+			this.emit('playPrevented', {
+				reason: 'backend-refused',
+				cause,
+			});
 			throw cause;
 		}
 	},
