@@ -137,13 +137,29 @@ export const transportMethods = {
 			});
 			return;
 		}
+		const priorPhase = this._phase;
 		this._playState = PlayState.PLAYING;
 		if (this._phase === 'ready' || this._phase === 'paused') {
 			this._transitionPhase('starting');
 		}
 		this.emit('play', result.data);
 
-		await this._resolveBackend()?.play?.();
+		try {
+			await this._resolveBackend()?.play?.();
+		}
+		catch (cause) {
+			// The optimistic state above assumed the backend would accept. When it
+			// refuses — a browser declining autoplay without a gesture is the
+			// common case — leaving `_playState` on PLAYING makes every UI that
+			// renders from state show a Pause button over a silent element, and
+			// the viewer's first click pauses what was never playing.
+			this._playState = PlayState.PAUSED;
+			if (this._phase === 'starting') {
+				this._transitionPhase(priorPhase === 'ready' ? 'ready' : 'paused');
+			}
+			this.emit('playPrevented', { reason: 'backend-refused', cause });
+			throw cause;
+		}
 	},
 
 	/**

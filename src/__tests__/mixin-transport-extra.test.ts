@@ -401,6 +401,42 @@ describe('play() beforePlay preventDefault', () => {
 	});
 });
 
+describe('play() when the backend refuses', () => {
+	beforeEach(() => MockPlayer._resetRegistry());
+	afterEach(() => { MockPlayer._resetRegistry(); document.body.innerHTML = ''; });
+
+	// A browser declining autoplay without a user gesture rejects here. Left
+	// optimistic, playState stays 'playing' over a silent element, so a UI
+	// rendering from state shows Pause and the viewer's first click pauses
+	// what never started.
+	it('reverts playState and emits playPrevented instead of reporting playing', async () => {
+		const player = setupPlayer();
+		const refusal = new Error('NotAllowedError');
+		installBackend(player, makeSimpleBackend({
+			play: vi.fn().mockRejectedValue(refusal),
+		}));
+		const playPrevented: Array<{ reason: string; cause?: unknown }> = [];
+		player.on('playPrevented' as never, (data: never) => playPrevented.push(data));
+
+		await expect(player.play()).rejects.toBe(refusal);
+
+		expect(player.playState()).not.toBe('playing');
+		expect(playPrevented).toHaveLength(1);
+		const [prevented] = playPrevented;
+		expect(prevented?.reason).toBe('backend-refused');
+		expect(prevented?.cause).toBe(refusal);
+	});
+
+	it('leaves playState on playing when the backend accepts', async () => {
+		const player = setupPlayer();
+		installBackend(player, makeSimpleBackend());
+
+		await player.play();
+
+		expect(player.playState()).toBe('playing');
+	});
+});
+
 describe('pause() beforePause preventDefault', () => {
 	beforeEach(() => MockPlayer._resetRegistry());
 	afterEach(() => { MockPlayer._resetRegistry(); document.body.innerHTML = ''; });

@@ -220,7 +220,8 @@ export type PlayerPhase
 export type PreventedReason
 	= | 'listener-prevented' // a listener called preventDefault
 		| 'delay-rejected' // a delay() promise rejected
-		| 'delay-timeout'; // a delay() promise exceeded beforeEventTimeoutMs
+		| 'delay-timeout' // a delay() promise exceeded beforeEventTimeoutMs
+		| 'backend-refused'; // the backend rejected, e.g. autoplay without a gesture
 
 /**
  * The argument accepted by the `nmplayer()` factory function.
