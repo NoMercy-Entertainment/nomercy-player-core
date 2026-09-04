@@ -8,9 +8,9 @@ rejection rides along on `cause`:
 
 ```ts
 player.on('playPrevented', ({ reason, cause }) => {
-  if (reason === 'backend-refused') {
-    // Autoplay declined without a user gesture. Show a play button.
-  }
+	if (reason === 'backend-refused') {
+		// Autoplay declined without a user gesture. Show a play button.
+	}
 });
 ```
 
@@ -20,14 +20,14 @@ a type-check is an exhaustive `switch` over `PreventedReason` that ends in a
 
 ```ts
 switch (reason) {
-  case 'listener-prevented': break;
-  case 'delay-rejected': break;
-  case 'delay-timeout': break;
-  case 'backend-refused': break; // new
-  default: {
-    const exhaustive: never = reason;
-    return exhaustive;
-  }
+	case 'listener-prevented': break;
+	case 'delay-rejected': break;
+	case 'delay-timeout': break;
+	case 'backend-refused': break; // new
+	default: {
+		const exhaustive: never = reason;
+		return exhaustive;
+	}
 }
 ```
 
