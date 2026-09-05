@@ -9,6 +9,7 @@
 import type { Plugin } from '../core/plugin';
 import type { IPlayer } from '../types';
 import { StateError } from '../errors';
+import { countAllListeners } from './leak-harness';
 
 /**
  * Vitest globals — see `describe-plugin.ts` for why we resolve from the
@@ -107,8 +108,9 @@ export function describePluginAgainst<C extends typeof Plugin<any, any, any>, P 
 
 		beforeEach(async () => {
 			ctx.player = await opts.player();
-			// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
-			listenerBaseline = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
+			// StubPlayer satisfies IPlayer structurally; the cast keeps the harness
+			// signature honest without widening it to the stub type.
+			listenerBaseline = countAllListeners(ctx.player as unknown as IPlayer);
 
 			// Real player owns plugin registration. Caller's player factory is expected
 			// to return a player ready for plugin registration (post-setup).
@@ -159,8 +161,8 @@ export function describePluginAgainst<C extends typeof Plugin<any, any, any>, P 
 				playerWithRemove.dispose();
 
 			if (!opts.skipLeakAssertion) {
-				// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
-				const after = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
+				// Same structural cast as the baseline read above.
+				const after = countAllListeners(ctx.player as unknown as IPlayer);
 				const leaked = after - listenerBaseline;
 				if (leaked > 0) {
 					throw new StateError({

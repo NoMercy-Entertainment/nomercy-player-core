@@ -13,7 +13,8 @@
  * reported on clean teardowns).
  *
  * Test groups:
- *  - countAllListeners — uses listenerCount when available, returns 0 otherwise
+ *  - countAllListeners — uses listenerCount, and throws when it is absent rather
+ *    than reporting a clean result it cannot actually measure
  *  - assertNoListenerLeak — passes when balanced, throws when leaks remain
  *  - assertNoListenerLeakOverCycles — runs N cycles, all assertions must pass
  *  - exercise step is optional + invoked between setup and teardown
@@ -36,9 +37,12 @@ describe('countAllListeners()', () => {
 		expect(countAllListeners(player)).toBe(2);
 	});
 
-	it('returns 0 for a player without listenerCount() method', () => {
+	// This used to assert 0, which meant the leak harness reported "no leaks" for
+	// any subject it could not measure. The assertion could never fail, so it read
+	// as coverage while proving nothing. Refusing to answer is the honest result.
+	it('refuses to answer for a player without listenerCount()', () => {
 		const fake = {} as any;
-		expect(countAllListeners(fake)).toBe(0);
+		expect(() => countAllListeners(fake)).toThrow(/listenerCount/);
 	});
 });
 

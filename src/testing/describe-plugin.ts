@@ -11,6 +11,7 @@ import type { IPlayer, PluginCtorWithId } from '../types';
 import { LifecycleRegistry } from '../adapters/lifecycle-registry/default';
 import { loadPluginStaticTranslations } from '../core/plugin-translations';
 import { StateError } from '../errors';
+import { countAllListeners } from './leak-harness';
 import { StubPlayer } from './stub-player';
 
 /**
@@ -118,8 +119,9 @@ export function describePlugin<C extends typeof Plugin<any, any, any>>(
 
 		beforeEach(async () => {
 			ctx.player = opts?.createPlayer?.() ?? new StubPlayer();
-			// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
-			listenerBaseline = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
+			// StubPlayer satisfies IPlayer structurally; the cast keeps the harness
+			// signature honest without widening it to the stub type.
+			listenerBaseline = countAllListeners(ctx.player as unknown as IPlayer);
 
 			lifecycle = new LifecycleRegistry();
 			// Plugin constructor takes no args; options go through initialize() — type-erased to concrete base.
@@ -154,8 +156,8 @@ export function describePlugin<C extends typeof Plugin<any, any, any>>(
 			lifecycle.dispose();
 
 			if (!opts?.skipLeakAssertion) {
-				// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
-				const after = (ctx.player as unknown as { listenerCount?: () => number }).listenerCount?.() ?? 0;
+				// Same structural cast as the baseline read above.
+				const after = countAllListeners(ctx.player as unknown as IPlayer);
 				const leaked = after - listenerBaseline;
 				if (leaked > 0) {
 					throw new StateError({

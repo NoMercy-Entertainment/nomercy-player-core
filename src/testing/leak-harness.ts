@@ -30,7 +30,18 @@ export interface LeakAssertionResult {
 export function countAllListeners(player: IPlayer): number {
 	// listenerCount is an internal diagnostic method; not on IPlayer — accessed via structural narrowing.
 	const fn = (player as unknown as { listenerCount?: () => number }).listenerCount;
-	return typeof fn === 'function' ? fn.call(player) : 0;
+	if (typeof fn !== 'function') {
+		// Returning 0 here used to make the harness report zero leaks for any
+		// subject that could not be measured, so the assertion could never fail
+		// and read as coverage. Say so instead. Every player built on the kit's
+		// EventEmitter has this method; a subject that lacks it needs one before
+		// a leak claim about it means anything.
+		throw new TypeError(
+			'countAllListeners: this player exposes no listenerCount(), so listener leaks cannot be measured. '
+			+ 'Extend the kit EventEmitter, or provide listenerCount() on the test double.',
+		);
+	}
+	return fn.call(player);
 }
 
 /**
