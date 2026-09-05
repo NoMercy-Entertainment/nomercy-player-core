@@ -380,6 +380,20 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 		expect(toggleFn).toHaveBeenCalledOnce();
 	});
 
+	// The docs, the shipped shortcuts overlay and every reader write the play/pause
+	// key as 'Space'. `KeyboardEvent.key` for the spacebar is a single space, so that
+	// binding silently matched nothing and no error said so. Both spellings now land
+	// on the same slot.
+	it('a binding written as Space answers the spacebar', async () => {
+		const spaceFn = vi.fn();
+		const mockPlayer = makePlayer('kh-space-alias').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { bindings: { Space: spaceFn } });
+		await mockPlayer.ready();
+
+		dispatch(' ');
+		expect(spaceFn).toHaveBeenCalledOnce();
+	});
+
 	it('ArrowLeft calls player.rewind(5)', async () => {
 		const mockPlayer = makePlayer('kh-arrowleft').setup({});
 		mockPlayer.addPlugin(KeyHandlerPlugin);

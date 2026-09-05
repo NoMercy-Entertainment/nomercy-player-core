@@ -149,7 +149,11 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 			remainder = remainder.slice(modMatch[0]!.length);
 		}
 		return {
-			key: remainder,
+			// `KeyboardEvent.key` for the spacebar is a single space, so a binding
+			// written as `'Space'` matched nothing and failed silently. Both spellings
+			// resolve to the same slot; `'Space'` is the one people reach for, and the
+			// one every shortcuts overlay shows.
+			key: remainder === 'Space' ? ' ' : remainder,
 			mods,
 		};
 	}
