@@ -27,6 +27,7 @@ import type { ICueParser } from '../../adapters/cue-parser/ICueParser';
 import type { CueList } from '../../core/cues/cue';
 import { describe, expect, it, vi } from 'vitest';
 import { StubPlayer } from '../../testing/stub-player';
+import { RepeatState, ShuffleState } from '../../types';
 
 describe('StubPlayer', () => {
 	describe('construction', () => {
@@ -312,6 +313,50 @@ describe('StubPlayer', () => {
 			expect(player.t('k')).toBe('k');
 			expect(player.cueParsers()).toEqual([]);
 			expect(player.hasListeners('play')).toBe(false);
+		});
+
+		// reset() is a hand-maintained list, and it had drifted to covering about a
+		// third of the fields: volume, mute, time, duration, rate, queue, backlog,
+		// repeat, shuffle, the three track selections, auth and the URL resolver all
+		// survived it, so state leaked between tests sharing one stub.
+		//
+		// Comparing a used-then-reset stub against a fresh one is the mechanism that
+		// keeps the list honest: a field added later that reset() forgets fails here,
+		// by name, without anyone remembering to extend this test.
+		it('reset() restores every field a fresh instance starts with', () => {
+			const used = new StubPlayer();
+			used.volume(42);
+			used.mute();
+			used.time(97);
+			used.playbackRate(2);
+			used.queue([{ id: 'a' }, { id: 'b' }]);
+			used.repeatState(RepeatState.ALL);
+			used.shuffleState(ShuffleState.ON);
+			used.subtitle(0);
+			used.audioTrack(1);
+			used.quality(0);
+			used.auth({ bearerToken: 'secret' });
+			used.baseUrl('https://example.test/');
+			used.language('nl');
+			used.on('play', () => {});
+
+			used.reset();
+
+			const fresh = new StubPlayer();
+			const fieldsOf = (instance: StubPlayer): Record<string, unknown> => {
+				const out: Record<string, unknown> = {};
+				for (const key of Object.keys(instance)) {
+					const value = (instance as unknown as Record<string, unknown>)[key];
+					// Functions and the emitter's own listener store are identity-bound
+					// per instance; comparing them across two objects proves nothing.
+					if (typeof value === 'function' || value instanceof Map || value instanceof Set)
+						continue;
+					out[key] = value;
+				}
+				return out;
+			};
+
+			expect(fieldsOf(used)).toEqual(fieldsOf(fresh));
 		});
 	});
 });

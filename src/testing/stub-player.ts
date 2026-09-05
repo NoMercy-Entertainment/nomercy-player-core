@@ -887,6 +887,12 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	/**
 	 * Reset the stub to a known starting state. Call in `beforeEach` when
 	 * reusing the same instance across tests to avoid cross-test pollution.
+	 *
+	 * Every field declared on this class is restored to the value it is
+	 * constructed with. An earlier version reset only a third of them, so
+	 * volume, mute, time, duration, rate, queue, backlog, repeat, shuffle,
+	 * the three track selections, the auth config and the URL resolver all
+	 * carried from one test into the next while the name promised otherwise.
 	 */
 	reset(): void {
 		this.off('all');
@@ -901,6 +907,20 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		this._overrides.clear();
 		this._qualityState = QualityState.AUTO;
 		this._audioTrackState = AudioTrackState.DEFAULT;
+		this._urlResolver = undefined;
+		this._authConfig = undefined;
+		this._currentSubtitleIdx = null;
+		this._currentAudioTrackIdx = null;
+		this._currentQualityIdx = 'auto';
+		this._volume = 100;
+		this._muted = false;
+		this._time = 0;
+		this._duration = 0;
+		this._playbackRate = 1;
+		this._queue = [];
+		this._backlog = [];
+		this._repeatState = RepeatState.OFF;
+		this._shuffleState = ShuffleState.OFF;
 	}
 }
 
