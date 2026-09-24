@@ -163,6 +163,6 @@ it('my plugin cleans up cleanly', async () => {
 
 ## Full example
 
-`packages/nomercy-player-core/src/__tests__/testing/consumer-plugin.example.test.ts` in this repository is a complete worked example. It defines a realistic plugin (`PlaybackTrackerPlugin`) and runs it through the full suite pattern shown above. Copy it as the starting point for your own plugin's test file.
+`packages/player-web/nomercy-player-core/src/__tests__/testing/consumer-plugin.example.test.ts` in this repository is a complete worked example. It defines a realistic plugin (`PlaybackTrackerPlugin`) and runs it through the full suite pattern shown above. Copy it as the starting point for your own plugin's test file.
 
 The example runs as part of the core test suite (`npx vitest run`) so it proves the documented consumer path works end-to-end in CI.

@@ -26,7 +26,7 @@
  *  - F4 ('playing', 'ended'): Backend-bridge-only — emitted by per-library
  *    _wireBackend, not by core mixins. Cannot test in the core package without
  *    a cross-package import. Tests 1 and 2 are marked todo. Coverage exists in
- *    packages/nomercy-music-player/src/__tests__/wire-backend-regression.test.ts.
+ *    packages/player-web/nomercy-music-player/src/__tests__/wire-backend-regression.test.ts.
  *  - F5 (cast:* namespace): Plugin.emit() ALWAYS namespaces as
  *    'plugin:<id>:<event>'. CastSenderPlugin.emit('cast:connected', ...) fires
  *    'plugin:cast-sender:cast:connected' on the player bus — never bare
@@ -163,7 +163,7 @@ describe('core-events — declared BaseEventMap events emit with payload shape',
 	// Finding F4: 'playing' is emitted only by the per-library _wireBackend bridge
 	// (nomercy-music-player/src/index.ts line 459). Cannot test in the core
 	// package without importing nomercy-music-player. Covered by
-	// packages/nomercy-music-player/src/__tests__/wire-backend-regression.test.ts.
+	// packages/player-web/nomercy-music-player/src/__tests__/wire-backend-regression.test.ts.
 
 	it.todo('\'playing\' emits after backend fires \'playing\' (F4: backend-bridge-only; covered by music-player wire-backend-regression.test.ts)');
 
