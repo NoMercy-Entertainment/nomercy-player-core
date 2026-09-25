@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [2.2.3] — 2026-09-25
+
+Versions align across the trio at 2.2.3; core skips 2.2.2.
+
+### Fixed
+
+- `registerStream()` now reaches playback. `StreamRegistry.resolve()` had no caller, so a registered factory was recorded and never asked. New `StreamRegistry.resolveCustom()` checks only consumer-registered factories and returns `undefined` when none claims the URL; `resolveCustomStream()` exposes it on the player (optional on `IPlayer`). The built-in native and HLS path is unchanged.
+- A stream factory registered before `setup()` is no longer outranked by the built-ins. They are now seeded when the registry is created, and the setup stage cannot reorder them.
+- `ActionOptions.silent` now skips the `before*` guard as well as the event, so restoring saved state no longer runs listeners meant for user intent.
+- A custom `ILogger` passed in config is kept. It was discarded unless it was the kit's own `Logger` class.
+- A lifecycle stage error that declares itself fatal is reported on the fatal channel. Errors reported as `error` before are unchanged.
+- `KeyHandlerPlugin` bindings receive `(player, keyboardEvent)`, so a handler can call `preventDefault()`. One-argument handlers still work. A binding written as `Space` now matches the spacebar, like `' '`.
+- `StubPlayer.reset()` restores every field, not a third of them.
+- The listener-leak check throws when a player has no `listenerCount()`, instead of reporting zero leaks it could not measure.
+
+### Removed
+
+- `Plugin.criticalSeverity`: protected, documented, and read nowhere.
+
 ## [2.2.1] — 2026-09-04
 
 ### Fixed
