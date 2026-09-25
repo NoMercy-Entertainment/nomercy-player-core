@@ -21,8 +21,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { StateError } from '../errors';
 import { stageErrorTier } from '../core/mixins/lifecycle';
+import { StateError } from '../errors';
 
 describe('the channel a failed setup stage reports on', () => {
 	it('sends an error that declares itself fatal to the fatal channel', () => {

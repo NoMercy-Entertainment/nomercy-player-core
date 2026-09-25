@@ -218,7 +218,6 @@ export class Plugin<
 	 */
 	static readonly priority: number = 0;
 
-
 	/**
 	 * Per-error recovery action map. Missing entries fall back to the kit's
 	 * default retry policy (see `DEFAULT_RETRY_POLICY` in `errors.ts`).

@@ -45,7 +45,6 @@ function _ensureStreamRegistry(self: Internals): StreamRegistry {
 		// them for the URLs it was registered to claim.
 		self._streamRegistry.register(nativeFactory);
 		self._streamRegistry.register(hlsFactory);
-
 	}
 	return self._streamRegistry;
 }
@@ -88,7 +87,10 @@ export const streamRegistrationMethods = {
 	 * `registerStream` a call that records a factory nothing consults.
 	 */
 	resolveCustomStream(this: Internals, url: string, contentType?: string): IStreamSource | undefined {
-		return _ensureStreamRegistry(this).resolveCustom({ url, contentType });
+		return _ensureStreamRegistry(this).resolveCustom({
+			url,
+			contentType,
+		});
 	},
 	/** Look up a registered factory by id. Returns `undefined` when not found. */
 	getStreamFactory(this: Internals, id: string): IStreamFactory | undefined {

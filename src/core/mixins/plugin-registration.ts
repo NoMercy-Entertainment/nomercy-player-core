@@ -6,11 +6,11 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
+import type { ILogger } from '../../adapters/logger/ILogger';
 import type { IPlayer, PluginCtorWithId } from '../../types';
 import type { Plugin } from '../plugin';
 import type { Internals } from '../state';
 import { LifecycleRegistry } from '../../adapters/lifecycle-registry/default';
-import type { ILogger } from '../../adapters/logger/ILogger';
 
 import { Logger } from '../../adapters/logger/default';
 

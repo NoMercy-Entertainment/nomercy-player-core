@@ -17,9 +17,9 @@
 
 import type { IStreamFactory, IStreamSource } from '../../adapters/stream/IStreamSource';
 
-import { describe, expect, it, vi } from 'vitest';
+import type { StreamRegistry } from '../../adapters/stream/registry';
 
-import { StreamRegistry } from '../../adapters/stream/registry';
+import { describe, expect, it, vi } from 'vitest';
 import { streamRegistrationMethods } from '../../core/mixins/stream-registration';
 
 interface RegistryHost {
