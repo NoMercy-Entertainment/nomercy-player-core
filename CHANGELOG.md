@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.2.4] — 2026-10-08
+
+### Fixed
+
+- The volume memory plugin now saves the volume you chose, not the 0 it reads while muted. A saved muted level of 0 no longer makes the player silent after a reload.
+
 ## [2.2.3] — 2026-09-25
 
 ### Fixed
