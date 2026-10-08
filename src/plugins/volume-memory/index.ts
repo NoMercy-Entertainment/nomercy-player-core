@@ -52,17 +52,36 @@ export class VolumeMemoryPlugin<P extends IPlayer<BaseEventMap> = IPlayer> exten
 	private _unsubscribeVolume: (() => void) | null = null;
 	private _unsubscribeMute: (() => void) | null = null;
 
+	/**
+	 * The level the listener chose, on the 0-100 scale. `player.volume()` reads
+	 * 0 while muted, so the plugin tracks the level from `volume` events and
+	 * never saves the muted reading.
+	 */
+	private _level: number = 100;
+
 	/** Restores persisted volume/mute state and subscribes to future changes. */
 	override use(): void {
 		const key = this.opts?.persistKey ?? DEFAULT_PERSIST_KEY;
 		const restored = this._loadPersisted(key);
 
-		if (restored?.level !== undefined)
+		// `{ level: 0, muted: true }` is what earlier versions wrote on every mute:
+		// the level was the muted reading, not a choice. Restoring it left the
+		// player muted at a "level before mute" of 0, so unmute stayed silent.
+		const levelIsMutedReading = restored?.muted === true && restored.level === 0;
+		if (restored?.level !== undefined && !levelIsMutedReading)
 			void this.player.volume(restored.level);
 		if (restored?.muted)
 			void this.player.mute();
 
-		const onVolume = (): void => this._save(key);
+		this._level = restored?.level !== undefined && !levelIsMutedReading
+			? restored.level
+			: this._readLevel();
+
+		const onVolume = (event?: { level?: number }): void => {
+			if (typeof event?.level === 'number')
+				this._level = event.level;
+			this._save(key);
+		};
 		const onMute = (): void => this._save(key);
 
 		this.on('volume', onVolume);
@@ -79,9 +98,14 @@ export class VolumeMemoryPlugin<P extends IPlayer<BaseEventMap> = IPlayer> exten
 		this._unsubscribeMute = null;
 	}
 
+	/** The live level, or the default when the player reads 0 only because it is muted. */
+	private _readLevel(): number {
+		return this.player.volumeState() === VolumeState.MUTED ? 100 : this.player.volume();
+	}
+
 	private _save(key: string): void {
 		const state: PersistedVolumeState = {
-			level: this.player.volume(),
+			level: this._level,
 			muted: this.player.volumeState() === VolumeState.MUTED,
 		};
 		void this.storage?.setJSON?.(key, state);
