@@ -883,10 +883,17 @@ function _ensureStreamRegistry(self: Internals): StreamRegistry {
 	return self._streamRegistry;
 }
 
+function _isDisposing(self: Internals): boolean {
+	return self._phase === 'disposing' || self._phase === 'disposed';
+}
+
+/** Stops the setup pipeline quietly when dispose() ran while a stage was awaiting. */
+class _SetupAborted extends Error {}
+
 /** Register every queued plugin, including ones queued by a plugin's own `use()`. */
 async function _drainPluginQueue(self: Internals): Promise<void> {
 	const timeoutMs = self.options.pluginInitTimeoutMs ?? 30_000;
-	while (self._pluginQueue.length > 0) {
+	while (self._pluginQueue.length > 0 && !_isDisposing(self)) {
 		const entry = self._pluginQueue.shift()!;
 		await self._registerPlugin(entry.ctor, entry.opts, timeoutMs);
 	}
@@ -988,12 +995,15 @@ function _runSetupPipeline(self: Internals): void {
 			// A plugin added after the plugin stage is still queued; register it now.
 			await _drainPluginQueue(self);
 
+			if (_isDisposing(self))
+				return;
 			self._transitionPhase('ready');
 			self.emit('ready');
 			self._readyResolve?.();
 		}
 		catch (err) {
-			self._readyReject?.(err);
+			if (!(err instanceof _SetupAborted))
+				self._readyReject?.(err);
 		}
 	};
 
@@ -1184,6 +1194,9 @@ async function _runStage(
 	work: () => void | Promise<void>,
 	successPayload?: unknown,
 ): Promise<void> {
+	// A disposed player must not run later stages or move back to ready.
+	if (_isDisposing(self))
+		throw new _SetupAborted();
 	try {
 		await work();
 		if (successPayload !== undefined) {
