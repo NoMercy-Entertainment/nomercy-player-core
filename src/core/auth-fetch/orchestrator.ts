@@ -56,6 +56,9 @@ export async function authFetch<T = string>(opts: AuthFetchOptions<T>): Promise<
 			throw outcome.error;
 		}
 
+		if (outcome.consumesAttempt && attempt + 1 >= ctx.maxAttempts)
+			break;
+
 		ctx.dispatch('retry', {
 			url: ctx.url,
 			attempt: attempt + 1,

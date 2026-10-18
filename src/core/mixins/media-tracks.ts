@@ -96,6 +96,8 @@ async function fetchChaptersVtt(url: string, self: Internals): Promise<Chapter[]
 		const text = await authFetch<string>({
 			url,
 			auth: self._authConfig,
+			fetch: self.options?.fetch,
+			liveAuth: () => self._authConfig,
 			signal: ctrl.signal,
 			responseType: 'text',
 		});
@@ -171,6 +173,8 @@ async function _startSidecarSubtitle(
 		raw = await authFetch<string>({
 			url: track.url,
 			auth: self._authConfig,
+			fetch: self.options?.fetch,
+			liveAuth: () => self._authConfig,
 			signal: ctrl.signal,
 			responseType: 'text',
 		});
@@ -750,7 +754,7 @@ export const mediaTracksMethods = {
 		}
 
 		const track: SubtitleTrack = {
-			id: `subtitle-runtime-${defaultIdGenerator.next()}`,
+			id: `subtitle-runtime-${(this.options?.idGenerator ?? defaultIdGenerator).next()}`,
 			language: input.language,
 			label: input.label ?? input.language,
 			kind: 'subtitles',

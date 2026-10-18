@@ -317,6 +317,8 @@ export const loadingMethods = {
 			const items = await authFetch<T[]>({
 				url,
 				auth: this._authConfig ?? config.auth,
+				fetch: config.fetch,
+				liveAuth: () => this._authConfig ?? config.auth,
 				parser: parser ?? ((raw: string): T[] => JSON.parse(raw)),
 				emit: (event: string, data: unknown) => this.emit(event, data),
 				pluginId: undefined,

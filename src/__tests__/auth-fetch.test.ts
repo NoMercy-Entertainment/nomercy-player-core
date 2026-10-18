@@ -22,8 +22,11 @@
  *  - Parser invocation + parser-throw → core:network/parse-failed
  */
 
+import type { IFetch } from '../adapters/fetch/IFetch';
+import type { AuthConfig } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authFetch } from '../core/auth-fetch';
+import { pluginFetch } from '../core/plugin/fetch';
 import { AuthError, NetworkError } from '../errors';
 
 describe('authFetch', () => {
@@ -238,6 +241,45 @@ describe('authFetch', () => {
 			expect(result).toBe('after-refresh');
 		});
 
+		it('retries with the token the refresh handler stored by replacing the auth object', async () => {
+			mockFetchResponse(401);
+			mockFetchResponse(200, 'after-refresh');
+			let live: AuthConfig = {
+				bearerToken: 'old',
+				refreshOnUnauthenticated: async () => {
+					live = { ...live, bearerToken: 'new' };
+				},
+			};
+			const result = await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: live,
+				liveAuth: () => live,
+			});
+			expect(result).toBe('after-refresh');
+			expect((fetchSpy.mock.calls[0]![0] as Request).headers.get('Authorization')).toBe('Bearer old');
+			expect((fetchSpy.mock.calls[1]![0] as Request).headers.get('Authorization')).toBe('Bearer new');
+		});
+
+		it('pluginFetch retries with the token player.auth() stored during the refresh', async () => {
+			mockFetchResponse(401);
+			mockFetchResponse(200, 'after-refresh');
+			let live: AuthConfig = {
+				bearerToken: 'old',
+				refreshOnUnauthenticated: async () => {
+					live = { ...live, bearerToken: 'new' };
+				},
+			};
+			const host = {
+				id: 'p',
+				lifecycle: { abortable: () => new AbortController() },
+				player: { options: {}, _rawAuth: () => live, emit: () => {} },
+			};
+			const result = await pluginFetch(host as never, 'https://x/y');
+			expect(result).toBe('after-refresh');
+			expect((fetchSpy.mock.calls[1]![0] as Request).headers.get('Authorization')).toBe('Bearer new');
+		});
+
 		it('throws AuthError(unauthenticated) when no refresh handler', async () => {
 			mockFetchResponse(401);
 			const result = authFetch({
@@ -414,6 +456,49 @@ describe('authFetch', () => {
 			await expect(result).rejects.toMatchObject({
 				code: 'core:network/gateway-timeout',
 			});
+		});
+
+		it('rejects at once with no retry event and no backoff when attempts is 0', async () => {
+			mockFetchResponse(503);
+			const events: string[] = [];
+			const startedAt = Date.now();
+			await expect(authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				retry: { attempts: 0 },
+				emit: event => events.push(event),
+			})).rejects.toMatchObject({ code: 'core:network/service-unavailable' });
+			expect(Date.now() - startedAt).toBeLessThan(250);
+			expect(events).toEqual(['fetch:start', 'fetch:complete']);
+		});
+
+		it('emits one retry event per retry that actually happens and none after the last attempt', async () => {
+			mockFetchResponse(503);
+			mockFetchResponse(503);
+			const retries: number[] = [];
+			await expect(authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				retry: { attempts: 1, baseMs: 1 },
+				emit: (event, data) => {
+					if (event === 'fetch:retry')
+						retries.push((data as { attempt: number }).attempt);
+				},
+			})).rejects.toMatchObject({ code: 'core:network/service-unavailable' });
+			expect(retries).toEqual([1]);
+		});
+
+		it('keeps the real error when the signal aborts after the last attempt failed', async () => {
+			mockFetchResponse(503);
+			const abortController = new AbortController();
+			const result = authFetch({
+				url: 'https://x/y',
+				signal: abortController.signal,
+				retry: { attempts: 0 },
+			});
+			await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+			abortController.abort();
+			await expect(result).rejects.toMatchObject({ code: 'core:network/service-unavailable' });
 		});
 
 		it('exponential backoff escalates across retries (500, 1000, 2000)', async () => {
@@ -662,6 +747,121 @@ describe('authFetch', () => {
 			const req = fetchSpy.mock.calls[0]![0] as Request;
 			expect(req.headers.get('Authorization')).toBe('Bearer kit-token');
 			expect(req.headers.get('X-License-Sig')).toBe('abc123');
+		});
+	});
+
+	// ─────────────────────────────────────────────────────────────────────
+	// Request building — callback and URL errors keep the throws contract
+	// ─────────────────────────────────────────────────────────────────────
+
+	describe('injected fetch', () => {
+		it('sends the built request through the injected fetch instead of the global', async () => {
+			const injected = vi.fn<IFetch>(async () => new Response('via-injected', { status: 200 }));
+			const result = await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				method: 'POST',
+				body: 'payload',
+				auth: { bearerToken: 'tok' },
+				fetch: injected,
+			});
+			expect(result).toBe('via-injected');
+			expect(fetchSpy).not.toHaveBeenCalled();
+			const [url, init] = injected.mock.calls[0]!;
+			expect(url).toBe('https://x/y');
+			expect(init!.method).toBe('POST');
+			expect(new Headers(init!.headers).get('Authorization')).toBe('Bearer tok');
+			expect(new TextDecoder().decode(init!.body as ArrayBuffer)).toBe('payload');
+		});
+
+		it('retries a 5xx through the injected fetch', async () => {
+			const injected = vi.fn<IFetch>()
+				.mockResolvedValueOnce(new Response('', { status: 503 }))
+				.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+			const result = await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				retry: { attempts: 1, baseMs: 1 },
+				fetch: injected,
+			});
+			expect(result).toBe('ok');
+			expect(injected).toHaveBeenCalledTimes(2);
+			expect(fetchSpy).not.toHaveBeenCalled();
+		});
+
+		it('pluginFetch uses setup({ fetch }) from the player options', async () => {
+			const injected = vi.fn<IFetch>(async () => new Response('via-options', { status: 200 }));
+			const host = {
+				id: 'p',
+				lifecycle: { abortable: () => new AbortController() },
+				player: { options: { fetch: injected }, emit: () => {} },
+			};
+			expect(await pluginFetch(host as never, 'https://x/y')).toBe('via-options');
+			expect(fetchSpy).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('request building errors', () => {
+		const boom = new Error('boom');
+
+		it('wraps a throwing bearerToken callback in AuthError with the original as cause', async () => {
+			const result = authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { bearerToken: () => { throw boom; } },
+			});
+			await expect(result).rejects.toBeInstanceOf(AuthError);
+			await expect(result).rejects.toMatchObject({ code: 'core:auth/request-build-failed', cause: boom });
+			expect(fetchSpy).not.toHaveBeenCalled();
+		});
+
+		it('wraps a throwing auth header callback in AuthError', async () => {
+			const result = authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { headers: { 'X-Tenant': () => { throw boom; } } },
+			});
+			await expect(result).rejects.toBeInstanceOf(AuthError);
+			await expect(result).rejects.toMatchObject({ cause: boom });
+		});
+
+		it('wraps a throwing signRequest in AuthError', async () => {
+			const result = authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { signRequest: () => { throw boom; } },
+			});
+			await expect(result).rejects.toBeInstanceOf(AuthError);
+			await expect(result).rejects.toMatchObject({ cause: boom });
+		});
+
+		it('wraps a throwing transformUrl in NetworkError', async () => {
+			const result = authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { transformUrl: () => { throw boom; } },
+			});
+			await expect(result).rejects.toBeInstanceOf(NetworkError);
+			await expect(result).rejects.toMatchObject({ code: 'core:network/invalid-request', cause: boom });
+		});
+
+		it('wraps an unparseable URL in NetworkError', async () => {
+			const result = authFetch({
+				url: 'http://[bad',
+				signal: ctrl().signal,
+			});
+			await expect(result).rejects.toBeInstanceOf(NetworkError);
+			await expect(result).rejects.toMatchObject({ code: 'core:network/invalid-request' });
+		});
+
+		it('still fires fetch:complete with ok=false when the request cannot be built', async () => {
+			const emitted: string[] = [];
+			await expect(authFetch({
+				url: 'http://[bad',
+				signal: ctrl().signal,
+				emit: event => emitted.push(event),
+			})).rejects.toBeInstanceOf(NetworkError);
+			expect(emitted).toEqual(['fetch:start', 'fetch:complete']);
 		});
 	});
 });

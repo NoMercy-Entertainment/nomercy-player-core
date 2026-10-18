@@ -498,6 +498,18 @@ describe('addSubtitleTrack() / removeSubtitleTrack()', () => {
 			.toThrow(/core:media-tracks\/no-active-item/);
 	});
 
+	it('takes the runtime track id from setup({ idGenerator })', () => {
+		const div = document.createElement('div');
+		div.id = 'mt-mock';
+		document.body.appendChild(div);
+		const player = new MockPlayer('mt-mock').setup({ idGenerator: { next: () => 'fixed-1' } });
+		const fakeItem: BasePlaylistItem = { id: 'item-1', title: 'Test', url: '/test.mp4' };
+		player.queue([fakeItem]);
+		player.item(fakeItem);
+
+		expect(player.addSubtitleTrack({ url: '/en.vtt', language: 'en' }).id).toBe('subtitle-runtime-fixed-1');
+	});
+
 	it('appends a sidecar track that the next subtitles() call includes', () => {
 		const player = setupWithItem();
 

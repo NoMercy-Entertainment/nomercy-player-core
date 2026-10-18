@@ -243,7 +243,9 @@ export abstract class MediaElementBackend<
 	/**
 	 * Get the current element volume (perceptual-gain curved amplitude, not
 	 * the 0..1 slider position). The player mixin owns the slider position in
-	 * `_internalVolume`.
+	 * `_internalVolume`. The getter does not invert the curve, so
+	 * `volume(0.5)` reads back `perceptualGain(0.5)`; read the slider position
+	 * from the player's `volume()`.
 	 *
 	 * Setter clamps to [0, 1], applies `perceptualGain`, and writes to
 	 * `element.volume`. Subclasses that need additional tracking (e.g.
