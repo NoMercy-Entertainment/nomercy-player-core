@@ -135,9 +135,10 @@ describe('SpectrumPlugin — deep behavioral coverage', () => {
 
 	describe('currentFrame()', () => {
 		it('eagerly triggers tick(0, 0) on first call to populate frame', () => {
-			const { plugin, tickFn } = wirePlugin();
+			const { plugin, player, tickFn } = wirePlugin();
+			(player as unknown as { time: () => number }).time = () => 1;
 			// Fire one real tick so the frame exists.
-			tickFn(16, 1);
+			tickFn(16, 123456.7);
 			const frame = plugin.currentFrame();
 			expect(frame).toBeDefined();
 			expect(frame.time).toBe(1);
@@ -464,11 +465,12 @@ describe('SpectrumPlugin — deep behavioral coverage', () => {
 			expect(frames).toHaveLength(1);
 
 			plugin.syntheticMode(false);
-			tickFn(16, 2);
+			(player as unknown as { time: () => number }).time = () => 2;
+			tickFn(16, 123456.7);
 
 			expect(frames).toHaveLength(2);
 			expect(frames[1]!.frame).not.toBe(synthetic);
-			// Live path stamps the RAF clock back onto the frame.
+			// Live path stamps the playback position in seconds.
 			expect(frames[1]!.frame.time).toBe(2);
 			expect(frames[1]!.frame.deltaMs).toBe(16);
 			expect((analyserNode as unknown as { getByteFrequencyData: ReturnType<typeof vi.fn> }).getByteFrequencyData).toHaveBeenCalled();
@@ -481,6 +483,7 @@ describe('SpectrumPlugin — deep behavioral coverage', () => {
 	describe('tick() — frame event', () => {
 		it('emits "frame" event with VisualizationFrame payload', () => {
 			const { player, tickFn } = wirePlugin();
+			(player as unknown as { time: () => number }).time = () => 5;
 
 			const frames: Array<{ frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } }> = [];
 			(player as unknown as { on: (event: string, fn: (data: unknown) => void) => void }).on(
@@ -488,7 +491,7 @@ describe('SpectrumPlugin — deep behavioral coverage', () => {
 				(data: unknown) => { frames.push(data as { frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } }); },
 			);
 
-			tickFn(16, 5);
+			tickFn(16, 123456.7);
 
 			expect(frames).toHaveLength(1);
 			const { frame, energy } = frames[0]!;

@@ -136,7 +136,7 @@ class ThrowingVisualization extends VisualizationPlugin {
 
 function buildFakeDeps(spectrumEnabled: boolean = true): {
 	fakeCanvas: { addRenderer: ReturnType<typeof vi.fn>; removeRenderer: ReturnType<typeof vi.fn> };
-	fakeSpectrum: { enabled: () => boolean; currentFrame: () => VisualizationFrame };
+	fakeSpectrum: { enabled: () => boolean; syntheticMode: () => boolean; currentFrame: () => VisualizationFrame };
 	sampleFrame: VisualizationFrame;
 } {
 	const sampleFrame: VisualizationFrame = {
@@ -161,6 +161,7 @@ function buildFakeDeps(spectrumEnabled: boolean = true): {
 		},
 		fakeSpectrum: {
 			enabled: () => spectrumEnabled,
+			syntheticMode: () => false,
 			currentFrame: () => sampleFrame,
 		},
 		sampleFrame,
@@ -289,23 +290,41 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 	// ── _renderTick: render() called with overlaid timing ────────────────────
 
 	describe('_renderTick — render() receives canvas-anchored timing', () => {
-		it('render() is called with deltaMs and time from the canvas RAF (not the spectrum frame)', () => {
+		it('render() is called with deltaMs from the canvas RAF and time in playback seconds from the spectrum frame', () => {
 			const mockPlayer = makePlayer('viz-timing-1');
 			const { plugin, fakeCanvas, sampleFrame } = wireVizPlugin(TestVisualization, mockPlayer);
 
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = {
 				...sampleFrame,
 				deltaMs: 999, // should be overridden
-				time: 999,
+				time: 12,
 			};
 
 			const ctx = makeCtx();
-			invokeRenderTick(fakeCanvas, ctx, 17, 42);
+			invokeRenderTick(fakeCanvas, ctx, 17, 123456.7);
 
 			const calls = (plugin as TestVisualization).renderCalls;
 			expect(calls).toHaveLength(1);
 			expect(calls[0]!.frame.deltaMs).toBe(17);
-			expect(calls[0]!.frame.time).toBe(42);
+			expect(calls[0]!.frame.time).toBe(12);
+		});
+
+		it('render() receives a synthetic frame verbatim (time and deltaMs) in synthetic mode', () => {
+			const mockPlayer = makePlayer('viz-timing-synthetic');
+			const { plugin, fakeCanvas, fakeSpectrum, sampleFrame } = wireVizPlugin(TestVisualization, mockPlayer);
+			(fakeSpectrum as unknown as { syntheticMode: () => boolean }).syntheticMode = () => true;
+
+			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = {
+				...sampleFrame,
+				deltaMs: 33,
+				time: 10,
+			};
+
+			invokeRenderTick(fakeCanvas, makeCtx(), 17, 123456.7);
+
+			const calls = (plugin as TestVisualization).renderCalls;
+			expect(calls[0]!.frame.time).toBe(10);
+			expect(calls[0]!.frame.deltaMs).toBe(33);
 		});
 	});
 
@@ -324,7 +343,7 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 			invokeRenderTick(fakeCanvas, ctx, 16, 5);
 
 			expect(rendered).toHaveLength(1);
-			expect(rendered[0]!.frame.time).toBe(5);
+			expect(rendered[0]!.frame.time).toBe(sampleFrame.time);
 		});
 	});
 
@@ -393,7 +412,7 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 
 			const frame = plugin.currentFrame();
 			expect(frame).toBeDefined();
-			expect(frame!.time).toBe(10);
+			expect(frame!.time).toBe(sampleFrame.time);
 		});
 	});
 

@@ -216,7 +216,7 @@ describe('VisualizationPlugin', () => {
 			// Plant a synthetic spectrum stub + latest-frame and a mock player
 			// so `_renderTick` has everything it needs (incl. `this.emit`).
 			(inst as any).player = { emit: () => {} } as any;
-			(inst as any)._spectrumPlugin = { currentFrame: () => fakeFrame } as any;
+			(inst as any)._spectrumPlugin = { currentFrame: () => fakeFrame, syntheticMode: () => false } as any;
 			(inst as any)._latestFrame = fakeFrame;
 
 			const fakeCanvas = document.createElement('canvas');
@@ -231,9 +231,9 @@ describe('VisualizationPlugin', () => {
 			const [calledCtx, calledFrame] = renderSpy.mock.calls[0]!;
 			expect(calledCtx).toBe(ctx);
 			expect(calledFrame.frequency).toBe(fakeFrame.frequency);
-			// Timing is overridden to the canvas-supplied values.
+			// deltaMs comes from the canvas; time stays the frame's playback seconds.
 			expect(calledFrame.deltaMs).toBe(16.7);
-			expect(calledFrame.time).toBeCloseTo(1.234);
+			expect(calledFrame.time).toBe(fakeFrame.time);
 			// And `currentFrame()` now reflects the dispatched payload.
 			expect(inst.currentFrame()).toBe(calledFrame);
 		});
@@ -262,7 +262,7 @@ describe('VisualizationPlugin', () => {
 			};
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			(inst as any).player = { emit: (event: string, data: unknown) => { emitted.push({ event, data }); } } as any;
-			(inst as any)._spectrumPlugin = { currentFrame: () => fakeFrame } as any;
+			(inst as any)._spectrumPlugin = { currentFrame: () => fakeFrame, syntheticMode: () => false } as any;
 			(inst as any)._latestFrame = fakeFrame;
 
 			const fakeCanvas = document.createElement('canvas');

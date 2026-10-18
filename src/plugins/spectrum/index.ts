@@ -540,7 +540,7 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		});
 	}
 
-	private tick(deltaMs: number, time: number): void {
+	private tick(deltaMs: number, _rafTime: number): void {
 		if (this._syntheticMode) {
 			this.emitSyntheticFrame();
 			return;
@@ -650,7 +650,7 @@ export class SpectrumPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends P
 		const frameData: VisualizationFrame = {
 			frequency: this.freqBuffer,
 			waveform: this.waveBuffer,
-			time,
+			time: this.player.time?.() ?? 0,
 			deltaMs,
 			energy: this.smoothedEnergy,
 			bandEnergies: {

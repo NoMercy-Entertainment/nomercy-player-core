@@ -303,10 +303,10 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 
 	/**
 	 * Per-canvas-RAF tick. Reads the latest spectrum frame, builds the
-	 * VisualizationFrame payload (overlaying the canvas-supplied deltaMs/time so
-	 * timing stays anchored to the canvas loop), and dispatches to `render()`.
+	 * VisualizationFrame payload (overlaying the canvas-supplied deltaMs unless
+	 * the frame is synthetic), and dispatches to `render()`.
 	 */
-	private _renderTick(ctx: CanvasRenderingContext2D, deltaMs: number, time: number): void {
+	private _renderTick(ctx: CanvasRenderingContext2D, deltaMs: number, _rafTime: number): void {
 		if (!this.enabled())
 			return;
 
@@ -336,14 +336,14 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 			this._latestFrame = source;
 		}
 
-		const payload: VisualizationFrame = {
-			...source,
-			// Anchor timing to the canvas RAF loop (not the spectrum loop) so
-			// authors get the expected per-render deltas even if the spectrum
-			// has its own pacing.
-			deltaMs,
-			time,
-		};
+		// Synthetic frames are emitted verbatim; real ones keep the playback
+		// time in seconds and take only the canvas deltaMs.
+		const payload: VisualizationFrame = spectrum.syntheticMode()
+			? { ...source }
+			: {
+					...source,
+					deltaMs,
+				};
 		this._latestFrame = payload;
 
 		try {
