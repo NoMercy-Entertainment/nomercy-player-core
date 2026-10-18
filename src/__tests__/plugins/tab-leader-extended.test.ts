@@ -331,4 +331,75 @@ describe('TabLeaderPlugin extended', () => {
 			expect((plugin as any).getLockKey()).toBe('custom-key');
 		});
 	});
+
+	describe('two tabs on one origin', () => {
+		interface Holder { reject: (reason: unknown) => void; resolve: () => void }
+
+		/** Minimal Web Locks model: one holder, a FIFO queue, `steal` and `signal` support. */
+		function stubLockManager(): void {
+			let holder: Holder | null = null;
+			const queue: Array<() => void> = [];
+
+			const grant = (callback: (lock: unknown) => Promise<void>): Promise<void> => new Promise<void>((resolve, reject) => {
+				holder = { resolve, reject };
+				callback({}).then(() => {
+					holder = null;
+					queue.shift()?.();
+					resolve();
+				}, reject);
+			});
+
+			stubLocks({
+				request: (_key, opts: { signal?: AbortSignal; steal?: boolean }, callback) => {
+					if (opts.steal) {
+						holder?.reject(new DOMException('stolen', 'AbortError'));
+						return grant(callback);
+					}
+					if (!holder)
+						return grant(callback);
+					return new Promise<void>((resolve, reject) => {
+						const start = (): void => void grant(callback).then(resolve, reject);
+						queue.push(start);
+						opts.signal?.addEventListener('abort', () => {
+							queue.splice(queue.indexOf(start), 1);
+							reject(new DOMException('aborted', 'AbortError'));
+						});
+					});
+				},
+			});
+		}
+
+		it('pauses a play that starts in a tab that is not the leader', async () => {
+			stubLockManager();
+			const leaderPlugin = makePlugin(makePlayer('tl-two-1a'));
+			const otherPlayer = makePlayer('tl-two-1b');
+			const otherPlugin = makePlugin(otherPlayer);
+			leaderPlugin.use();
+			otherPlugin.use();
+			await Promise.resolve();
+
+			(otherPlayer as any).emit('play', {});
+
+			expect(leaderPlugin.isLeader()).toBe(true);
+			expect(otherPlugin.isLeader()).toBe(false);
+			expect(otherPlayer.pause).toHaveBeenCalled();
+		});
+
+		it('lets the tab that becomes visible take over and pauses the old leader', async () => {
+			stubLockManager();
+			const leaderPlayer = makePlayer('tl-two-2a');
+			const leaderPlugin = makePlugin(leaderPlayer);
+			const otherPlugin = makePlugin(makePlayer('tl-two-2b'));
+			leaderPlugin.use();
+			otherPlugin.use();
+			await Promise.resolve();
+
+			document.dispatchEvent(new Event('visibilitychange'));
+			await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+			expect(otherPlugin.isLeader()).toBe(true);
+			expect(leaderPlugin.isLeader()).toBe(false);
+			expect(leaderPlayer.pause).toHaveBeenCalled();
+		});
+	});
 });

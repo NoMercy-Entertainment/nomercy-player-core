@@ -94,7 +94,7 @@ const DEFAULT_LOCK_KEY = 'nomercy-player-leader';
  * if (leader.isLeader()) {
  *   // safe to play
  * }
- * player.on('plugin:tab-leader:leader-lost', () => player.pause());
+ * player.on('plugin:tab-leader:leader-released', () => player.pause());
  * ```
  */
 export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Plugin<P, TabLeaderOptions, TabLeaderEvents> {
@@ -124,10 +124,15 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		if (typeof document !== 'undefined') {
 			this.listen(document, 'visibilitychange', () => {
 				if (document.visibilityState === 'visible' && (this.opts?.handoffOnVisible !== false)) {
-					void this.requestLock();
+					void this._takeOver();
 				}
 			});
 		}
+
+		this.on('play' as keyof BaseEventMap, (() => {
+			if (!this._isLeader)
+				this._applyLost();
+		}) as never);
 
 		void this.requestLock();
 	}
@@ -167,12 +172,19 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 		if (this._pending)
 			return this._pending;
 
+		return this._acquire(false);
+	}
+
+	/** Queue for the lock, or with `steal` take it from the current holder. */
+	private _acquire(steal: boolean): Promise<void> {
 		const key = this.getLockKey();
 		const locks = navigator.locks!;
 		const controller = new AbortController();
 		this._abortController = controller;
+		let granted = false;
 
-		this._pending = locks.request(key, { signal: controller.signal }, () => {
+		const pending: Promise<void> = locks.request(key, steal ? { steal: true } : { signal: controller.signal }, () => {
+			granted = true;
 			this._abortController = null;
 			this._isLeader = true;
 			this.emit('leader-acquired' as keyof TabLeaderEvents);
@@ -181,15 +193,45 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			});
 		}).then(
 			() => {
-				this._pending = null;
+				if (this._pending === pending)
+					this._pending = null;
 			},
 			(_err) => {
-				this._pending = null;
-				this._abortController = null;
+				if (this._pending === pending) {
+					this._pending = null;
+					this._abortController = null;
+				}
+				// A granted lock that rejects was stolen by another tab.
+				if (granted && this._isLeader) {
+					this._isLeader = false;
+					this._release = null;
+					this.emit('leader-released' as keyof TabLeaderEvents);
+					this._applyLost();
+				}
 			},
 		);
 
-		return this._pending;
+		this._pending = pending;
+		return pending;
+	}
+
+	/** Steal the lock for a visible tab that is not the leader. */
+	private _takeOver(): Promise<void> {
+		if (this._isLeader)
+			return Promise.resolve();
+		this._abortController?.abort();
+		this._abortController = null;
+		this._pending = null;
+		return this._acquire(true);
+	}
+
+	private _applyLost(): void {
+		if ((this.opts?.onLost ?? 'pause') === 'mute') {
+			this.player.mute?.();
+		}
+		else {
+			void this.player.pause?.();
+		}
 	}
 
 	/**
@@ -224,13 +266,7 @@ export class TabLeaderPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 
 		if (wasLeader) {
 			this.emit('leader-released' as keyof TabLeaderEvents);
-			const action = this.opts?.onLost ?? 'pause';
-			if (action === 'mute') {
-				this.player.mute?.();
-			}
-			else {
-				void this.player.pause?.();
-			}
+			this._applyLost();
 		}
 	}
 
