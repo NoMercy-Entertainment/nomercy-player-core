@@ -71,6 +71,7 @@ export class CueTracker<T> {
 
 	/** Subscribe to a player's `time` and `seek` events to start dispatching. */
 	attach(player: CueTrackerTarget): void {
+		this.detach();
 		this.playerRef = player;
 
 		this.boundOnTime = ({ time }) => this.onTime(time);

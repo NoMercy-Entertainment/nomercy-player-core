@@ -83,6 +83,15 @@ describe('CueTracker', () => {
 			tracker.dispose();
 		});
 
+		it('attaching twice leaves no listener after detach', () => {
+			const tracker = new CueTracker(makeList());
+			tracker.attach(player);
+			tracker.attach(player);
+			tracker.detach();
+			expect(player.hasListeners('time')).toBe(false);
+			expect(player.hasListeners('seek')).toBe(false);
+		});
+
 		it('detach is safe when not attached', () => {
 			const tracker = new CueTracker(makeList());
 			expect(() => tracker.detach()).not.toThrow();
