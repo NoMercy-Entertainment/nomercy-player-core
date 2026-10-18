@@ -985,7 +985,13 @@ export class Plugin<
 	 * dispose. Prefer this over `target.addEventListener` directly so the
 	 * lifecycle registry tracks the cleanup.
 	 */
-	protected listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions): void {
+	protected listen<K extends keyof WindowEventMap>(target: Window, event: K, handler: (event: WindowEventMap[K]) => void, options?: AddEventListenerOptions): void;
+	protected listen<K extends keyof DocumentEventMap>(target: Document, event: K, handler: (event: DocumentEventMap[K]) => void, options?: AddEventListenerOptions): void;
+	protected listen<K extends keyof HTMLMediaElementEventMap>(target: HTMLMediaElement, event: K, handler: (event: HTMLMediaElementEventMap[K]) => void, options?: AddEventListenerOptions): void;
+	protected listen<K extends keyof HTMLElementEventMap>(target: HTMLElement, event: K, handler: (event: HTMLElementEventMap[K]) => void, options?: AddEventListenerOptions): void;
+	protected listen<K extends keyof SVGElementEventMap>(target: SVGElement, event: K, handler: (event: SVGElementEventMap[K]) => void, options?: AddEventListenerOptions): void;
+	protected listen(target: EventTarget, event: string, handler: (event: Event) => void, options?: AddEventListenerOptions): void;
+	protected listen(target: EventTarget, event: string, handler: (event: any) => void, options?: AddEventListenerOptions): void {
 		this.lifecycle.listen(target, event, handler, options);
 	}
 

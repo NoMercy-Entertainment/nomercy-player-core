@@ -13,7 +13,12 @@
  */
 export interface ILifecycleRegistry {
 	addCleanup(fn: () => void): void;
-	listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions | boolean): void;
+	listen<K extends keyof WindowEventMap>(target: Window, event: K, handler: (event: WindowEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;
+	listen<K extends keyof DocumentEventMap>(target: Document, event: K, handler: (event: DocumentEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;
+	listen<K extends keyof HTMLMediaElementEventMap>(target: HTMLMediaElement, event: K, handler: (event: HTMLMediaElementEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;
+	listen<K extends keyof HTMLElementEventMap>(target: HTMLElement, event: K, handler: (event: HTMLElementEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;
+	listen<K extends keyof SVGElementEventMap>(target: SVGElement, event: K, handler: (event: SVGElementEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;
+	listen(target: EventTarget, event: string, handler: (event: Event) => void, options?: AddEventListenerOptions | boolean): void;
 	timeout(fn: () => void, ms: number): number;
 	interval(fn: () => void, ms: number): number;
 	observe<O extends { disconnect(): void }>(observer: O): O;

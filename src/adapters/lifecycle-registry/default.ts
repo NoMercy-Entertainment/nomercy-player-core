@@ -62,7 +62,13 @@ export class LifecycleRegistry {
 	 *
 	 * Silent no-op after `dispose()`.
 	 */
-	listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions | boolean): void {
+	listen<K extends keyof WindowEventMap>(target: Window, event: K, handler: (event: WindowEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;
+	listen<K extends keyof DocumentEventMap>(target: Document, event: K, handler: (event: DocumentEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;
+	listen<K extends keyof HTMLMediaElementEventMap>(target: HTMLMediaElement, event: K, handler: (event: HTMLMediaElementEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;
+	listen<K extends keyof HTMLElementEventMap>(target: HTMLElement, event: K, handler: (event: HTMLElementEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;
+	listen<K extends keyof SVGElementEventMap>(target: SVGElement, event: K, handler: (event: SVGElementEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;
+	listen(target: EventTarget, event: string, handler: (event: Event) => void, options?: AddEventListenerOptions | boolean): void;
+	listen(target: EventTarget, event: string, handler: (event: any) => void, options?: AddEventListenerOptions | boolean): void {
 		if (this.disposed)
 			return;
 		target.addEventListener(event, handler, options);
