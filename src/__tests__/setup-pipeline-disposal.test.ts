@@ -139,4 +139,14 @@ describe('setup pipeline and plugin registration races', () => {
 		expect(player.phase()).toBe('disposed');
 		expect(usedIds).toEqual(['slow']);
 	});
+
+	it('rejects ready() when a setup stage failed before ready() was called', async () => {
+		const player = newPlayer();
+		player.setup({
+			playlist: [{ id: 'a', title: 'A' }],
+			transformPlaylistItem: () => { throw new Error('transform boom'); },
+		});
+		await flush();
+		await expect(player.ready()).rejects.toThrow();
+	});
 });

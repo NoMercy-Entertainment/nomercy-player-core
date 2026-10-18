@@ -153,6 +153,8 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 	_readyPromise?: Promise<void>;
 	_readyResolve?: () => void;
 	_readyReject?: (err: unknown) => void;
+	/** Set when a setup stage failed, so a later `ready()` can reject with it. */
+	_setupFailure?: { error: unknown };
 
 	// ── Time / duration (backend-written) ─────────────────────────────────────
 

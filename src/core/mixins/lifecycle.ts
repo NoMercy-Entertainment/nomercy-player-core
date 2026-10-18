@@ -169,6 +169,10 @@ export const lifecycleMethods = {
 					reject(stateError('core:player/disposed', 'ready() called after dispose()'));
 					return;
 				}
+				if (this._setupFailure) {
+					reject(this._setupFailure.error);
+					return;
+				}
 				this._readyResolve = resolve;
 				this._readyReject = reject;
 			});
@@ -1002,8 +1006,10 @@ function _runSetupPipeline(self: Internals): void {
 			self._readyResolve?.();
 		}
 		catch (err) {
-			if (!(err instanceof _SetupAborted))
+			if (!(err instanceof _SetupAborted)) {
+				self._setupFailure = { error: err };
 				self._readyReject?.(err);
+			}
 		}
 	};
 
