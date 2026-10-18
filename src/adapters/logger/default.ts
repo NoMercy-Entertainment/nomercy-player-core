@@ -25,9 +25,11 @@ import { LEVEL_RANK } from './ILogger';
  * Each level emits when the configured threshold is at or above that rank.
  */
 export class Logger implements ILogger {
-	private _level: LogLevel;
+	// Undefined on a child until level(value) is called; then it follows the parent.
+	private _level: LogLevel | undefined;
 	private prefix: string;
 	private readonly sinks: LogSink[] = [];
+	private parent?: Logger;
 
 	constructor(opts?: LoggerOptions) {
 		this._level = opts?.level ?? 'info';
@@ -44,7 +46,7 @@ export class Logger implements ILogger {
 	level(value: LogLevel): void;
 	level(value?: LogLevel): LogLevel | void {
 		if (value === undefined) {
-			return this._level;
+			return this._level ?? this.parent?.level() ?? 'info';
 		}
 		this._level = value;
 	}
@@ -98,28 +100,36 @@ export class Logger implements ILogger {
 	 * log.debug('cue loaded');  // → "[nmplayer][lyrics] cue loaded"
 	 * ```
 	 *
-	 * Children share the parent's registered sinks so consumer-installed pipes
-	 * capture every plugin's output uniformly.
+	 * Children read the parent's sinks and level at log time, so later
+	 * `addSink()` and `level()` calls on the parent reach them. A level set on
+	 * the child wins over the parent.
 	 */
 	child(suffix: string): Logger {
-		const child = Logger._withPrefix(`${this.prefix}[${suffix}]`, this._level);
-		for (const sink of this.sinks) child.sinks.push(sink);
+		const child = Logger._withPrefix(`${this.prefix}[${suffix}]`);
+		child._level = undefined;
+		child.parent = this;
 		return child;
 	}
 
 	/** Internal factory — creates a Logger with a pre-formatted prefix string. */
-	private static _withPrefix(rawPrefix: string, level: LogLevel): Logger {
-		const instance = new Logger({ level });
+	private static _withPrefix(rawPrefix: string): Logger {
+		const instance = new Logger();
 		instance.prefix = rawPrefix;
 		return instance;
 	}
 
+	private allSinks(): LogSink[] {
+		return this.parent ? [...this.parent.allSinks(), ...this.sinks] : this.sinks;
+	}
+
 	private dispatch(lvl: LogLevel, args: unknown[]): void {
-		if (LEVEL_RANK[lvl] > LEVEL_RANK[this._level])
+		if (LEVEL_RANK[lvl] > LEVEL_RANK[this.level()])
 			return;
 
+		const sinks = this.allSinks();
+
 		// When no sinks are registered, write directly to the console.
-		if (this.sinks.length === 0 && typeof console !== 'undefined') {
+		if (sinks.length === 0 && typeof console !== 'undefined') {
 			const consoleFor: Record<LogLevel, (...args: unknown[]) => void> = {
 				trace: console.trace,
 				debug: console.debug ?? console.log,
@@ -133,7 +143,7 @@ export class Logger implements ILogger {
 				fn.call(console, this.prefix, ...args);
 		}
 
-		for (const sink of this.sinks) {
+		for (const sink of sinks) {
 			try {
 				sink(lvl, this.prefix, args);
 			}

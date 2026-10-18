@@ -271,6 +271,43 @@ describe('Logger', () => {
 			expect(sink).toHaveBeenCalled();
 		});
 
+		it('a sink added to the parent after the child was made reaches the child', () => {
+			const parent = new Logger();
+			const child = parent.child('child');
+			const sink = vi.fn();
+			parent.addSink(sink);
+			child.info('hello');
+			expect(sink).toHaveBeenCalledWith('info', '[nmplayer][child]', ['hello']);
+		});
+
+		it('a sink removed from the parent stops receiving child output', () => {
+			const parent = new Logger();
+			const sink = vi.fn();
+			const off = parent.addSink(sink);
+			const child = parent.child('child');
+			off();
+			child.info('hello');
+			expect(sink).not.toHaveBeenCalled();
+		});
+
+		it('a parent level change after the child was made reaches the child', () => {
+			const parent = new Logger({ level: 'info' });
+			const child = parent.child('child');
+			parent.level('debug');
+			child.debug('hello');
+			expect(consoleSpies.debug).toHaveBeenCalledWith('[nmplayer][child]', 'hello');
+			expect(child.level()).toBe('debug');
+		});
+
+		it('a level set on the child wins over the parent', () => {
+			const parent = new Logger({ level: 'info' });
+			const child = parent.child('child');
+			child.level('error');
+			parent.level('trace');
+			child.info('hello');
+			expect(consoleSpies.info).not.toHaveBeenCalled();
+		});
+
 		it('child satisfies ILogger', () => {
 			const parent = new Logger();
 			const child: ILogger = parent.child('child');
