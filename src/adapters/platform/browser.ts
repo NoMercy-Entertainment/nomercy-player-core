@@ -99,19 +99,21 @@ function browserNetworkMonitor(): INetworkMonitor {
 		return 'unknown';
 	};
 
+	const connection = (): ConnectionLike | undefined =>
+		typeof navigator !== 'undefined' ? (navigator as NavigatorConnectionLike).connection : undefined;
+
 	return {
 		isOnline() {
 			return typeof navigator !== 'undefined' ? navigator.onLine : true;
 		},
 		type() {
-			const conn = (navigator as NavigatorConnectionLike).connection;
-			return mapType(conn?.type);
+			return mapType(connection()?.type);
 		},
 		downlinkMbps() {
-			return (navigator as NavigatorConnectionLike).connection?.downlink;
+			return connection()?.downlink;
 		},
 		rttMs() {
-			return (navigator as NavigatorConnectionLike).connection?.rtt;
+			return connection()?.rtt;
 		},
 		subscribe(fn) {
 			if (typeof window === 'undefined')

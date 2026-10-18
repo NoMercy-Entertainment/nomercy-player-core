@@ -230,6 +230,21 @@ describe('browserPlatform.network', () => {
 // Visibility monitor
 // ─────────────────────────────────────────────────────────────────────────────
 
+describe('browserPlatform.network without navigator', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('type(), downlinkMbps() and rttMs() do not throw', () => {
+		const net = browserPlatform.network;
+		vi.stubGlobal('navigator', undefined);
+		expect(() => net.type()).not.toThrow();
+		expect(net.type()).toBe('unknown');
+		expect(net.downlinkMbps()).toBeUndefined();
+		expect(net.rttMs()).toBeUndefined();
+	});
+});
+
 describe('browserPlatform.visibility', () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
