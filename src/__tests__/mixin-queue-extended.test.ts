@@ -68,6 +68,7 @@ class MockPlayer extends EventEmitter<BaseEventMap> {
 	declare item: { (): BasePlaylistItem | undefined; (target: BasePlaylistItem | string | number | ((item: BasePlaylistItem) => boolean)): void };
 	declare index: () => number;
 	declare seekToIndex: (position: number) => void;
+	declare load: (item: BasePlaylistItem, opts?: unknown) => Promise<void>;
 	declare backlog: { (): ReadonlyArray<BasePlaylistItem>; (items: BasePlaylistItem[]): void };
 	declare backlogAppend: (item: BasePlaylistItem | BasePlaylistItem[]) => void;
 	declare backlogRemove: (id: string | number) => void;
@@ -232,6 +233,22 @@ describe('queueMethods — extended (Q-E)', () => {
 		player.seekToIndex(1);
 
 		expect(player.index()).toBe(0);
+	});
+
+	it('Q-E9b: seekToIndex loads the item on a ready player, like item()', async () => {
+		const player = makePlayer('q-9b').setup({});
+		await player.ready();
+		player.queue([makeItem('a'), makeItem('b'), makeItem('c')]);
+		const loaded: string[] = [];
+		player.load = async (item: BasePlaylistItem): Promise<void> => {
+			loaded.push(String(item.id));
+		};
+
+		player.seekToIndex(2);
+		await new Promise(resolve => setTimeout(resolve, 0));
+
+		expect(player.item()?.id).toBe('b');
+		expect(loaded).toEqual(['b']);
 	});
 
 	it('Q-E10: seekToIndex with non-positive integer throws RangeError', () => {

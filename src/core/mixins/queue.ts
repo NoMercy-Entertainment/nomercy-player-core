@@ -378,7 +378,7 @@ export const queueMethods = {
 	 *
 	 * @throws {RangeError} when `position` is not a positive integer.
 	 */
-	seekToIndex(this: Internals, position: number, _opts?: ActionOptions): void {
+	seekToIndex(this: Internals, position: number, opts?: ActionOptions): void {
 		if (!Number.isInteger(position) || position < 1) {
 			throw new RangeError(`seekToIndex: position must be a positive integer, got ${position}`);
 		}
@@ -389,11 +389,7 @@ export const queueMethods = {
 		if (zeroBasedIndex >= items.length)
 			return;
 
-		_wireQueue(this);
-		if (!this._emitBeforeMutation('current', [zeroBasedIndex]))
-			return;
-
-		this._queueList.setCurrent(zeroBasedIndex);
+		this.item(zeroBasedIndex, opts);
 	},
 
 	/**
