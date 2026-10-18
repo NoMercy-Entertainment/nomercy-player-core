@@ -333,3 +333,18 @@ describe('chapters() — typed item.chapters field', () => {
 		expect(callChapters(undefined)).toEqual([]);
 	});
 });
+
+describe('subtitles() — language-less stream tracks', () => {
+	const sidecar = [{ kind: 'subtitles', file: '/a.ass', language: 'eng', label: 'Full' }];
+	const stream = (language?: string): SubtitleTrack => ({ id: 's', language, label: 'Track 1', url: '' });
+
+	it('drops a stream track with no language when a sidecar exists', () => {
+		expect(callSubtitles({ backendTracks: [stream(undefined)], sidecarTracks: sidecar }).map(track => track.label)).toEqual(['Full']);
+		expect(callSubtitles({ backendTracks: [stream('')], sidecarTracks: sidecar }).map(track => track.label)).toEqual(['Full']);
+		expect(callSubtitles({ backendTracks: [stream('und')], sidecarTracks: sidecar }).map(track => track.label)).toEqual(['Full']);
+	});
+
+	it('keeps a language-less stream track when there are no sidecars', () => {
+		expect(callSubtitles({ backendTracks: [stream(undefined)] }).map(track => track.label)).toEqual(['Track 1']);
+	});
+});

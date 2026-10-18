@@ -351,8 +351,11 @@ function _dedupedBackendSubtitles(self: Internals): SubtitleTrack[] {
 	const sidecarLangKeys = new Set<string>(
 		dedupedSidecar.map(track => _subtitleTrackKey(track.language, track.kind)),
 	);
+	// A stream track with no language can never match a sidecar, so it
+	// would show as an unlabeled "Track N" next to the real ones.
 	return fromBackend.filter(
-		track => !sidecarLangKeys.has(_subtitleTrackKey(track.language, track.kind)),
+		track => !sidecarLangKeys.has(_subtitleTrackKey(track.language, track.kind))
+			&& !(dedupedSidecar.length > 0 && (!track.language || track.language === 'und')),
 	);
 }
 
