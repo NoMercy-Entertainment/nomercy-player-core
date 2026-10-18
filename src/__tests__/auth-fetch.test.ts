@@ -416,6 +416,49 @@ describe('authFetch', () => {
 			});
 		});
 
+		it('rejects at once with no retry event and no backoff when attempts is 0', async () => {
+			mockFetchResponse(503);
+			const events: string[] = [];
+			const startedAt = Date.now();
+			await expect(authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				retry: { attempts: 0 },
+				emit: event => events.push(event),
+			})).rejects.toMatchObject({ code: 'core:network/service-unavailable' });
+			expect(Date.now() - startedAt).toBeLessThan(250);
+			expect(events).toEqual(['fetch:start', 'fetch:complete']);
+		});
+
+		it('emits one retry event per retry that actually happens and none after the last attempt', async () => {
+			mockFetchResponse(503);
+			mockFetchResponse(503);
+			const retries: number[] = [];
+			await expect(authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				retry: { attempts: 1, baseMs: 1 },
+				emit: (event, data) => {
+					if (event === 'fetch:retry')
+						retries.push((data as { attempt: number }).attempt);
+				},
+			})).rejects.toMatchObject({ code: 'core:network/service-unavailable' });
+			expect(retries).toEqual([1]);
+		});
+
+		it('keeps the real error when the signal aborts after the last attempt failed', async () => {
+			mockFetchResponse(503);
+			const abortController = new AbortController();
+			const result = authFetch({
+				url: 'https://x/y',
+				signal: abortController.signal,
+				retry: { attempts: 0 },
+			});
+			await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+			abortController.abort();
+			await expect(result).rejects.toMatchObject({ code: 'core:network/service-unavailable' });
+		});
+
 		it('exponential backoff escalates across retries (500, 1000, 2000)', async () => {
 			mockFetchResponse(500);
 			mockFetchResponse(500);
