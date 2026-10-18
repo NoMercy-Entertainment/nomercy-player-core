@@ -496,9 +496,10 @@ describe('authFetch', () => {
 				signal: abortController.signal,
 				retry: { attempts: 0 },
 			});
+			const settled = expect(result).rejects.toMatchObject({ code: 'core:network/service-unavailable' });
 			await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
 			abortController.abort();
-			await expect(result).rejects.toMatchObject({ code: 'core:network/service-unavailable' });
+			await settled;
 		});
 
 		it('exponential backoff escalates across retries (500, 1000, 2000)', async () => {
