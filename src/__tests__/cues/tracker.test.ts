@@ -292,6 +292,15 @@ describe('CueTracker', () => {
 			tracker.dispose();
 		});
 
+		it('returns an empty array for history(0)', () => {
+			const tracker = new CueTracker(makeList());
+			tracker.attach(player);
+			player.emit('time', { time: 2 });
+			player.emit('time', { time: 12 });
+			expect(tracker.history(0)).toEqual([]);
+			tracker.dispose();
+		});
+
 		it('returns empty array when nothing entered yet', () => {
 			const tracker = new CueTracker(makeList());
 			tracker.attach(player);
