@@ -21,6 +21,10 @@ import { authFetch } from '../auth-fetch';
 import { PlayState } from '../state';
 import { hasTracksField } from './sidecar-util';
 
+// The user's volume while a fadeIn ramp runs. A superseded ramp must not leave
+// a partial step as the level, nor as the next fade's target.
+const activeFades = new WeakMap<object, { target: number }>();
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: loading — `load(item, opts)` / `loadQueue(url, parser?)`.
 //
@@ -230,15 +234,26 @@ export const loadingMethods = {
 			// mid-ramp) 20 times per load.
 			if (typeof opts?.fadeIn === 'number' && opts.fadeIn > 0) {
 				const rawVolume = this.volume();
-				const target = typeof rawVolume === 'number' ? rawVolume : 1;
-				this._applyVolume(0);
-				const steps = 20;
-				const stepMs = (opts.fadeIn * 1000) / steps;
-				for (let stepIndex = 1; stepIndex <= steps; stepIndex++) {
-					await new Promise(resolve => setTimeout(resolve, stepMs));
-					if (!isLatest())
-						return;
-					this._applyVolume((target * stepIndex) / steps);
+				const target = activeFades.get(this)?.target ?? (typeof rawVolume === 'number' ? rawVolume : 1);
+				const fade = { target };
+				activeFades.set(this, fade);
+				try {
+					this._applyVolume(0);
+					const steps = 20;
+					const stepMs = (opts.fadeIn * 1000) / steps;
+					for (let stepIndex = 1; stepIndex <= steps; stepIndex++) {
+						await new Promise(resolve => setTimeout(resolve, stepMs));
+						if (!isLatest())
+							return;
+						this._applyVolume((target * stepIndex) / steps);
+					}
+				}
+				finally {
+					if (activeFades.get(this) === fade) {
+						activeFades.delete(this);
+						if (this._internalVolume !== target)
+							this._applyVolume(target);
+					}
 				}
 			}
 

@@ -532,3 +532,50 @@ describe('loadingMethods — extended (LOAD-E)', () => {
 		});
 	});
 });
+
+describe('loadingMethods — fadeIn interrupted by a newer load', () => {
+	beforeEach(() => {
+		MockPlayer._resetRegistry();
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		MockPlayer._resetRegistry();
+		document.body.innerHTML = '';
+	});
+
+	it('returns the volume to the user level when a newer load supersedes the ramp', async () => {
+		const player = makeSetupPlayer('load-fade-1');
+		await player.ready();
+		wireBackend(player, { load: async (): Promise<void> => {} });
+		const volume = player as unknown as { volume: { (): number; (level: number): Promise<void> } };
+		await volume.volume(80);
+
+		const loadA = player.load(ITEM, { fadeIn: 2 });
+		await vi.advanceTimersByTimeAsync(500);
+		expect(volume.volume()).toBeLessThan(80);
+
+		const loadB = player.load(ITEM_B);
+		await vi.advanceTimersByTimeAsync(500);
+		await Promise.all([loadA, loadB]);
+
+		expect(volume.volume()).toBe(80);
+	});
+
+	it('uses the user level, not a partial step, as the target of the next fade', async () => {
+		const player = makeSetupPlayer('load-fade-2');
+		await player.ready();
+		wireBackend(player, { load: async (): Promise<void> => {} });
+		const volume = player as unknown as { volume: { (): number; (level: number): Promise<void> } };
+		await volume.volume(80);
+
+		const loadA = player.load(ITEM, { fadeIn: 2 });
+		await vi.advanceTimersByTimeAsync(500);
+		const loadB = player.load(ITEM_B, { fadeIn: 2 });
+		await vi.advanceTimersByTimeAsync(3000);
+		await Promise.all([loadA, loadB]);
+
+		expect(volume.volume()).toBe(80);
+	});
+});
