@@ -67,8 +67,10 @@ export class HlsStreamSource implements IStreamSource {
 		this._state = 'loading';
 
 		this.boundElementError = () => {
-			if (element.error)
+			if (element.error) {
+				this._state = 'error';
 				this.emit('error', element.error);
+			}
 		};
 		element.addEventListener('error', this.boundElementError);
 
@@ -76,6 +78,8 @@ export class HlsStreamSource implements IStreamSource {
 		if (native) {
 			element.src = this.url;
 			await this.waitForLoadedMetadata(element);
+			this._state = 'ready';
+			this.emit('manifest-loaded', undefined);
 			return;
 		}
 

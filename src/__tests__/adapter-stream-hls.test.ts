@@ -375,6 +375,43 @@ describe('HlsStreamSource', () => {
 			expect(source.state()).not.toBe('error');
 		});
 
+		it('native path: emits manifest-loaded and reports ready after loadedmetadata', async () => {
+			const source = new HlsStreamSource('https://x/stream.m3u8');
+			const el = makeElement();
+			Object.defineProperty(el, 'canPlayType', {
+				configurable: true,
+				value: (_type: string) => 'probably',
+			});
+			const manifestLoaded = vi.fn();
+			source.on('manifest-loaded', manifestLoaded);
+
+			const loadedP = source.attach(el);
+			el.dispatchEvent(new Event('loadedmetadata'));
+			await loadedP;
+
+			expect(source.state()).toBe('ready');
+			expect(manifestLoaded).toHaveBeenCalledTimes(1);
+		});
+
+		it('native path: element error sets state to error', async () => {
+			const source = new HlsStreamSource('https://x/stream.m3u8');
+			const el = makeElement();
+			Object.defineProperty(el, 'canPlayType', {
+				configurable: true,
+				value: (_type: string) => 'probably',
+			});
+			Object.defineProperty(el, 'error', {
+				configurable: true,
+				get: () => ({ code: 4, message: 'fake media error' }),
+			});
+
+			const loadedP = source.attach(el);
+			el.dispatchEvent(new Event('error'));
+			await expect(loadedP).rejects.toBeDefined();
+
+			expect(source.state()).toBe('error');
+		});
+
 		it('native path: rejects when element fires error event', async () => {
 			const source = new HlsStreamSource('https://x/stream.m3u8');
 			const el = makeElement();
