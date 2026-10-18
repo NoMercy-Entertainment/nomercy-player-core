@@ -608,8 +608,11 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 				playCalls.push(opts);
 			};
 			const timeCalls: unknown[] = [];
-			const timeOverride: (seconds: number, opts?: unknown) => Promise<void> = async (seconds, opts) => {
+			const timeOverride = (seconds?: number, opts?: unknown): number | Promise<void> => {
+				if (seconds === undefined)
+					return 0;
 				timeCalls.push({ seconds, opts });
+				return Promise.resolve();
 			};
 			(player as unknown as Record<string, unknown>)['time'] = timeOverride;
 			const plugin = wirePluginForPlayer(player);
@@ -669,6 +672,20 @@ describe('CastSenderPlugin — deep behavioral coverage', () => {
 			await new Promise<void>(resolve => setTimeout(resolve, 0));
 
 			expect(fakeSdk.session.loadMedia).toHaveBeenCalled();
+		});
+
+		it('connect() hands the local playback position to the receiver as currentTime', async () => {
+			buildFakeSdk();
+
+			const player = makeStubPlayer() as ReturnType<typeof makeStubPlayer> & { item: () => { url: string } };
+			player.item = () => ({ url: 'https://example.com/movie.mp4' });
+			await player.time(600);
+			const plugin = wirePluginForPlayer(player);
+			await plugin.connect();
+			await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+			const request = fakeSdk.session.loadMedia.mock.calls[0]![0] as { currentTime?: number };
+			expect(request.currentTime).toBe(600);
 		});
 
 		it('sets streamType to LIVE when opts.live is true', async () => {

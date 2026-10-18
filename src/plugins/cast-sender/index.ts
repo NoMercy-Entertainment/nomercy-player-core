@@ -311,7 +311,7 @@ export class CastSenderPlugin<
 			const deviceName = session?.getCastDevice?.()?.friendlyName ?? 'Cast device';
 			this.emit('cast:connected', { deviceName });
 			// Forward whatever the local player has loaded right now.
-			void this.forwardCurrent();
+			void this.forwardCurrent(this.player.time());
 		}
 		catch (err) {
 			this.connected = false;
@@ -524,7 +524,7 @@ export class CastSenderPlugin<
 	 * `cast:error` on failure rather than throwing. No-ops if there is no
 	 * active session, no `chrome.cast.media` namespace, or no current item.
 	 */
-	private async forwardCurrent(): Promise<void> {
+	private async forwardCurrent(startTime?: number): Promise<void> {
 		const ctx = this.castContext();
 		const session = ctx?.getCurrentSession?.();
 		const ctors = this.chromeCastMedia();
@@ -552,6 +552,8 @@ export class CastSenderPlugin<
 			mediaInfo.metadata = metadata;
 			mediaInfo.streamType = opts.live ? ctors.StreamType.LIVE : ctors.StreamType.BUFFERED;
 			const request = new ctors.LoadRequest(mediaInfo);
+			if (startTime)
+				request['currentTime'] = startTime;
 			this.lastSentContentId = url;
 			await session.loadMedia(request);
 		}
