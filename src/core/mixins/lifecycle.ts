@@ -9,6 +9,7 @@
 import type { IPlatform } from '../../adapters/platform/browser';
 import type { IPreloadStrategy, ITransitionBackend, PreloadAsset } from '../../adapters/preload/default';
 import type {
+	AuthConfig,
 	BasePlayerConfig,
 	BasePlaylistItem,
 	PlayerPhase,
@@ -820,6 +821,8 @@ function _wirePreloadAndTransition(self: Internals): void {
 		self._preloadFired = false;
 		self._transitionFired = false;
 		self._preloadStrategy.cancel();
+		self._preloadAbort?.abort();
+		self._preloadAbort = null;
 		self._transitionStrategy.cancel('cursor-changed');
 		self._preloadEpoch += 1;
 
@@ -1045,6 +1048,9 @@ async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strate
 		})),
 	});
 
+	const abort = new AbortController();
+	player._preloadAbort = abort;
+
 	let loaded = 0;
 	const total = assets.length;
 
@@ -1058,11 +1064,22 @@ async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strate
 			return;
 
 		try {
-			const request = new Request(asset.url, {
-				method: 'HEAD',
-				mode: 'no-cors',
+			const resolved = await player.resolveUrl(asset.url, asset.category);
+			// resolveUrl already ran auth.transformUrl; authFetch must not apply it twice.
+			const withoutTransform = (): AuthConfig | undefined => {
+				const auth = player._authConfig;
+				return auth && Object.assign({}, auth, { transformUrl: undefined });
+			};
+			await authFetch<unknown>({
+				url: resolved.href,
+				auth: withoutTransform(),
+				fetch: player.options?.fetch,
+				liveAuth: withoutTransform,
+				signal: abort.signal,
+				method: asset.mode === 'auto' ? 'GET' : 'HEAD',
+				responseType: 'arrayBuffer',
+				scope: 'silent',
 			});
-			await fetch(request);
 
 			loaded += 1;
 

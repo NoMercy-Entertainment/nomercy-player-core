@@ -195,6 +195,11 @@ describe('DefaultPreloadStrategy', () => {
 		expect(strategy.shouldPreload({ currentTime: 58, duration: 60, nextItem: makeItem('x') })).toBe(true);
 	});
 
+	it('never fires when leadSeconds is 0', () => {
+		const strategy = new DefaultPreloadStrategy(0);
+		expect(strategy.shouldPreload({ currentTime: 60, duration: 60, nextItem: makeItem('x') })).toBe(false);
+	});
+
 	it('assetsToPreload returns empty array by default', () => {
 		const strategy = new DefaultPreloadStrategy(10);
 		expect(strategy.assetsToPreload(makeItem('x'))).toEqual([]);
@@ -339,6 +344,63 @@ describe('preload orchestration', () => {
 		await new Promise(resolve => setTimeout(resolve, 10));
 
 		expect(events).toEqual(['preloadError']);
+		vi.unstubAllGlobals();
+	});
+
+	it('asset fetch goes through auth and the url pipeline', async () => {
+		const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+		vi.stubGlobal('fetch', fetchMock);
+		const strategy: IPreloadStrategy = {
+			shouldPreload: () => true,
+			assetsToPreload: () => [{ url: 'https://cdn.example.test/poster.jpg', category: 'poster' }],
+			cancel: () => {},
+		};
+		const player = setupPlayer({
+			preloadStrategy: strategy,
+			auth: { bearerToken: 'tok', transformUrl: (url: string) => `${url}?signed=1` },
+		});
+		player.queue([makeItem('auth-a'), makeItem('auth-b')]);
+		player.item('auth-a');
+
+		let completed = false;
+		player.on('preloadComplete', () => { completed = true; });
+		(player as any)._internalDuration = 60;
+		player.emit('time', { time: 50 });
+		await new Promise(resolve => setTimeout(resolve, 10));
+
+		const request = fetchMock.mock.calls[0]![0] as Request;
+		expect(request.url).toBe('https://cdn.example.test/poster.jpg?signed=1');
+		expect(request.headers.get('Authorization')).toBe('Bearer tok');
+		expect(completed).toBe(true);
+		vi.unstubAllGlobals();
+	});
+
+	it('a cursor change aborts the in-flight asset fetch', async () => {
+		let captured: Request | undefined;
+		const fetchMock = vi.fn((request: Request) => {
+			captured = request;
+			return new Promise<Response>((_resolve, reject) => {
+				request.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+			});
+		});
+		vi.stubGlobal('fetch', fetchMock);
+		const strategy: IPreloadStrategy = {
+			shouldPreload: () => true,
+			assetsToPreload: () => [{ url: 'https://cdn.example.test/poster.jpg', category: 'poster' }],
+			cancel: () => {},
+		};
+		const player = setupPlayer({ preloadStrategy: strategy });
+		player.queue([makeItem('abort-a'), makeItem('abort-b'), makeItem('abort-c')]);
+		player.item('abort-a');
+
+		(player as any)._internalDuration = 60;
+		player.emit('time', { time: 50 });
+		await new Promise(resolve => setTimeout(resolve, 10));
+		expect(captured).toBeDefined();
+		expect(captured!.signal.aborted).toBe(false);
+
+		player.item('abort-b');
+		expect(captured!.signal.aborted).toBe(true);
 		vi.unstubAllGlobals();
 	});
 });

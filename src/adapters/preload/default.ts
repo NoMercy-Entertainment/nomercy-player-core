@@ -221,8 +221,6 @@ export interface ITransitionStrategy {
  * Custom strategies extend this class and override `assetsToPreload`.
  */
 export class DefaultPreloadStrategy implements IPreloadStrategy {
-	private _abortController: AbortController | null = null;
-
 	constructor(private readonly _leadSeconds: number = 10) {}
 
 	shouldPreload(context: PreloadContext): boolean {
@@ -230,7 +228,7 @@ export class DefaultPreloadStrategy implements IPreloadStrategy {
 
 		if (nextItem === null)
 			return false;
-		if (duration <= 0)
+		if (duration <= 0 || this._leadSeconds <= 0)
 			return false;
 
 		return currentTime >= duration - this._leadSeconds;
@@ -241,8 +239,7 @@ export class DefaultPreloadStrategy implements IPreloadStrategy {
 	}
 
 	cancel(): void {
-		this._abortController?.abort();
-		this._abortController = null;
+		// The player owns the asset fetches and aborts them on a cursor change.
 	}
 }
 
