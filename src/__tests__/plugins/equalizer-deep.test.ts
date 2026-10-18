@@ -414,6 +414,25 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 		});
 	});
 
+	describe('preset name overrides', () => {
+		it('opts.presets entry named like a built-in overrides it', () => {
+			const { plugin } = wireEqPlugin({ presets: [{ name: 'Rock', values: [{ frequency: 1000, gain: 7 }] }] });
+			plugin.preset('Rock');
+			expect(plugin.band(1000)).toBe(7);
+			expect(plugin.presets().filter(eqPreset => eqPreset.name === 'Rock')).toHaveLength(1);
+		});
+
+		it('addCustomPreset named like a built-in overrides it', () => {
+			const { plugin } = wireEqPlugin();
+			plugin.addCustomPreset({ name: 'Rock', values: [{ frequency: 1000, gain: 6 }] });
+			plugin.preset('Rock');
+			expect(plugin.band(1000)).toBe(6);
+			const listed = plugin.presets().filter(eqPreset => eqPreset.name === 'Rock');
+			expect(listed).toHaveLength(1);
+			expect(listed[0]!.values).toEqual([{ frequency: 1000, gain: 6 }]);
+		});
+	});
+
 	// ── reset() ───────────────────────────────────────────────────────────────
 
 	describe('reset()', () => {
