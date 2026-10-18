@@ -22,8 +22,10 @@
  *  - Parser invocation + parser-throw → core:network/parse-failed
  */
 
+import type { AuthConfig } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authFetch } from '../core/auth-fetch';
+import { pluginFetch } from '../core/plugin/fetch';
 import { AuthError, NetworkError } from '../errors';
 
 describe('authFetch', () => {
@@ -236,6 +238,45 @@ describe('authFetch', () => {
 			});
 			expect(refresh).toHaveBeenCalledTimes(1);
 			expect(result).toBe('after-refresh');
+		});
+
+		it('retries with the token the refresh handler stored by replacing the auth object', async () => {
+			mockFetchResponse(401);
+			mockFetchResponse(200, 'after-refresh');
+			let live: AuthConfig = {
+				bearerToken: 'old',
+				refreshOnUnauthenticated: async () => {
+					live = { ...live, bearerToken: 'new' };
+				},
+			};
+			const result = await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: live,
+				liveAuth: () => live,
+			});
+			expect(result).toBe('after-refresh');
+			expect((fetchSpy.mock.calls[0]![0] as Request).headers.get('Authorization')).toBe('Bearer old');
+			expect((fetchSpy.mock.calls[1]![0] as Request).headers.get('Authorization')).toBe('Bearer new');
+		});
+
+		it('pluginFetch retries with the token player.auth() stored during the refresh', async () => {
+			mockFetchResponse(401);
+			mockFetchResponse(200, 'after-refresh');
+			let live: AuthConfig = {
+				bearerToken: 'old',
+				refreshOnUnauthenticated: async () => {
+					live = { ...live, bearerToken: 'new' };
+				},
+			};
+			const host = {
+				id: 'p',
+				lifecycle: { abortable: () => new AbortController() },
+				player: { options: {}, _rawAuth: () => live, emit: () => {} },
+			};
+			const result = await pluginFetch(host as never, 'https://x/y');
+			expect(result).toBe('after-refresh');
+			expect((fetchSpy.mock.calls[1]![0] as Request).headers.get('Authorization')).toBe('Bearer new');
 		});
 
 		it('throws AuthError(unauthenticated) when no refresh handler', async () => {

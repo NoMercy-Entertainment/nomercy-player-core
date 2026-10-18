@@ -96,6 +96,7 @@ async function fetchChaptersVtt(url: string, self: Internals): Promise<Chapter[]
 		const text = await authFetch<string>({
 			url,
 			auth: self._authConfig,
+			liveAuth: () => self._authConfig,
 			signal: ctrl.signal,
 			responseType: 'text',
 		});
@@ -171,6 +172,7 @@ async function _startSidecarSubtitle(
 		raw = await authFetch<string>({
 			url: track.url,
 			auth: self._authConfig,
+			liveAuth: () => self._authConfig,
 			signal: ctrl.signal,
 			responseType: 'text',
 		});

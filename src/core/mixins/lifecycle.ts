@@ -55,6 +55,7 @@ async function _resolvePlaylistUrl(self: Internals, url: string): Promise<void> 
 		const items = await authFetch<BasePlaylistItem[]>({
 			url,
 			auth: self._authConfig,
+			liveAuth: () => self._authConfig,
 			signal: ctrl.signal,
 			responseType: 'json',
 		});

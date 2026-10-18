@@ -17,6 +17,8 @@ import type { AuthConfig, AuthHeaderValue } from '../../types';
 export interface AuthFetchBase {
 	url: string;
 	auth?: AuthConfig;
+	/** Re-read after `auth.refreshOnUnauthenticated` so a token stored through `player.auth()` reaches the retry. */
+	liveAuth?: () => AuthConfig | undefined;
 	signal: AbortSignal;
 	retry?: RetryConfig;
 	/**
@@ -100,6 +102,7 @@ export interface AttemptCtx<T> {
 	url: string;
 	signal: AbortSignal;
 	auth: AuthConfig | undefined;
+	liveAuth: (() => AuthConfig | undefined) | undefined;
 	pluginId: string | undefined;
 	timeoutMs: number | undefined;
 	maxAttempts: number;

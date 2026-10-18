@@ -67,6 +67,7 @@ export function pluginFetch<T = string>(host: PluginFetchHost, url: string, opti
 		...options,
 		url,
 		auth,
+		liveAuth: () => host.player._rawAuth?.() ?? config.auth,
 		signal: ctrl.signal,
 		pluginId: host.id,
 		scope,

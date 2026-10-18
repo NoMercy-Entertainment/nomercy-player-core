@@ -153,6 +153,7 @@ export async function attemptOnce<T>(ctx: AttemptCtx<T>, attempt: number): Promi
 			ctx.refreshesUsed += 1;
 			try {
 				await ctx.auth!.refreshOnUnauthenticated!();
+				ctx.auth = ctx.liveAuth?.() ?? ctx.auth;
 			}
 			catch (cause) {
 				return {
