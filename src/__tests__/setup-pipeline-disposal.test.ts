@@ -161,4 +161,17 @@ describe('setup pipeline and plugin registration races', () => {
 		await player.ready();
 		expect(player.plugins().map(p => (p.constructor as PluginCtorWithId).id).sort()).toEqual(['needs-slow', 'slow']);
 	});
+
+	it('tears down a registration that settles after dispose()', async () => {
+		const player = newPlayer();
+		player.setup({});
+		await player.ready();
+		player.addPlugin(SlowPlugin);
+		await flush();
+		await player.dispose();
+		release();
+		await flush();
+		expect(player.plugins()).toHaveLength(0);
+		expect(disposedIds).toEqual(['slow']);
+	});
 });

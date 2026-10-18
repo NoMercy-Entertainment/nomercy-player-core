@@ -465,6 +465,19 @@ export const pluginRegistrationMethods = {
 			return;
 		}
 
+		// dispose() already ran _disposeAllPlugins; a late plugin must not land on a dead player.
+		if (this._phase === 'disposing' || this._phase === 'disposed') {
+			try {
+				instance.dispose();
+			}
+			catch { /* defensive */ }
+			try {
+				lifecycle.dispose();
+			}
+			catch { /* defensive */ }
+			return;
+		}
+
 		this._plugins.push({
 			instance,
 			lifecycle,
