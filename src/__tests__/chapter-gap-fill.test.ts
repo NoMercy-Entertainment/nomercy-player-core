@@ -144,16 +144,59 @@ describe('fillChapterGaps()', () => {
 			expect(result.chapters).toBe(chapters);
 		});
 
-		it('DOES insert a filler once the gap exceeds the epsilon', () => {
+		it('DOES insert a filler once the gap reaches the absorb threshold', () => {
 			const chapters = [
 				chapter(0, 0, 10, 'A'),
-				chapter(1, 10 + CHAPTER_GAP_EPSILON_SECONDS * 2, 20, 'B'),
+				chapter(1, 12, 20, 'B'),
 			];
 
 			const result = fillChapterGaps(chapters, 20, TITLE);
 
 			expect(result.changed).toBe(true);
 			expect(result.chapters).toHaveLength(3);
+		});
+	});
+
+	// ── Short gaps are absorbed ─────────────────────────────────────────────
+
+	describe('short gaps are absorbed into the neighbor', () => {
+		it('extends the last chapter over a short tail (Sintel 888 vs 888.889)', () => {
+			const chapters = [chapter(0, 0, 400, 'A'), chapter(1, 400, 888, 'End Credits')];
+
+			const result = fillChapterGaps(chapters, 888.889, TITLE);
+
+			expect(result.changed).toBe(true);
+			expect(result.chapters).toHaveLength(2);
+			expect(result.chapters[1]).toMatchObject({ start: 400, end: 888.889, title: 'End Credits' });
+			expect(result.chapters[1]!.synthetic).toBeUndefined();
+		});
+
+		it('moves the first chapter to 0 over a short lead-in', () => {
+			const chapters = [chapter(0, 1, 10, 'A'), chapter(1, 10, 20, 'B')];
+
+			const result = fillChapterGaps(chapters, 20, TITLE);
+
+			expect(result.chapters).toHaveLength(2);
+			expect(result.chapters[0]).toMatchObject({ start: 0, end: 10 });
+		});
+
+		it('extends the chapter before a short interior gap', () => {
+			const chapters = [chapter(0, 0, 10, 'A'), chapter(1, 11, 20, 'B')];
+
+			const result = fillChapterGaps(chapters, 20, TITLE);
+
+			expect(result.chapters).toHaveLength(2);
+			expect(result.chapters[0]).toMatchObject({ start: 0, end: 11 });
+			expect(result.chapters[1]).toMatchObject({ start: 11, end: 20 });
+		});
+
+		it('still inserts a synthetic filler for a 30 s hole', () => {
+			const chapters = [chapter(0, 0, 10, 'A'), chapter(1, 40, 50, 'B')];
+
+			const result = fillChapterGaps(chapters, 50, TITLE);
+
+			expect(result.chapters).toHaveLength(3);
+			expect(result.chapters[1]).toMatchObject({ start: 10, end: 40, synthetic: true });
 		});
 	});
 

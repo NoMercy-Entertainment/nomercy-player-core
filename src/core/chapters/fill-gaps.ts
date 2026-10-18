@@ -19,6 +19,9 @@ import type { Chapter } from '../../types';
  */
 export const CHAPTER_GAP_EPSILON_SECONDS = 0.25;
 
+// Lists rounded to whole seconds leave gaps below this; a real hole is longer.
+const CHAPTER_ABSORB_SECONDS = 2;
+
 /** Result of {@link fillChapterGaps}. */
 export interface ChapterGapFillResult {
 	/**
@@ -91,15 +94,43 @@ export function fillChapterGaps(
 	let cursor = 0;
 
 	for (const chapter of real) {
-		if (chapter.start > cursor + CHAPTER_GAP_EPSILON_SECONDS) {
+		const gap = chapter.start - cursor;
+		if (gap >= CHAPTER_ABSORB_SECONDS) {
 			filled.push(_makeFiller(cursor, chapter.start, makeFillerTitle()));
+			filled.push(chapter);
 		}
-		filled.push(chapter);
+		else if (gap > CHAPTER_GAP_EPSILON_SECONDS) {
+			const previous = filled[filled.length - 1];
+			// No chapter before it: the first one starts at 0 instead.
+			filled.push(previous
+				? chapter
+				: {
+						...chapter,
+						start: 0,
+					});
+			if (previous) {
+				filled[filled.length - 2] = {
+					...previous,
+					end: chapter.start,
+				};
+			}
+		}
+		else {
+			filled.push(chapter);
+		}
 		cursor = Math.max(cursor, chapter.end);
 	}
 
-	if (duration > cursor + CHAPTER_GAP_EPSILON_SECONDS) {
+	const tailGap = duration - cursor;
+	if (tailGap >= CHAPTER_ABSORB_SECONDS) {
 		filled.push(_makeFiller(cursor, duration, makeFillerTitle()));
+	}
+	else if (tailGap > CHAPTER_GAP_EPSILON_SECONDS) {
+		const last = filled[filled.length - 1]!;
+		filled[filled.length - 1] = {
+			...last,
+			end: duration,
+		};
 	}
 
 	if (_sameChapterList(filled, chapters)) {
