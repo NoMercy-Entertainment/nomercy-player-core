@@ -22,6 +22,7 @@
  *  - Parser invocation + parser-throw → core:network/parse-failed
  */
 
+import type { IFetch } from '../adapters/fetch/IFetch';
 import type { AuthConfig } from '../types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authFetch } from '../core/auth-fetch';
@@ -752,6 +753,53 @@ describe('authFetch', () => {
 	// ─────────────────────────────────────────────────────────────────────
 	// Request building — callback and URL errors keep the throws contract
 	// ─────────────────────────────────────────────────────────────────────
+
+	describe('injected fetch', () => {
+		it('sends the built request through the injected fetch instead of the global', async () => {
+			const injected = vi.fn<IFetch>(async () => new Response('via-injected', { status: 200 }));
+			const result = await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				method: 'POST',
+				body: 'payload',
+				auth: { bearerToken: 'tok' },
+				fetch: injected,
+			});
+			expect(result).toBe('via-injected');
+			expect(fetchSpy).not.toHaveBeenCalled();
+			const [url, init] = injected.mock.calls[0]!;
+			expect(url).toBe('https://x/y');
+			expect(init!.method).toBe('POST');
+			expect(new Headers(init!.headers).get('Authorization')).toBe('Bearer tok');
+			expect(new TextDecoder().decode(init!.body as ArrayBuffer)).toBe('payload');
+		});
+
+		it('retries a 5xx through the injected fetch', async () => {
+			const injected = vi.fn<IFetch>()
+				.mockResolvedValueOnce(new Response('', { status: 503 }))
+				.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+			const result = await authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				retry: { attempts: 1, baseMs: 1 },
+				fetch: injected,
+			});
+			expect(result).toBe('ok');
+			expect(injected).toHaveBeenCalledTimes(2);
+			expect(fetchSpy).not.toHaveBeenCalled();
+		});
+
+		it('pluginFetch uses setup({ fetch }) from the player options', async () => {
+			const injected = vi.fn<IFetch>(async () => new Response('via-options', { status: 200 }));
+			const host = {
+				id: 'p',
+				lifecycle: { abortable: () => new AbortController() },
+				player: { options: { fetch: injected }, emit: () => {} },
+			};
+			expect(await pluginFetch(host as never, 'https://x/y')).toBe('via-options');
+			expect(fetchSpy).not.toHaveBeenCalled();
+		});
+	});
 
 	describe('request building errors', () => {
 		const boom = new Error('boom');

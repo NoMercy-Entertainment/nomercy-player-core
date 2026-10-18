@@ -195,6 +195,7 @@ export async function prepareAttempt<T>(opts: AuthFetchOptions<T>): Promise<Atte
 		signal: opts.signal,
 		auth: opts.auth,
 		liveAuth: opts.liveAuth,
+		fetch: opts.fetch,
 		pluginId: opts.pluginId,
 		timeoutMs: opts.timeoutMs,
 		maxAttempts,

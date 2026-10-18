@@ -6,6 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
+import type { IFetch } from '../../adapters/fetch/IFetch';
 import type { AuthError, NetworkError } from '../../errors';
 import type { AttemptCtx, Outcome, RetryConfig } from './types';
 
@@ -65,6 +66,18 @@ export function computeBackoff(retry: RetryConfig, attempt: number): number {
 
 export { sleep };
 
+// IFetch takes (url, init), so the signed Request is unpacked; the body is read out because init cannot carry a stream.
+async function sendVia(transport: IFetch, request: Request): Promise<Response> {
+	const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+	return transport(request.url, {
+		method: request.method,
+		headers: request.headers,
+		credentials: request.credentials,
+		signal: request.signal,
+		body: hasBody ? await request.arrayBuffer() : undefined,
+	});
+}
+
 function codeFor4xx(status: number): string {
 	switch (status) {
 		case 404: return 'core:network/not-found';
@@ -118,7 +131,7 @@ export async function attemptOnce<T>(ctx: AttemptCtx<T>, attempt: number): Promi
 	let response: Response;
 	try {
 		response = await Promise.race([
-			fetch(request),
+			ctx.fetch ? sendVia(ctx.fetch, request) : fetch(request),
 			timeoutPromise(ctx.timeoutMs, ctx.signal),
 		]);
 	}

@@ -7,6 +7,8 @@
 // -----------------------------------------------------------------------------
 
 import type { ICueParser } from '../adapters/cue-parser/ICueParser';
+import type { IFetch } from '../adapters/fetch/IFetch';
+import type { IIdGenerator } from '../adapters/id-generator/IIdGenerator';
 import type { ILogger } from '../adapters/logger/ILogger';
 import type { IPlatform } from '../adapters/platform/browser';
 import type { IPreloadStrategy, ITransitionStrategy } from '../adapters/preload/default';
@@ -206,6 +208,12 @@ export interface BasePlayerConfig {
 
 	/** Auth pipeline applied to every kit-internal fetch. */
 	auth?: AuthConfig;
+
+	/** Transport used by every kit-internal fetch (native bridge, proxy, test double). Default: the global `fetch`. */
+	fetch?: IFetch;
+
+	/** Source of generated ids (runtime subtitle tracks). Default: `defaultIdGenerator` (`crypto.randomUUID()`). */
+	idGenerator?: IIdGenerator;
 
 	/** I18n language tag (`'en'`, `'nl-NL'`). Defaults to `navigator.language`. */
 	language?: string;
