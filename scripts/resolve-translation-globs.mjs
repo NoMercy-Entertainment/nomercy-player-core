@@ -183,9 +183,10 @@ function processFile(filePath) {
 	if (matches.length === 0)
 		return false;
 
-	for (const { full, pattern } of matches) {
+	// Last to first, so earlier match indexes stay valid after each splice.
+	for (const { full, pattern, index } of matches.toReversed()) {
 		const replacement = buildReplacement(pattern, filePath);
-		rewritten = rewritten.replace(full, replacement);
+		rewritten = rewritten.slice(0, index) + replacement + rewritten.slice(index + full.length);
 	}
 
 	if (rewritten === original)

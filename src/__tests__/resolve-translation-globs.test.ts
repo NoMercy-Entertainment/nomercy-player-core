@@ -187,6 +187,23 @@ describe('resolve-translation-globs integration', () => {
 		}
 	});
 
+	it('rewrites the real call site, not an identical call in an earlier comment', () => {
+		const COMMENT_LINE = ` * ${LITERAL_CALL}`;
+		const source = `/**\n${COMMENT_LINE}\n */\nclass MyPlugin {\n  static translations = ${LITERAL_CALL};\n}\n`;
+		buildFixtureTree(tmpDir, {
+			'plugins/my-plugin/index.js': source,
+			'plugins/my-plugin/i18n/en.js': EN_JS,
+		});
+
+		const result = runResolver(tmpDir);
+		expect(result.exitCode).toBe(0);
+
+		const rewritten = read(join(tmpDir, 'plugins/my-plugin/index.js'));
+		expect(rewritten).toContain(COMMENT_LINE);
+		expect(rewritten).toContain(`static translations = ${HELPER}({`);
+		expect(rewritten).toContain(`'./i18n/en.js': () => import('./i18n/en.js')`);
+	});
+
 	it('does not touch files without the helper call', () => {
 		const noHelper = `export const x = 1;`;
 		buildFixtureTree(tmpDir, {
