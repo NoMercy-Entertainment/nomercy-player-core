@@ -9,6 +9,7 @@
 import type { IPlatform } from '../../adapters/platform/browser';
 import type { IPreloadStrategy, ITransitionBackend, PreloadAsset } from '../../adapters/preload/default';
 import type {
+	AuthConfig,
 	BasePlayerConfig,
 	BasePlaylistItem,
 	PlayerPhase,
@@ -468,12 +469,14 @@ function _composeKitAndConsumerLoaders(
 
 /**
  * Register cue parsers in priority order. Built-ins (LRC, VTT-subtitle,
- * sprite-VTT) go first so consumer-supplied parsers registered after them win
- * resolution — the registry walks newest-first.
+ * sprite-VTT) go in at the low-priority end, so a consumer parser wins
+ * resolution whether it was registered before or after setup.
  */
 function _registerCueParsers(self: Internals): void {
-	for (const parser of builtInCueParsers) {
-		self._cueParsers.register(parser);
+	// Reverse keeps the built-ins' relative order; a same-id parser the consumer registered first stays.
+	for (const parser of [...builtInCueParsers].reverse()) {
+		if (!self._cueParsers.findById(parser.id))
+			self._cueParsers.register(parser, true);
 	}
 	if (self.options.cueParsers) {
 		for (const parser of self.options.cueParsers) {
@@ -820,6 +823,8 @@ function _wirePreloadAndTransition(self: Internals): void {
 		self._preloadFired = false;
 		self._transitionFired = false;
 		self._preloadStrategy.cancel();
+		self._preloadAbort?.abort();
+		self._preloadAbort = null;
 		self._transitionStrategy.cancel('cursor-changed');
 		self._preloadEpoch += 1;
 
@@ -1045,6 +1050,9 @@ async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strate
 		})),
 	});
 
+	const abort = new AbortController();
+	player._preloadAbort = abort;
+
 	let loaded = 0;
 	const total = assets.length;
 
@@ -1058,11 +1066,22 @@ async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strate
 			return;
 
 		try {
-			const request = new Request(asset.url, {
-				method: 'HEAD',
-				mode: 'no-cors',
+			const resolved = await player.resolveUrl(asset.url, asset.category);
+			// resolveUrl already ran auth.transformUrl; authFetch must not apply it twice.
+			const withoutTransform = (): AuthConfig | undefined => {
+				const auth = player._authConfig;
+				return auth && Object.assign({}, auth, { transformUrl: undefined });
+			};
+			await authFetch<unknown>({
+				url: resolved.href,
+				auth: withoutTransform(),
+				fetch: player.options?.fetch,
+				liveAuth: withoutTransform,
+				signal: abort.signal,
+				method: asset.mode === 'auto' ? 'GET' : 'HEAD',
+				responseType: 'arrayBuffer',
+				scope: 'silent',
 			});
-			await fetch(request).catch(() => {});
 
 			loaded += 1;
 

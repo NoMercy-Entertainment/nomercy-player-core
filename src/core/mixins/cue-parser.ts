@@ -19,8 +19,8 @@ import type { Internals } from '../state';
 export interface CueParserState {
 	/**
 	 * Registry of cue-format parsers available to this player instance.
-	 * Pre-seeded with VTT in `initPlayerCoreState`; consumers or plugins can
-	 * register additional formats via `player.registerCueParser()`.
+	 * Starts empty in `initPlayerCoreState`; `setup` adds the built-ins at the
+	 * low-priority end. Register more formats via `player.registerCueParser()`.
 	 */
 	_cueParsers: CueParserRegistry;
 }

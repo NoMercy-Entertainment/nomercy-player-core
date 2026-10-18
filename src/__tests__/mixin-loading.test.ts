@@ -98,6 +98,49 @@ describe('loadingMethods (slice 03)', () => {
 		expect((thrown as PlayerError).code).toBe('core:media/missing-url');
 	});
 
+	it('load(item) names the missing backend or the missing backend.load in backend-missing', async () => {
+		const player = makeSetupPlayer('load-backend-missing');
+		const item: BasePlaylistItem = { id: 'track-3', url: 'https://example.com/track.mp3' } as BasePlaylistItem;
+		const internals = player as unknown as { _resolveBackend: () => unknown };
+
+		internals._resolveBackend = (): unknown => undefined;
+		const noBackend = await player.load(item).catch((err: PlayerError) => err);
+		expect((noBackend as PlayerError).code).toBe('core:player/backend-missing');
+		expect((noBackend as PlayerError).message).toContain('returned null/undefined');
+
+		internals._resolveBackend = (): unknown => ({});
+		const noLoad = await player.load(item).catch((err: PlayerError) => err);
+		expect((noLoad as PlayerError).code).toBe('core:player/backend-missing');
+		expect((noLoad as PlayerError).message).toContain('no load()');
+	});
+
+	it('the latest load() call wins even when an earlier call resolves its URL later', async () => {
+		const div = document.createElement('div');
+		div.id = 'load-epoch-order';
+		document.body.appendChild(div);
+		const player = new MockPlayer('load-epoch-order').setup({
+			auth: {
+				transformUrl: async (url: string): Promise<string> => {
+					if (url.includes('slow'))
+						await new Promise(resolve => setTimeout(resolve, 30));
+					return url;
+				},
+			},
+		});
+		const loaded: string[] = [];
+		(player as unknown as { _resolveBackend: () => unknown })._resolveBackend = (): unknown => ({
+			load: async (url: string): Promise<void> => {
+				loaded.push(url);
+			},
+		});
+
+		const slow = { id: 'slow', url: 'https://example.com/slow.mp3' } as BasePlaylistItem;
+		const fast = { id: 'fast', url: 'https://example.com/fast.mp3' } as BasePlaylistItem;
+		await Promise.all([player.load(slow), player.load(fast)]);
+
+		expect(loaded).toEqual(['https://example.com/fast.mp3']);
+	});
+
 	it('load(item) emits "beforeLoad" before calling backend; preventDefault suppresses backend and emits "loadPrevented"', async () => {
 		const player = makeSetupPlayer('load-2');
 

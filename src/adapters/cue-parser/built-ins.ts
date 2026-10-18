@@ -9,8 +9,8 @@
 /**
  * Built-in `ICueParser` instances for LRC, VTT subtitles, and sprite VTT.
  *
- * The kit auto-registers these at low priority during setup so consumer-supplied
- * parsers for the same URL patterns always take precedence.
+ * The kit auto-registers these at the low-priority end during setup, so
+ * consumer-supplied parsers for the same URL patterns take precedence.
  *
  * Resolution order: URL extension is checked first (`.lrc` / `.vtt`), then the
  * optional `contentType`. Sprite VTT shares the `.vtt` extension and ranks
@@ -82,7 +82,7 @@ export const spriteVttParser: ICueParser<VTTSpritePayload> = {
 /**
  * Default parser bundle registered by the kit at startup. Consumers do not
  * need to install these manually. Register a custom parser with the same `id`
- * to replace any of them, or call `player.cueRegistry.unregister(id)` to
+ * to replace any of them, or call `player.unregisterCueParser(id)` to
  * remove one entirely.
  */
 export const builtInCueParsers: ReadonlyArray<ICueParser> = [

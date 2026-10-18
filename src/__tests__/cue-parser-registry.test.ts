@@ -104,6 +104,24 @@ describe('Cue parser registry — kit defaults', () => {
 		expect(reg.resolve('lyrics.lrc')?.id).toBe('custom-lrc');
 	});
 
+	it('a parser registered before setup() wins over a built-in for the same URL', async () => {
+		const div = document.createElement('div');
+		div.id = 'p-early';
+		document.body.appendChild(div);
+		const earlyVtt: ICueParser = {
+			id: 'early-vtt',
+			canParse: (url: string) => /\.vtt(?:\?|$)/i.test(url),
+			parse: () => ({ get: () => [], at: () => undefined, after: () => undefined, before: () => undefined } as any),
+		};
+		const mockPlayer = new MockPlayer('p-early');
+		mockPlayer.registerCueParser(earlyVtt);
+		mockPlayer.setup({});
+		await mockPlayer.ready();
+		const reg = (mockPlayer as unknown as PlayerTestInternals)._cueParsers;
+		expect(reg.resolve('subs.vtt')?.id).toBe('early-vtt');
+		expect(reg.resolve('lyrics.lrc')?.id).toBe('lrc');
+	});
+
 	it('unrecognized URL returns undefined (caller decides whether absence is an error)', async () => {
 		const mockPlayer = make('p4');
 		await mockPlayer.ready();

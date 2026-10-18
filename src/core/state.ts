@@ -245,6 +245,9 @@ export interface PlayerCoreState<T extends BasePlaylistItem = BasePlaylistItem, 
 
 	/** Monotonically increasing epoch. Bumped whenever the cursor changes. Stale RAF callbacks bail when epoch differs. */
 	_preloadEpoch: number;
+
+	/** Aborts the in-flight preload asset fetches. Replaced per preload run, aborted when the cursor changes. */
+	_preloadAbort: AbortController | null;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -505,6 +508,7 @@ export function initPlayerCoreState(player: object, opts: { className: string })
 	target._transitionFired = false;
 	target._transitionRafHandle = undefined;
 	target._preloadEpoch = 0;
+	target._preloadAbort = null;
 }
 
 /**
