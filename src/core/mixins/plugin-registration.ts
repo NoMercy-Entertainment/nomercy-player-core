@@ -71,6 +71,9 @@ export interface PluginRegistrationState {
  */
 const _pluginLangLoaded = new WeakMap<Internals, Set<string>>();
 
+/** Post-setup registrations still awaiting `use()`: not yet in `_plugins`, but present for checks. */
+const _inflightPlugins = new WeakMap<Internals, Map<string, PluginCtorWithId>>();
+
 /** Build a scoped child logger from the player's configured logger or a fallback. */
 function makePlayerLogger(self: Internals, scope: string): ILogger {
 	// Any ILogger, not only the kit's own class. `child` is on the interface, so
@@ -527,7 +530,8 @@ export const pluginRegistrationMethods = {
 			}
 		}
 
-		if (this._plugins.some(plugin => plugin.ctor.id === id) || this._pluginQueue.some(queued => queued.ctor.id === id)) {
+		const inflight = _inflightPlugins.get(this);
+		if (this._plugins.some(plugin => plugin.ctor.id === id) || this._pluginQueue.some(queued => queued.ctor.id === id) || inflight?.has(id)) {
 			throw pluginError('core:plugin/duplicate-id', `Plugin "${id}" is already registered.`, { context: { id } });
 		}
 
@@ -540,7 +544,8 @@ export const pluginRegistrationMethods = {
 			const minVersion = typeof spec === 'function' ? undefined : spec.minVersion;
 			const reqId = requiredCtor.id;
 			const present = this._plugins.some(plugin => plugin.ctor.id === reqId)
-				|| this._pluginQueue.some(queued => queued.ctor.id === reqId);
+				|| this._pluginQueue.some(queued => queued.ctor.id === reqId)
+				|| inflight?.has(reqId) === true;
 			if (!present && !optional) {
 				throw pluginError('core:plugin/missing-dep', `Plugin "${id}" requires "${reqId}" but it is not registered.`, {
 					context: {
@@ -553,7 +558,7 @@ export const pluginRegistrationMethods = {
 				// Resolve the actual ctor we'd be using (registered first, queued fallback).
 				const reg = this._plugins.find(plugin => plugin.ctor.id === reqId);
 				const queued = this._pluginQueue.find(qEntry => qEntry.ctor.id === reqId);
-				const installedVersion = (reg?.ctor.version ?? queued?.ctor.version ?? '0.0.0');
+				const installedVersion = (reg?.ctor.version ?? queued?.ctor.version ?? inflight?.get(reqId)?.version ?? '0.0.0');
 				if (_compareSemver(installedVersion, minVersion) < 0) {
 					throw pluginError(
 						'core:plugin/version-mismatch',
@@ -607,11 +612,18 @@ export const pluginRegistrationMethods = {
 		// from surfacing as an unhandled rejection; the real failure is already
 		// surfaced through `plugin:failed` inside `_registerPlugin`.
 		const timeoutMs = this.options.pluginInitTimeoutMs ?? 30_000;
+		let inflightPlugins = _inflightPlugins.get(this);
+		if (!inflightPlugins) {
+			inflightPlugins = new Map();
+			_inflightPlugins.set(this, inflightPlugins);
+		}
+		inflightPlugins.set(id, PluginClass);
 		const registration = this._registerPlugin(PluginClass, opts, timeoutMs);
 		this._pendingPluginRegistrations.add(registration);
 		registration
 			.catch(() => { /* surfaced via plugin:failed */ })
 			.finally(() => {
+				inflightPlugins.delete(id);
 				this._pendingPluginRegistrations.delete(registration);
 			});
 		return this;

@@ -149,4 +149,16 @@ describe('setup pipeline and plugin registration races', () => {
 		await flush();
 		await expect(player.ready()).rejects.toThrow();
 	});
+
+	it('counts an in-flight post-setup registration for requires and duplicate checks', async () => {
+		const player = newPlayer();
+		player.setup({});
+		await player.ready();
+		player.addPlugin(SlowPlugin);
+		expect(() => player.addPlugin(NeedsSlowPlugin)).not.toThrow();
+		expect(() => player.addPlugin(SlowPlugin)).toThrow();
+		release();
+		await player.ready();
+		expect(player.plugins().map(p => (p.constructor as PluginCtorWithId).id).sort()).toEqual(['needs-slow', 'slow']);
+	});
 });
