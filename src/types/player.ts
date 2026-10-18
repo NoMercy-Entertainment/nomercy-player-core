@@ -12,7 +12,7 @@ import type { IStreamFactory, IStreamSource } from '../adapters/stream/IStreamSo
 import type { DispatchTarget } from '../core/dispatch';
 import type { RepeatState, ShuffleState } from '../core/mixins/state-mutators';
 
-import type { Plugin } from '../core/plugin';
+import type { AnyPluginCtor, Plugin, PluginEventMap } from '../core/plugin';
 import type { Chapter } from './chapter';
 import type { AuthConfig, CastTarget } from './config';
 import type { DeviceCapabilities } from './device';
@@ -310,6 +310,8 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	 * event names and namespaced ones through this same string-typed call.
 	 */
 	on(event: string, fn: (data: any) => void): void; // bivariant escape hatch for plugin events
+	/** Subscribe to another plugin's event, typed from the plugin's event map. */
+	on<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(plugin: C, event: K, fn: (data: PluginEventMap<C>[K]) => void): void;
 
 	/** Unsubscribe a previously-registered typed handler. */
 	off<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
@@ -317,11 +319,15 @@ export interface IPlayer<E extends BaseEventMap<any> = BaseEventMap>
 	off(event: 'all', fn?: (event: string, data: unknown) => void): void;
 	/** Unsubscribe all handlers for a string-keyed event (plugin events). */
 	off(event: string, fn?: (data: any) => void): void;
+	/** Unsubscribe a handler registered with the plugin-class form. */
+	off<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(plugin: C, event: K, fn?: (data: PluginEventMap<C>[K]) => void): void;
 
 	/** Subscribe for a single typed firing then automatically unsubscribe. */
 	once<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
 	/** Subscribe once for a string-keyed event (plugin events). */
 	once(event: string, fn: (data: any) => void): void;
+	/** Subscribe once to another plugin's event, typed from the plugin's event map. */
+	once<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(plugin: C, event: K, fn: (data: PluginEventMap<C>[K]) => void): void;
 
 	/** Emit a typed event, invoking all registered handlers synchronously. */
 	emit<K extends keyof E>(event: K, data?: E[K]): void;

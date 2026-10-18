@@ -6,6 +6,8 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
+import type { AnyPluginCtor, PluginEventMap } from '../../core/plugin';
+
 /**
  * Handler type for string-keyed (untyped) events. Consumers that subscribe to
  * plugin-namespaced events (`plugin:<id>:<event>`) or other dynamic event names
@@ -105,7 +107,10 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	on(_event: 'all', _fn: (event: string, data: unknown) => void): void;
 	on<K extends keyof E>(_event: K, _fn: (data: E[K]) => void): void;
 	on(_event: string, _fn: AnyHandler): void;
-	on(event: any, fn: (...args: any[]) => void): void {
+	on<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(_plugin: C, _event: K, _fn: (data: PluginEventMap<C>[K]) => void): void;
+	on(event: any, fn: any, third?: any): void {
+		if (typeof event === 'function')
+			return this.on(`plugin:${event.id}:${fn}`, third);
 		const key = String(event);
 		const renamedTo = RENAMED_EVENTS[key];
 		if (renamedTo && typeof console !== 'undefined' && console.warn) {
@@ -135,7 +140,10 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	 */
 	once<K extends keyof E>(_event: K, _fn: (data: E[K]) => void): void;
 	once(_event: string, _fn: AnyHandler): void;
-	once(event: any, fn: ImplHandler): void {
+	once<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(_plugin: C, _event: K, _fn: (data: PluginEventMap<C>[K]) => void): void;
+	once(event: any, fn: any, third?: any): void {
+		if (typeof event === 'function')
+			return this.once(`plugin:${event.id}:${fn}`, third);
 		const key = String(event);
 		let byEvent = this.onceWrappers.get(fn);
 		if (byEvent?.has(key))
@@ -174,7 +182,10 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	off<K extends keyof E>(_event: K, _fn?: (data: E[K]) => void): void;
 	off(_event: 'all', _fn?: (event: string, data: unknown) => void): void;
 	off(_event: string, _fn?: AnyHandler): void;
-	off(event: any, fn?: (...args: any[]) => void): void {
+	off<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(_plugin: C, _event: K, _fn?: (data: PluginEventMap<C>[K]) => void): void;
+	off(event: any, fn?: any, third?: any): void {
+		if (typeof event === 'function')
+			return this.off(`plugin:${event.id}:${fn}`, third);
 		if (event === 'all') {
 			if (fn) {
 				const byEvent = this.onceWrappers.get(fn);
