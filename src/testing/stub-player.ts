@@ -310,7 +310,10 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		}
 		this._authConfig = configOrPartial === null
 			? undefined
-			: { ...(this._authConfig ?? {}), ...configOrPartial };
+			: {
+					...(this._authConfig ?? {}),
+					...configOrPartial,
+				};
 		this.emit('auth:refreshed', { tokenAcquiredAt: Date.now() });
 	}
 
@@ -328,7 +331,16 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		if (idx === undefined) {
 			const at = this._currentSubtitleIdx;
 			// The stub lists no tracks, so the selection carries a placeholder track.
-			return at === null ? null : { index: at, track: { id: `stub-subtitle-${at}`, label: `Subtitle ${at}`, url: '' } };
+			return at === null
+				? null
+				: {
+						index: at,
+						track: {
+							id: `stub-subtitle-${at}`,
+							label: `Subtitle ${at}`,
+							url: '',
+						},
+					};
 		}
 		this._currentSubtitleIdx = idx;
 		return Promise.resolve();
@@ -339,7 +351,15 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	audioTrack(idx?: number): CurrentAudioTrackSelection | null | Promise<void> {
 		if (idx === undefined) {
 			const at = this._currentAudioTrackIdx;
-			return at === null ? null : { index: at, track: { id: `stub-audio-${at}`, label: `Audio ${at}` } };
+			return at === null
+				? null
+				: {
+						index: at,
+						track: {
+							id: `stub-audio-${at}`,
+							label: `Audio ${at}`,
+						},
+					};
 		}
 		this._currentAudioTrackIdx = idx;
 		return Promise.resolve();
@@ -350,7 +370,16 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	quality(idx?: number | 'auto'): CurrentQualitySelection | 'auto' | void {
 		if (idx === undefined) {
 			const at = this._currentQualityIdx;
-			return at === 'auto' ? 'auto' : { index: at, track: { bitrate: 0, label: `Level ${at}`, index: at } };
+			return at === 'auto'
+				? 'auto'
+				: {
+						index: at,
+						track: {
+							bitrate: 0,
+							label: `Level ${at}`,
+							index: at,
+						},
+					};
 		}
 		this._currentQualityIdx = idx;
 	}
