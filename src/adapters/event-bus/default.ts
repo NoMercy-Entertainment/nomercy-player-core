@@ -48,7 +48,7 @@ const RENAMED_EVENTS: Readonly<Record<string, string>> = {
  *   `Set.delete(fn)` works without matching options; `EventTarget.removeEventListener`
  *   needs the exact same function reference and doesn't compose with `once`.
  * - `once()` wraps the caller's handler so it self-removes after the first
- *   call. The wrapper is stored in a `WeakMap<userHandler, wrapper>` so
+ *   call. Wrappers are stored per handler and event so
  *   `off(event, userHandler)` can locate and remove the wrapper even though the
  *   caller passes their original function reference.
  * - `emit()` snapshots the listener set before iterating, so a listener that
@@ -69,7 +69,7 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	private readonly listeners = new Map<string, Set<AnyHandler>>();
 	/** Firehose listeners — called for EVERY emit with `(event, data)`. Registered via `on('all', fn)`. */
 	private readonly anyListeners = new Set<(event: string, data: unknown) => void>();
-	private readonly onceWrappers = new WeakMap<AnyHandler, AnyHandler>();
+	private readonly onceWrappers = new WeakMap<AnyHandler, Map<string, AnyHandler>>();
 	private readonly _lcPending = new Set<string>();
 
 	private _scheduleListenersChanged(name: string, _count: number): void {
@@ -136,13 +136,28 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	once<K extends keyof E>(_event: K, _fn: (data: E[K]) => void): void;
 	once(_event: string, _fn: AnyHandler): void;
 	once(event: any, fn: ImplHandler): void {
+		const key = String(event);
+		let byEvent = this.onceWrappers.get(fn);
+		if (byEvent?.has(key))
+			return;
 		// Spread-through so firehose listeners receive both (event, data) args.
 		const wrapper = (...args: unknown[]): void => {
-			this.off(event, fn);
+			this.removeOnceWrapper(key, fn, wrapper);
 			(fn as (...args: unknown[]) => void)(...args);
 		};
-		this.onceWrappers.set(fn, wrapper);
+		if (!byEvent) {
+			byEvent = new Map();
+			this.onceWrappers.set(fn, byEvent);
+		}
+		byEvent.set(key, wrapper);
 		this.on(event, wrapper);
+	}
+
+	private removeOnceWrapper(key: string, fn: AnyHandler, wrapper: AnyHandler): void {
+		const byEvent = this.onceWrappers.get(fn);
+		if (byEvent?.get(key) === wrapper)
+			byEvent.delete(key);
+		this.off(key as any, wrapper);
 	}
 
 	/**
@@ -162,10 +177,11 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 	off(event: any, fn?: (...args: any[]) => void): void {
 		if (event === 'all') {
 			if (fn) {
-				const wrapper = this.onceWrappers.get(fn);
+				const byEvent = this.onceWrappers.get(fn);
+				const wrapper = byEvent?.get('all');
 				if (wrapper) {
 					this.anyListeners.delete(wrapper as (event: string, data: unknown) => void);
-					this.onceWrappers.delete(fn);
+					byEvent?.delete('all');
 				}
 				else {
 					this.anyListeners.delete(fn as (event: string, data: unknown) => void);
@@ -192,10 +208,11 @@ export class EventEmitter<E extends Record<string, any> = Record<string, any>> {
 		}
 
 		const sizeBefore = set.size;
-		const wrapper = this.onceWrappers.get(fn);
+		const byEvent = this.onceWrappers.get(fn);
+		const wrapper = byEvent?.get(key);
 		if (wrapper) {
 			set.delete(wrapper);
-			this.onceWrappers.delete(fn);
+			byEvent?.delete(key);
 		}
 		else {
 			set.delete(fn);
