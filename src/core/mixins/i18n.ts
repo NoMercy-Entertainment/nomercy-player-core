@@ -156,17 +156,20 @@ export const i18nMethods = {
 				// (1) Lazy `static translations` chain — pull bundles for every
 				// tag in the BCP-47 chain that hasn't been loaded yet.
 				let cur: unknown = ctor;
+				let level = 0;
 				while (cur && cur !== Function.prototype) {
+					// One marker per chain level, so a subclass bundle never hides its base's.
+					const levelDedupId = `${staticDedupId}::${level++}`;
 					if (Object.hasOwn(cur, 'translations')) {
 						const withT = cur as { translations?: Translations };
 						const lazy = withT.translations ? getLazyTranslationLoader(withT.translations) : undefined;
 						if (lazy) {
 							for (const tag of langChain) {
-								if (_hasPluginLangLoaded(this, staticDedupId, tag))
+								if (_hasPluginLangLoaded(this, levelDedupId, tag) || _hasPluginLangLoaded(this, staticDedupId, tag))
 									continue;
 								try {
 									const bundle = await lazy(tag);
-									this._markPluginLangLoaded(staticDedupId, tag);
+									this._markPluginLangLoaded(levelDedupId, tag);
 									if (!bundle)
 										continue;
 									this.addTranslations({ [tag]: bundle });

@@ -349,6 +349,33 @@ describe('i18nMethods - extended (I18N-E)', () => {
 		expect(callCount).toBe(1);
 	});
 
+	it('lazy bundles of a base class and its subclass for the same tag both load', async () => {
+		class LazyBasePlugin extends Plugin {
+			static override readonly id = 'lazy-chain';
+			static override readonly description = 'lazy chain';
+			static override readonly translations: Translations = translationsFromGlob({
+				'./i18n/de.ts': async () => ({ default: { 'plugin.lazy-chain.base': 'Basis' } }),
+			});
+		}
+		class LazySubPlugin extends LazyBasePlugin {
+			static override readonly translations: Translations = translationsFromGlob({
+				'./i18n/de.ts': async () => ({ default: { 'plugin.lazy-chain.sub': 'Unter' } }),
+			});
+		}
+
+		const player = makeSetupPlayer('i18n-chain');
+		await player.ready();
+
+		const installed = waitForInstall(player, 'lazy-chain');
+		player.addPlugin(LazySubPlugin as unknown as PluginCtorWithId);
+		await installed;
+
+		await player.language('de');
+
+		expect(player.t('plugin.lazy-chain.sub')).toBe('Unter');
+		expect(player.t('plugin.lazy-chain.base')).toBe('Basis');
+	});
+
 	it('BUG2: a plugin with BOTH static translations AND a loadTranslations hook — the hook still fires', async () => {
 		const frLoader = vi.fn(async () => ({ default: { 'plugin.dual-source.static': 'Static FR' } }));
 		const hookFn = vi.fn(async (lang: string): Promise<Record<string, string> | undefined> => {
