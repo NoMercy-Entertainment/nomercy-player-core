@@ -300,17 +300,18 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	auth(): Readonly<AuthConfig> | undefined;
 	auth(config: AuthConfig): void;
 	auth(partial: Partial<AuthConfig>): void;
-	auth(configOrPartial?: AuthConfig | Partial<AuthConfig>): Readonly<AuthConfig> | undefined | void {
+	auth(clear: null): void;
+	auth(configOrPartial?: AuthConfig | Partial<AuthConfig> | null): Readonly<AuthConfig> | undefined | void {
 		if (configOrPartial === undefined) {
 			if (!this._authConfig)
 				return undefined;
 			const { bearerToken: _b, ...safe } = this._authConfig;
 			return Object.freeze(safe) as Readonly<AuthConfig>;
 		}
-		this._authConfig = {
-			...(this._authConfig ?? {}),
-			...configOrPartial,
-		};
+		this._authConfig = configOrPartial === null
+			? undefined
+			: { ...(this._authConfig ?? {}), ...configOrPartial };
+		this.emit('auth:refreshed', { tokenAcquiredAt: Date.now() });
 	}
 
 	_rawAuth(): AuthConfig | undefined {
