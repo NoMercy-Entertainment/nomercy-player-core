@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [2.2.6] — 2026-10-18
+
+### Added
+
+- `setup({ fetch })` and `setup({ idGenerator })` inject the transport and the id source.
+- `player.on`, `once` and `off` accept a plugin class, and `listen()` types the handler event from the target and name.
+- The `createElement` builder gets `insertBefore` and `insertAfter`.
+
+### Fixed
+
+- Playback: native HLS reaches ready and reports element errors; a load that is interrupted restores the user volume; `load()` takes its race epoch before it awaits; `seekToIndex` loads the item it moves to; user `next()` skips past repeat one; rewind, forward and restart honor a `beforeSeek` time change.
+- Subtitles and chapters: the selected subtitle stays on the same track when the list changes; a sidecar fetch that a newer pick replaced is dropped; language-less stream tracks hide next to sidecars; chapter gaps under 2 s are absorbed.
+- Preload: asset fetches use auth and the URL resolver; a failed next-item fetch emits `preloadError`.
+- Auth and network: the 401 retry sends the token the refresh handler stored; the last attempt skips the retry event and backoff; request-building errors arrive as `AuthError` or `NetworkError`; the network guards work where `navigator` is missing.
+- Setup and plugins: the pipeline stops after dispose; plugins added after the plugin stage register before `ready`; late registrations are dropped after dispose; `ready()` rejects when setup failed; `once()` keeps one wrapper per handler and event.
+- Audio: the equalizer applies band Q and type, and a preset can override a built-in; the audio graph leaves a backend-owned context alone on dispose; the tab leader pauses a non-leader tab on play; media-session artwork that resolves late is dropped; visualization frames carry playback seconds.
+- Other: the cast sender starts the receiver at the local position; storage drops its stale copy on remove; the toast hides when the queue ends; the key handler ignores keys while Meta is held; one wake lock controller per player; child loggers follow the parent; the test `StubPlayer` selection, auth and reset behave like the real player.
+
 ## [2.2.5] — 2026-10-08
 
 ### Changed
