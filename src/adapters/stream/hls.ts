@@ -333,19 +333,19 @@ function makeInterceptingLoader(HlsCtor: typeof import('hls.js').default, regist
 			const wrapped: LoaderCallbacks<LoaderContext> = {
 				...callbacks,
 				onSuccess: async (response: LoaderResponse, stats: LoaderStats, ctx: LoaderContext, networkDetails: unknown) => {
+					let result: LoaderResponse = response;
 					try {
 						const synthetic = toResponse(response, ctx.url ?? context.url);
 						const intercepted = await registry.runInterceptors(ctx.url ?? context.url, synthetic);
-						const data = await readBody(intercepted, response.data);
-						callbacks.onSuccess({
+						result = {
 							...response,
-							data,
-						}, stats, ctx, networkDetails);
+							data: await readBody(intercepted, response.data),
+						};
 					}
 					catch {
 						// Interceptor failure must not break playback — pass through
-						callbacks.onSuccess(response, stats, ctx, networkDetails);
 					}
+					callbacks.onSuccess(result, stats, ctx, networkDetails);
 				},
 			};
 			this.inner.load(context, config, wrapped);
