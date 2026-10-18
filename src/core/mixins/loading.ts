@@ -96,6 +96,12 @@ export const loadingMethods = {
 		// awaited setup-pipeline steps have already moved to 'ready'.
 		const priorPhase = this._phase;
 
+		// Race-guard: take the epoch at call time, before any await, so the last
+		// load() call wins however long an earlier call spends resolving its URL.
+		const epoch = (this._loadEpoch ?? 0) + 1;
+		this._loadEpoch = epoch;
+		const isLatest = (): boolean => this._loadEpoch === epoch;
+
 		const beforeResult = await this._dispatchBefore<{ item: T; source?: string }>(
 			'beforeLoad',
 			{
@@ -110,6 +116,8 @@ export const loadingMethods = {
 			});
 			return;
 		}
+		if (!isLatest())
+			return;
 
 		// `item.url` is the canonical field. The full resolution pipeline
 		// (`auth.transformUrl`, custom `urlResolver`, `baseUrl` for relative
@@ -122,8 +130,12 @@ export const loadingMethods = {
 			throw mediaFormatError('core:media/missing-url', 'load(item) requires `item.url` to be present.', { id: item2.id });
 		}
 		const url = (await this.resolveUrl(rawUrl, 'media')).href;
+		if (!isLatest())
+			return;
 
 		const resolvedItem = await this.resolveItemTrackUrls(item2);
+		if (!isLatest())
+			return;
 		if (resolvedItem !== item2 && hasTracksField(resolvedItem)) {
 			// Re-read the queue entry fresh rather than writing back this
 			// pre-fetch snapshot — another writer (e.g. `addSubtitleTrack`)
@@ -160,15 +172,6 @@ export const loadingMethods = {
 		if ((RESUMABLE_PHASES_FOR_LOAD as ReadonlyArray<string>).includes(priorPhase)) {
 			this._transitionPhase('loading');
 		}
-
-		// Race-guard: bump a monotonic load epoch and capture it. When the
-		// consumer fires load(A) then load(B) in quick succession, the older
-		// continuation would otherwise overwrite cursor / phase / opts back to
-		// A once it resolves. Anything side-effectful after the awaited
-		// backend.load only runs when our epoch is still the latest.
-		const epoch = (this._loadEpoch ?? 0) + 1;
-		this._loadEpoch = epoch;
-		const isLatest = (): boolean => this._loadEpoch === epoch;
 
 		// Reset the itemEndingSoon one-shot latch so the event fires exactly once
 		// for each new item that starts loading.
