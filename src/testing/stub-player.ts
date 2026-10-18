@@ -324,8 +324,11 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	subtitle(): CurrentSubtitleSelection | null;
 	subtitle(idx: number | null): Promise<void>;
 	subtitle(idx?: number | null): CurrentSubtitleSelection | null | Promise<void> {
-		if (idx === undefined)
-			return null;
+		if (idx === undefined) {
+			const at = this._currentSubtitleIdx;
+			// The stub lists no tracks, so the selection carries a placeholder track.
+			return at === null ? null : { index: at, track: { id: `stub-subtitle-${at}`, label: `Subtitle ${at}`, url: '' } };
+		}
 		this._currentSubtitleIdx = idx;
 		return Promise.resolve();
 	}
@@ -333,8 +336,10 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	audioTrack(): CurrentAudioTrackSelection | null;
 	audioTrack(idx: number): Promise<void>;
 	audioTrack(idx?: number): CurrentAudioTrackSelection | null | Promise<void> {
-		if (idx === undefined)
-			return null;
+		if (idx === undefined) {
+			const at = this._currentAudioTrackIdx;
+			return at === null ? null : { index: at, track: { id: `stub-audio-${at}`, label: `Audio ${at}` } };
+		}
 		this._currentAudioTrackIdx = idx;
 		return Promise.resolve();
 	}
@@ -342,8 +347,10 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 	quality(): CurrentQualitySelection | 'auto';
 	quality(idx: number | 'auto'): void;
 	quality(idx?: number | 'auto'): CurrentQualitySelection | 'auto' | void {
-		if (idx === undefined)
-			return 'auto';
+		if (idx === undefined) {
+			const at = this._currentQualityIdx;
+			return at === 'auto' ? 'auto' : { index: at, track: { bitrate: 0, label: `Level ${at}`, index: at } };
+		}
 		this._currentQualityIdx = idx;
 	}
 
