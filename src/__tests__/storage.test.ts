@@ -139,6 +139,37 @@ describe('LocalStorageBackend', () => {
 			}
 		});
 
+		it('remove() after a quota-failed set() makes get() return null', async () => {
+			const fakeStore = new Map<string, string>();
+			let failNextSet = true;
+			const original = globalThis.localStorage;
+			const quotaOnce = {
+				getItem: (key: string) => fakeStore.get(key) ?? null,
+				setItem: (key: string, value: string) => {
+					if (failNextSet) {
+						failNextSet = false;
+						throw new Error('quota exceeded');
+					}
+					fakeStore.set(key, value);
+				},
+				removeItem: (key: string) => { fakeStore.delete(key); },
+				clear: () => fakeStore.clear(),
+				key: () => null,
+				length: 0,
+			};
+			Object.defineProperty(globalThis, 'localStorage', { value: quotaOnce, configurable: true, writable: true });
+			try {
+				backend.set('key', 'old');
+				backend.set('key', 'new');
+				expect(await backend.get('key')).toBe('new');
+				backend.remove('key');
+				expect(await backend.get('key')).toBeNull();
+			}
+			finally {
+				Object.defineProperty(globalThis, 'localStorage', { value: original, configurable: true, writable: true });
+			}
+		});
+
 		it('falls back to in-memory when get throws', async () => {
 			backend.set('key', 'a');
 			// happy-dom localStorage isn't overridable per-method (Proxy / readonly),

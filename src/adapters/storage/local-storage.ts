@@ -63,6 +63,7 @@ export class LocalStorageBackend implements IStorage {
 		}
 		try {
 			localStorage.setItem(key, value);
+			this.fallback.delete(key);
 		}
 		catch {
 			this.fallback.set(key, value);
@@ -75,11 +76,12 @@ export class LocalStorageBackend implements IStorage {
 			this.fallback.delete(key);
 			return;
 		}
+		this.fallback.delete(key);
 		try {
 			localStorage.removeItem(key);
 		}
 		catch {
-			this.fallback.delete(key);
+			// The fallback entry is already gone.
 		}
 	}
 
