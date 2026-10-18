@@ -78,6 +78,12 @@ export interface MediaTracksState {
 	/** Active sidecar VTT subtitle context. One per player. Torn down on track change or item change. */
 	_sidecarSubtitle?: SidecarSubtitleContext;
 
+	/** Bumped by every `_disposeSidecarSubtitle`; a sidecar fetch that finds a newer value is superseded. */
+	_sidecarEpoch?: number;
+
+	/** Abort handle of the in-flight sidecar fetch, if any. */
+	_sidecarAbort?: AbortController;
+
 	/** Subtitle style patch cache. Seeded on first read; mutated by `subtitleStyle(patch)`. */
 	_subtitleStyle?: SubtitleStyle;
 }
@@ -168,6 +174,8 @@ async function _startSidecarSubtitle(
 		return;
 
 	const ctrl = new AbortController();
+	const epoch = self._sidecarEpoch ?? 0;
+	self._sidecarAbort = ctrl;
 	let raw: string;
 	try {
 		raw = await authFetch<string>({
@@ -181,6 +189,8 @@ async function _startSidecarSubtitle(
 	}
 	catch {
 		ctrl.abort();
+		if ((self._sidecarEpoch ?? 0) !== epoch)
+			return;
 		self.emit('subtitleCue', {
 			cues: [],
 			language: track.language,
@@ -188,10 +198,10 @@ async function _startSidecarSubtitle(
 		return;
 	}
 
-	// User may have switched tracks mid-fetch; bail if the slot was
-	// (re)populated by a later `subtitle` while we were waiting.
-	if (self._sidecarSubtitle)
+	// Every selection change bumps the epoch, so a superseded fetch bails here.
+	if ((self._sidecarEpoch ?? 0) !== epoch)
 		return;
+	self._sidecarAbort = undefined;
 
 	const cueList = parseVttSubtitles(raw);
 	const tracker = new CueTracker<VTTSubtitlePayload>(cueList, { trackerId: 'subtitle-sidecar' });
@@ -414,6 +424,9 @@ export const mediaTracksMethods = {
 	 * switching tracks so the prior cue stream stops emitting.
 	 */
 	_disposeSidecarSubtitle(this: Internals): void {
+		this._sidecarEpoch = (this._sidecarEpoch ?? 0) + 1;
+		this._sidecarAbort?.abort();
+		this._sidecarAbort = undefined;
 		const ctx = this._sidecarSubtitle;
 		if (!ctx)
 			return;

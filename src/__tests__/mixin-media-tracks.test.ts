@@ -363,6 +363,50 @@ describe('subtitle() — setter paths', () => {
 		}
 	});
 
+	it('drops a slow sidecar fetch that was superseded by subtitle(null)', async () => {
+		const player = setupPlayer();
+		const item: BasePlaylistItem & { subtitles: SubtitleTrack[] } = {
+			id: 'item-1',
+			title: 'Test',
+			url: '/test.mp4',
+			subtitles: [
+				{ id: 'eng', language: 'eng', kind: 'subtitles', label: 'English (Full)', url: '/eng.vtt' },
+			],
+		};
+		player.queue([item] as never);
+		player.item(item as never);
+
+		let release!: (value: unknown) => void;
+		const fetchSpy = vi.fn().mockReturnValue(new Promise((resolve) => {
+			release = resolve;
+		}));
+		vi.stubGlobal('fetch', fetchSpy);
+
+		try {
+			await player.subtitle(0);
+			await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+			await player.subtitle(null);
+
+			const cueEvents: number[] = [];
+			(player as unknown as { on: (event: string, fn: (data: { cues: unknown[] }) => void) => void })
+				.on('subtitleCue', data => cueEvents.push(data.cues.length));
+			release({
+				ok: true,
+				status: 200,
+				headers: new Headers({ 'content-type': 'text/vtt' }),
+				text: () => Promise.resolve('WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n'),
+			});
+			await new Promise(resolve => setTimeout(resolve, 20));
+			player.emit('time' as never, { time: 0.5 } as never);
+
+			expect((player as unknown as { _sidecarSubtitle: unknown })._sidecarSubtitle).toBeUndefined();
+			expect(cueEvents.filter(count => count > 0)).toEqual([]);
+		}
+		finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it('regression: backend-origin selection maps back to the backend\'s OWN raw index by identity, not by list position', async () => {
 		const player = setupPlayer();
 
