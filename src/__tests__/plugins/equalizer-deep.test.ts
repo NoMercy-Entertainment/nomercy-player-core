@@ -433,6 +433,26 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 		});
 	});
 
+	describe('Q and type on live nodes', () => {
+		it('reset() restores the default Q on the live filter', () => {
+			const { plugin, graph } = wireEqPlugin();
+			const node = graph.insertEffect.mock.calls.map(call => call[0] as BiquadFilterNode)[5]!;
+			node.Q.value = 5;
+			plugin.reset();
+			expect(node.Q.value).toBe(1);
+		});
+
+		it('restore() applies persisted Q and type to the live filter', () => {
+			const { plugin, graph } = wireEqPlugin({ persistKey: 'k' });
+			const node = graph.insertEffect.mock.calls.map(call => call[0] as BiquadFilterNode)[5]!;
+			const bands = plugin.bands().map(eqBand => eqBand.frequency === node.frequency.value ? { ...eqBand, q: 4, type: 'lowshelf' } : eqBand);
+			(plugin as unknown as { storage: { get: () => string | null } }).storage.get = () => JSON.stringify({ bands });
+			plugin.restore();
+			expect(node.Q.value).toBe(4);
+			expect(node.type).toBe('lowshelf');
+		});
+	});
+
 	// ── reset() ───────────────────────────────────────────────────────────────
 
 	describe('reset()', () => {

@@ -671,8 +671,11 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			if (band.frequency === 'Pre')
 				continue;
 			const node = this.findFilter(band.frequency);
-			if (node)
-				node.gain.value = band.gain;
+			if (!node)
+				continue;
+			node.gain.value = band.gain;
+			node.Q.value = band.q ?? 1;
+			node.type = band.type ?? 'peaking';
 		}
 	}
 
