@@ -664,4 +664,72 @@ describe('authFetch', () => {
 			expect(req.headers.get('X-License-Sig')).toBe('abc123');
 		});
 	});
+
+	// ─────────────────────────────────────────────────────────────────────
+	// Request building — callback and URL errors keep the throws contract
+	// ─────────────────────────────────────────────────────────────────────
+
+	describe('request building errors', () => {
+		const boom = new Error('boom');
+
+		it('wraps a throwing bearerToken callback in AuthError with the original as cause', async () => {
+			const result = authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { bearerToken: () => { throw boom; } },
+			});
+			await expect(result).rejects.toBeInstanceOf(AuthError);
+			await expect(result).rejects.toMatchObject({ code: 'core:auth/request-build-failed', cause: boom });
+			expect(fetchSpy).not.toHaveBeenCalled();
+		});
+
+		it('wraps a throwing auth header callback in AuthError', async () => {
+			const result = authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { headers: { 'X-Tenant': () => { throw boom; } } },
+			});
+			await expect(result).rejects.toBeInstanceOf(AuthError);
+			await expect(result).rejects.toMatchObject({ cause: boom });
+		});
+
+		it('wraps a throwing signRequest in AuthError', async () => {
+			const result = authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { signRequest: () => { throw boom; } },
+			});
+			await expect(result).rejects.toBeInstanceOf(AuthError);
+			await expect(result).rejects.toMatchObject({ cause: boom });
+		});
+
+		it('wraps a throwing transformUrl in NetworkError', async () => {
+			const result = authFetch({
+				url: 'https://x/y',
+				signal: ctrl().signal,
+				auth: { transformUrl: () => { throw boom; } },
+			});
+			await expect(result).rejects.toBeInstanceOf(NetworkError);
+			await expect(result).rejects.toMatchObject({ code: 'core:network/invalid-request', cause: boom });
+		});
+
+		it('wraps an unparseable URL in NetworkError', async () => {
+			const result = authFetch({
+				url: 'http://[bad',
+				signal: ctrl().signal,
+			});
+			await expect(result).rejects.toBeInstanceOf(NetworkError);
+			await expect(result).rejects.toMatchObject({ code: 'core:network/invalid-request' });
+		});
+
+		it('still fires fetch:complete with ok=false when the request cannot be built', async () => {
+			const emitted: string[] = [];
+			await expect(authFetch({
+				url: 'http://[bad',
+				signal: ctrl().signal,
+				emit: event => emitted.push(event),
+			})).rejects.toBeInstanceOf(NetworkError);
+			expect(emitted).toEqual(['fetch:start', 'fetch:complete']);
+		});
+	});
 });

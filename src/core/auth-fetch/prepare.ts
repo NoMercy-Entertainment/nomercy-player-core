@@ -45,19 +45,19 @@ async function resolveHeader(value: AuthHeaderValue): Promise<string> {
  * After the Request is built, `auth.signRequest` (if supplied) gets the final
  * say — it can mutate headers, swap the URL, or return a brand-new Request.
  */
-export async function buildRequest(url: string, opts: AuthFetchBase): Promise<Request> {
+export async function buildRequest<T>(url: string, opts: AttemptCtx<T>): Promise<Request> {
 	const headers = new Headers();
 
 	const effectiveBearer = opts.auth?.bearerToken;
 	if (effectiveBearer !== undefined) {
-		const token = await resolveHeader(effectiveBearer);
+		const token = await guardAuthCallback(opts, 'bearerToken', () => resolveHeader(effectiveBearer));
 		if (token)
 			headers.set('Authorization', `Bearer ${token}`);
 	}
 
 	if (opts.auth?.headers) {
 		for (const [name, value] of Object.entries(opts.auth.headers)) {
-			const resolved = await resolveHeader(value);
+			const resolved = await guardAuthCallback(opts, `header ${name}`, () => resolveHeader(value));
 			if (resolved)
 				headers.set(name, resolved);
 		}
@@ -78,13 +78,28 @@ export async function buildRequest(url: string, opts: AuthFetchBase): Promise<Re
 		body: opts.body,
 	};
 
-	let request = new Request(url, init);
-	if (opts.auth?.signRequest) {
-		const signed = opts.auth.signRequest(request);
-		request = signed instanceof Promise ? await signed : signed;
+	let request: Request;
+	try {
+		request = new Request(url, init);
 	}
+	catch (cause) {
+		throw opts.netErr('core:network/invalid-request', undefined, 'request could not be built', cause);
+	}
+	const signRequest = opts.auth?.signRequest;
+	if (signRequest)
+		request = await guardAuthCallback(opts, 'signRequest', () => signRequest(request));
 
 	return request;
+}
+
+/** Consumer callbacks may throw anything; surface it as an `AuthError` so `authFetch` keeps its throws contract. */
+async function guardAuthCallback<T, R>(ctx: AttemptCtx<T>, name: string, call: () => R | Promise<R>): Promise<R> {
+	try {
+		return await call();
+	}
+	catch (cause) {
+		throw ctx.authErr('core:auth/request-build-failed', undefined, `auth.${name} threw`, cause);
+	}
 }
 
 /**
@@ -98,7 +113,20 @@ export async function buildRequest(url: string, opts: AuthFetchBase): Promise<Re
  * resolve a signed URL via fetch / IndexedDB / native bridge).
  */
 export async function prepareAttempt<T>(opts: AuthFetchOptions<T>): Promise<AttemptCtx<T>> {
-	const url = await applyTransformUrl(opts.url, opts.auth);
+	let url: string;
+	try {
+		url = await applyTransformUrl(opts.url, opts.auth);
+	}
+	catch (cause) {
+		throw new NetworkError({
+			code: 'core:network/invalid-request',
+			severity: 'error',
+			scope: { kind: 'network' },
+			message: 'auth.transformUrl threw',
+			cause,
+			context: { url: opts.url },
+		});
+	}
 
 	const start = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 	const rawEmit = opts.emit ?? (() => { /* no-op */ });

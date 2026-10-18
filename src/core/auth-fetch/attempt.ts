@@ -6,6 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
+import type { AuthError, NetworkError } from '../../errors';
 import type { AttemptCtx, Outcome, RetryConfig } from './types';
 
 import { decodeBody } from './decode';
@@ -103,7 +104,16 @@ function codeFor5xx(status: number): string {
  *  - 2xx / 3xx                        → defer to `decodeBody`
  */
 export async function attemptOnce<T>(ctx: AttemptCtx<T>, attempt: number): Promise<Outcome<T>> {
-	const request = await buildRequest(ctx.url, ctx);
+	let request: Request;
+	try {
+		request = await buildRequest(ctx.url, ctx);
+	}
+	catch (error) {
+		return {
+			kind: 'throw',
+			error: error as NetworkError | AuthError,
+		};
+	}
 
 	let response: Response;
 	try {
