@@ -921,6 +921,7 @@ export class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<Ba
 		this._backlog = [];
 		this._repeatState = RepeatState.OFF;
 		this._shuffleState = ShuffleState.OFF;
+		this._stubActivityTracking = true;
 	}
 }
 
