@@ -565,31 +565,33 @@ function _wireNetworkPolicy(self: Internals): void {
 function _wireWakeLockPolicy(self: Internals): void {
 	const wakeLockPolicy = self.options.wakeLock ?? 'never';
 	const platform = self._platform ?? browserPlatform;
+	// browserPlatform builds a new controller per read; keep one so its lock persists.
+	const wakeLock = platform.wakeLock;
 
 	if (wakeLockPolicy === 'always') {
-		void platform.wakeLock.acquire().catch(() => { /* unsupported */ });
+		void wakeLock.acquire().catch(() => { /* unsupported */ });
 		self._policyCleanup.push(() => {
-			void platform.wakeLock.release().catch(() => { /* defensive */ });
+			void wakeLock.release().catch(() => { /* defensive */ });
 		});
 	}
 	else if (wakeLockPolicy === 'auto') {
 		const phaseHandler = ({ to }: { to: PlayerPhase }): void => {
 			if (to === 'playing' || to === 'starting') {
-				if (!platform.wakeLock.isHeld()) {
-					void platform.wakeLock.acquire().catch(() => { /* unsupported */ });
+				if (!wakeLock.isHeld()) {
+					void wakeLock.acquire().catch(() => { /* unsupported */ });
 				}
 			}
 			else if (to === 'paused' || to === 'stopped' || to === 'ended' || to === 'disposed') {
-				if (platform.wakeLock.isHeld()) {
-					void platform.wakeLock.release().catch(() => { /* defensive */ });
+				if (wakeLock.isHeld()) {
+					void wakeLock.release().catch(() => { /* defensive */ });
 				}
 			}
 		};
 		self.on('phase', phaseHandler);
 		self._policyCleanup.push(() => {
 			self.off('phase', phaseHandler);
-			if (platform.wakeLock.isHeld()) {
-				void platform.wakeLock.release().catch(() => { /* defensive */ });
+			if (wakeLock.isHeld()) {
+				void wakeLock.release().catch(() => { /* defensive */ });
 			}
 		});
 	}

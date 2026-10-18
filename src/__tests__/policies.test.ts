@@ -305,6 +305,45 @@ describe('policies — pauseWhenHidden / onOffline / wakeLock + now()', () => {
 		expect(fake.wakeLock.release).toHaveBeenCalled();
 	});
 
+	describe('wakeLock on the default browser platform', () => {
+		function installNavigatorWakeLock() {
+			const sentinel = { released: false, release: vi.fn(async () => { sentinel.released = true; }) };
+			const request = vi.fn(async () => sentinel);
+			Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true, writable: true });
+			return { sentinel, request };
+		}
+
+		afterEach(() => {
+			Object.defineProperty(navigator, 'wakeLock', { value: undefined, configurable: true, writable: true });
+		});
+
+		it('\'auto\' releases the acquired sentinel on pause and requests once per play', async () => {
+			const nav = installNavigatorWakeLock();
+			const mockPlayer = makePlayer('pol-wl-default-auto').setup({ wakeLock: 'auto' });
+			await mockPlayer.ready();
+
+			await mockPlayer.play();
+			await new Promise(resolve => setTimeout(resolve, 0));
+			expect(nav.request).toHaveBeenCalledTimes(1);
+
+			await mockPlayer.pause();
+			await new Promise(resolve => setTimeout(resolve, 0));
+			expect(nav.sentinel.release).toHaveBeenCalledTimes(1);
+		});
+
+		it('\'always\' releases the sentinel on dispose', async () => {
+			const nav = installNavigatorWakeLock();
+			const mockPlayer = makePlayer('pol-wl-default-always').setup({ wakeLock: 'always' });
+			await mockPlayer.ready();
+			await new Promise(resolve => setTimeout(resolve, 0));
+			expect(nav.request).toHaveBeenCalledTimes(1);
+
+			await mockPlayer.dispose();
+			await new Promise(resolve => setTimeout(resolve, 0));
+			expect(nav.sentinel.release).toHaveBeenCalledTimes(1);
+		});
+	});
+
 	it('wakeLock:\'never\' (default) → acquire never called', async () => {
 		const fake = buildFakePlatform();
 		const mockPlayer = makePlayer('pol-wl-never').setup({
