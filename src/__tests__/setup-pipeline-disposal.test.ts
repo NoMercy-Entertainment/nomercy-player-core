@@ -159,7 +159,7 @@ describe('setup pipeline and plugin registration races', () => {
 		expect(() => player.addPlugin(SlowPlugin)).toThrow();
 		release();
 		await player.ready();
-		expect(player.plugins().map(p => (p.constructor as PluginCtorWithId).id).sort()).toEqual(['needs-slow', 'slow']);
+		expect(player.plugins().map(plugin => (plugin.constructor as PluginCtorWithId).id).sort()).toEqual(['needs-slow', 'slow']);
 	});
 
 	it('tears down a registration that settles after dispose()', async () => {
