@@ -317,6 +317,30 @@ describe('preload orchestration', () => {
 		await new Promise(resolve => setTimeout(resolve, 10));
 		expect(startCount).toBe(2);
 	});
+
+	it('a rejected asset fetch emits preloadError and not preloadComplete', async () => {
+		const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+		vi.stubGlobal('fetch', fetchMock);
+		const strategy: IPreloadStrategy = {
+			shouldPreload: () => true,
+			assetsToPreload: () => [{ url: 'https://cdn.example.test/poster.jpg', category: 'poster' }],
+			cancel: () => {},
+		};
+		const player = setupPlayer({ preloadStrategy: strategy });
+		player.queue([makeItem('fail-a'), makeItem('fail-b')]);
+		player.item('fail-a');
+
+		const events: string[] = [];
+		player.on('preloadComplete', () => events.push('preloadComplete'));
+		player.on('preloadError', () => events.push('preloadError'));
+
+		(player as any)._internalDuration = 60;
+		player.emit('time', { time: 50 });
+		await new Promise(resolve => setTimeout(resolve, 10));
+
+		expect(events).toEqual(['preloadError']);
+		vi.unstubAllGlobals();
+	});
 });
 
 // ── Orchestration: transition events ─────────────────────────────────────────

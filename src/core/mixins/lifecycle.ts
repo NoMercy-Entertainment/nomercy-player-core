@@ -1062,7 +1062,7 @@ async function _runPreload(player: Internals, nextItem: BasePlaylistItem, strate
 				method: 'HEAD',
 				mode: 'no-cors',
 			});
-			await fetch(request).catch(() => {});
+			await fetch(request);
 
 			loaded += 1;
 
