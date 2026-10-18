@@ -231,6 +231,15 @@ async function _startSidecarSubtitle(
 	tracker.attach(self);
 }
 
+/** Re-point `_currentSubtitleIdx` at `activeId` after the `subtitles()` list was rebuilt. */
+function _remapSubtitleIdx(self: Internals, activeId: string | undefined): void {
+	if (activeId === undefined)
+		return;
+	const newIdx = mediaTracksMethods.subtitles.call(self).findIndex(track => track.id === activeId);
+	if (newIdx >= 0)
+		self._currentSubtitleIdx = newIdx;
+}
+
 /**
  * Translate a parsed sidecar `VTTSubtitlePayload` into the unified
  * `SubtitleCue` event shape — same fields the backend emits for native
@@ -780,7 +789,11 @@ export const mediaTracksMethods = {
 			...currentItem,
 			subtitles: [..._itemSidecarSubtitles(currentItem), track],
 		};
+		const activeId = this._currentSubtitleIdx === null
+			? undefined
+			: mediaTracksMethods.subtitles.call(this)[this._currentSubtitleIdx]?.id;
 		this._queueList.replaceItem(updatedItem);
+		_remapSubtitleIdx(this, activeId);
 
 		this.emit('subtitles', { tracks: mediaTracksMethods.subtitles.call(this) });
 
@@ -818,6 +831,8 @@ export const mediaTracksMethods = {
 			subtitles: remaining,
 		};
 		this._queueList.replaceItem(updatedItem);
+		if (!wasActive)
+			_remapSubtitleIdx(this, activeIdx === null ? undefined : tracksBefore[activeIdx]?.id);
 
 		this.emit('subtitles', { tracks: mediaTracksMethods.subtitles.call(this) });
 

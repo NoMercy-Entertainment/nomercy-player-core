@@ -645,6 +645,25 @@ describe('addSubtitleTrack() / removeSubtitleTrack()', () => {
 		expect(events[0]!.tracks).toHaveLength(0);
 	});
 
+	it('removing a track before the active one keeps the selection on the same track', async () => {
+		const player = setupWithItem();
+		vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+		try {
+			const first = player.addSubtitleTrack({ url: '/en.vtt', language: 'en' });
+			const second = player.addSubtitleTrack({ url: '/de.vtt', language: 'de' });
+			await player.subtitle(1);
+
+			player.removeSubtitleTrack(first.id);
+
+			const selection = player.subtitle() as { index: number; track: SubtitleTrack } | null;
+			expect(selection?.track.id).toBe(second.id);
+			expect(selection?.index).toBe(0);
+		}
+		finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it('removeSubtitleTrack is a no-op when the id is not found — no event fired', () => {
 		const player = setupWithItem();
 		player.addSubtitleTrack({ url: '/en.vtt', language: 'en' });
