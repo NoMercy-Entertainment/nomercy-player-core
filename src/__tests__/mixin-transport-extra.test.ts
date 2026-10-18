@@ -246,6 +246,50 @@ describe('forward()', () => {
 
 		expect(beforeSeekPayloads[0]!.data.time).toBe(7);
 	});
+
+	it('forward() lands on an absolute time a beforeSeek listener sets in data.time', async () => {
+		const player = setupPlayer();
+		const backend = makeSimpleBackend();
+		installBackend(player, backend);
+		setCurrentTime(player, 30);
+		player.on('beforeSeek' as never, (event: { data: { time: number } }) => {
+			event.data.time = 50;
+		});
+
+		await player.forward(5);
+
+		expect(backend.currentTime).toHaveBeenCalledWith(50);
+		expect((player as unknown as { _internalCurrentTime: number })._internalCurrentTime).toBe(50);
+	});
+
+	it('rewind() lands on an absolute time a beforeSeek listener sets in data.time', async () => {
+		const player = setupPlayer();
+		const backend = makeSimpleBackend();
+		installBackend(player, backend);
+		setCurrentTime(player, 30);
+		player.on('beforeSeek' as never, (event: { data: { time: number } }) => {
+			event.data.time = 12;
+		});
+
+		await player.rewind(5);
+
+		expect(backend.currentTime).toHaveBeenCalledWith(12);
+		expect((player as unknown as { _internalCurrentTime: number })._internalCurrentTime).toBe(12);
+	});
+
+	it('restart() lands on a time a beforeSeek listener sets in data.time', async () => {
+		const player = setupPlayer();
+		const backend = makeSimpleBackend();
+		installBackend(player, backend);
+		setCurrentTime(player, 30);
+		player.on('beforeSeek' as never, (event: { data: { time: number } }) => {
+			event.data.time = 8;
+		});
+
+		await player.restart();
+
+		expect(backend.currentTime).toHaveBeenCalledWith(8);
+	});
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

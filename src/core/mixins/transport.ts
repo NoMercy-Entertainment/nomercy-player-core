@@ -50,15 +50,19 @@ async function _dispatchSeek(
 		});
 		return { proceeded: false };
 	}
+	// A listener that changed data.time chose an absolute target, as in time().
+	const finalTime = result.data.time === beforeSeekTime
+		? targetTime
+		: Math.max(0, result.data.time);
 	self._seekingTransition(() => {
-		self._internalCurrentTime = targetTime;
+		self._internalCurrentTime = finalTime;
 		self.emit('seek', {
-			time: targetTime,
+			time: finalTime,
 			source: result.data.source,
 		});
 	});
-	self._resolveBackend()?.currentTime?.(targetTime);
-	self.emit('seeked', { time: targetTime });
+	self._resolveBackend()?.currentTime?.(finalTime);
+	self.emit('seeked', { time: finalTime });
 	return { proceeded: true };
 }
 
