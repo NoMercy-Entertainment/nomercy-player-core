@@ -883,6 +883,15 @@ function _ensureStreamRegistry(self: Internals): StreamRegistry {
 	return self._streamRegistry;
 }
 
+/** Register every queued plugin, including ones queued by a plugin's own `use()`. */
+async function _drainPluginQueue(self: Internals): Promise<void> {
+	const timeoutMs = self.options.pluginInitTimeoutMs ?? 30_000;
+	while (self._pluginQueue.length > 0) {
+		const entry = self._pluginQueue.shift()!;
+		await self._registerPlugin(entry.ctor, entry.opts, timeoutMs);
+	}
+}
+
 /**
  * Drive the async setup pipeline, fire-and-forget. Each stage runs in order;
  * any failure short-circuits the rest and rejects the `ready()` promise.
@@ -905,13 +914,7 @@ function _runSetupPipeline(self: Internals): void {
 		try {
 			await _runStage(self, 'setupStart', 'setupStartError', () => {}, { container: self.container });
 			await _runStage(self, 'configResolved', 'configResolvedError', () => {}, { config: self.options });
-			await _runStage(self, 'pluginsRegistering', 'pluginsRegisteringError', async () => {
-				const timeoutMs = self.options.pluginInitTimeoutMs ?? 30_000;
-				while (self._pluginQueue.length > 0) {
-					const entry = self._pluginQueue.shift()!;
-					await self._registerPlugin(entry.ctor, entry.opts, timeoutMs);
-				}
-			});
+			await _runStage(self, 'pluginsRegistering', 'pluginsRegisteringError', () => _drainPluginQueue(self));
 			await _runStage(self, 'pluginsRegistered', 'pluginsRegisteredError', () => {});
 
 			// Load the initial language through the full language() pipeline —
@@ -981,6 +984,9 @@ function _runSetupPipeline(self: Internals): void {
 			}
 
 			await _runStage(self, 'mediaReady', 'mediaReadyError', () => {});
+
+			// A plugin added after the plugin stage is still queued; register it now.
+			await _drainPluginQueue(self);
 
 			self._transitionPhase('ready');
 			self.emit('ready');
