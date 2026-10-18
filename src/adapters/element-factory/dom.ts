@@ -12,6 +12,8 @@ export interface CreateElement<T extends Element> {
 	addClasses: (names: string[]) => AddClasses<T>;
 	appendTo: (parent: Element) => AppendTo<T>;
 	prependTo: (parent: Element) => AppendTo<T>;
+	insertBefore: (sibling: Element) => AppendTo<T>;
+	insertAfter: (sibling: Element) => AppendTo<T>;
 	setAttribute: (name: string, value: string) => AddClasses<T>;
 	setProperty: (name: string, value: string) => AddClasses<T>;
 }
@@ -20,6 +22,8 @@ export interface AddClasses<T extends Element> {
 	get: () => T;
 	appendTo: (parent: Element) => AppendTo<T>;
 	prependTo: (parent: Element) => AppendTo<T>;
+	insertBefore: (sibling: Element) => AppendTo<T>;
+	insertAfter: (sibling: Element) => AppendTo<T>;
 	addClasses: (names: string[]) => AddClasses<T>;
 	setAttribute: (name: string, value: string) => AddClasses<T>;
 	setProperty: (name: string, value: string) => AddClasses<T>;
@@ -63,6 +67,8 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
 			parent.insertBefore(el, parent.firstChild);
 			return makeAppendTo(el);
 		},
+		insertBefore: (sibling: Element) => placeNextTo(el, sibling, 'before'),
+		insertAfter: (sibling: Element) => placeNextTo(el, sibling, 'after'),
 		setAttribute: (name: string, value: string) => {
 			el.setAttribute(name, value);
 			return makeAddClasses(el);
@@ -126,6 +132,16 @@ export function createButton(id: string, label: string, onClick: (event: Event) 
 // Internals
 // ─────────────────────────────────────────────────────────────────────────
 
+function placeNextTo<T extends Element>(el: T, sibling: Element, where: 'before' | 'after'): AppendTo<T> {
+	if (!sibling.parentNode)
+		throw new Error(`createElement: cannot insert ${where} a sibling that has no parent`);
+	if (where === 'before')
+		sibling.before(el);
+	else
+		sibling.after(el);
+	return makeAppendTo(el);
+}
+
 function makeAppendTo<T extends Element>(el: T): AppendTo<T> {
 	return {
 		get: () => el,
@@ -144,6 +160,8 @@ function makeAddClasses<T extends Element>(el: T): AddClasses<T> {
 			parent.insertBefore(el, parent.firstChild);
 			return makeAppendTo(el);
 		},
+		insertBefore: (sibling: Element) => placeNextTo(el, sibling, 'before'),
+		insertAfter: (sibling: Element) => placeNextTo(el, sibling, 'after'),
 		addClasses: (names: string[]) => addClasses(el, names),
 		setAttribute: (name: string, value: string) => {
 			el.setAttribute(name, value);
