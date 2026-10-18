@@ -563,4 +563,50 @@ describe('MediaSessionPlugin — deep behavioral coverage', () => {
 			restore = installed.restore;
 		});
 	});
+
+	// ── out-of-order artwork resolution ────────────────────────────────────────
+
+	describe('slow artwork resolution', () => {
+		class SlowResolverPlugin extends MediaSessionPlugin {
+			static override readonly id: string = 'media-session';
+			gates = new Map<string, () => void>();
+
+			protected override resolveUrl(url: string): Promise<never> {
+				return new Promise((resolve) => {
+					this.gates.set(url, () => resolve({ href: url } as never));
+				});
+			}
+		}
+
+		type EmittingPlayer = MockPlayer & { emit: (event: string, payload: unknown) => void };
+
+		async function setupSlow(id: string): Promise<{ player: EmittingPlayer; plugin: SlowResolverPlugin }> {
+			const player = makePlayer(id).setup({}) as EmittingPlayer;
+			player.addPlugin(SlowResolverPlugin);
+			await player.ready();
+			return { player, plugin: player.getPlugin(SlowResolverPlugin) as SlowResolverPlugin };
+		}
+
+		it('keeps the newest item when an earlier item resolves later', async () => {
+			const { player, plugin } = await setupSlow('ms-slow-1');
+			player.emit('item', { item: { title: 'A', image: 'a.jpg' } });
+			player.emit('item', { item: { title: 'B', image: 'b.jpg' } });
+			plugin.gates.get('b.jpg')!();
+			await flush();
+			plugin.gates.get('a.jpg')!();
+			await flush();
+
+			expect((session.metadata as { title?: string }).title).toBe('B');
+		});
+
+		it('does not set metadata again after stop', async () => {
+			const { player, plugin } = await setupSlow('ms-slow-2');
+			player.emit('item', { item: { title: 'A', image: 'a.jpg' } });
+			player.emit('stop', {});
+			plugin.gates.get('a.jpg')!();
+			await flush();
+
+			expect(session.metadata).toBeNull();
+		});
+	});
 });

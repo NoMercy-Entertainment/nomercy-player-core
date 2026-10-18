@@ -121,6 +121,9 @@ export class MediaSessionPlugin<
 	/** Last metadata passed to `metadata(meta)`, for the reader overload. */
 	private _lastMetadata: MediaSessionMetadata | undefined;
 
+	/** Bumped by every push and clear; a push that resolves late is dropped. */
+	private _pushToken = 0;
+
 	/**
 	 * Wires all player transport events to `navigator.mediaSession` and registers
 	 * OS action handlers.
@@ -264,6 +267,7 @@ export class MediaSessionPlugin<
 	 * is normally followed by an auto-advance `item` event).
 	 */
 	clearMetadata(): void {
+		this._pushToken++;
 		if (typeof navigator === 'undefined' || !('mediaSession' in navigator))
 			return;
 		navigator.mediaSession.metadata = null;
@@ -327,6 +331,7 @@ export class MediaSessionPlugin<
 	 * the plugin; override `getMetadata` to customise the metadata shape instead.
 	 */
 	private async _pushMetadata(item: I): Promise<void> {
+		const token = ++this._pushToken;
 		const base = this.getMetadata(item);
 		const rawUrl = this._pickImageUrl(item);
 
@@ -336,6 +341,8 @@ export class MediaSessionPlugin<
 		}
 
 		const resolved = await this.resolveUrl(rawUrl, 'poster');
+		if (token !== this._pushToken)
+			return;
 		const src = resolved.href;
 
 		this.metadata({
