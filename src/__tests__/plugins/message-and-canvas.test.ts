@@ -228,10 +228,8 @@ describe('MessagePlugin + CanvasPlugin', () => {
 			expect(toast.textContent).toBe('three');
 
 			vi.advanceTimersByTime(51);
-			// Queue drained — the final timeout calls next(idx+1) which is
-			// past the end, so the toast stays on its last text but no new
-			// hide fires. Acceptable; assert at minimum no further mutation.
-			expect(toast.textContent).toBe('three');
+			// Queue drained — the last toast is hidden.
+			expect(toast.textContent).toBe('');
 		});
 	});
 

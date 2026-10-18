@@ -164,7 +164,7 @@ export class MessagePlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends Pl
 			if (runId !== this.queueRunId)
 				return;
 			if (idx >= list.length) {
-				this.cancelHideTimeout();
+				this.hide();
 				return;
 			}
 
