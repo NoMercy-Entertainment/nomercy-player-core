@@ -397,6 +397,9 @@ export class KeyHandlerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 			return;
 		if (this.isTypingTarget(ev.target))
 			return;
+		// Meta combos belong to the browser or OS; bindings have no meta modifier.
+		if (ev.metaKey)
+			return;
 
 		const when = this.opts?.when;
 		if (typeof when === 'function' && !when(ev))

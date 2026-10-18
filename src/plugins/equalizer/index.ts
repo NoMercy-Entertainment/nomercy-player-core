@@ -415,22 +415,18 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 	/**
 	 * Returns all available presets as a cloned array: built-ins first, then
 	 * custom presets registered via `addCustomPreset`, then any additional
-	 * presets from `EqualizerOptions.presets`. Presets with duplicate names are
-	 * deduplicated (first occurrence wins).
+	 * presets from `EqualizerOptions.presets`. A custom preset overrides an
+	 * `opts.presets` entry, which overrides a built-in, when the names match.
 	 */
 	presets(): EqPreset[] {
-		const out: EqPreset[] = [];
-		for (const preset of BUILTIN_PRESETS) out.push(this.clonePreset(preset));
-		for (const preset of this.customPresets.values()) out.push(this.clonePreset(preset));
-		// Consumer-supplied `opts.presets` extends/replaces the catalogue.
-		if (this.opts?.presets) {
-			const seen = new Set(out.map(eqPreset => eqPreset.name));
-			for (const eqPreset of this.opts.presets) {
-				if (!seen.has(eqPreset.name))
-					out.push(this.clonePreset(eqPreset));
-			}
+		const byName = new Map<string, EqPreset>();
+		for (const preset of BUILTIN_PRESETS) byName.set(preset.name, preset);
+		for (const preset of this.customPresets.values()) byName.set(preset.name, preset);
+		for (const preset of this.opts?.presets ?? []) {
+			if (!this.customPresets.has(preset.name))
+				byName.set(preset.name, preset);
 		}
-		return out;
+		return Array.from(byName.values(), preset => this.clonePreset(preset));
 	}
 
 	/**
@@ -610,17 +606,16 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 
 	private resolvePreset(target: EqPreset | string): EqPreset | undefined {
 		if (typeof target === 'string') {
-			// Built-in by name first.
-			const builtin = BUILTIN_PRESETS.find(preset => preset.name === target);
-			if (builtin)
-				return builtin;
+			// Same order as presets(): custom, then option presets, then built-ins.
 			const custom = this.customPresets.get(target);
 			if (custom)
 				return custom;
-			// Consumer-supplied option presets.
 			const fromOpts = this.opts?.presets?.find(preset => preset.name === target);
 			if (fromOpts)
 				return fromOpts;
+			const builtin = BUILTIN_PRESETS.find(preset => preset.name === target);
+			if (builtin)
+				return builtin;
 			// JSON-string fallback (Fillz parity).
 			try {
 				const raw: unknown = JSON.parse(target);
@@ -676,8 +671,11 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			if (band.frequency === 'Pre')
 				continue;
 			const node = this.findFilter(band.frequency);
-			if (node)
-				node.gain.value = band.gain;
+			if (!node)
+				continue;
+			node.gain.value = band.gain;
+			node.Q.value = band.q ?? 1;
+			node.type = band.type ?? 'peaking';
 		}
 	}
 

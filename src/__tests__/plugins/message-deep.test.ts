@@ -232,7 +232,9 @@ describe('MessagePlugin — deep behavioral coverage', () => {
 			expect(toast.textContent).toBe('Step 2');
 
 			vi.advanceTimersByTime(200);
-			// Queue done — no new message shown.
+			// Queue done — the last toast is hidden.
+			expect(toast.textContent).toBe('');
+			expect(toast.style.display).toBe('none');
 		});
 
 		it('calling queue() again cancels the in-flight run', async () => {

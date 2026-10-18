@@ -94,7 +94,7 @@ function makePlayer(divId: string): MockPlayer {
 	return new MockPlayer(divId);
 }
 
-function dispatch(key: string, opts: { altKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; target?: EventTarget } = {}): void {
+function dispatch(key: string, opts: { altKey?: boolean; ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean; target?: EventTarget } = {}): void {
 	const ev = new KeyboardEvent('keydown', {
 		key,
 		bubbles: true,
@@ -102,6 +102,7 @@ function dispatch(key: string, opts: { altKey?: boolean; ctrlKey?: boolean; shif
 		altKey: opts.altKey ?? false,
 		ctrlKey: opts.ctrlKey ?? false,
 		shiftKey: opts.shiftKey ?? false,
+		metaKey: opts.metaKey ?? false,
 	});
 	(opts.target ?? document).dispatchEvent(ev);
 }
@@ -226,6 +227,21 @@ describe('KeyHandlerPlugin — deep behavioral coverage', () => {
 		dispatch('q');
 
 		expect(handler).toHaveBeenCalledTimes(3);
+	});
+
+	it('ignores keydown while Meta is held so Cmd shortcuts do not fire plain bindings', async () => {
+		const mockPlayer = makePlayer('kh-meta').setup({});
+		mockPlayer.addPlugin(KeyHandlerPlugin, { cooldownMs: 0 });
+		await mockPlayer.ready();
+		const inst = mockPlayer.getPluginById('key-handler') as KeyHandlerPlugin;
+
+		const handler = vi.fn();
+		inst.bind('q', handler);
+		dispatch('q', { metaKey: true });
+		expect(handler).not.toHaveBeenCalled();
+
+		dispatch('q');
+		expect(handler).toHaveBeenCalledOnce();
 	});
 
 	it('default cooldownMs 300 throttles rapid-fire keys', async () => {

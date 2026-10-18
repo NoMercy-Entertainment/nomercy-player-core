@@ -109,6 +109,8 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	private ctx: AudioContext | null = null;
 	private source: AudioNode | null = null;
 	private destination: AudioNode | null = null;
+	private ownsCtx = false;
+	private sourceBorrowed = false;
 	private analyser: AnalyserNode | null = null;
 	/**
 	 * The node whose output is tapped into the AnalyserNode. When the backend
@@ -154,6 +156,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		// context === player context === plugin context.
 		const existing = this.player.audioContext?.();
 		let ctx = existing ?? this.createContext();
+		this.ownsCtx = !existing;
 
 		// Write the context back onto the player so other plugins / accessors see it.
 		setPlayerAudioContext(this.player, ctx);
@@ -175,10 +178,12 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		const ctxAfterBackend = this.player.audioContext?.();
 		if (ctxAfterBackend && ctxAfterBackend !== ctx) {
 			ctx = ctxAfterBackend;
+			this.ownsCtx = false;
 			this.ctx = ctx;
 			setPlayerAudioContext(this.player, ctx);
 		}
 
+		this.sourceBorrowed = false;
 		this.source = element
 			? this.mountSource(ctx, element)
 			: ctx.createGain();
@@ -216,6 +221,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		// the AnalyserNode stays tapped pre-volume after the swap.
 		const onSourceSwap = (payload: { sourceNode: AudioNode; analysisNode?: AudioNode }): void => {
 			this.source = payload.sourceNode;
+			this.sourceBorrowed = true;
 			this._analysisSource = payload.analysisNode ?? payload.sourceNode;
 			this.rebuildChain();
 		};
@@ -275,6 +281,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		const ctx = this.createContext();
 		setPlayerAudioContext(this.player, ctx);
 		this.ctx = ctx;
+		this.ownsCtx = true;
 		return ctx;
 	}
 
@@ -454,6 +461,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 	protected mountSource(ctx: AudioContext, element: HTMLMediaElement): AudioNode {
 		const backendOutputNode = this.resolveBackendOutputNode(ctx);
 		if (backendOutputNode !== null) {
+			this.sourceBorrowed = true;
 			return backendOutputNode;
 		}
 		return ctx.createMediaElementSource(element);
@@ -598,6 +606,14 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 				continue;
 			this.disconnectSafe(node);
 		}
+		// A borrowed backend source must keep playing: restore its direct output.
+		if (this.sourceBorrowed && this.source && this.destination) {
+			try {
+				this.source.connect(this.destination);
+			}
+			catch { /* swallow */ }
+		}
+		this.sourceBorrowed = false;
 		this.preEffects = [];
 		this.postEffects = [];
 		this.routes = [];
@@ -607,7 +623,9 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		this.destination = null;
 
 		const ctx = this.ctx;
-		if (ctx) {
+		const ownsCtx = this.ownsCtx;
+		this.ownsCtx = false;
+		if (ctx && ownsCtx) {
 			try {
 				if (ctx.state !== 'closed' && typeof ctx.close === 'function') {
 					void ctx.close();
@@ -618,7 +636,7 @@ export class AudioGraphPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends
 		}
 
 		// Clear the player-level reference so the next `use()` starts clean.
-		if (this.player.audioContext?.() === ctx) {
+		if (ownsCtx && this.player.audioContext?.() === ctx) {
 			setPlayerAudioContext(this.player, undefined);
 		}
 		this.ctx = null;

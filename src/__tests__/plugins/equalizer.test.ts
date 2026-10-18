@@ -191,14 +191,13 @@ describe('EqualizerPlugin', () => {
 			(inst as any).opts = {
 				presets: [
 					{ name: 'CustomA', values: [{ frequency: 1000, gain: 5 }] },
-					{ name: 'Rock', values: [{ frequency: 70, gain: 99 }] }, // dup of built-in name — should NOT shadow
+					{ name: 'Rock', values: [{ frequency: 70, gain: 99 }] }, // same name as a built-in — overrides it
 				] satisfies EqPreset[],
 			};
 			const names = inst.presets().map(eqPreset => eqPreset.name);
 			expect(names).toContain('CustomA');
-			// Built-in Rock wins on collision (registered first).
 			const rock = inst.presets().find(eqPreset => eqPreset.name === 'Rock')!;
-			expect(rock.values[0]?.gain).toBe(4.875);
+			expect(rock.values[0]?.gain).toBe(99);
 		});
 	});
 

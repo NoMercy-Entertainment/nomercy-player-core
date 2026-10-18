@@ -414,6 +414,45 @@ describe('EqualizerPlugin — deep behavioral coverage', () => {
 		});
 	});
 
+	describe('preset name overrides', () => {
+		it('opts.presets entry named like a built-in overrides it', () => {
+			const { plugin } = wireEqPlugin({ presets: [{ name: 'Rock', values: [{ frequency: 1000, gain: 7 }] }] });
+			plugin.preset('Rock');
+			expect(plugin.band(1000)).toBe(7);
+			expect(plugin.presets().filter(eqPreset => eqPreset.name === 'Rock')).toHaveLength(1);
+		});
+
+		it('addCustomPreset named like a built-in overrides it', () => {
+			const { plugin } = wireEqPlugin();
+			plugin.addCustomPreset({ name: 'Rock', values: [{ frequency: 1000, gain: 6 }] });
+			plugin.preset('Rock');
+			expect(plugin.band(1000)).toBe(6);
+			const listed = plugin.presets().filter(eqPreset => eqPreset.name === 'Rock');
+			expect(listed).toHaveLength(1);
+			expect(listed[0]!.values).toEqual([{ frequency: 1000, gain: 6 }]);
+		});
+	});
+
+	describe('Q and type on live nodes', () => {
+		it('reset() restores the default Q on the live filter', () => {
+			const { plugin, graph } = wireEqPlugin();
+			const node = graph.insertEffect.mock.calls.map(call => call[0] as BiquadFilterNode)[5]!;
+			node.Q.value = 5;
+			plugin.reset();
+			expect(node.Q.value).toBe(1);
+		});
+
+		it('restore() applies persisted Q and type to the live filter', () => {
+			const { plugin, graph } = wireEqPlugin({ persistKey: 'k' });
+			const node = graph.insertEffect.mock.calls.map(call => call[0] as BiquadFilterNode)[5]!;
+			const bands = plugin.bands().map(eqBand => eqBand.frequency === node.frequency.value ? { ...eqBand, q: 4, type: 'lowshelf' } : eqBand);
+			(plugin as unknown as { storage: { get: () => string | null } }).storage.get = () => JSON.stringify({ bands });
+			plugin.restore();
+			expect(node.Q.value).toBe(4);
+			expect(node.type).toBe('lowshelf');
+		});
+	});
+
 	// ── reset() ───────────────────────────────────────────────────────────────
 
 	describe('reset()', () => {

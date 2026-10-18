@@ -293,6 +293,28 @@ describe('AudioGraphPlugin — deep behavioral coverage', () => {
 			expect(closed).toHaveLength(1);
 		});
 
+		it('leaves a backend-owned context open and reconnects the backend output to it', () => {
+			const backendCtx = makeAudioContext();
+			const output = makeAudioNode();
+			const player = new EventEmitter<BaseEventMap>();
+			(player as unknown as { audioContext: () => AudioContext }).audioContext = () => backendCtx;
+			(player as unknown as { backend: () => unknown }).backend = () => ({
+				mediaElement: () => ({}),
+				outputNode: () => output,
+			});
+			(globalThis as Record<string, unknown>)['AudioContext'] = function () { return makeAudioContext(); };
+			const plugin = new AudioGraphPlugin();
+			(plugin as unknown as { player: typeof player }).player = player;
+			(plugin as unknown as { lifecycle: LifecycleRegistry }).lifecycle = new LifecycleRegistry();
+			plugin.use();
+
+			plugin.dispose();
+
+			expect(backendCtx.close).not.toHaveBeenCalled();
+			const connect = output.connect as ReturnType<typeof vi.fn>;
+			expect(connect.mock.calls.at(-1)?.[0]).toBe(backendCtx.destination);
+		});
+
 		it('is idempotent — double dispose does not throw', () => {
 			const { plugin } = wirePlugin();
 			plugin.dispose();
