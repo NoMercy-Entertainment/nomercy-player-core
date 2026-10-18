@@ -76,7 +76,10 @@ export interface AudioTrack {
  * any sidecar tracks the consumer registered on the playlist item.
  */
 export interface SubtitleTrack {
-	/** Stable track identifier within this manifest. Pass to `subtitle(id)`. */
+	/**
+	 * Stable track identifier within this manifest. NOT what `subtitle()`
+	 * takes: that argument is a position in the list `subtitles()` returned.
+	 */
 	id: string;
 	/** BCP-47 language tag, if provided (e.g. `'en'`, `'nl-NL'`). */
 	language?: string;
