@@ -98,6 +98,22 @@ describe('loadingMethods (slice 03)', () => {
 		expect((thrown as PlayerError).code).toBe('core:media/missing-url');
 	});
 
+	it('load(item) names the missing backend or the missing backend.load in backend-missing', async () => {
+		const player = makeSetupPlayer('load-backend-missing');
+		const item: BasePlaylistItem = { id: 'track-3', url: 'https://example.com/track.mp3' } as BasePlaylistItem;
+		const internals = player as unknown as { _resolveBackend: () => unknown };
+
+		internals._resolveBackend = (): unknown => undefined;
+		const noBackend = await player.load(item).catch((err: PlayerError) => err);
+		expect((noBackend as PlayerError).code).toBe('core:player/backend-missing');
+		expect((noBackend as PlayerError).message).toContain('returned null/undefined');
+
+		internals._resolveBackend = (): unknown => ({});
+		const noLoad = await player.load(item).catch((err: PlayerError) => err);
+		expect((noLoad as PlayerError).code).toBe('core:player/backend-missing');
+		expect((noLoad as PlayerError).message).toContain('no load()');
+	});
+
 	it('load(item) emits "beforeLoad" before calling backend; preventDefault suppresses backend and emits "loadPrevented"', async () => {
 		const player = makeSetupPlayer('load-2');
 

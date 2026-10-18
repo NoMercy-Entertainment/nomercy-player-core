@@ -178,8 +178,11 @@ export const loadingMethods = {
 
 		try {
 			const backend = this._resolveBackend();
-			if (!backend || typeof backend.load !== 'function') {
+			if (!backend) {
 				throw stateError('core:player/backend-missing', 'No backend wired — backend() returned null/undefined.');
+			}
+			if (typeof backend.load !== 'function') {
+				throw stateError('core:player/backend-missing', 'The wired backend has no load() function.');
 			}
 			performance.mark('nm:kit:backend.load:start');
 			await backend.load(url, startAt !== undefined ? { startTime: startAt } : undefined);
