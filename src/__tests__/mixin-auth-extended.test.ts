@@ -421,3 +421,23 @@ describe('auth mixin — resolveUrl() real mixin baseImageUrl branch', () => {
 		expect((resolved as { href: string }).href).toBe('https://cdn.example.com/x.mp4');
 	});
 });
+
+describe('auth mixin — resolveUrl() relative-URL warning', () => {
+	beforeEach(() => AuthMockPlayer._resetRegistry());
+	afterEach(() => {
+		AuthMockPlayer._resetRegistry();
+		document.body.innerHTML = '';
+		vi.restoreAllMocks();
+	});
+
+	it('warns through the player logger when no logger option was set', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const authMockPlayer = makeAuthPlayer();
+		authMockPlayer.setup({});
+		await authMockPlayer.ready();
+
+		await authMockPlayer.resolveUrl('/poster.jpg', 'poster');
+
+		expect(warn).toHaveBeenCalledWith('[nmplayer]', expect.stringContaining('resolved to a relative path'));
+	});
+});

@@ -56,6 +56,9 @@ export class Logger implements ILogger {
 	 * `(level, prefix, args)` so it can route to console / Sentry / Datadog with
 	 * full context. Multiple sinks compose in registration order.
 	 *
+	 * The console is only the fallback: once a sink is registered, console
+	 * output stops. Add a console sink if you want both.
+	 *
 	 * Returns an unsubscribe function — call it to stop routing to this sink.
 	 */
 	addSink(fn: LogSink): () => void {

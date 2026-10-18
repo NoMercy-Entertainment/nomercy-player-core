@@ -146,7 +146,7 @@ export const authMethods = {
 			const result = buildResolvedUrl(rawUrl, transformed, base);
 
 			if (result.relative) {
-				this.options?.logger?.warn(
+				(this.options?.logger ?? this._logger)?.warn(
 					`[resolveUrl] ${resolvedCategory} URL resolved to a relative path — the OS or receiver will 404. `
 					+ `Set baseImageUrl in player config or supply a urlResolver. Raw: "${rawUrl}"`,
 				);
