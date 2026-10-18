@@ -8,6 +8,7 @@
 
 import type { BasePlaylistItem } from '../../types';
 import type { IShuffleStrategy } from '../shuffle-strategy/IShuffleStrategy';
+import type { IMediaList } from './IMediaList';
 import { EventEmitter } from '../event-bus/default';
 import { fisherYatesShuffle } from '../shuffle-strategy/default';
 
@@ -41,7 +42,7 @@ interface MediaListEventMap<T> {
  *    cursor to the new last index.
  *  - `setCurrent()` accepts the item itself, its id, an index, or a predicate.
  */
-export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaListEventMap<T>> {
+export class MediaList<T extends BasePlaylistItem> extends EventEmitter<MediaListEventMap<T>> implements IMediaList<T> {
 	private items: T[] = [];
 	private cursor = -1;
 	private shuffleStrategy: IShuffleStrategy = fisherYatesShuffle;

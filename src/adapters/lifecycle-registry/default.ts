@@ -6,6 +6,8 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
+import type { ILifecycleRegistry } from './ILifecycleRegistry';
+
 interface ListenerRecord {
 	target: EventTarget;
 	event: string;
@@ -24,7 +26,7 @@ interface DisconnectableObserver { disconnect(): void }
  *
  * Idempotent: calling `dispose()` twice is safe; the second call is a no-op.
  */
-export class LifecycleRegistry {
+export class LifecycleRegistry implements ILifecycleRegistry {
 	private readonly listeners: ListenerRecord[] = [];
 	private readonly timeouts = new Set<number>();
 	private readonly intervals = new Set<number>();

@@ -23,7 +23,7 @@ export interface ILifecycleRegistry {
 	interval(fn: () => void, ms: number): number;
 	observe<O extends { disconnect(): void }>(observer: O): O;
 	abortable(): AbortController;
-	frame(fn: (deltaMs: number, time: number) => void): void;
+	frame(fn: (deltaMs: number, time: number) => void): () => void;
 	dispose(): void;
 	isDisposed(): boolean;
 }
