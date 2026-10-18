@@ -539,9 +539,45 @@ describe('next() — repeat modes', () => {
 		const loadSpy = vi.fn().mockResolvedValue(undefined);
 		(player as unknown as { load: (item: unknown, opts: unknown) => Promise<void> }).load = loadSpy;
 
-		await player.next();
+		await player.next({ source: 'auto-advance' });
 
 		expect(nextEvents).toHaveLength(1);
+	});
+
+	it('next() from the user with repeat:ONE moves to the next item', async () => {
+		const player = setupPlayer();
+		player.repeatState(RepeatState.ONE);
+		const items: BasePlaylistItem[] = [
+			{ id: 'i1', title: 'Item 1', url: '/i1.mp3' },
+			{ id: 'i2', title: 'Item 2', url: '/i2.mp3' },
+		];
+		player.queue(items);
+		player.item(items[0]!);
+		const loadSpy = vi.fn().mockResolvedValue(undefined);
+		(player as unknown as { load: (item: unknown, opts: unknown) => Promise<void> }).load = loadSpy;
+
+		await player.next();
+
+		expect(loadSpy.mock.calls.at(-1)![0]).toMatchObject({ id: 'i2' });
+		expect(player.item()).toMatchObject({ id: 'i2' });
+	});
+
+	it('next({ source: "auto-advance" }) with repeat:ONE replays the current item', async () => {
+		const player = setupPlayer();
+		player.repeatState(RepeatState.ONE);
+		const items: BasePlaylistItem[] = [
+			{ id: 'i1', title: 'Item 1', url: '/i1.mp3' },
+			{ id: 'i2', title: 'Item 2', url: '/i2.mp3' },
+		];
+		player.queue(items);
+		player.item(items[0]!);
+		const loadSpy = vi.fn().mockResolvedValue(undefined);
+		(player as unknown as { load: (item: unknown, opts: unknown) => Promise<void> }).load = loadSpy;
+
+		await player.next({ source: 'auto-advance' });
+
+		expect(loadSpy.mock.calls.at(-1)![0]).toMatchObject({ id: 'i1' });
+		expect(player.item()).toMatchObject({ id: 'i1' });
 	});
 
 	it('next() with repeat:ALL wraps to first item when at end', async () => {

@@ -233,8 +233,9 @@ export const transportMethods = {
 	 * `beforeNext`; preventable via `preventDefault()` (emits `nextPrevented`).
 	 *
 	 * Repeat mode (set via `repeatState()`) is honoured here:
-	 *  - `'one'`  — reload the current item instead of advancing. The queue
-	 *               cursor does not move.
+	 *  - `'one'`  — when the track ended on its own (`source: 'auto-advance'`),
+	 *               reload the current item; the queue cursor does not move.
+	 *               A user skip (any other source) advances as usual.
 	 *  - `'all'`  — when already at the last item, wrap to the first item
 	 *               instead of emitting `queue:exhausted`.
 	 *  - `'off'`  — emit `queue:exhausted` when there is no next item (default).
@@ -252,7 +253,8 @@ export const transportMethods = {
 
 		const repeatMode = this._repeatState;
 
-		if (repeatMode === RepeatState.ONE) {
+		// Repeat 'one' is a rule for the end of a track; a user skip moves on.
+		if (repeatMode === RepeatState.ONE && result.data.source === 'auto-advance') {
 			const currentItem = this._queueList.current();
 			if (!currentItem) {
 				this.emit('queue:exhausted');
