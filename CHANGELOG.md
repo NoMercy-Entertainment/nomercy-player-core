@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.2.7] — 2026-10-19
+
+### Changed
+
+- Version-only release to keep the trio at one version for music-player 2.2.7.
+
 ## [2.2.6] — 2026-10-18
 
 ### Added
