@@ -13,10 +13,11 @@ Thanks for your interest in `@nomercy-entertainment/nomercy-player-core`. This p
 ```bash
 git clone https://github.com/NoMercy-Entertainment/nomercy-player-core.git
 cd nomercy-player-core
-npm install
-npm test          # vitest run
-npm run typecheck # tsc --noEmit
-npm run build     # writes dist/
+corepack enable
+yarn install
+yarn test         # vitest run
+yarn typecheck    # tsc --noEmit
+yarn build        # writes dist/
 ```
 
 ## Pull requests
@@ -24,7 +25,7 @@ npm run build     # writes dist/
 - Branch off `master`. Feature branches: `feat/<short-description>`. Fixes: `fix/<short-description>`.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `ci`). Imperative, lowercase subject, no trailing period.
 - Tests required for new features. Bug fixes should include a regression test.
-- Run `npm run lint:fix` before pushing. CI rejects lint failures.
+- Run `yarn lint:fix` before pushing. CI rejects lint failures.
 - No `Co-Authored-By` trailers unless we paired live.
 
 ## Plugin contributions

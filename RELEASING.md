@@ -25,8 +25,8 @@ Publish order matters: video and music build against the published core (their b
 scripts run from `node_modules/@nomercy-entertainment/nomercy-player-core/scripts`),
 so core goes first and the consumers refresh their lockfiles before they publish.
 
-1. Preflight every package: `npm run typecheck`, `npm run lint`, `npm test`, and
-   `npm run build:all` (plain `build` for core) must be green. Pack each package with
+1. Preflight every package: `yarn typecheck`, `yarn lint`, `yarn test`, and
+   `yarn build:all` (plain `build` for core) must be green. Pack each package with
    `npm pack` and import every subpath export from the tarball with raw Node.
 2. Bump the version to `2.0.0` in all three `package.json` files.
 3. Remove `"tag": "rc"` from `publishConfig` in all three. Leaving it in place while

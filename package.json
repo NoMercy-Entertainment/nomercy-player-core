@@ -2,6 +2,7 @@
 	"name": "@nomercy-entertainment/nomercy-player-core",
 	"type": "module",
 	"version": "2.2.7",
+	"packageManager": "yarn@4.18.1",
 	"description": "NoMercy player core — shared spine for nomercy-music-player and nomercy-video-player. Plugin runtime, event system, lifecycle helpers, streams, cues, errors, auth.",
 	"author": {
 		"name": "NoMercy Entertainment",
@@ -222,7 +223,7 @@
 		"lint:fix": "eslint . --fix --max-warnings 0",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"prepublishOnly": "npm run build"
+		"prepublishOnly": "yarn build"
 	},
 	"dependencies": {
 		"hls.js": "^1.6.0"
@@ -240,7 +241,7 @@
 		"vite": "^8.0.13",
 		"vitest": "^4.1.11"
 	},
-	"overrides": {
+	"resolutions": {
 		"katex": "^0.18.2"
 	}
 }

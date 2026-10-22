@@ -39,4 +39,4 @@ Read it; it is not repeated here.
 
 - Every method here must be identical in behavior for music and video, no domain twist. A branch on "is this music or video" means the method belongs in a per-library player class, not here — pull it back down.
 - Adapters are interfaces with a default impl, swappable via `setup()`. No subclassing to override cross-cutting concerns.
-- Run `npm run typecheck` and `npm test` before committing changes.
+- Run `yarn typecheck` and `yarn test` before committing changes.
