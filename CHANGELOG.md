@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.2.9] — 2026-10-23
+
+### Fixed
+
+- A plugin's English translations always load, so a language without a plugin locale file shows English text instead of the raw key (for example `plugin.desktop-ui.message.buffering`).
+
 ## [2.2.7] — 2026-10-19
 
 ### Changed
