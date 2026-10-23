@@ -241,14 +241,62 @@ describe('Plugin lazy translation chain', () => {
 
 		expect(ptBR).toHaveBeenCalledTimes(1);
 		expect(pt).toHaveBeenCalledTimes(1);
-		// English and Chinese are NOT in the active chain — stay out of memory.
-		expect(en).not.toHaveBeenCalled();
+		// English is the translator's fallback, so it loads; Chinese stays out of memory.
+		expect(en).toHaveBeenCalledTimes(1);
 		expect(zh).not.toHaveBeenCalled();
 
 		// pt-BR-specific key resolves from pt-BR.
 		expect(mockPlayer.t('plugin.lazy.regional')).toBe('BR');
 		// Shared key falls back to pt (pt-BR doesn't define it).
 		expect(mockPlayer.t('plugin.lazy.shared')).toBe('PT');
+	});
+
+	it('a language with no bundle falls back to the English bundle, never the raw key', async () => {
+		const en = vi.fn(async () => ({ default: { 'plugin.lazy.k': 'EN' } }));
+		const nl = vi.fn(async () => ({ default: { 'plugin.lazy.k': 'NL' } }));
+
+		class LazyPlugin extends Plugin {
+			static override readonly id: string = 'lazy';
+			static override readonly description: string = 'lazy';
+			static override readonly translations: Translations = translationsFromGlob({
+				'./i18n/en.ts': en,
+				'./i18n/nl.ts': nl,
+			});
+		}
+
+		const mockPlayer = makePlayer('lazy-fallback').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.language('zz');
+		const installed = waitForInstall(mockPlayer, 'lazy');
+		mockPlayer.addPlugin(LazyPlugin);
+		await installed;
+
+		expect(mockPlayer.t('plugin.lazy.k')).toBe('EN');
+	});
+
+	it('switching to a language with no bundle keeps the English fallback loaded', async () => {
+		const en = vi.fn(async () => ({ default: { 'plugin.lazy.k': 'EN' } }));
+		const nl = vi.fn(async () => ({ default: { 'plugin.lazy.k': 'NL' } }));
+
+		class LazyPlugin extends Plugin {
+			static override readonly id: string = 'lazy';
+			static override readonly description: string = 'lazy';
+			static override readonly translations: Translations = translationsFromGlob({
+				'./i18n/en.ts': en,
+				'./i18n/nl.ts': nl,
+			});
+		}
+
+		const mockPlayer = makePlayer('lazy-switch').setup({});
+		await mockPlayer.ready();
+		await mockPlayer.language('nl');
+		const installed = waitForInstall(mockPlayer, 'lazy');
+		mockPlayer.addPlugin(LazyPlugin);
+		await installed;
+		expect(mockPlayer.t('plugin.lazy.k')).toBe('NL');
+
+		await mockPlayer.language('zz');
+		expect(mockPlayer.t('plugin.lazy.k')).toBe('EN');
 	});
 
 	it('language() to a NEW language fires the lazy loader for that language', async () => {

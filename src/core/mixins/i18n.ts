@@ -9,10 +9,10 @@
 import type { ITranslator } from '../../adapters/translator/translator';
 import type { PluginCtorWithId, Translations } from '../../types';
 import type { Internals } from '../state';
-import { bcp47FallbackChain } from '../../adapters/language-matcher/bcp47';
 import { getLazyTranslationLoader } from '../../adapters/translator/loaders/translations-glob';
 
 import { DefaultTranslator } from '../../adapters/translator/translator';
+import { pluginLanguageChain } from '../plugin-translations';
 
 /**
  * The i18n mixin's slice of player state — composed into `PlayerCoreState`.
@@ -140,7 +140,7 @@ export const i18nMethods = {
 			const targetLang = result.data.lang;
 
 			await _ensureTranslator(this).language(targetLang);
-			const langChain = bcp47FallbackChain(targetLang);
+			const langChain = pluginLanguageChain(targetLang);
 
 			for (const { instance, ctor } of this._plugins) {
 				const pluginId = ctor.id;

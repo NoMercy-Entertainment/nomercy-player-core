@@ -11,6 +11,14 @@ import type { PluginCtorWithId, Translations } from '../types';
 import { bcp47FallbackChain } from '../adapters/language-matcher/bcp47';
 import { getLazyTranslationLoader } from '../adapters/translator/loaders/translations-glob';
 
+/** BCP-47 chain plus the translator's default fallback `en`, so a language without a plugin file never shows raw keys. */
+export function pluginLanguageChain(lang: string): string[] {
+	const chain = bcp47FallbackChain(lang);
+	if (!chain.includes('en'))
+		chain.push('en');
+	return chain;
+}
+
 /**
  * Walk a plugin constructor's prototype chain and merge every ancestor's
  * `static translations` for the given language's BCP-47 fallback chain. Eager
@@ -76,7 +84,7 @@ async function _loadSequentially(
 	addTranslations: (bundle: Translations) => void,
 	onLangLoaded?: (tag: string) => void,
 ): Promise<void> {
-	const langChain = bcp47FallbackChain(language);
+	const langChain = pluginLanguageChain(language);
 
 	for (const translationBundle of stack) {
 		const lazy = getLazyTranslationLoader(translationBundle);
