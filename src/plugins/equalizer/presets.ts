@@ -10,8 +10,8 @@
  * Equalizer presets, default band layout, and slider ranges.
  *
  * Frequency layout, preset values, and slider ranges are ported verbatim
- * from Fillz's reference equalizer plugin (MIT) so the kit gives consumers
- * the same audio feel he hand-tuned.
+ * from the reference equalizer plugin (MIT, see THIRD-PARTY-NOTICES.md) so
+ * the kit gives consumers the same hand-tuned audio feel.
  */
 
 /** Marker used by the pre-gain pseudo-band (always at index 0 of `EqBand[]`). */
@@ -72,7 +72,7 @@ export const DEFAULT_SLIDER_VALUES: EqSliderValues = {
 
 /**
  * Default band layout: pre-gain pseudo-band at index 0, then 10 peaking
- * filters at the same centre frequencies Fillz tuned the presets against.
+ * filters at the same center frequencies the presets were tuned against.
  *
  * Don't reorder — preset entries match by frequency, not index, but `'Pre'`
  * is conventionally first so consumers iterating bands render the pre-gain

@@ -203,4 +203,4 @@ Understanding where code lives makes extension points obvious.
 | 4. Built-in plugin | Plugins inside kit and library packages | Domain-generic UI and features |
 | 5. Consumer plugin | App code / `nomercy-plugins/` | All NoMercy-specific glue — server endpoints, sync protocols, radio |
 
-Layers 1–4 have zero knowledge of NoMercy server endpoints, the Fillz plugin system, or NoMercy Connect protocols. All of that lives at layer 5 in consumer plugins. This boundary is what makes it possible to use layers 2–4 independently of any NoMercy infrastructure.
+Layers 1–4 have zero knowledge of NoMercy server endpoints, the NoMercy plugin system, or NoMercy Connect protocols. All of that lives at layer 5 in consumer plugins. This boundary is what makes it possible to use layers 2–4 independently of any NoMercy infrastructure.

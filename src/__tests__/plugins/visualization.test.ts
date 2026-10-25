@@ -144,7 +144,7 @@ describe('VisualizationPlugin', () => {
 		});
 
 		it('WaveformVisualization concrete subclass advertises a vendored id and inherits requires', () => {
-			expect(WaveformVisualization.id).toBe('fillz:waveform');
+			expect(WaveformVisualization.id).toBe('waveform');
 			// Subclasses share the abstract base's `requires` until they override.
 			expect(WaveformVisualization.requires).toContain(CanvasPlugin);
 			expect(WaveformVisualization.requires).toContain(SpectrumPlugin);
@@ -191,7 +191,7 @@ describe('VisualizationPlugin', () => {
 			// render contract independently from the install pipeline.
 			const renderSpy = vi.fn();
 			class TestViz extends VisualizationPlugin {
-				static override readonly id = 'fillz:test-viz';
+				static override readonly id = 'test-viz';
 				protected override render(ctx: CanvasRenderingContext2D, frame: VisualizationFrame): void {
 					renderSpy(ctx, frame);
 				}
@@ -240,7 +240,7 @@ describe('VisualizationPlugin', () => {
 
 		it('swallows render() throws, surfaces an error event, and disables the instance', () => {
 			class ThrowingViz extends VisualizationPlugin {
-				static override readonly id = 'fillz:throwing-viz';
+				static override readonly id = 'throwing-viz';
 				protected override render(): void {
 					throw new Error('boom');
 				}

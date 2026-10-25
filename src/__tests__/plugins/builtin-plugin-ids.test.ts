@@ -30,7 +30,7 @@ function builtInPlugins(): Array<{ entry: string; name: string; id: string }> {
 }
 
 const sources = import.meta.glob('../../**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-const prefixedIdLiteral = /\bid\b(?:\s*:\s*string)?\s*[:=]\s*['"`][^'"`\n]*:[^'"`\n]*['"`]/;
+const prefixedIdLiteral = /\bid(?:\s*:\s*string)?\s*[:=]\s*['"`][^'"`:\n]*:[^'"`\n]*['"`]/;
 
 describe('plugin id literals in src and tests', () => {
 	it('scans the package sources', () => {

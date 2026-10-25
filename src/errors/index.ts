@@ -10,7 +10,7 @@
  * Error framework — typed hierarchy, severity tiers, scoped events, retry
  * policy, structured plugin throws, code helpers.
  *
- * String codes (`core:auth/forbidden`, `fillz:viz/canvas-init-failed`) are the
+ * String codes (`core:auth/forbidden`, `viz:render/canvas-init-failed`) are the
  * universal identifier and always work. Numeric ids built via `makeCode({...})`
  * are supplementary and opt-in.
  */

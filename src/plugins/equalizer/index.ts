@@ -32,7 +32,7 @@ export type {
 	SliderRange,
 } from './presets';
 
-/** Sticky-zero snap window for the pre-gain slider — matches Fillz's reference. */
+/** Sticky-zero snap window for the pre-gain slider — matches the reference plugin. */
 const PRE_GAIN_SNAP_THRESHOLD = 0.05;
 
 /** Options for {@link EqualizerPlugin}. */
@@ -616,7 +616,7 @@ export class EqualizerPlugin<P extends IPlayer<BaseEventMap> = IPlayer> extends 
 			const builtin = BUILTIN_PRESETS.find(preset => preset.name === target);
 			if (builtin)
 				return builtin;
-			// JSON-string fallback (Fillz parity).
+			// JSON-string fallback (reference parity).
 			try {
 				const raw: unknown = JSON.parse(target);
 				if (raw !== null && typeof raw === 'object' && 'name' in raw && Array.isArray((raw as EqPreset).values))

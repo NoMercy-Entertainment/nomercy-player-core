@@ -129,7 +129,7 @@ describe('EqualizerPlugin', () => {
 	});
 
 	describe('preset catalogue (no AudioContext required)', () => {
-		it('exposes Fillz\'s 19 hand-tuned built-in presets including Custom + Rock', () => {
+		it('exposes the 19 hand-tuned built-in presets including Custom + Rock', () => {
 			const inst = bareInstance();
 			const presets = inst.presets();
 			const names = presets.map(eqPreset => eqPreset.name);
@@ -201,7 +201,7 @@ describe('EqualizerPlugin', () => {
 		});
 	});
 
-	describe('custom-preset registration (Fillz-shape: { name, values: EqBand[] })', () => {
+	describe('custom-preset registration (reference shape: { name, values: EqBand[] })', () => {
 		it('addCustomPreset stores a preset that presets() returns', () => {
 			const inst = bareInstance();
 			inst.addCustomPreset({
@@ -253,7 +253,7 @@ describe('EqualizerPlugin', () => {
 	describe('preset resolution (name / object / JSON string)', () => {
 		// `setPreset` walks the audio chain when nodes exist; for the data-only
 		// resolver we drive the same internal helper with no audio attached.
-		it('parses a JSON-string preset matching Fillz\'s reference behaviour', () => {
+		it('parses a JSON-string preset matching the reference behavior', () => {
 			const inst = bareInstance();
 			const json = JSON.stringify({
 				name: 'JsonOne',
@@ -277,7 +277,7 @@ describe('EqualizerPlugin', () => {
 		});
 	});
 
-	describe('pre-gain sticky-zero snap (Fillz parity, ±0.05 → 0)', () => {
+	describe('pre-gain sticky-zero snap (reference parity, ±0.05 → 0)', () => {
 		it('values within ±0.05 snap to 0', () => {
 			const inst = bareInstance();
 			const snap = (inst as unknown as { snapPreGain: (value: number) => number }).snapPreGain;

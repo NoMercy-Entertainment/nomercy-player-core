@@ -20,7 +20,7 @@ import type { CueList } from '../../core/cues/cue';
 export interface ICueParser<T = unknown> {
 	/**
 	 * Identifier — `'lrc'`, `'vtt'`, `'sprite-vtt'`, vendor-prefixed for
-	 * custom formats (`'fillz:karaoke'`).
+	 * custom formats (`'<vendor>:<name>'`).
 	 */
 	readonly id: string;
 
