@@ -24,7 +24,17 @@ interface MockGl {
 	pixelStorei: ReturnType<typeof vi.fn>;
 	texImage2D: ReturnType<typeof vi.fn>;
 	texSubImage2D: ReturnType<typeof vi.fn>;
-	[key: string]: unknown;
+	TEXTURE_2D: number;
+	R8: number;
+	RED: number;
+	UNSIGNED_BYTE: number;
+	UNPACK_ALIGNMENT: number;
+	TEXTURE_MIN_FILTER: number;
+	TEXTURE_MAG_FILTER: number;
+	TEXTURE_WRAP_S: number;
+	TEXTURE_WRAP_T: number;
+	LINEAR: number;
+	CLAMP_TO_EDGE: number;
 }
 
 function makeGl(): MockGl {

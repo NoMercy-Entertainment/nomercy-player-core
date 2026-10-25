@@ -340,8 +340,9 @@ export { mixerPlugin, MixerPlugin } from './plugins/mixer';
 export type { MixerEvents, MixerOptions } from './plugins/mixer';
 export { spectrumPlugin, SpectrumPlugin } from './plugins/spectrum';
 export type { SpectrumOptions } from './plugins/spectrum';
-export { VisualizationPlugin } from './plugins/visualization';
+export { FrameDataTexture, GpuSurface, VisualizationPlugin } from './plugins/visualization';
 export type {
+	GpuSurfaceOptions,
 	VisualizationFrame,
 	VisualizationOptions,
 } from './plugins/visualization';

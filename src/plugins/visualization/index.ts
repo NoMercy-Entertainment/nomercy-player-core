@@ -8,9 +8,15 @@
 
 import type { BaseEventMap, IPlayer, RequireSpec } from '../../types';
 import type { CanvasRenderFn } from '../canvas';
+import type { GpuSurfaceOptions } from './gpu-surface';
 import { Plugin } from '../../core/plugin';
 import { CanvasPlugin } from '../canvas';
 import { SpectrumPlugin } from '../spectrum';
+import { GpuSurface } from './gpu-surface';
+
+export { FrameDataTexture } from './frame-texture';
+export { GpuSurface } from './gpu-surface';
+export type { GpuSurfaceOptions } from './gpu-surface';
 
 /**
  * Per-frame data delivered to a VisualizationPlugin's `render()`. Includes
@@ -130,14 +136,21 @@ export interface VisualizationOptions {
 	 * Reserved for future use; currently only `'frame'` is active.
 	 */
 	tick?: 'frame' | 'time';
+	/** Go inactive while `document.hidden` is true. Default `false`. */
+	pauseWhenHidden?: boolean;
+	/** Go inactive while an `IntersectionObserver` reports the canvas off-screen. Default `false`. */
+	pauseWhenOffscreen?: boolean;
 }
 
 /** Events emitted by {@link VisualizationPlugin} subclasses. */
 export interface VisualizationEvents {
-	/** Emitted once during `use()` when AudioContext / spectrum is unavailable. */
-	unsupported: { reason: string };
+	/** Emitted when AudioContext / spectrum is unavailable, or a GPU surface gets no WebGL2. */
+	'unsupported': { reason: string };
 	/** Emitted each render tick after `render()` completes. */
-	rendered: { frame: VisualizationFrame };
+	'rendered': { frame: VisualizationFrame };
+	/** The GPU surface lost its WebGL2 context. Recreate GL resources on `gpu:contextrestored`. */
+	'gpu:contextlost': Record<string, never>;
+	'gpu:contextrestored': Record<string, never>;
 }
 
 /**
@@ -205,6 +218,10 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 	private _spectrumFrameHandler: ((data: { frame: VisualizationFrame }) => void) | null = null;
 	protected _latestFrame: VisualizationFrame | undefined;
 	private _setupCalled = false;
+	private _gpuSurface: GpuSurface | null = null;
+	private _manualActive = true;
+	private _documentHidden = false;
+	private _offscreen = false;
 
 	/**
 	 * Resolves the `CanvasPlugin` and `SpectrumPlugin` dependencies, registers
@@ -241,6 +258,11 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 
 		this._renderTickBound = this._renderTick.bind(this);
 		canvas.addRenderer(this._renderTickBound);
+
+		if (this.opts?.pauseWhenHidden)
+			this._watchDocumentVisibility();
+		if (this.opts?.pauseWhenOffscreen)
+			this._watchViewport(canvas);
 	}
 
 	/**
@@ -255,6 +277,8 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 			}
 			catch { /* swallow */ }
 		}
+		this._gpuSurface?.dispose();
+		this._gpuSurface = null;
 		// Spectrum subscription is auto-cleaned by the lifecycle registry via `on()`.
 		this._renderTickBound = null;
 		this._spectrumFrameHandler = null;
@@ -272,6 +296,34 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 	 */
 	currentFrame(): VisualizationFrame | undefined {
 		return this._latestFrame;
+	}
+
+	/** True unless set inactive by `setActive(false)` or paused by an opted-in source. */
+	isActive(): boolean {
+		return this._manualActive && !this._documentHidden && !this._offscreen;
+	}
+
+	/** Stops (`false`) or resumes (`true`) all render work for this instance. Idempotent. */
+	setActive(active: boolean): void {
+		this._manualActive = active;
+	}
+
+	/** Opt-in WebGL2 canvas under `parent`. Never throws; without WebGL2 it emits `unsupported`. */
+	protected createGpuSurface(parent: HTMLElement, opts: Pick<GpuSurfaceOptions, 'scale' | 'contextAttributes'> = {}): GpuSurface {
+		this._gpuSurface?.dispose();
+		const surface = new GpuSurface(parent, {
+			...opts,
+			onUnsupported: reason => this.emit('unsupported', { reason }),
+			onContextLost: () => this.emit('gpu:contextlost', {}),
+			onContextRestored: () => this.emit('gpu:contextrestored', {}),
+		});
+		this._gpuSurface = surface;
+		return surface;
+	}
+
+	/** The surface made by `createGpuSurface()`, or `null` before it or after `dispose()`. */
+	protected gpuSurface(): GpuSurface | null {
+		return this._gpuSurface;
 	}
 
 	/**
@@ -301,13 +353,31 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
 	 */
 	protected onBeat(_beat: { beat?: boolean; bpm?: number }): void {}
 
+	private _watchDocumentVisibility(): void {
+		this._documentHidden = document.hidden;
+		this.lifecycle.listen(document, 'visibilitychange', () => {
+			this._documentHidden = document.hidden;
+		});
+	}
+
+	private _watchViewport(canvas: CanvasPlugin): void {
+		if (typeof IntersectionObserver === 'undefined')
+			return;
+		const observer = this.lifecycle.observe(new IntersectionObserver((entries) => {
+			const latest = entries[entries.length - 1];
+			if (latest)
+				this._offscreen = !latest.isIntersecting;
+		}));
+		observer.observe(canvas.canvas());
+	}
+
 	/**
 	 * Per-canvas-RAF tick. Reads the latest spectrum frame, builds the
 	 * VisualizationFrame payload (overlaying the canvas-supplied deltaMs unless
 	 * the frame is synthetic), and dispatches to `render()`.
 	 */
 	private _renderTick(ctx: CanvasRenderingContext2D, deltaMs: number, _rafTime: number): void {
-		if (!this.enabled())
+		if (!this.enabled() || !this.isActive())
 			return;
 
 		const spectrum = this._spectrumPlugin;
