@@ -115,7 +115,7 @@ describe('t() overload', () => {
 		it('interpolates vars in the class-typed form', () => {
 			const player = makePlayer();
 			player.addTranslations({ en: { 'plugin.fake-plugin.greet': 'Hi {user}' } });
-			expect(player.t(FakePlugin, 'greet', { user: 'Stoney' })).toBe('Hi Stoney');
+			expect(player.t(FakePlugin, 'greet', { user: 'Example' })).toBe('Hi Example');
 		});
 	});
 });
