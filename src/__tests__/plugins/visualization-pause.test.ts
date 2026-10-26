@@ -20,7 +20,7 @@ import { SpectrumPlugin } from '../../plugins/spectrum';
 import { VisualizationPlugin } from '../../plugins/visualization';
 
 class GpuTestVisualization extends VisualizationPlugin {
-	static override readonly id: string = 'test:gpu-viz';
+	static override readonly id: string = 'gpu-viz';
 
 	renderCalls = 0;
 
@@ -103,7 +103,7 @@ describe('VisualizationPlugin GPU surface hooks', () => {
 
 		expect(() => plugin.mountSurface(document.body)).not.toThrow();
 
-		expect(events).toContainEqual({ event: 'plugin:test:gpu-viz:unsupported', data: { reason: 'webgl2-unavailable' } });
+		expect(events).toContainEqual({ event: 'plugin:gpu-viz:unsupported', data: { reason: 'webgl2-unavailable' } });
 	});
 
 	it('emits plugin events when the context is lost and restored', () => {
@@ -115,7 +115,7 @@ describe('VisualizationPlugin GPU surface hooks', () => {
 		surface.canvas().dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
 		surface.canvas().dispatchEvent(new Event('webglcontextrestored'));
 
-		expect(events.map(entry => entry.event)).toEqual(['plugin:test:gpu-viz:gpu:contextlost', 'plugin:test:gpu-viz:gpu:contextrestored']);
+		expect(events.map(entry => entry.event)).toEqual(['plugin:gpu-viz:gpu:contextlost', 'plugin:gpu-viz:gpu:contextrestored']);
 	});
 
 	it('releases the surface on dispose, and a second dispose does not throw', () => {
