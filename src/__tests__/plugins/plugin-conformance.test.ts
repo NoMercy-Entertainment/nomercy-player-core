@@ -848,8 +848,8 @@ describePlugin(TabLeaderPlugin, (ctx) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describePlugin(WaveformVisualization, (ctx) => {
-	it('WaveformVisualization has static id "fillz:waveform"', () => {
-		expect(WaveformVisualization.id).toBe('fillz:waveform');
+	it('WaveformVisualization has static id "waveform"', () => {
+		expect(WaveformVisualization.id).toBe('waveform');
 	});
 
 	it('requires list contains canvas and spectrum plugin ids', () => {
@@ -865,7 +865,7 @@ describePlugin(WaveformVisualization, (ctx) => {
 		expect(ctx.plugin.currentFrame()).toBeUndefined();
 	});
 
-	it('use() emits plugin:fillz:waveform:unsupported on the player when deps absent', () => {
+	it('use() emits plugin:waveform:unsupported on the player when deps absent', () => {
 		const spy = vi.spyOn(ctx.player, 'emit');
 
 		const freshPlugin = new WaveformVisualization();
@@ -873,7 +873,7 @@ describePlugin(WaveformVisualization, (ctx) => {
 		freshPlugin.initialize(ctx.player as unknown as IPlayer, {} as VisualizationOptions, lc);
 		freshPlugin.use();
 
-		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:fillz:waveform:unsupported');
+		const calls = spy.mock.calls.filter(([eventName]) => eventName === 'plugin:waveform:unsupported');
 		expect(calls.length).toBeGreaterThanOrEqual(1);
 
 		freshPlugin.dispose();

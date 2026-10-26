@@ -110,7 +110,7 @@ function makeCtx(): CanvasRenderingContext2D {
 // ─── Concrete visualization subclass for testing ──────────────────────────────
 
 class TestVisualization extends VisualizationPlugin {
-	static override readonly id: string = 'test:viz';
+	static override readonly id: string = 'test-viz';
 
 	renderCalls: Array<{ ctx: CanvasRenderingContext2D; frame: VisualizationFrame }> = [];
 	setupCalls: number = 0;
@@ -125,7 +125,7 @@ class TestVisualization extends VisualizationPlugin {
 }
 
 class ThrowingVisualization extends VisualizationPlugin {
-	static override readonly id: string = 'test:throwing-viz';
+	static override readonly id: string = 'throwing-viz';
 
 	protected override render(_ctx: CanvasRenderingContext2D, _frame: VisualizationFrame): void {
 		throw new Error('render bug');
@@ -260,7 +260,7 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 			(plugin as unknown as { lifecycle: { addCleanup: () => void } }).lifecycle = { addCleanup: vi.fn() };
 			(plugin as unknown as { opts: object }).opts = {};
 
-			mockPlayer.on('plugin:test:viz:unsupported' as never, (data: { reason: string }) => { unsupported.push(data); });
+			mockPlayer.on('plugin:test-viz:unsupported' as never, (data: { reason: string }) => { unsupported.push(data); });
 			plugin.use();
 
 			expect(unsupported).toHaveLength(1);
@@ -337,7 +337,7 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 			(plugin as unknown as { _latestFrame: VisualizationFrame })._latestFrame = sampleFrame;
 
 			const rendered: Array<{ frame: VisualizationFrame }> = [];
-			mockPlayer.on('plugin:test:viz:rendered' as never, (data: { frame: VisualizationFrame }) => { rendered.push(data); });
+			mockPlayer.on('plugin:test-viz:rendered' as never, (data: { frame: VisualizationFrame }) => { rendered.push(data); });
 
 			const ctx = makeCtx();
 			invokeRenderTick(fakeCanvas, ctx, 16, 5);
@@ -440,7 +440,7 @@ describe('VisualizationPlugin — deep behavioral coverage', () => {
 
 	describe('WaveformVisualization', () => {
 		it('has a stable plugin id and version', () => {
-			expect(WaveformVisualization.id).toBe('fillz:waveform');
+			expect(WaveformVisualization.id).toBe('waveform');
 			expect(WaveformVisualization.version).toBe('2.0.0');
 		});
 

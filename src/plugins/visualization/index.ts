@@ -169,11 +169,11 @@ export interface VisualizationEvents {
  * Bridges to p5.js, three.js, shader-based viz live in separate optional
  * packages and build ON TOP of this — never use kit internals.
  *
- * Example:
+ * Usage:
  *
  * ```ts
  * class WinampClassic extends VisualizationPlugin {
- *   static readonly id = 'fillz:winamp-classic';
+ *   static readonly id = 'winamp-classic';
  *
  *   render(ctx: CanvasRenderingContext2D, frame: VisualizationFrame) {
  *     for (let i = 0; i < frame.frequency.length; i++) {
@@ -453,7 +453,7 @@ export abstract class VisualizationPlugin<P extends IPlayer<BaseEventMap> = IPla
  * ```
  */
 export class WaveformVisualization<P extends IPlayer<BaseEventMap> = IPlayer> extends VisualizationPlugin<P> {
-	static override readonly id: string = 'fillz:waveform';
+	static override readonly id: string = 'waveform';
 	static override readonly version: string = '2.0.0';
 	static override readonly description: string = 'Oscilloscope-style waveform stroke visualizer';
 

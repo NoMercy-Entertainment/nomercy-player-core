@@ -206,6 +206,7 @@
 		"MIGRATION.md",
 		"RELEASING.md",
 		"SECURITY.md",
+		"THIRD-PARTY-NOTICES.md",
 		"dist",
 		"scripts"
 	],

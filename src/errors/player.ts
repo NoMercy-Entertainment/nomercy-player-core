@@ -36,7 +36,7 @@ export interface PlayerErrorInit {
 
 /**
  * Base error class. All kit + plugin errors descend from this. Carries:
- *  - `code`   — string id, always present (`core:auth/forbidden`, `fillz:viz/...`)
+ *  - `code`   — string id, always present (`core:auth/forbidden`, `viz:render/...`)
  *  - `id`     — optional numeric id from the registry
  *  - `scope`  — discriminated union
  *  - `severity` — fatal/error/warning/info

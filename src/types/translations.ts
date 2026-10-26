@@ -8,7 +8,7 @@
 
 /**
  * Translation bundle map. Outer key is a BCP-47 language tag; inner map is
- * key → translated string. Example: `{ en: { 'core.network.timeout': 'Connection timed out' }, nl: { ... } }`.
+ * key → translated string. E.g. `{ en: { 'core.network.timeout': 'Connection timed out' }, nl: { ... } }`.
  */
 export type Translations = Record<string, Record<string, string>>;
 

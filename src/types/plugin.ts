@@ -111,7 +111,7 @@ export interface PluginAdvisory {
 	 * Use this to advise specifically inside a `before*` handler — works for
 	 * core events AND plugin-defined custom events.
 	 *
-	 * Example: `duringEvent: 'beforePlay'` matches mutations inside a beforePlay
+	 * E.g. `duringEvent: 'beforePlay'` matches mutations inside a beforePlay
 	 * handler. `duringEvent: 'plugin:my-plugin:beforeFoo'` matches mutations
 	 * inside another plugin's custom before-event handler.
 	 */

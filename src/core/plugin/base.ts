@@ -154,7 +154,7 @@ export class Plugin<
 	O = unknown,
 	E extends Record<string, any> = Record<string, never>,
 > {
-	/** Plugin id. Vendored unless inside our packages (`'fillz:viz'`). Lint-enforced. */
+	/** Plugin id. Vendored unless inside our packages (`'<vendor>:<name>'`). Lint-enforced. */
 	static readonly id: string = 'plugin';
 
 	/** Semver string. Recommended; defaults to `'0.0.0'` if unspecified. */
