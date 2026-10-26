@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-10-26
+
+### Added
+
+- `GpuSurface`: an opt-in WebGL2 canvas for a visualization, under a parent the caller gives. It never throws; without WebGL2 it reports `unsupported`, and it reports a lost and a restored context.
+- `FrameDataTexture`: a single-channel byte texture that holds per-frame rows (frequency, waveform), each resampled to a fixed width.
+- `VisualizationPlugin`: `createGpuSurface()`, `gpuSurface()`, `setActive()` and `isActive()`, and the `pauseWhenHidden` and `pauseWhenOffscreen` options, so a visualization does no work while nobody can see it. New events `gpu:contextlost` and `gpu:contextrestored`.
+
+### Changed
+
+- The test plugin ids carry no vendor prefix.
+
 ## [2.2.9] — 2026-10-23
 
 ### Fixed
