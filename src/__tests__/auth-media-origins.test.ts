@@ -8,8 +8,8 @@
 
 /**
  * `auth.mediaOrigins` — the token goes on media requests to the listed origins
- * and nowhere else. The players read the rule through `player.auth()`, so the
- * tests ask the real mixin player the same question the players ask per request.
+ * and nowhere else. The players ask the internal `_mediaAuthorization` per
+ * request, so the tests ask the real mixin player the same question.
  */
 
 import type { BaseEventMap, IUrlResolver, UrlResolverContext } from '../types';
@@ -32,9 +32,11 @@ class OriginMockPlayer extends EventEmitter<BaseEventMap> {
 	declare setup: (config: Record<string, unknown>) => this;
 	declare ready: () => Promise<void>;
 	declare auth: {
-		(): Readonly<{ mediaAuthorization?: (url: string) => string | undefined }> | undefined;
+		(): Readonly<Record<string, unknown>> | undefined;
 		(cfg: Record<string, unknown>): void;
 	};
+
+	declare _mediaAuthorization: (url: string) => string | undefined;
 
 	declare resolveUrl: (url: string, category?: string) => Promise<{ href: string }>;
 	declare urlResolver: (resolver: IUrlResolver | undefined) => void;
@@ -70,8 +72,22 @@ function makePlayer(auth: Record<string, unknown>): OriginMockPlayer {
 }
 
 function mediaAuthorizationOf(player: OriginMockPlayer): (url: string) => string | undefined {
-	const rule = player.auth()?.mediaAuthorization;
-	return rule ?? (() => undefined);
+	return (url: string) => player._mediaAuthorization(url);
+}
+
+// Every function the public auth snapshot exposes, asked for a listed url.
+function publicAnswers(player: OriginMockPlayer, url: string): unknown[] {
+	const snapshot = player.auth() ?? {};
+	return Object.values(snapshot).flatMap((value) => {
+		if (typeof value !== 'function')
+			return [];
+		try {
+			return [value(url)];
+		}
+		catch {
+			return [];
+		}
+	});
 }
 
 describe('auth.mediaOrigins', () => {
@@ -163,10 +179,30 @@ describe('auth.mediaOrigins', () => {
 		expect(mediaAuthorizationOf(player)('https://elsewhere.example.test/a.ts')).toBe('Bearer custom');
 	});
 
-	it('adds no rule when no origin is configured', () => {
+	it('sends nothing when no origin is configured', () => {
 		const player = makePlayer({ bearerToken: 'tok-1' });
 
-		expect(player.auth()?.mediaAuthorization).toBeUndefined();
+		expect(player._mediaAuthorization(`${OURS}/a.ts`)).toBeUndefined();
+	});
+
+	it('has no callable on the public auth object that returns the bearer for a listed origin', () => {
+		const player = makePlayer({ bearerToken: 'tok-secret', mediaOrigins: OURS });
+
+		const answers = publicAnswers(player, `${OURS}/a.ts`);
+
+		expect(JSON.stringify(answers)).not.toContain('tok-secret');
+		expect(Object.keys(player.auth() ?? {})).not.toContain('mediaAuthorization');
+	});
+
+	it('answers the old callback for a consumer that passes its own', () => {
+		const player = makePlayer({
+			bearerToken: 'tok-1',
+			mediaOrigins: OURS,
+			mediaAuthorization: (url: string) => (url.startsWith('https://only.example.test') ? 'Bearer only' : undefined),
+		});
+
+		expect(player._mediaAuthorization('https://only.example.test/a.ts')).toBe('Bearer only');
+		expect(player._mediaAuthorization(`${OURS}/a.ts`)).toBeUndefined();
 	});
 
 	it('keeps the bearer out of the snapshot and out of a url resolver context', async () => {
@@ -182,6 +218,6 @@ describe('auth.mediaOrigins', () => {
 		});
 		await player.resolveUrl(`${OURS}/a.ts`, 'media');
 
-		expect(seen[0]?.auth?.mediaAuthorization).toBeUndefined();
+		expect(Object.keys(seen[0]?.auth ?? {})).not.toContain('mediaAuthorization');
 	});
 });

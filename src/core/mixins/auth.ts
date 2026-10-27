@@ -74,14 +74,7 @@ export const authMethods = {
 			const current = this._authConfig;
 			if (!current)
 				return undefined;
-			const safe = redactTokenFields(current);
-			if (current.mediaAuthorization || current.mediaOrigins === undefined)
-				return safe;
-			// Reads the live config per call; the snapshot never carries the token itself.
-			return Object.freeze({
-				...safe,
-				mediaAuthorization: (url: string) => authorizeMediaOrigin(this._authConfig, url),
-			});
+			return redactTokenFields(current);
 		}
 		if (configOrPartial === null) {
 			this._authConfig = undefined;
@@ -108,6 +101,14 @@ export const authMethods = {
 	 */
 	_rawAuth(this: Internals): AuthConfig | undefined {
 		return this._authConfig;
+	},
+
+	/** @internal */
+	_mediaAuthorization(this: Internals, url: string): string | undefined {
+		const cfg = this._authConfig;
+		if (cfg?.mediaAuthorization)
+			return cfg.mediaAuthorization(url);
+		return authorizeMediaOrigin(cfg, url);
 	},
 
 	/**
