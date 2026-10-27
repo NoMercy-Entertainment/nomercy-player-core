@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `AuthConfig.mediaOrigins`: the origins that receive `bearerToken` on a media request (manifest, segments, element `src`). Any other origin gets no `Authorization`. `mediaAuthorization` still takes precedence when set.
+
 ## [2.3.0] — 2026-10-26
 
 ### Added

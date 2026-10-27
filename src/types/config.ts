@@ -64,6 +64,11 @@ export interface AuthConfig {
 	 */
 	mediaAuthorization?: (url: string) => string | undefined;
 
+	/**
+	 * Origins that get `bearerToken` on a media request, others get nothing; unused when `mediaAuthorization` is set.
+	 */
+	mediaOrigins?: string | readonly string[] | (() => string | readonly string[] | undefined);
+
 	/** Arbitrary headers — static, sync getter, or async getter. */
 	headers?: Record<string, AuthHeaderValue>;
 

@@ -16,6 +16,7 @@ import type {
 import type { Internals } from '../state';
 
 import { buildResolvedUrl } from '../resolved-url';
+import { authorizeMediaOrigin } from './media-origins';
 
 /**
  * The auth mixin's slice of player state — composed into `PlayerCoreState`.
@@ -70,9 +71,17 @@ export const authMethods = {
 	 */
 	auth(this: Internals, configOrPartial?: AuthConfig | Partial<AuthConfig> | null): Readonly<AuthConfig> | undefined | void {
 		if (configOrPartial === undefined) {
-			if (!this._authConfig)
+			const current = this._authConfig;
+			if (!current)
 				return undefined;
-			return redactTokenFields(this._authConfig);
+			const safe = redactTokenFields(current);
+			if (current.mediaAuthorization || current.mediaOrigins === undefined)
+				return safe;
+			// Reads the live config per call; the snapshot never carries the token itself.
+			return Object.freeze({
+				...safe,
+				mediaAuthorization: (url: string) => authorizeMediaOrigin(this._authConfig, url),
+			});
 		}
 		if (configOrPartial === null) {
 			this._authConfig = undefined;
