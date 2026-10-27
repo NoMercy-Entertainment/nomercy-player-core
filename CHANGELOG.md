@@ -2,9 +2,15 @@
 
 ## [Unreleased]
 
+## [2.4.0] — 2026-10-28
+
 ### Added
 
-- `AuthConfig.mediaOrigins`: the origins that receive `bearerToken` on a media request (manifest, segments, element `src`). Any other origin gets no `Authorization`. `mediaAuthorization` still takes precedence when set. The players ask an internal `_mediaAuthorization(url)`; `player.auth()` exposes no callable that returns the bearer.
+- `AuthConfig.mediaOrigins`: the origins that receive `bearerToken` on a media request (manifest, segments, element `src`). Any other origin gets no `Authorization`. `mediaAuthorization` still takes precedence when set. The players ask an internal `_mediaAuthorization(url)`.
+
+### Changed
+
+- `player.auth()` returns a snapshot with no callable that returns the bearer token. An app that passes its own `mediaAuthorization` callback keeps working unchanged.
 
 ## [2.3.0] — 2026-10-26
 
