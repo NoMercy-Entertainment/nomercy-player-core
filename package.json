@@ -236,7 +236,7 @@
 		"@vitest/coverage-v8": "^4.1.11",
 		"@vitest/ui": "^4.1.11",
 		"eslint": "^10.4.0",
-		"happy-dom": "^20.9.0",
+		"happy-dom": "^21.0.4",
 		"tsc-alias": "^1.8.17",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.13",
