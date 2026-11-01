@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [2.6.0] — 2026-11-01
+
+### Added
+
+- `next()` skips an item whose media answers 404 or 410 and loads the following one, emitting `itemSkipped` with `{ item, status }`; at the end of the queue it stops with `queue:exhausted` and never loops.
+- `next()` calls `player.refreshAuth()` once and retries the same item when the media answers 401, up to `auth.retryAfterRefresh` times (default 1).
+
+### Changed
+
+- `next()` raises `fatal` and rejects, without skipping, when the media answers 500 or another 5xx from a live server; 502, 503, 504 and 520-530 keep the retry ladder so a restarting server still recovers.
+
 ## [2.5.0] — 2026-11-01
 
 ### Changed
