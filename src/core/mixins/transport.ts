@@ -9,6 +9,7 @@
 import type { ActionOptions, BasePlaylistItem, LoadOptions } from '../../types';
 
 import type { Internals } from '../state';
+import { makePlayerErrorEvent, PlayerError } from '../../errors';
 import { PlayState, RepeatState } from '../state';
 
 /**
@@ -66,6 +67,32 @@ async function _dispatchSeek(
 	return { proceeded: true };
 }
 
+function _httpStatusOf(err: unknown): number {
+	const status = err instanceof PlayerError ? err.context?.['httpStatus'] : undefined;
+	return typeof status === 'number' ? status : 0;
+}
+
+/** Load `item`; on a 401 refresh the token and retry up to `retryAfterRefresh` times (default 1). */
+async function _loadWithAuthRetry(
+	self: Internals,
+	item: BasePlaylistItem,
+	opts: LoadOptions,
+): Promise<void> {
+	const maxRefreshes = self._authConfig?.retryAfterRefresh ?? 1;
+
+	for (let refreshes = 0; ; refreshes++) {
+		try {
+			await self.load(item, opts);
+			return;
+		}
+		catch (err) {
+			if (_httpStatusOf(err) !== 401 || refreshes >= maxRefreshes)
+				throw err;
+			await self.refreshAuth();
+		}
+	}
+}
+
 /**
  * Load `item` into the backend then begin playback. Used by `next()` and
  * `previous()` — the repeat-mode branches all do the same two steps; this
@@ -79,11 +106,45 @@ async function _loadAndPlay(
 	self: Internals,
 	item: BasePlaylistItem,
 	data: LoadOptions,
+	skipMissing = false,
 ): Promise<void> {
-	await self.load(item, {
+	const loadOpts = {
 		source: data.source,
 		startAt: data.startAt,
-	});
+	};
+	let current = item;
+	// Ids tried in this call: a run of missing items ends at the queue's end.
+	const tried = new Set<unknown>();
+
+	for (;;) {
+		tried.add(current.id);
+		try {
+			await _loadWithAuthRetry(self, current, loadOpts);
+			break;
+		}
+		catch (err) {
+			const status = _httpStatusOf(err);
+			if (status >= 500 && status <= 599 && err instanceof PlayerError) {
+				self.emit('fatal', makePlayerErrorEvent(err, 'fatal', { kind: 'core' }));
+				throw err;
+			}
+			if (!skipMissing || (status !== 404 && status !== 410))
+				throw err;
+
+			self.emit('itemSkipped', {
+				item: current,
+				status,
+			});
+			const following = self._queueList.peekNext();
+			if (!following || tried.has(following.id)) {
+				self.emit('queue:exhausted');
+				return;
+			}
+			self._queueList.setCurrent(following);
+			current = following;
+		}
+	}
+
 	// Same reason as the autoplay continuation in queue.ts item(): a browser
 	// that refuses playback without a gesture rejects here, nobody awaits it,
 	// and a bare call leaves an unhandled rejection in the console.
@@ -266,7 +327,7 @@ export const transportMethods = {
 			}
 			if (!result.data.silent)
 				this.emit('next', result.data);
-			await _loadAndPlay(this, currentItem, result.data ?? {});
+			await _loadAndPlay(this, currentItem, result.data ?? {}, true);
 			return;
 		}
 
@@ -283,7 +344,7 @@ export const transportMethods = {
 				if (!result.data.silent)
 					this.emit('next', result.data);
 				this._queueList.setCurrent(0);
-				await _loadAndPlay(this, firstItem, result.data ?? {});
+				await _loadAndPlay(this, firstItem, result.data ?? {}, true);
 				return;
 			}
 
@@ -298,7 +359,7 @@ export const transportMethods = {
 		// `current` fires immediately and the UI (title, poster, playlist
 		// highlight) reflects the incoming item while its media still loads.
 		this._queueList.setCurrent(nextItem);
-		await _loadAndPlay(this, nextItem, result.data ?? {});
+		await _loadAndPlay(this, nextItem, result.data ?? {}, true);
 	},
 
 	/**
