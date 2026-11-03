@@ -285,6 +285,7 @@ export interface MixinSurface {
 
 	// authMethods (see mixins/auth.ts) — full URL resolution pipeline
 	resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl>;
+	_mediaAuthorization(url: string): string | undefined;
 	refreshAuth(): Promise<void>;
 
 	// mediaTracksMethods (see mixins/media-tracks.ts) — sidecar + chapter helpers

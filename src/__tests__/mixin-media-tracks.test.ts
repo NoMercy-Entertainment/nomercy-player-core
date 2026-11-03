@@ -196,6 +196,64 @@ function makeBackendWithTracks(opts: {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('subtitle() — setter paths', () => {
+	it('attaches a native VTT track without a cue renderer and removes it when one subscribes', async () => {
+		const player = setupPlayer();
+		const video = document.createElement('video');
+		(player as unknown as { videoElement: HTMLVideoElement }).videoElement = video;
+		const item = { id: 'native-vtt', title: 'Test', url: '/test.mp4', subtitles: [{ id: 'en', language: 'en', label: 'English', url: '/en.vtt' }] };
+		player.queue([item] as never);
+		player.item(item as never);
+
+		await player.subtitle(0);
+		expect(video.querySelector('track')?.getAttribute('src')).toBe('/en.vtt');
+		expect(player.subtitles()).toHaveLength(1);
+
+		player.on('subtitleCue', () => {});
+		await Promise.resolve();
+		expect(video.querySelector('track')).toBeNull();
+	});
+
+	it('converts an SRT sidecar for native playback and clears it on Off', async () => {
+		const player = setupPlayer();
+		const video = document.createElement('video');
+		(player as unknown as { videoElement: HTMLVideoElement }).videoElement = video;
+		const item = { id: 'native-srt', title: 'Test', url: '/test.mp4', subtitles: [{ id: 'en', language: 'en', label: 'English', url: '/en.srt' }] };
+		player.queue([item] as never);
+		player.item(item as never);
+		const createUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:native-srt');
+		const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve('1\n00:00:01,000 --> 00:00:02,000\nHello\n') }));
+		try {
+			await player.subtitle(0);
+			await vi.waitFor(() => expect(video.querySelector('track')?.getAttribute('src')).toBe('blob:native-srt'));
+			expect(await (createUrl.mock.calls[0]![0] as Blob).text()).toContain('WEBVTT\n\n');
+			await player.subtitle(null);
+			expect(video.querySelector('track')).toBeNull();
+			expect(revokeUrl).toHaveBeenCalledWith('blob:native-srt');
+		}
+		finally {
+			vi.unstubAllGlobals();
+			createUrl.mockRestore();
+			revokeUrl.mockRestore();
+		}
+	});
+
+	it('passes media authorization through the native VTT URL', async () => {
+		const player = setupPlayer();
+		const video = document.createElement('video');
+		(player as unknown as { videoElement: HTMLVideoElement }).videoElement = video;
+		(player as unknown as { auth: (config: { mediaAuthorization: (url: string) => string }) => void })
+			.auth({ mediaAuthorization: () => 'Bearer token-value' });
+		const item = { id: 'native-auth', title: 'Test', url: '/test.mp4', subtitles: [{ id: 'en', language: 'en', label: 'English', url: '/en.vtt' }] };
+		player.queue([item] as never);
+		player.item(item as never);
+		player.on('subtitleCue', () => {});
+		await player.subtitle(0);
+		expect(video.querySelector('track')).toBeNull();
+		player.off('subtitleCue');
+		await Promise.resolve();
+		await vi.waitFor(() => expect(video.querySelector('track')?.getAttribute('src')).toBe('/en.vtt?access_token=token-value'));
+	});
 	beforeEach(() => MockPlayer._resetRegistry());
 	afterEach(() => { MockPlayer._resetRegistry(); document.body.innerHTML = ''; });
 

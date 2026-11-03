@@ -35,6 +35,7 @@ import { defaultIdGenerator } from '../../adapters/id-generator/default';
 import { stateError } from '../../errors';
 import { AudioTrackState, QualityState } from '../../types';
 
+import { appendAuthTokenParam } from '../append-auth-token-param';
 import { authFetch } from '../auth-fetch';
 import { fillChapterGaps } from '../chapters/fill-gaps';
 
@@ -83,6 +84,7 @@ export interface MediaTracksState {
 
 	/** Abort handle of the in-flight sidecar fetch, if any. */
 	_sidecarAbort?: AbortController;
+	_nativeSubtitle?: { element: HTMLMediaElement; track: HTMLTrackElement; objectUrl?: string; abort: AbortController; onListenersChanged: (data: { name: string; count: number }) => void };
 
 	/** Subtitle style patch cache. Seeded on first read; mutated by `subtitleStyle(patch)`. */
 	_subtitleStyle?: SubtitleStyle;
@@ -421,6 +423,92 @@ function _selectSidecarSubtitleById(self: Internals, id: string): void {
 		void self.subtitle(idx);
 }
 
+function _nativeSubtitleFormat(track: { url?: string; type?: string }): 'vtt' | 'srt' | undefined {
+	const format = track.url?.match(/\.(vtt|srt)(?:[?#]|$)/iu)?.[1]?.toLowerCase() ?? track.type?.toLowerCase();
+	if (format === 'vtt' || format === 'text/vtt')
+		return 'vtt';
+	if (format === 'srt' || format === 'text/srt' || format === 'application/x-subrip')
+		return 'srt';
+	return undefined;
+}
+
+function _srtToVtt(source: string): string {
+	return `WEBVTT\n\n${source.replace(/^\uFEFF/u, '').replace(/\r\n?/gu, '\n')
+		.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/gu, '$1.$2')}`;
+}
+
+async function _startNativeSubtitle(self: Internals, track: { url?: string; language?: string; label?: string; type?: string }): Promise<void> {
+	const element = self.videoElement;
+	const format = _nativeSubtitleFormat(track);
+	if (!element || !track.url || !format)
+		return;
+
+	const native = {
+		element,
+		track: document.createElement('track'),
+		objectUrl: undefined as string | undefined,
+		abort: new AbortController(),
+		onListenersChanged: (_data: { name: string; count: number }): void => {},
+	};
+	const update = async (): Promise<void> => {
+		if (self._nativeSubtitle !== native)
+			return;
+		if (self.hasListeners('subtitleCue')) {
+			native.track.remove();
+			const active = self._sidecarSubtitle;
+			if (active) {
+				self.emit('subtitleCue', {
+					cues: [...active.active].map(cue => _toSubtitleCue(cue.payload)),
+					language: active.language,
+				});
+			}
+			return;
+		}
+		if (native.track.parentNode === element)
+			return;
+		if (format === 'vtt') {
+			const resolved = await self.resolveUrl(track.url!, 'subtitle');
+			if (self._nativeSubtitle !== native || self.hasListeners('subtitleCue'))
+				return;
+			native.track.src = appendAuthTokenParam(resolved.href, self._mediaAuthorization(resolved.href));
+		}
+		else {
+			if (!native.objectUrl) {
+				const raw = await authFetch<string>({
+					url: track.url!,
+					auth: self._authConfig,
+					fetch: self.options?.fetch,
+					liveAuth: () => self._authConfig,
+					signal: native.abort.signal,
+					responseType: 'text',
+				});
+				if (self._nativeSubtitle !== native || self.hasListeners('subtitleCue'))
+					return;
+				native.objectUrl = URL.createObjectURL(new Blob([_srtToVtt(raw)], { type: 'text/vtt' }));
+			}
+			native.track.src = native.objectUrl;
+		}
+		native.track.kind = 'subtitles';
+		native.track.label = track.label ?? track.language ?? 'Subtitles';
+		if (track.language)
+			native.track.srclang = track.language;
+		if (self._nativeSubtitle !== native || self.hasListeners('subtitleCue'))
+			return;
+		element.appendChild(native.track);
+		native.track.track.mode = 'showing';
+	};
+	native.onListenersChanged = (data): void => {
+		if (data.name === 'subtitleCue')
+			void update().catch(() => {});
+	};
+	self._nativeSubtitle = native;
+	self.on('listeners-changed', native.onListenersChanged);
+	try {
+		await update();
+	}
+	catch { /* A failed native load must not prevent track selection. */ }
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Mixin: media tracks — subtitles / audio tracks / quality levels / chapters.
 // Reads delegate to the active backend (when present); no-ops when the
@@ -439,6 +527,15 @@ export const mediaTracksMethods = {
 		this._sidecarEpoch = (this._sidecarEpoch ?? 0) + 1;
 		this._sidecarAbort?.abort();
 		this._sidecarAbort = undefined;
+		const native = this._nativeSubtitle;
+		if (native) {
+			this._nativeSubtitle = undefined;
+			native.abort.abort();
+			this.off('listeners-changed', native.onListenersChanged);
+			native.track.remove();
+			if (native.objectUrl)
+				URL.revokeObjectURL(native.objectUrl);
+		}
 		const ctx = this._sidecarSubtitle;
 		if (!ctx)
 			return;
@@ -716,6 +813,7 @@ export const mediaTracksMethods = {
 				return;
 			}
 			void _startSidecarSubtitle(this, sidecar);
+			await _startNativeSubtitle(this, sidecar);
 		})();
 	},
 
