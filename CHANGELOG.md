@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [2.6.1] — 2026-11-09
+
+### Fixed
+
+- `play()` emits `pause` when the browser refuses a play that already announced itself (autoplay policy), so the state and the play button return to paused instead of showing a stuck playing state.
+- Native sidecar subtitle fallback: when the subtitle renderer cannot take a sidecar track, the native text track is used.
+
 ## [2.6.0] — 2026-11-01
 
 ### Added
