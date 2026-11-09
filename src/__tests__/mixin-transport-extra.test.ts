@@ -471,6 +471,36 @@ describe('play() when the backend refuses', () => {
 		expect(prevented?.cause).toBe(refusal);
 	});
 
+	// `play` already went out, so listeners showing Pause need the matching
+	// `pause` or they stay on Pause over a silent element.
+	it('emits pause to undo the play event the refusal contradicts', async () => {
+		const player = setupPlayer();
+		installBackend(player, makeSimpleBackend({
+			play: vi.fn().mockRejectedValue(new Error('NotAllowedError')),
+		}));
+		const events: string[] = [];
+		player.on('play' as never, () => events.push('play'));
+		player.on('pause' as never, () => events.push('pause'));
+
+		await expect(player.play()).rejects.toThrow('NotAllowedError');
+
+		expect(events).toEqual(['play', 'pause']);
+	});
+
+	it('stays silent on a refusal when the play was silent', async () => {
+		const player = setupPlayer();
+		installBackend(player, makeSimpleBackend({
+			play: vi.fn().mockRejectedValue(new Error('NotAllowedError')),
+		}));
+		const events: string[] = [];
+		player.on('play' as never, () => events.push('play'));
+		player.on('pause' as never, () => events.push('pause'));
+
+		await expect(player.play({ silent: true })).rejects.toThrow('NotAllowedError');
+
+		expect(events).toEqual([]);
+	});
+
 	it('leaves playState on playing when the backend accepts', async () => {
 		const player = setupPlayer();
 		installBackend(player, makeSimpleBackend());

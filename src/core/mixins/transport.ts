@@ -218,11 +218,16 @@ export const transportMethods = {
 			// refuses — a browser declining autoplay without a gesture is the
 			// common case — leaving `_playState` on PLAYING makes every UI that
 			// renders from state show a Pause button over a silent element, and
-			// the viewer's first click pauses what was never playing.
+			// the viewer's first click pauses what was never playing. `play` has
+			// already gone out and the element never fires `pause` for a start it
+			// refused, so listeners get the matching `pause` from here.
+			const wasPlaying = this._playState === PlayState.PLAYING;
 			this._playState = PlayState.PAUSED;
 			if (this._phase === 'starting') {
 				this._transitionPhase(priorPhase === 'ready' ? 'ready' : 'paused');
 			}
+			if (wasPlaying && !result.data.silent)
+				this.emit('pause', result.data);
 			this.emit('playPrevented', {
 				reason: 'backend-refused',
 				cause,
